@@ -8,6 +8,7 @@
         "HnvDiagnostics"
     ],
     "properties": {
+        "commonPaths": {},
         "eventLogProviders": [
             "Application",
             "Hyper-V",

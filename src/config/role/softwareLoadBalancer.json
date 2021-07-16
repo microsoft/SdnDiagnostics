@@ -5,6 +5,7 @@
     ],
     "requiredModules": [],
     "properties": {
+        "commonPaths": {},
         "eventLogProviders": [
             "Application",
             "Microsoft-Windows-SlbMux",

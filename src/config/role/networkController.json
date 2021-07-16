@@ -7,6 +7,7 @@
         "NetworkController"
     ],
     "properties": {
+        "commonPaths": {},
         "eventLogProviders": [
             "Application",
             "Microsoft-Windows-NetworkController*",

@@ -5,6 +5,9 @@
     ],
     "requiredModules": [],
     "properties": {
+        "commonPaths": {
+            "rasGatewayTraces": "C:\\Windows\\Tracing"
+        },
         "eventLogProviders": [
             "Application",
             "Microsoft-Windows-RasAgileVpn",
