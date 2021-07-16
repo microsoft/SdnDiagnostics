@@ -254,6 +254,127 @@ function Get-SdnGatewayConfigurationState {
     $ProgressPreference = 'Continue'
 }
 
+function Get-SdnApiResources {
+    <#
+    .SYNOPSIS
+        Returns a list of gateways from network controller
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    try {
+        [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'SdnApiResources'
+        if(!(Test-Path -Path $outputDir.FullName -PathType Container)){
+            $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
+        }
+
+        foreach($resource in $SdnDiagnostics.Settings.apiResources){
+            try {
+                Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/','_') -FileType json
+            }
+            catch {
+                $_.Exception | Trace-Output -Level:Warning
+            }
+        }
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnNetworkControllerStateFiles {
+    <#
+    .SYNOPSIS
+        Gathers the IMOS dump files from each of the Network Controllers
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER ComputerName
+        The computer name(s) of the Network Controllers that the IMOS dump files need to be collected from
+    .PARAMETER OutputDirectory
+        Directory location to save results. By default it will create a new sub-folder called NetworkControllerState that the files will be copied to
+    .PARAMETER ExecutionTimeout
+        Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation
+        Default: 300
+    .EXAMPLE 
+        Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -ComputerName $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [int]$ExecutionTimeOut = 300
+    )
+    try {
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        [System.IO.FileInfo]$netControllerStatePath = $config.properties.netControllerStatePath
+        [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetworkControllerState'
+
+        if(!(Test-Path -Path $outputDir.FullName -PathType Container)){
+            $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
+        }
+
+        $scriptBlock = {
+            try {
+                if(Test-Path -Path $using:netControllerStatePath.FullName -PathType Container){
+                    Get-Item -Path $using:netControllerStatePath.FullName | Remove-Item -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
+                }
+    
+                $null = New-Item -Path $using:netControllerStatePath.FullName -ItemType Container -Force
+            }
+            catch {
+                $_ | Write-Error
+            }
+        }
+
+        # invoke scriptblock to clean up any stale NetworkControllerState files
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock $scriptBlock -Credential $Credential
+
+        # invoke the call to generate the files
+        # once the operation completes and returns true, then enumerate through the ComputerNames defined to collect the files via WinRM
+        $result = Start-SdnNcImosDump -NcUri $NcUri.AbsoluteUri -Credential $Credential -ExecutionTimeOut $ExecutionTimeOut
+        if($result){
+            foreach($obj in $ComputerName){
+                $session = New-PSRemotingSession -ComputerName $obj -Credential $Credential
+                if($session){
+                    "Copying Network Controller State files {0} via WinRM" -f $session.ComputerName | Trace-Output
+                    Copy-Item -FromSession $session -Path "$($config.properties.netControllerStatePath)\*" -Destination $outputDir.FullName -Force -Recurse
+                }
+            }
+        }        
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
 function Start-SdnDataCollection {
 
     <#

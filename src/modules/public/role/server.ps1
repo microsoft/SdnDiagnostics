@@ -617,3 +617,281 @@ function Get-VMNetworkAdapterPortProfile {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
+function Get-SdnOvsdbAddressMapping {
+    <#
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-OvsdbAddressMapping} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnOvsdbFirewallRuleTable {
+    <#
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-OvsdbFirewallRuleTable} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnOvsdbPhysicalPortTable {
+    <#
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-OvsdbPhysicalPortTable} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnOvsdbUcastMacRemoteTable {
+    <#
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-OvsdbUcastMacRemoteTable} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnOvsdbGlobalTable {
+    <#
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-OvsdbGlobalTable} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnVfpVmSwitchPorts {
+    <#
+    .SYNOPSIS
+        Returns a list of ports from within VFP
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-VfpVmSwitchPorts} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnProviderAddresses {
+    <#
+    .SYNOPSIS
+        Retrieves the Provider Address that is assigned to the computer
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-ProviderAddress} -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-VMNetAdapters {
+    <#
+    .SYNOPSIS
+        Retrieves the virtual machine network adapters that are allocated on a hyper-v host
+    .PARAMETER ComputerName
+        The computer name(s) that you want return VM adapters from
+    .PARAMETER VmState
+        The state of the virtual machine on the host. If ommitted, defaults to Running
+    .EXAMPLE
+        Get-VMNetAdapters -ComputerName (Get-SdnServers -ManagementAddressOnly)
+    #>
+
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [Microsoft.HyperV.PowerShell.VMState]$VmState = 'Running',
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$AsJob,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Switch]$PassThru,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [int]$Timeout = 300
+    )
+
+    try {
+        $scriptBlock = {
+            $virtualMachines = Get-VM | Where-Object {$_.State -eq $using:VmState}
+            $virtualMachines | Get-VMNetworkAdapter
+        }
+
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock $scriptBlock -Credential $Credential `
+            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
