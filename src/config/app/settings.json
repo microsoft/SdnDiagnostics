@@ -1,5 +1,5 @@
 {
-    "parentDirectory": "{0}\\SdnDataCollection",
+    "workingDirectory": "C:\\Windows\\Tracing\\SdnDataCollection",
     "apiResources": [
         "accessControlLists",
         "credentials",

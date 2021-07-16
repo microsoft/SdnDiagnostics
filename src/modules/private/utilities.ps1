@@ -64,7 +64,7 @@ function New-WorkingDirectory {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Path = (Get-Content -Path "$PSScriptRoot\..\..\config\app\settings.json" | ConvertFrom-Json).parentDirectory -f $("$env:SystemRoot\tracing")
+        [System.IO.FileInfo]$Path = (Get-Content -Path "$PSScriptRoot\..\..\config\app\settings.json" | ConvertFrom-Json).workingDirectory
     )
 
     try {
