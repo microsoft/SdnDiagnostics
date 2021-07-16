@@ -1,0 +1,28 @@
+{
+    "name": "Gateway",
+    "windowsFeature": [
+        "RemoteAccess"
+    ],
+    "requiredModules": [],
+    "properties": {
+        "eventLogProviders": [
+            "Application",
+            "Microsoft-Windows-RasAgileVpn",
+            "Microsoft-Windows-RemoteAccess",
+            "Microsoft-Windows-VPN",
+            "System"
+        ],
+        "regKeyPaths": [
+            "HKLM:\\Software\\Microsoft\\NetworkController",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent"
+        ],
+        "services": [
+            {
+                "name": "RemoteAccess",
+                "properties": {
+                    "displayName": "Routing and Remote Access"
+                }
+            }
+        ]
+    }
+}

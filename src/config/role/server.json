@@ -1,0 +1,43 @@
+{
+    "name": "Server",
+    "windowsFeature": [
+        "Hyper-V"
+    ],
+    "requiredModules": [
+        "Hyper-V",
+        "HnvDiagnostics"
+    ],
+    "properties": {
+        "eventLogProviders": [
+            "Application",
+            "Hyper-V",
+            "System"
+        ],
+        "regKeyPaths": [
+            "HKLM:\\Software\\Microsoft\\NetworkController",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\DnsProxy",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SlbHostAgent"
+        ],
+        "services": [
+            {
+                "name": "NcHostAgent",
+                "properties": {
+                    "displayName": "NC Host Agent"
+                }
+            },
+            {
+                "name": "SlbHostAgent",
+                "properties": {
+                    "displayName": "Software Load Balancer Host Agent"
+                }
+            },
+            {
+                "name": "DnsProxy",
+                "properties": {
+                    "displayName": "Dns Proxy"
+                }
+            }
+        ]
+    }
+}

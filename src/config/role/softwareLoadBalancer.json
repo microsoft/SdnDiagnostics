@@ -1,0 +1,28 @@
+{
+    "name": "SoftwareLoadBalancer",
+    "windowsFeature": [
+        "SoftwareLoadBalancer"
+    ],
+    "requiredModules": [],
+    "properties": {
+        "eventLogProviders": [
+            "Application",
+            "Microsoft-Windows-SlbMux",
+            "System"
+        ],
+        "regKeyPaths": [
+            "HKLM:\\Software\\Microsoft\\NetworkController",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SlbMux",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SlbMuxDriver"
+        ],
+        "services": [
+            {
+                "name": "SlbMux",
+                "properties": {
+                    "displayName": "Software Load Balancer Host Agent"
+                }
+            }
+        ]
+    }
+}
