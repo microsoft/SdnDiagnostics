@@ -70,7 +70,8 @@
         'Get-SdnApiResources',
         'Get-SdnNetworkControllerStateFiles',
         'Get-VMNetAdapters',
-        'Start-SdnDataCollection'
+        'Start-SdnDataCollection',
+        'Get-SdnInfrastructureInfo'
     )
 
     # Variables to export from this module
