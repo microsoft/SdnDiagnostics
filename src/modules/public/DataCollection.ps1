@@ -284,7 +284,7 @@ function Get-SdnApiResources {
 
         foreach($resource in $SdnDiagnostics.Settings.apiResources){
             try {
-                Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/','_') -FileType json
+                Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource -Credential $Credential | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/','_') -FileType json
             }
             catch {
                 $_.Exception | Trace-Output -Level:Warning
