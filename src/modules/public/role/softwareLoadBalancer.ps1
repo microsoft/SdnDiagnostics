@@ -42,8 +42,9 @@ function Get-SdnSlbStateInformation {
         }
 
         $resultObject = ConvertFrom-Json $putResult.Content
-        $operationId = $resultObject.properties.operationId
-        [System.String]$operationURI = "{0}/{1}" -f $uri, $operationId
+        "Response received $($putResult.Content)" | Trace-Output -Level:Verbose
+        $operationResource = $resultObject.properties.slbStateResult.resourceRef
+        [System.String]$operationURI = "{0}/networking/v1{1}" -f $NcUri.AbsoluteUri, $operationResource
 
         while($true){
             if($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut){
@@ -66,7 +67,8 @@ function Get-SdnSlbStateInformation {
                 -UseDefaultCredentials
             }
 
-            if(($stateResult | ConvertFrom-Json).properties.provisioningState -ine 'Updating'){
+            $stateResult = $stateResult.Content | ConvertFrom-Json
+            if($stateResult.properties.provisioningState -ine 'Updating'){
                 break
             }
         }
@@ -78,7 +80,7 @@ function Get-SdnSlbStateInformation {
             throw New-Object System.Exception($msg)
         }
         else {
-            return $stateResult.Content
+            return $stateResult.properties.output
         }
     }
     catch {
