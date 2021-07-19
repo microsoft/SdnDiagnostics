@@ -71,7 +71,10 @@
         'Get-SdnNetworkControllerStateFiles',
         'Get-VMNetAdapters',
         'Start-SdnDataCollection',
-        'Get-SdnInfrastructureInfo'
+        'Get-SdnInfrastructureInfo',
+        'Get-SdnServiceFabricReplica',
+        'Get-SdnServiceFabricService',
+        'Invoke-SdnServiceFabricCommand'
     )
 
     # Variables to export from this module
