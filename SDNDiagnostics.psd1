@@ -69,7 +69,8 @@
         'Install-SdnDiagnostics',
         'Get-SdnApiResources',
         'Get-SdnNetworkControllerStateFiles',
-        'Get-VMNetAdapters'
+        'Get-VMNetAdapters',
+        'Start-SdnDataCollection'
     )
 
     # Variables to export from this module

@@ -438,5 +438,5 @@ function Start-SdnDataCollection {
     "Results will be saved to {0}" -f $outputDir.FullName | Trace-Output
 
     "Generating output of the NC API resources" | Trace-Output
-    Get-SdnApiResources -NcUri $NcUri.AbsoluteUri -OutputDirectory $OutputDirectory.FullName -Credential $Credential
+    Get-SdnApiResources -NcUri $NcUri.AbsoluteUri -OutputDirectory $outputDir.FullName -Credential $Credential
 }
