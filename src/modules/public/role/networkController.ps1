@@ -325,16 +325,16 @@ function Get-SdnInfrastructureInfo {
 
 function Invoke-SdnServiceFabricCommand {
     <#
-        .SYNOPSIS
-            Connects to the service fabric ring that is used by Network Controller.
-        .PARAMETER ScriptBlock
-            A script block containing the service fabric commands to invoke.
-        .PARAMETER NetworkController
-            Name of the Network Controller to connect to.
-        .PARAMETER Credential
-            The NC Admin Credential if different from current logon user credential.
-        .EXAMPLE
-            PS> Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterHealth }    
+    .SYNOPSIS
+        Connects to the service fabric ring that is used by Network Controller.
+    .PARAMETER ScriptBlock
+        A script block containing the service fabric commands to invoke.
+    .PARAMETER NetworkController
+        Name of the Network Controller to connect to.
+    .PARAMETER Credential
+        The NC Admin Credential if different from current logon user credential.
+    .EXAMPLE
+        PS> Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterHealth }    
     #>
 
     [CmdletBinding()]
@@ -404,7 +404,7 @@ function Get-SdnServiceFabricService {
     param(
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String]$ApplicationName,
+        [System.String]$ApplicationName = 'fabric:/NetworkController',
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [System.String]$ServiceName,
@@ -426,32 +426,18 @@ function Get-SdnServiceFabricService {
     try {
         switch($PSCmdlet.ParameterSetName){
             'NamedService' {
-                if($PSBoundParameters.ContainsKey('ApplicationName')){
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName
-                    }
+                $sb = {
+                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName
                 }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication | Get-ServiceFabricService -ServiceName $using:ServiceName
-                    }
-                }             
             }
 
             'NamedServiceTypeName' {
-                if($PSBoundParameters.ContainsKey('ApplicationName')){
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
-                    }
-                }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
-                    }
+                $sb = {
+                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
                 }
             }
 
-            default{
+            default {
                 $sb = {
                     Get-ServiceFabricApplication | Get-ServiceFabricService
                 }
@@ -512,28 +498,14 @@ function Get-SdnServiceFabricReplica {
     try {
         switch($PSCmdlet.ParameterSetName){
             'NamedService' {
-                if($PSBoundParameters.ContainsKey('ApplicationName')){
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                    }
+                $sb = {
+                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
                 }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication | Get-ServiceFabricService -ServiceName $using:ServiceName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                    }
-                }             
             }
 
             'NamedServiceTypeName' {
-                if($PSBoundParameters.ContainsKey('ApplicationName')){
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                    }
-                }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                    }
+                $sb = {
+                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
                 }
             }
 
@@ -549,7 +521,8 @@ function Get-SdnServiceFabricReplica {
             $replica = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential
         }
 
-
+        # as network controller only leverages stateful service fabric services, we will have Primary and ActiveSecondary replicas
+        # if the -Primary switch was declared, we only want to return the primary replica for that particular service
         if($Primary){
             return ($replica | Where-Object {$_.ReplicaRole -ieq 'Primary'})
         }
@@ -597,13 +570,25 @@ function Move-SdnServiceFabricReplica {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
     try {
-        if($PSCmdlet.ParameterSetName -eq 'NamedService') {
-            $service = Get-SdnServiceFabricService -NetworkController $NetworkController -ServiceName $ServiceName -Credential $Credential
+        if($PSCmdlet.ParameterSetName -eq 'NamedService'){
+            if($NetworkController){
+                $service = Get-SdnServiceFabricService -NetworkController $NetworkController -ServiceName $ServiceName -Credential $Credential
+            }
+            else {
+                $service = Get-SdnServiceFabricService -ServiceName $ServiceName -Credential $Credential
+            }
         }
-        elseif($PSCmdlet.ParameterSetName -eq 'NamedServiceTypeName') {
-            $service = Get-SdnServiceFabricService -NetworkController $NetworkController -ServiceTypeName $ServiceTypeName -Credential $Credential
+        elseif($PSCmdlet.ParameterSetName -eq 'NamedServiceTypeName'){
+            if($NetworkController){
+                $service = Get-SdnServiceFabricService -NetworkController $NetworkController -ServiceTypeName $ServiceTypeName -Credential $Credential
+            }
+            else {
+                $service = Get-SdnServiceFabricService -ServiceTypeName $ServiceTypeName -Credential $Credential
+            }
         }
 
+        # regardless if user defined ServiceName or ServiceTypeName, the $service object returned will include the ServiceName property
+        # which we will use to perform the move operation with
         $sb = {
             Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName -Verbose
         }
