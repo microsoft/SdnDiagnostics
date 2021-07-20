@@ -360,7 +360,8 @@ function Invoke-SdnServiceFabricCommand {
         foreach($controller in $NetworkController){
             $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
             $connection = Invoke-Command -Session $session -HideComputerName -ScriptBlock {
-                Connect-ServiceFabricCluster
+                # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+                Connect-ServiceFabricCluster 3>$null 4>$null
             }
 
             if($connection){
