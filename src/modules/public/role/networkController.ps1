@@ -173,9 +173,6 @@ function Get-SdnLoadBalancerMuxes {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ResourceIdOnly,
-
-        [Parameter(Mandatory = $false)]
         [switch]$ManagementAddressOnly,
 
         [Parameter(Mandatory = $false)]
@@ -225,9 +222,6 @@ function Get-SdnGateways {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ResourceIdOnly,
-
-        [Parameter(Mandatory = $false)]
         [switch]$ManagementAddressOnly,
 
         [Parameter(Mandatory = $false)]
@@ -246,8 +240,7 @@ function Get-SdnGateways {
 
         if($ResourceIdOnly){
             return $result.resourceId
-        }elseif($ManagementAddressOnly)
-        {
+        }elseif($ManagementAddressOnly){
             $managementAddresses = @()
             foreach ($resource in $result) {
                 $managementAddresses += Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
