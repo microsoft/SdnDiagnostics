@@ -597,15 +597,17 @@ function Get-VMNetworkAdapterPortProfile {
 
         foreach($adapter in $netAdapters | Where-Object {$_.IsManagementOs -eq $false}){
             $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $PortProfileFeatureId -VMNetworkAdapter $adapter
-
+            $portId = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)[0].data.deviceid
             if($null -eq $currentProfile){
                 "{0} does not have a port profile" -f $adapter.Name | Trace-Output -Level:Warning
             }
             else {
                 $arrayList += [PSCustomObject]@{
+                    VMName = $adapter.VMName
                     Name = $adapter.Name
                     MacAddress = $adapter.MacAddress
-                    Id = $currentProfile.SettingData.ProfileId
+                    PortId = $portId
+                    ProfileId = $currentProfile.SettingData.ProfileId
                     Data = $currentProfile.SettingData.ProfileData
                 }
             }
