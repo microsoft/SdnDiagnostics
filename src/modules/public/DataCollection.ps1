@@ -330,6 +330,11 @@ function Get-SdnNetworkControllerStateFiles {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300
     )
     try {
@@ -359,7 +364,7 @@ function Get-SdnNetworkControllerStateFiles {
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the ComputerNames defined to collect the files via WinRM
-        $result = Start-SdnNcImosDump -NcUri $NcUri.AbsoluteUri -Credential $Credential -ExecutionTimeOut $ExecutionTimeOut
+        $result = Invoke-SdnNetworkControllerStateDump -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
         if($result){
             foreach($obj in $ComputerName){
                 $session = New-PSRemotingSession -ComputerName $obj -Credential $Credential

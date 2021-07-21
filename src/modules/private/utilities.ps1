@@ -195,9 +195,11 @@ function New-PSRemotingSession {
             else {
                 try {
                     if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+                        "PSRemotingSession use provided credential {0}" -f $Credential.UserName | Trace-Output -Level:Verbose
                         $session = New-PSSession -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
                     else {
+                        "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
                         $session = New-PSSession -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
 

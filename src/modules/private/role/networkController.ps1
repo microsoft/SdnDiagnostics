@@ -55,7 +55,7 @@ function Invoke-SdnNetworkControllerStateDump {
                 throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
             }
 
-            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkControllerState
+            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkControllerState -Credential $Credential
             if($result.properties.provisioningState -ine 'Updating'){
                 break
             }
