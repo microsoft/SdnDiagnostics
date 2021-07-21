@@ -190,16 +190,18 @@ function New-PSRemotingSession {
             # if no session already exists or Force is defined, then create a new remote session
             if($currentActiveSessions.ComputerName -contains $obj -and !$Force){
                 $session = ($currentActiveSessions | Where-Object {$_.ComputerName -eq $obj})[0]
+                "Located existing powershell session {0}" -f $session.Name | Trace-Output -Level:Verbose
             }
             else {
                 try {
-                    "Creating powershell session to {0}" -f $obj | Trace-Output -Level:Verbose
                     if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
                         $session = New-PSSession -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
                     else {
                         $session = New-PSSession -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
+
+                    "Created powershell session {0} to {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose
                 }
                 catch {
                     "Unable to create powershell session to {0}`n`t{1}" -f $obj, $_.Exception | Trace-Output -Level:Warning
