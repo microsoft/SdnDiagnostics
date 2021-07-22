@@ -173,7 +173,7 @@ function Get-SdnLoadBalancerMuxes {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ResourceIdOnly,
+        [switch]$ManagementAddressOnly,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -189,8 +189,13 @@ function Get-SdnLoadBalancerMuxes {
             }
         }
 
-        if($ResourceIdOnly){
-            return $result.resourceId
+        if($ManagementAddressOnly){
+            $managementAddresses = [System.Collections.ArrayList]::new()
+            foreach ($resource in $result) {
+                $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
+                [void]$managementAddresses.Add($virtualServerMgmtAddress)
+            }
+            return $managementAddresses
         }
         else{
             return $result
@@ -215,7 +220,7 @@ function Get-SdnGateways {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ResourceIdOnly,
+        [switch]$ManagementAddressOnly,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -231,8 +236,13 @@ function Get-SdnGateways {
             }
         }
 
-        if($ResourceIdOnly){
-            return $result.resourceId
+        if($ManagementAddressOnly){
+            $managementAddresses = [System.Collections.ArrayList]::new()
+            foreach ($resource in $result) {
+                $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
+                [void]$managementAddresses.Add($virtualServerMgmtAddress)
+            }
+            return $managementAddresses
         }
         else{
             return $result
@@ -242,7 +252,6 @@ function Get-SdnGateways {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-
 
 function Get-SdnInfrastructureInfo {
     <#
@@ -293,12 +302,12 @@ function Get-SdnInfrastructureInfo {
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.MUX))
         {
-            $Global:SdnDiagnostics.MUX = Get-SdnLoadBalancerMuxes -NcUri $($Global:SdnDiagnostics.NcUrl) -ResourceIdOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.MUX = Get-SdnLoadBalancerMuxes -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Gateway))
         {
-            $Global:SdnDiagnostics.Gateway = Get-SdnGateways -NcUri $($Global:SdnDiagnostics.NcUrl) -ResourceIdOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.Gateway = Get-SdnGateways -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Host))
@@ -309,7 +318,7 @@ function Get-SdnInfrastructureInfo {
 
 
         $SdnInfraInfo = [PSCustomObject]@{
-            RestName = $Global:SdnDiagnostics.NcUrl
+            NcUrl = $Global:SdnDiagnostics.NcUrl
             NC = $Global:SdnDiagnostics.NC
             MUX = $Global:SdnDiagnostics.MUX
             Gateway = $Global:SdnDiagnostics.Gateway
