@@ -1,4 +1,4 @@
-function Install-SdnDiagnostics {
+function Install-SdnDiagnostic {
     <##>
 
     [CmdletBinding()]

@@ -70,7 +70,7 @@ function Get-SdnResource {
     }
 }
 
-function Get-SdnServers {
+function Get-SdnServer {
     <#
     .SYNOPSIS
         Returns a list of servers from network controller
@@ -116,7 +116,7 @@ function Get-SdnServers {
     }
 }
 
-function Get-SdnNetworkControllers {
+function Get-SdnNetworkController {
     <#
     .SYNOPSIS
         Returns a list of servers from network controller
@@ -159,7 +159,7 @@ function Get-SdnNetworkControllers {
     }
 }
 
-function Get-SdnLoadBalancerMuxes {
+function Get-SdnLoadBalancerMux {
     <#
     .SYNOPSIS
         Returns a list of load balancer muxes from network controller
@@ -206,7 +206,7 @@ function Get-SdnLoadBalancerMuxes {
     }
 }
 
-function Get-SdnGateways {
+function Get-SdnGateway {
     <#
     .SYNOPSIS
         Returns a list of gateways from network controller
@@ -297,23 +297,23 @@ function Get-SdnInfrastructureInfo {
         
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.NC))
         {
-            $Global:SdnDiagnostics.NC = Get-SdnNetworkControllers -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+            $Global:SdnDiagnostics.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.MUX))
         {
-            $Global:SdnDiagnostics.MUX = Get-SdnLoadBalancerMuxes -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.MUX = Get-SdnLoadBalancerMux -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Gateway))
         {
-            $Global:SdnDiagnostics.Gateway = Get-SdnGateways -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.Gateway = Get-SdnGateway -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Host))
         {
             #The credential for NC REST API could be different from NC Admin credential. Caller need to determine the credential to be used. 
-            $Global:SdnDiagnostics.Host = Get-SdnServers -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.Host = Get-SdnServer -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
         }
 
 

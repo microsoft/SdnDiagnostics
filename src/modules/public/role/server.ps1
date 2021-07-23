@@ -213,7 +213,7 @@ function Get-OvsdbGlobalTable {
     }
 }
 
-function Get-VfpVmSwitchPorts {
+function Get-VfpVmSwitchPort {
     <#
     .SYNOPSIS
         Returns a list of ports from within VFP
@@ -563,7 +563,7 @@ function Get-VfpPortRule {
     }
 }
 
-function Get-VMNetworkAdapterPortProfile {
+function Get-VMNetAdapterPortProfile {
     <#
     #>
 
@@ -785,7 +785,7 @@ function Get-SdnOvsdbGlobalTable {
     }
 }
 
-function Get-SdnVfpVmSwitchPorts {
+function Get-SdnVfpVmSwitchPort {
     <#
     .SYNOPSIS
         Returns a list of ports from within VFP
@@ -812,7 +812,7 @@ function Get-SdnVfpVmSwitchPorts {
     )
 
     try {
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-VfpVmSwitchPorts} -Credential $Credential `
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock {Get-VfpVmSwitchPort} -Credential $Credential `
             -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
     }
     catch {
@@ -820,7 +820,7 @@ function Get-SdnVfpVmSwitchPorts {
     }
 }
 
-function Get-SdnProviderAddresses {
+function Get-SdnProviderAddress {
     <#
     .SYNOPSIS
         Retrieves the Provider Address that is assigned to the computer
@@ -850,7 +850,7 @@ function Get-SdnProviderAddresses {
     }
 }
 
-function Get-VMNetAdapters {
+function Get-VMNetAdapter {
     <#
     .SYNOPSIS
         Retrieves the virtual machine network adapters that are allocated on a hyper-v host
@@ -859,7 +859,7 @@ function Get-VMNetAdapters {
     .PARAMETER VmState
         The state of the virtual machine on the host. If ommitted, defaults to Running
     .EXAMPLE
-        Get-VMNetAdapters -ComputerName (Get-SdnServers -ManagementAddressOnly)
+        Get-VMNetAdapter -ComputerName (Get-SdnServer -ManagementAddressOnly)
     #>
 
     param (
