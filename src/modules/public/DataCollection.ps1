@@ -115,7 +115,7 @@ function Get-SdnServerConfigurationState {
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVmqQueue' -FileType txt -Format Table
         Get-VMSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType txt -Format List 
         Get-VMSwitchTeam | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitchTeam' -FileType txt -Format List
-        Get-VMNetworkAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterPortProfile' -FileType txt -Format Table
+        Get-VMNetAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetAdapterPortProfile' -FileType txt -Format Table
 
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
@@ -254,7 +254,7 @@ function Get-SdnGatewayConfigurationState {
     $ProgressPreference = 'Continue'
 }
 
-function Get-SdnApiResources {
+function Get-SdnApiResource {
     <#
     .SYNOPSIS
         Returns a list of gateways from network controller
@@ -296,7 +296,7 @@ function Get-SdnApiResources {
     }
 }
 
-function Get-SdnNetworkControllerStateFiles {
+function Get-SdnNetworkControllerState {
     <#
     .SYNOPSIS
         Gathers the IMOS dump files from each of the Network Controllers
@@ -443,5 +443,5 @@ function Start-SdnDataCollection {
     "Results will be saved to {0}" -f $outputDir.FullName | Trace-Output
 
     "Generating output of the NC API resources" | Trace-Output
-    Get-SdnApiResources -NcUri $NcUri.AbsoluteUri -OutputDirectory $outputDir.FullName -Credential $Credential
+    Get-SdnApiResource -NcUri $NcUri.AbsoluteUri -OutputDirectory $outputDir.FullName -Credential $Credential
 }
