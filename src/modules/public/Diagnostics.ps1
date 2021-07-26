@@ -74,7 +74,7 @@ function Test-SdnJumboPackets {
     .EXAMPLE
         PS> Test-SdnJumboPackets -ComputerName 'node01','node02'
     .EXAMPLE
-        PS> Test-SdnJumboPackets -ComputerName (Get-SdnServers -NcUri $NcUri -ServerNamesOnly)
+        PS> Test-SdnJumboPackets -ComputerName (Get-SdnServer -NcUri $NcUri -ServerNamesOnly)
     #>
 
     [CmdletBinding()]
@@ -96,11 +96,11 @@ function Test-SdnJumboPackets {
             }
 
             "Getting provider addresses from {0}" -f ($ComputerName -join ', ') | Trace-Output
-            $providerAddresses = Get-SdnProviderAddresses -ComputerName $Computername
+            $providerAddresses = Get-SdnProviderAddress -ComputerName $Computername
         }
         else {
             "Getting provider addresses from {0}" -f $NcUri | Trace-Output
-            $providerAddresses = Get-SdnProviderAddresses -ComputerName (Get-SdnServers -NcUri $NcUri -ServerNamesOnly) 
+            $providerAddresses = Get-SdnProviderAddress -ComputerName (Get-SdnServer -NcUri $NcUri -ServerNamesOnly) 
         }
 
         if(!$providerAddresses){
