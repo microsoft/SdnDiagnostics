@@ -11,14 +11,14 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Directory | Select-Object -ExpandProperty Name
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Directory | Select-Object -ExpandProperty Name
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$Role,
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$ValidationTest
@@ -26,16 +26,13 @@ function Debug-SdnFabricInfrastructure {
 
     try {
         $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-        $params = {
-            NcUri = $NcUri 
-            Credential = $Credential
-        }
+        $Global:SdnDiagnostics.Credential = $Credential
 
         if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\health\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         elseif($PSBoundParameters.ContainsKey('ValidationTest')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Recurse | Where-Object {$_.BaseName -ieq $ValidationTest}
+            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Recurse | Where-Object {$_.BaseName -ieq $ValidationTest}
             if($healthValidationScripts.Count -gt 1){
                 throw New-Object System.Exception("Unexpected number of health validations returned")
             }
@@ -61,9 +58,11 @@ function Debug-SdnFabricInfrastructure {
             
             # execute the function
             if($function){
-                Invoke-Command -ScriptBlock $params    
+                Invoke-Expression $function
             }
         }
+
+        $Global:SdnDiagnostics.Credential = $null
     }
     catch{
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
