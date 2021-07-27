@@ -30,7 +30,7 @@ function Install-SdnDiagnostic {
             Copy-Item -Path $modulePath.FullName -Destination 'C:\Program Files\WindowsPowerShell\Modules' -Recurse -ToSession $session -Force
 
             # ensure that we destroy the current pssessions for the computer to prevent any odd caching issues
-            Get-PSSession -ComputerName $session.ComputerName | Remove-PSSession
+            $session | Remove-PSSession
         }
     }
     catch {
