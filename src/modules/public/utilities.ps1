@@ -17,7 +17,7 @@ function Install-SdnDiagnostic {
         "SdnDiagnostics module found at {0}" -f $modulePath.FullName | Trace-Output -Level:Verbose
 
         if($modulePath){
-            Copy-FileToPSRemoteSession -FileName $modulePath.FullName -ComputerName $ComputerName -Destination 'C:\Program Files\WindowsPowerShell\Modules' `
+            Copy-FileToPSRemoteSession -Path $modulePath.FullName -ComputerName $ComputerName -Destination 'C:\Program Files\WindowsPowerShell\Modules' `
                 -Credential $Credential -Recurse -Force
         }
 

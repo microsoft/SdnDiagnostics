@@ -367,7 +367,7 @@ function Get-SdnNetworkControllerState {
         $result = Invoke-SdnNetworkControllerStateDump -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
         if($result){
             foreach($obj in $ComputerName){
-                Copy-FileFromPSRemoteSession -FileName "$($config.properties.netControllerStatePath)\*" -ComputerName $obj -Destination $outputDir.FullName
+                Copy-FileFromPSRemoteSession -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $obj -Destination $outputDir.FullName
             }
         }        
     }
