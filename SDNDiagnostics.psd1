@@ -64,6 +64,10 @@
         'Get-SdnResource',
         'Get-SdnServerConfigurationState',
         'Get-SdnServer',
+        'Get-SdnServiceFabricApplicationHealth',
+        'Get-SdnServiceFabricClusterHealth',
+        'Get-SdnServiceFabricClusterManifest',
+        'Get-SdnServiceFabricNode'
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',
         'Get-SdnSlbMuxConfigurationState'
