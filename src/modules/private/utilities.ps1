@@ -549,7 +549,7 @@ function Copy-FileFromPSRemoteSession {
     <#
     .SYNOPSIS
         Copies an item from one location to another using FromSession
-    .PARAMETER FileName
+    .PARAMETER Path
         Specifies, as a string array, the path to the items to copy. Wildcard characters are permitted.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required.
@@ -568,7 +568,7 @@ function Copy-FileFromPSRemoteSession {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [System.String[]]$FileName,
+        [System.String[]]$Path,
 
         [Parameter(Mandatory = $true)]
         [System.String[]]$ComputerName,
@@ -604,7 +604,7 @@ function Copy-FileFromPSRemoteSession {
                 }
    
                 "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $outputDirectory.FullName, $session.Name | Trace-Output
-                Copy-Item -Path $FileName -Destination $outputDirectory.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                Copy-Item -Path $Path -Destination $outputDirectory.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
             }
             else {
                 "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
@@ -621,7 +621,7 @@ function Copy-FileToPSRemoteSession {
     <#
     .SYNOPSIS
         Copies an item from one location to another using ToSession
-    .PARAMETER FileName
+    .PARAMETER Path
         Specifies, as a string array, the path to the items to copy. Wildcard characters are permitted.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required.
@@ -640,7 +640,7 @@ function Copy-FileToPSRemoteSession {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [System.String[]]$FileName,
+        [System.String[]]$Path,
 
         [Parameter(Mandatory = $true)]
         [System.String[]]$ComputerName,
@@ -670,7 +670,7 @@ function Copy-FileToPSRemoteSession {
             $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
             if($session){
                 "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
-                Copy-Item -Path $FileName -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
             }
             else {
                 "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
