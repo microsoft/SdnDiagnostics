@@ -70,7 +70,7 @@
         'Get-SdnSlbStateInformation',
         'Get-SdnVfpVmSwitchPort',
         'Get-VfpVmSwitchPort',
-        'Get-VMNetAdapter',
+        'Get-SdnVMNetAdapter',
         'Get-VMNetAdapterPortProfile',
         'Install-SdnDiagnostic',
         'Invoke-SdnServiceFabricCommand',

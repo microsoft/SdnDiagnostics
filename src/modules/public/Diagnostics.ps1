@@ -2,7 +2,12 @@ function Debug-SdnFabricInfrastructure {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
+        [System.String]$NetworkController,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
@@ -20,7 +25,11 @@ function Debug-SdnFabricInfrastructure {
     )
 
     try {
-        $Global:SdnDiagnostics.NcUrl = $NcUri.AbsoluteUri
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
+        $params = {
+            NcUri = $NcUri 
+            Credential = $Credential
+        }
 
         if($PSBoundParameters.ContainsKey('Role')){
             $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
@@ -51,8 +60,8 @@ function Debug-SdnFabricInfrastructure {
             $function = $functionName | Where-Object {$_ -like "Test-*"} | Select-Object -First 1
             
             # execute the function
-            if($null -ne $function){
-                Invoke-Expression -Command $function
+            if($function){
+                Invoke-Command -ScriptBlock $params    
             }
         }
     }
