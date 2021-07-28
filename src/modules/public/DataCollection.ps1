@@ -363,15 +363,11 @@ function Get-SdnNetworkControllerState {
         Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock $scriptBlock -Credential $Credential
 
         # invoke the call to generate the files
-        # once the operation completes and returns true, then enumerate through the ComputerNames defined to collect the files via WinRM
+        # once the operation completes and returns true, then enumerate through the ComputerNames defined to collect the files
         $result = Invoke-SdnNetworkControllerStateDump -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
         if($result){
             foreach($obj in $ComputerName){
-                $session = New-PSRemotingSession -ComputerName $obj -Credential $Credential
-                if($session){
-                    "Copying Network Controller State files {0} via WinRM" -f $session.ComputerName | Trace-Output
-                    Copy-Item -FromSession $session -Path "$($config.properties.netControllerStatePath)\*" -Destination $outputDir.FullName -Force -Recurse
-                }
+                Copy-FileFromPSRemoteSession -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $obj -Destination $outputDir.FullName
             }
         }        
     }
