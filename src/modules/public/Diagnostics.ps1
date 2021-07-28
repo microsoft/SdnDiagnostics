@@ -58,13 +58,14 @@ function Debug-SdnFabricInfrastructure {
             
             # execute the function
             if($function){
-                Invoke-Expression $function
+                Invoke-Expression -Command $function
             }
         }
 
         $Global:SdnDiagnostics.Credential = $null
     }
-    catch{
+    catch {
+        $Global:SdnDiagnostics.Credential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     } 
 }
