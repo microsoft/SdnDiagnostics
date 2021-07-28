@@ -79,7 +79,9 @@
         'Install-SdnDiagnostic',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
-        'Start-SdnDataCollection'
+        'Start-SdnDataCollection',
+        'Start-SdnTraceCapture',
+        'Stop-SdnTraceCapture'
     )
 
     # Variables to export from this module
