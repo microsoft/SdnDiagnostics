@@ -13,11 +13,7 @@ function Trace-Output {
 
     # Verify we've made the working directory and trace file
     if([string]::IsNullOrEmpty((Get-TraceOutputFile))){
-        $workingDir = Get-WorkingDirectory
-
-        if($null -eq $workingDir){
-            New-WorkingDirectory
-        }
+        New-WorkingDirectory
     }
 
     $traceFile = (Get-TraceOutputFile)
@@ -64,17 +60,15 @@ function New-WorkingDirectory {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Path = (Get-Content -Path "$PSScriptRoot\..\..\config\app\settings.json" | ConvertFrom-Json).workingDirectory
+        [System.IO.FileInfo]$Path = $global:SdnDiagnostics.Settings.workingDirectory
     )
 
     try {
 
         # create the working directory and set the global cache
-        if(!(Test-Path -Path $Path -PathType Container)){
-            $null = New-Item -Path $Path -ItemType Directory -Force
+        if(!(Test-Path -Path $Path.FullName -PathType Container)){
+            $null = New-Item -Path $Path.FullName -ItemType Directory -Force
         }
-
-        $global:SdnDiagnostics.WorkingDirectory = $Path.FullName
 
         # create the trace file
         New-TraceOutputFile
@@ -85,7 +79,7 @@ function New-WorkingDirectory {
 }
 
 function Get-WorkingDirectory {
-    return [System.IO.FileInfo]$global:SdnDiagnostics.WorkingDirectory
+    return [System.IO.FileInfo]$global:SdnDiagnostics.Settings.workingDirectory
 }
 
 function Get-TraceOutputFile {
@@ -95,7 +89,7 @@ function Get-TraceOutputFile {
 function Set-TraceOutputFile {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$Path
     )
 

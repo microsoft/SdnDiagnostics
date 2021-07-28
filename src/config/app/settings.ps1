@@ -1,9 +1,8 @@
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
-    Cache = @{}
-    NcUrl = $null
+    Credential = $null
+    EnvironmentInfo = @{}
     Settings = (Get-Content -Path "$PSScriptRoot\settings.json" | ConvertFrom-Json)
     TraceFilePath = $null
-    WorkingDirectory = $null
 }
 
 enum TraceLevel {

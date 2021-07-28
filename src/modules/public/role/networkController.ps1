@@ -257,11 +257,11 @@ function Get-SdnInfrastructureInfo {
     <#
     .SYNOPSIS
         Get the SDN Infrastrucutre Info based on one NC VM. The function will update:
-        - $Global:SdnDiagnostics.NcUrl
-        - $Global:SdnDiagnostics.NC
-        - $Global:SdnDiagnostics.MUX
-        - $Global:SdnDiagnostics.Gateway
-        - $Global:SdnDiagnostics.Host
+        - $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        - $Global:SdnDiagnostics.EnvironmentInfo.NC
+        - $Global:SdnDiagnostics.EnvironmentInfo.MUX
+        - $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        - $Global:SdnDiagnostics.EnvironmentInfo.Host
     .PARAMETER NcVM
         Specifies one of the network controller VM name.
     .PARAMETER Credential
@@ -289,43 +289,34 @@ function Get-SdnInfrastructureInfo {
 
     try {
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.NcUrl))
+        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))
         {
             $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {Get-NetworkController} -Credential $Credential
-            $Global:SdnDiagnostics.NcUrl = "https://$($result.RestName)"
+            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = "https://$($result.RestName)"
         }
         
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.NC))
+        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NC))
         {
-            $Global:SdnDiagnostics.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+            $Global:SdnDiagnostics.EnvironmentInfo.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.MUX))
+        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.MUX))
         {
-            $Global:SdnDiagnostics.MUX = Get-SdnLoadBalancerMux -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.EnvironmentInfo.MUX = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Gateway))
+        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway))
         {
-            $Global:SdnDiagnostics.Gateway = Get-SdnGateway -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.Host))
+        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Host))
         {
             #The credential for NC REST API could be different from NC Admin credential. Caller need to determine the credential to be used. 
-            $Global:SdnDiagnostics.Host = Get-SdnServer -NcUri $($Global:SdnDiagnostics.NcUrl) -ManagementAddressOnly -Credential $NcRestCredential
+            $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
-
-        $SdnInfraInfo = [PSCustomObject]@{
-            NcUrl = $Global:SdnDiagnostics.NcUrl
-            NC = $Global:SdnDiagnostics.NC
-            MUX = $Global:SdnDiagnostics.MUX
-            Gateway = $Global:SdnDiagnostics.Gateway
-            Host = $Global:SdnDiagnostics.Host
-        }
-
-        return $SdnInfraInfo
+        return $Global:SdnDiagnostics.EnvironmentInfo
     } 
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
