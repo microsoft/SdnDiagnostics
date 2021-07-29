@@ -22,7 +22,7 @@ function Install-SdnDiagnostic {
         }
 
         # ensure that we destroy the current pssessions for the computer to prevent any odd caching issues
-        Remove-PSRemotingSession -ComputerName $ComputerName
+        Get-PSSession -ComputerName $ComputerName | Where Availability -ne "Busy" | Remove-PSSession
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
