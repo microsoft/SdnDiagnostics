@@ -40,7 +40,7 @@
                 }
             }
         ],
-        "etwTraceSessions": [
+        "etwTraceProviders": [
             {
                 "name": "nchostagent",
                 "providers":[
@@ -63,7 +63,15 @@
                 "providers": [
                     "2380c5ee-ab89-4d14-b2e6-142200cb703c"
                 ]
+            },
+            {
+                "name": "vfpext",
+                "isOptional": "true",
+                "providers": [
+                    "9F2660EA-CFE7-428F-9850-AECA612619B0"
+                ]
             }
+
         ]
     }
 }

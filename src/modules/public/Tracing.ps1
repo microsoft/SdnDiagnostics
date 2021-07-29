@@ -181,8 +181,8 @@ function Start-SdnEtwTraceSession {
         [Parameter(Mandatory = $true)]
         [string]$TraceName,
 
-        [Parameter(Mandatory = $false)]
-        [string[]]$TraceProviders = $null,
+        [Parameter(Mandatory = $true)]
+        [string[]]$TraceProviders,
 
         [Parameter(Mandatory = $true)]
         [ValidateScript({
@@ -198,12 +198,7 @@ function Start-SdnEtwTraceSession {
     )
 
     try {
-
-        if(!$TraceProviders){
-            throw New-Object System.Exception("You must at least one TraceProvider")
-        }
-
-        # ensure that the directory exists for file path
+       # ensure that the directory exists for file path
         if(!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)){
             $null = New-Item -Path (Split-Path -Path $TraceFile.FullName -Parent) -ItemType Directory -Force
         }
@@ -248,12 +243,64 @@ function Stop-SdnEtwTraceSession {
     }   
 }
 
+
+function Get-SdnTraceProviders{
+    <#
+    .SYNOPSIS
+        Get ETW Trace Providers based on Role
+    .PARAMETER Role
+        The SDN Roles 
+    .PARAMETER Providers
+        Allowed values are Default,Optional And All to control what are the providers needed
+
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [SdnRoles]$Role,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Default", "Optional", "All")]
+        [string]$Providers = "Default"
+    )
+
+    try{
+        $config = Get-SdnRoleConfiguration -Role $Role
+        $traceProvidersArray  =  [System.Collections.ArrayList]::new()
+        foreach ($traceProviders in $config.properties.etwTraceProviders) {
+            switch($Providers){
+                "Default" {
+                    if($traceProviders.isOptional -ne $true){
+                        [void]$traceProvidersArray.Add($traceProviders)
+                    }
+                }
+                "Optional" {
+                    if($traceProviders.isOptional -eq $true){
+                        [void]$traceProvidersArray.Add($traceProviders)
+                    }
+                }
+                "All" {
+                    [void]$traceProvidersArray.Add($traceProviders)
+                }
+            }
+        }
+        return $traceProvidersArray
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+   
 function Start-SdnTraceCapture{
     <#
     .SYNOPSIS
         Start ETW Trace capture based on Role
     .PARAMETER Role
         The SDN Roles 
+    .PARAMETER Providers
+        Allowed values are Default,Optional And All to control what are the providers needed
+
     #>
 
     [CmdletBinding()]
@@ -262,12 +309,14 @@ function Start-SdnTraceCapture{
         [SdnRoles]$Role,
 
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Default", "Optional", "All")]
+        [string]$Providers = "Default"
     )
 
     try{
-        $config = Get-SdnRoleConfiguration -Role $Role
-
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if(!$confirmFeatures){
@@ -283,10 +332,12 @@ function Start-SdnTraceCapture{
         if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
+
+        $traceProvidersArray = Get-SdnTraceProviders -Role $Role -Providers $Providers
     
-        foreach ($traceSession in $config.properties.etwTraceSessions) {
-            "Starting trace session {0}" -f $traceSession.name | Trace-Output -Level:Verbose
-            Start-SdnEtwTraceSession -TraceName $traceSession.name -TraceProviders $traceSession.providers -TraceFile "$OutputDirectory\$($traceSession.name).etl"  -MaxTraceSize 1024
+        foreach ($traceProviders in $traceProvidersArray) {
+            "Starting trace session {0}" -f $traceProviders.name | Trace-Output -Level:Verbose
+            Start-SdnEtwTraceSession -TraceName $traceProviders.name -TraceProviders $traceProviders.providers -TraceFile "$OutputDirectory\$($traceProviders.name).etl"  -MaxTraceSize 1024
         }
     }
     catch {
@@ -301,19 +352,26 @@ function Stop-SdnTraceCapture{
         Start ETW Trace capture based on Role
     .PARAMETER Role
         The SDN Roles 
+    .PARAMETER Providers
+        Allowed values are Default,Optional And All to control what are the providers needed
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role
+        [SdnRoles]$Role,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet("Default", "Optional", "All")]
+        [string]$Providers = "Default"
+
     )
 
     try{
-        $config = Get-SdnRoleConfiguration -Role $Role
+        $traceProvidersArray = Get-SdnTraceProviders -Role $Role -Providers $Providers
     
-        foreach ($traceSession in $config.properties.etwTraceSessions) {
-            Stop-SdnEtwTraceSession -TraceName $traceSession.name
+        foreach ($traceProviders in $traceProvidersArray) {
+            Stop-SdnEtwTraceSession -TraceName $traceProviders.name
         }
     }
     catch {
