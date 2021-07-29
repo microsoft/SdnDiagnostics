@@ -24,7 +24,7 @@ function Test-GatewayHealth {
 
         foreach($object in $gateways){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                if($object.properties.configurationState -ieq 'Uninitialized'){
+                if($object.properties.configurationState.status -ieq 'Uninitialized'){
                     # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                 }
                 else {

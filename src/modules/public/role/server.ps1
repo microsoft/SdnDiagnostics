@@ -850,7 +850,7 @@ function Get-SdnProviderAddress {
     }
 }
 
-function Get-VMNetAdapter {
+function Get-SdnVMNetAdapter {
     <#
     .SYNOPSIS
         Retrieves the virtual machine network adapters that are allocated on a hyper-v host

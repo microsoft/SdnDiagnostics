@@ -14,7 +14,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
             $Credential = $Global:SdnDiagnostics.Credential
         }
     
-        $vmNetAdapters = Get-SdnVMNetAdapter -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $Credential) -AsJob -PassThru -ExecutionTimeout 900 -Credential $Credential
+        $vmNetAdapters = Get-SdnVMNetAdapter -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $Credential) -AsJob -PassThru -Timeout 900 -Credential $Credential
         $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
 
         if($duplicateObjects){
