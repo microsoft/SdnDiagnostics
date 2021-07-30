@@ -2,7 +2,7 @@ function Test-VfpDuplicatePorts {
 
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.NcUrl
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
     )
 
     try {
