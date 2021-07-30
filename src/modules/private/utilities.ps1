@@ -162,8 +162,7 @@ function New-PSRemotingSession {
         # return a list of current sessions on the computer
         # return only the sessions that are opened and available as this will allow new sessions to be opened
         # without having to wait for existing sessions to move from Busy -> Available
-        $sdnDiagnosticSessions = Get-PSSession | Where-Object {$_.Name -like "SdnDiag-*"}
-        $currentActiveSessions = $sdnDiagnosticSessions | Where-Object {$_.State -ieq 'Opened' -and $_.Availability -ieq 'Available'}
+        $currentActiveSessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.State -ieq 'Opened' -and $_.Availability -ieq 'Available'}
 
         $remoteSessions = [System.Collections.ArrayList]::new()
         foreach($obj in $ComputerName){
