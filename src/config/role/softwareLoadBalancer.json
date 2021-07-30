@@ -24,6 +24,16 @@
                     "displayName": "Software Load Balancer Host Agent"
                 }
             }
+        ],
+        "etwTraceProviders": [
+            {
+                "name": "slbmux",
+                "isOptional": "false",
+                "providers":[
+                    "{645b8679-5451-4c36-9857-a90e7dbf97bc}",
+                    "{6C2350F8-F827-4B74-AD0C-714A92E22576}"
+                ]
+            }
         ]
     }
 }
