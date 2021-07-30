@@ -193,16 +193,26 @@ function Start-SdnEtwTraceSession {
     )
 
     try {
-       # ensure that the directory exists for file path
+        # ensure that the directory exists for file path
         if(!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)){
             $null = New-Item -Path (Split-Path -Path $TraceFile.FullName -Parent) -ItemType Directory -Force
         }
 
-        Start-EtwTraceSession -Name $TraceName -MaximumFileSize $MaxTraceSize -LocalFilePath $TraceFile | Out-Null
+        $logmanCmd = "logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets"
+        $result = Invoke-Expression -Command $logmanCmd
 
+        # Session create failure error need to be reported to user to be aware, this means we have one trace session missing. 
+        # Provider add failure might be ignored and exposed via verbose trace/log file only to debug. 
+        if("$result".Contains("Error")){
+            "Create session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
+        }else{
+            "Created session {0} with result {1}" -f $TraceName,"$result" | Trace-Output -Level:Verbose
+        }
+       
         foreach ($provider in $TraceProviders) {
-            "Adding provider {0}" -f $provider | Trace-Output -Level:Verbose
-            Add-EtwTraceProvider -SessionName $TraceName -Guid $provider -Level 0xff | Out-Null
+            $logmanCmd = 'logman update trace $TraceName -p "$provider" 0xffffffffffffffff 0xff -ets'
+            $result = Invoke-Expression -Command $logmanCmd
+            "Added provider {0} with result {1}" -f $provider,"$result" | Trace-Output -Level:Verbose
         }
     }
     catch {
@@ -228,8 +238,13 @@ function Stop-SdnEtwTraceSession {
     )
 
     try {
-       Stop-EtwTraceSession -Name $TraceName
-       
+        $logmanCmd = "logman stop $TraceName -ets"
+        $result = Invoke-Expression -Command $logmanCmd
+        if("$result".Contains("Error")){
+            "Stop session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
+        }else{
+            "Stop session {0} with result {1}" -f $TraceName,"$result" | Trace-Output -Level:Verbose
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
