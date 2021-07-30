@@ -160,9 +160,7 @@ function Disable-NetshTrace {
 function Start-SdnEtwTraceSession {
     <#
     .SYNOPSIS
-        Enables netsh tracing. Supports pre-configured trace providers or custom provider strings.
-    .PARAMETER ComputerName
-        The computer name to perform the operation against
+        Start the ETW trace with TraceProviders included. 
     .PARAMETER TraceName
         The trace name to identify the ETW trace session 
     .PARAMETER TraceProviders
@@ -175,9 +173,6 @@ function Start-SdnEtwTraceSession {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [string[]]$ComputerName,
-
         [Parameter(Mandatory = $true)]
         [string]$TraceName,
 
@@ -218,9 +213,7 @@ function Start-SdnEtwTraceSession {
 function Stop-SdnEtwTraceSession {
     <#
     .SYNOPSIS
-        Enables netsh tracing. Supports pre-configured trace providers or custom provider strings.
-    .PARAMETER ComputerName
-        The computer name to perform the operation against
+        Stop ETW Trace Session
     .PARAMETER TraceName
         The trace name to identify the ETW trace session   
     #>

@@ -43,6 +43,7 @@
         "etwTraceProviders": [
             {
                 "name": "nchostagent",
+                "isOptional": "false",
                 "providers":[
                     "28F7FB0F-EAB3-4960-9693-9289CA768DEA",
                     "A6527853-5B2B-46E5-9D77-A4486E012E73",
@@ -53,6 +54,7 @@
             },
             {
                 "name": "nvsp",
+                "isOptional": "false",
                 "providers": [
                     "1F387CBC-6818-4530-9DB6-5F1058CD7E86",
                     "6C28C7E5-331B-4437-9C69-5352A2F7F296"
@@ -60,6 +62,7 @@
             },
             {
                 "name": "slbhostagent",
+                "isOptional": "false",
                 "providers": [
                     "2380c5ee-ab89-4d14-b2e6-142200cb703c"
                 ]
