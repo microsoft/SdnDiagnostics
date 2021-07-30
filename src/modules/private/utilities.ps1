@@ -135,15 +135,15 @@ function Confirm-UserInput {
 function New-PSRemotingSession {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $true)]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $false)]
         [switch]$Force
     )
 
