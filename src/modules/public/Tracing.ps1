@@ -242,7 +242,8 @@ function Stop-SdnEtwTraceSession {
         $result = Invoke-Expression -Command $logmanCmd
         if("$result".Contains("Error")){
             "Stop session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
-        }else{
+        }
+        else {
             "Stop session {0} with result {1}" -f $TraceName,"$result" | Trace-Output -Level:Verbose
         }
     }
@@ -252,7 +253,7 @@ function Stop-SdnEtwTraceSession {
 }
 
 
-function Get-SdnTraceProviders{
+function Get-SdnTraceProviders {
     <#
     .SYNOPSIS
         Get ETW Trace Providers based on Role
@@ -273,7 +274,7 @@ function Get-SdnTraceProviders{
         [string]$Providers = "Default"
     )
 
-    try{
+    try {
         $config = Get-SdnRoleConfiguration -Role $Role
         $traceProvidersArray  =  [System.Collections.ArrayList]::new()
         foreach ($traceProviders in $config.properties.etwTraceProviders) {
@@ -300,7 +301,7 @@ function Get-SdnTraceProviders{
     }
 }
    
-function Start-SdnTraceCapture{
+function Start-SdnTraceCapture {
     <#
     .SYNOPSIS
         Start ETW Trace capture based on Role
@@ -324,7 +325,7 @@ function Start-SdnTraceCapture{
         [string]$Providers = "Default"
     )
 
-    try{
+    try {
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if(!$confirmFeatures){
@@ -354,7 +355,7 @@ function Start-SdnTraceCapture{
 }
    
 
-function Stop-SdnTraceCapture{
+function Stop-SdnTraceCapture {
     <#
     .SYNOPSIS
         Start ETW Trace capture based on Role
@@ -375,7 +376,7 @@ function Stop-SdnTraceCapture{
 
     )
 
-    try{
+    try {
         $traceProvidersArray = Get-SdnTraceProviders -Role $Role -Providers $Providers
     
         foreach ($traceProviders in $traceProvidersArray) {
