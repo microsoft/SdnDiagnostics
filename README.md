@@ -1,16 +1,6 @@
 # Project
-
-> This repo has been populated by an initial template to help get you started. Please
-> make sure to update the content to build a great experience for community-building.
-
-As the maintainer of this project, please make a few updates:
-
-- Improving this README.MD file to provide a great experience
-- Updating SUPPORT.MD with content about this project's support experience
-- Understanding the security reporting process in SECURITY.MD
-- Remove this section from the README
-
-## Contributing
+SdnDiagnostics is a PowerShell module that is designed to simplify the diagnostic troubleshooting and data collection process when troubleshooting issues related to [Microsoft Software Defined Network](https://docs.microsoft.com/en-us/windows-server/networking/sdn/software-defined-networking).
+# Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
@@ -24,7 +14,53 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-## Trademarks
+When contributing to this project, ensure you:
+1. Review existing functions already available and reuse where possible.
+2. If your function should be exported and available after module import, be sure to add your function to the export list in `~/SDNDiagnostics.psd1`.
+3. Return native .NET objects whenever possible.
+4. Rarely should you return from a function with format-table, format-list, etc..
+5. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
+6. Leverage `$Global:SdnDiagnostics` for caching when appropriate. 
+
+
+## Creating Health Validation Tests
+When creating a health validation test, ensure you:
+1. Create the `ps1` file under `~/src/modules/private/health` as the name of the validation test. e.g. `Test-ServerHealth.ps1`
+2. Function should return a PSCustomObject that contains the following format:
+    ```
+    if($unhealthyNode){
+        return [PSCustomObject]@{
+            Status = 'Failure'
+            Properties = $arrayList
+        }
+    }
+    else {
+        return [PSCustomObject]@{
+            Status = 'Success'
+            Properties = $arrayList
+        }
+    }
+    ```
+3. Health validation tests are executed using `Debug-SdnFabricInfrastructure`. This function will automatically pick up tests under the `~/src/modules/private/health` directory.
+## Creating Known Issue Tests
+1. Create the `ps1` file under `~/src/modules/private/knownIssues` as the name of the validation test. e.g. `Test-VfpDuplicatePort.ps1`
+2. Function should return a PSCustomObject that contains the following format:
+    ```
+    if($issueFound)
+        return [PSCustomObject]@{
+            Result = $true
+            Properties = $duplicateObjects
+        }
+    }
+    else {
+        return [PSCustomObject]@{
+            Result = $false
+            Properties = $null
+        }
+    }
+    ```
+3. Known Issue tests are executed using `Test-SdnKnownIssues`. This function will automatically pick up tests under the `~/src/modules/private/knownIssues` directory.
+# Trademarks
 
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
 trademarks or logos is subject to and must follow 
