@@ -40,7 +40,7 @@ function Invoke-SdnServiceFabricCommand {
 
             # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
             # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
-            "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output
+            "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output -Level Verbose
             while($i -lt $maxRetry){
                 $i++
 
