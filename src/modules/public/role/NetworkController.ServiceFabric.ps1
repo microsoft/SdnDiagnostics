@@ -16,7 +16,7 @@ function Invoke-SdnServiceFabricCommand {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -40,7 +40,7 @@ function Invoke-SdnServiceFabricCommand {
 
             # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
             # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
-            "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output
+            "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output -Level Verbose
             while($i -lt $maxRetry){
                 $i++
 
@@ -120,7 +120,7 @@ function Get-SdnServiceFabricService {
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
         [System.String]$ApplicationName = 'fabric:/NetworkController',
 
-        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [System.String]$ServiceName,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -128,7 +128,7 @@ function Get-SdnServiceFabricService {
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -205,7 +205,7 @@ function Get-SdnServiceFabricReplica {
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -291,7 +291,7 @@ function Move-SdnServiceFabricReplica {
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -363,7 +363,7 @@ function Get-SdnServiceFabricNode {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -400,7 +400,7 @@ function Get-SdnServiceFabricClusterHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -439,7 +439,7 @@ function Get-SdnServiceFabricClusterManifest {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -478,7 +478,7 @@ function Get-SdnServiceFabricApplicationHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [String]$ApplicationName = 'fabric:/NetworkController',
