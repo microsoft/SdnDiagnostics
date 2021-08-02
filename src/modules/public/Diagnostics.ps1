@@ -22,17 +22,18 @@ function Debug-SdnFabricInfrastructure {
     try {
         $Global:SdnDiagnostics.NcUrl = $NcUri.AbsoluteUri
 
+        $healthScriptRoot = "$PSScriptRoot\..\..\modules\private\health"
         if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path "$healthScriptRoot\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         elseif($PSBoundParameters.ContainsKey('ValidationTest')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Recurse | Where-Object {$_.BaseName -ieq $ValidationTest}
+            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.BaseName -ieq $ValidationTest}
             if($healthValidationScripts.Count -gt 1){
                 throw New-Object System.Exception("Unexpected number of health validations returned")
             }
         }
         else {
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
 
         if($null -eq $healthValidationScripts){
