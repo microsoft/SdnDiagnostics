@@ -53,7 +53,10 @@ function Debug-SdnFabricInfrastructure {
         }
 
         $Global:SdnDiagnostics.Credential = $null
-        return $arrayList
+        $Global:SdnDiagnostics.Cache.FabricHealth = $arrayList
+
+        "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.FabricHealth
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null
@@ -116,7 +119,10 @@ function Test-SdnKnownIssues {
         }
 
         $Global:SdnDiagnostics.Credential = $null
-        return $arrayList
+        $Global:SdnDiagnostics.Cache.KnownIssues = $arrayList
+
+        "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.KnownIssues' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.KnownIssues
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null

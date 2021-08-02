@@ -1,4 +1,5 @@
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
+    Cache = @{}
     Credential = $null
     EnvironmentInfo = @{}
     Settings = (Get-Content -Path "$PSScriptRoot\settings.json" | ConvertFrom-Json)

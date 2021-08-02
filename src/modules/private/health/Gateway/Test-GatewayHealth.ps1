@@ -29,16 +29,16 @@ function Test-GatewayHealth {
                 }
                 else {
                     $unhealthyNode = $true
+
+                    $details = [PSCustomObject]@{
+                        resourceRef = $object.resourceRef
+                        provisioningState = $object.properties.provisioningState
+                        configurationState = $object.properties.configurationState
+                    }
+
+                    [void]$arrayList.Add($details)
                 }
             }
-
-            $details = [PSCustomObject]@{
-                resourceRef = $object.resourceRef
-                provisioningState = $object.properties.provisioningState
-                configurationState = $object.properties.configurationState
-            }
-
-            [void]$arrayList.Add($details)
         }
         
         if($unhealthyNode){

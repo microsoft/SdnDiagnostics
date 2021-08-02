@@ -25,15 +25,15 @@ function Test-ServerHealth {
         foreach($object in $servers){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 $unhealthyNode = $true
-            }
 
-            $details = [PSCustomObject]@{
-                resourceRef = $object.resourceRef
-                provisioningState = $object.properties.provisioningState
-                configurationState = $object.properties.configurationState
+                $details = [PSCustomObject]@{
+                    resourceRef = $object.resourceRef
+                    provisioningState = $object.properties.provisioningState
+                    configurationState = $object.properties.configurationState
+                }
+    
+                [void]$arrayList.Add($details)
             }
-
-            [void]$arrayList.Add($details)
         }
         
         if($unhealthyNode){
