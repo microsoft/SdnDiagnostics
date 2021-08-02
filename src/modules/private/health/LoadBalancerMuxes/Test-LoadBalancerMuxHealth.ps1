@@ -5,7 +5,7 @@ function Test-LoadBalancerMuxHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
