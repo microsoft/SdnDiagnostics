@@ -135,15 +135,15 @@ function Confirm-UserInput {
 function New-PSRemotingSession {
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $true)]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [Parameter(Mandatory = $false)]
         [switch]$Force
     )
 
@@ -162,7 +162,7 @@ function New-PSRemotingSession {
         # return a list of current sessions on the computer
         # return only the sessions that are opened and available as this will allow new sessions to be opened
         # without having to wait for existing sessions to move from Busy -> Available
-        $currentActiveSessions = Get-PSSession | Where-Object {$_.State -ieq 'Opened' -and $_.Availability -ieq 'Available'}
+        $currentActiveSessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.State -ieq 'Opened' -and $_.Availability -ieq 'Available'}
 
         $remoteSessions = [System.Collections.ArrayList]::new()
         foreach($obj in $ComputerName){
@@ -190,11 +190,11 @@ function New-PSRemotingSession {
                 try {
                     if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
                         "PSRemotingSession use provided credential {0}" -f $Credential.UserName | Trace-Output -Level:Verbose
-                        $session = New-PSSession -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                        $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
                     else {
                         "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
-                        $session = New-PSSession -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                        $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
 
                     "Created powershell session {0} to {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose
@@ -673,6 +673,54 @@ function Copy-FileToPSRemoteSession {
         }
     }
     catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Remove-PSRemotingSession {
+    <#
+    .SYNOPSIS
+        Gracefully removes any existing PSSessions
+    .PARAMETER ComputerName
+        The computer name(s) that should have any existing PSSessions removed
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$ComputerName
+    )
+
+    try {
+        [int]$timeOut = 120
+        $stopWatch =  [System.Diagnostics.Stopwatch]::StartNew()
+
+        $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -ieq $ComputerName}
+        while($sessions){
+            if($stopWatch.Elapsed.TotalSeconds -gt $timeOut){
+                throw New-Object System.TimeoutException("Unable to drain PSSessions")
+            }
+
+            foreach($session in $sessions){
+                if($session.Availability -ieq 'Busy'){
+                    "{0} is currently {1}. Waiting for PSSession.. {2} seconds" -f $session.Name, $session.Availability, $stopWatch.Elapsed.TotalSeconds | Trace-Output
+                    Start-Sleep -Seconds 5
+                    continue
+                }
+                else {
+                    "Removing PSSession {0}" -f $session.Name | Trace-Output -Level:Verbose
+                    $session | Remove-PSSession -ErrorAction Continue
+                }
+            }
+
+            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -ieq $ComputerName}
+        }
+
+        $stopWatch.Stop()
+        "Successfully drained PSSessions for {0}" -f ($ComputerName -join ', ') | Trace-Output
+    }
+    catch {
+        $stopWatch.Stop()
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
