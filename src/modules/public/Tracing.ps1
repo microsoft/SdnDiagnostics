@@ -326,6 +326,7 @@ function Start-SdnTraceCapture {
     )
 
     try {
+        $config = Get-SdnRoleConfiguration -Role $Role
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if(!$confirmFeatures){
