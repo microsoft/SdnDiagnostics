@@ -29,6 +29,8 @@ function Test-SdnImosDBSize {
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }
 
+        $failedImos = [System.Collections.ArrayList]::new()
+        $successImos = [System.Collections.ArrayList]::new()
         foreach($node in $ncNodes){
             if($node.NodeStatus -ine 'Up'){
                 "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
@@ -40,11 +42,11 @@ function Test-SdnImosDBSize {
             }
 
             # Only stateful service have IMOS DB file
-            $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController | Where-Object ServiceKind -eq "Stateful"
+            $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController | Where-Object {$_.ServiceKind -eq "Stateful"}
 
             foreach ($ncService in $ncServices){
                 # Get replica Info for ncService
-                $replica = Get-SdnServiceFabricReplica -NetworkController $NetworkController -ServiceName $ncService.ServiceName | Where-Object NodeName -eq $node.NodeName
+                $replica = Get-SdnServiceFabricReplica -NetworkController $NetworkController -ServiceName $ncService.ServiceName | Where-Object {$_.NodeName -eq $node.NodeName}
                 $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
                 $session = New-PSRemotingSession -ComputerName $node.NodeName -Credential $Credential
                 $imosStoreFile = Invoke-Command -Session $session -ScriptBlock {
@@ -56,18 +58,39 @@ function Test-SdnImosDBSize {
                     }
                 }
                 if($null -ne $imosStoreFile){
-                    # Currently size the limit to 2GB
-                    if($($imosStoreFile.Length/1MB) -gt 2048){
+                    $imosInfo = [PSCustomObject]@{
+                        Node = $node.NodeName
+                        Service = $ncService.ServiceName
+                        ImosSize = $($imosStoreFile.Length/1MB)
+                    }
+                    # Currently size the limit to 4GB
+                    if([float]$($imosStoreFile.Length/1MB) -gt 4096){
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Error
+                        [void]$failedImos.Add($imosInfo)
                     }
                     else {
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Verbose
+                        [void]$successImos.Add($imosInfo)
                     }
                 }
                 else {
                     "No ImosStore file for service {0} found on node {1} from {2}" -f $ncService.ServiceName, $node.NodeName, $imosStorePath | Trace-Output -Level:Warning
                 }
                 
+            }
+        }
+
+        if($failedImos.Count -gt 0)
+        {
+            return [PSCustomObject]@{
+                Result = $false
+                Properties = $failedImos
+            }
+        }
+        else {
+            return [PSCustomObject]@{
+                Result = $true
+                Properties = $successImos
             }
         }
     }
