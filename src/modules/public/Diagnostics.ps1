@@ -69,7 +69,7 @@ function Debug-SdnFabricInfrastructure {
     } 
 }
 
-function Test-SdnKnownIssues {
+function Test-SdnKnownIssue {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]

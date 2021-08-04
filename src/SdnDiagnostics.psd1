@@ -85,7 +85,7 @@
         'Start-SdnDataCollection',
         'Start-SdnTraceCapture',
         'Stop-SdnTraceCapture',
-        'Test-SdnKnownIssues'
+        'Test-SdnKnownIssue'
     )
 
     # Variables to export from this module
