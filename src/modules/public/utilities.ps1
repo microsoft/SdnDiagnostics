@@ -57,7 +57,7 @@ function Install-SdnDiagnostic {
         }
         
         if($moduleMissComputers.Count -gt 0){
-            $modulePath = Get-Item -Path "$PSScriptRoot\..\..\..\"
+            $modulePath = Get-Item -Path "$PSScriptRoot\..\..\"
             "SdnDiagnostics module found at {0}" -f $modulePath.FullName | Trace-Output -Level:Verbose
     
             if($modulePath){
