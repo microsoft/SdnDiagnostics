@@ -7,4 +7,4 @@ $revision = "{0}{1}{2}" -f ([DateTime]::UtcNow.Hour),([DateTime]::UtcNow.Minute)
 
 $buildNumber = "$major.$minor.$patch.$revision"
 [Environment]::SetEnvironmentVariable("SdnDiagCustomBuildNumber", $buildNumber)  # This will allow you to use it from env var in later steps of the same phase
-Write-Host "##vso[build.updatebuildnumber]${buildNumber}"  # This will update build number on your build
+Write-Host "Build Number: $($buildNumber)"  # This will update build number on your build

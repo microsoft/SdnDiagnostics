@@ -18,7 +18,7 @@
     Copyright = '© Microsoft Corporation. All rights reserved.'
 
     # Version number of this module.
-    ModuleVersion = '1.0.0.0'
+    ModuleVersion = '0.1.0.0'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
