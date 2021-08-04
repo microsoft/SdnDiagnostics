@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 
 function Get-ModuleVersion {
     # This is set in a prior step from generateVersion-ps.ps1    
-    return $env:CustomBuildNumber
+    return $env:SdnDiagCustomBuildNumber
 }
 
 $outDir = "$PSScriptRoot\..\out\build"
