@@ -36,16 +36,16 @@ function Install-SdnDiagnostic {
             foreach ($computer in $Computername){
                 $session = New-PSRemotingSession -ComputerName $computer -Credential $Credential
                 $remoteModuleInfo = Invoke-Command -Session $session -ScriptBlock{
-                    return Get-Module -ListAvailable -Name SdnDiagnostics
+                    return (Get-Module -ListAvailable -Name SdnDiagnostics)
                 }
                 if($null -ne $remoteModuleInfo){
                     # Module need to be installed if Version mismatch
-                    if($remoteModuleInfo.Version -ne $localModuleInfo.Version){
+                    if([Version]$remoteModuleInfo.Version -lt [Version]$localModuleInfo.Version){
                         [void]$moduleMissComputers.Add($computer)
-                        "SdnDiagnostics module found on {0} but remote version {1} mismatch with local version {2}.  Will install it" -f $computer, "$($remoteModuleInfo.Version)", $localModuleInfo.Version | Trace-Output -Level:Verbose
+                        "SdnDiagnostics module found on {0} but remote version {1} mismatch with local version {2}.  Will install it" -f $computer, $remoteModuleInfo.Version, $localModuleInfo.Version | Trace-Output -Level:Verbose
                     }
                     else {
-                        "SdnDiagnostics module version {0} matched on {1}. No action taken" -f "$($remoteModuleInfo.Version)", $computer | Trace-Output -Level:Verbose
+                        "SdnDiagnostics module version {0} matched on {1}. No action taken" -f $remoteModuleInfo.Version, $computer | Trace-Output -Level:Verbose
                     }
                 }
                 else {
