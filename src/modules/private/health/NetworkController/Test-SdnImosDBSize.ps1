@@ -83,13 +83,13 @@ function Test-SdnImosDBSize {
         if($failedImos.Count -gt 0)
         {
             return [PSCustomObject]@{
-                Result = $false
+                Result = $true
                 Properties = $failedImos
             }
         }
         else {
             return [PSCustomObject]@{
-                Result = $true
+                Result = $false
                 Properties = $successImos
             }
         }
