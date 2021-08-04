@@ -19,14 +19,19 @@ function Debug-SdnFabricInfrastructure {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
+        $healthScriptRoot = "$PSScriptRoot\..\private\health"
+
         $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-        $Global:SdnDiagnostics.Credential = $Credential
+
+        if($PSBoundParameters.ContainsKey('Credential')){
+            $Global:SdnDiagnostics.Credential = $Credential
+        }
 
         if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\health\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         else {
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
 
         if($null -eq $healthValidationScripts){
@@ -77,7 +82,7 @@ function Test-SdnKnownIssues {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$Test
@@ -86,13 +91,20 @@ function Test-SdnKnownIssues {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-        $Global:SdnDiagnostics.Credential = $Credential
+
+        $knownIssueRoot = "$PSScriptRoot\..\private\knownIssues"
+
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
+
+        if($PSBoundParameters.ContainsKey('Credential')){
+            $Global:SdnDiagnostics.Credential = $Credential
+        }
 
         if($PSBoundParameters.ContainsKey('Test')){
-            $knownIssueScripts = Get-ChildItem -Path "$PSScriptRoot\..\..\private\knownIssues" -Recurse | Where-Object {$_.BaseName -ieq $Test}
+            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}
         }
         else {
-            $knownIssueScripts = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
 
         if($null -eq $knownIssueScripts){
