@@ -80,7 +80,9 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-SdnDataCollection',
-        'Test-SdnKnownIssues'
+        'Test-SdnKnownIssues',
+        'Start-SdnTraceCapture',
+        'Stop-SdnTraceCapture'
     )
 
     # Variables to export from this module
