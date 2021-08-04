@@ -78,7 +78,6 @@ function Test-ServiceFabricPartitionDatabaseSize {
                 else {
                     "No ImosStore file for service {0} found on node {1} from {2}" -f $ncService.ServiceName, $node.NodeName, $imosStorePath | Trace-Output -Level:Warning
                 }
-                
             }
         }
 
