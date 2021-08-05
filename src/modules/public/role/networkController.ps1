@@ -50,9 +50,15 @@ function Get-SdnResource {
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
         if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+            "Provided credential {0} used" -f $Credential.UserName | Trace-Output -Level:Verbose
             $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
         }
+        elseif($null -ne $Global:SdnDiagnostics.NcRestCredential) {
+            "Cached NcRestCredential {0} used" -f $Global:SdnDiagnostics.NcRestCredential.UserName | Trace-Output -Level:Verbose
+            $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Global:SdnDiagnostics.NcRestCredential -ErrorAction Stop
+        }
         else {
+            "Default credential used" -f $method, $uri | Trace-Output -Level:Verbose
             $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -UseDefaultCredentials -ErrorAction Stop
         }
 
