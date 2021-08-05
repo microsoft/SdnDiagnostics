@@ -20,7 +20,7 @@ function Test-ServerHealth {
 
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
-        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri
+        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $Credential
 
         foreach($object in $servers){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){

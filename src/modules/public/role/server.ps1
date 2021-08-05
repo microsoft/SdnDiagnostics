@@ -867,7 +867,7 @@ function Get-SdnVMNetAdapter {
         [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
-        [Microsoft.HyperV.PowerShell.VMState]$VmState = 'Running',
+        [VMState]$VmState = 'Running',
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

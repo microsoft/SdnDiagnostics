@@ -90,8 +90,6 @@ function Test-SdnKnownIssue {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-
         $knownIssueRoot = "$PSScriptRoot\..\private\knownIssues"
 
         $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
