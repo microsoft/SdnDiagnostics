@@ -1,5 +1,6 @@
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
     Credential = $null
+    NcRestCredential = $null
     EnvironmentInfo = @{}
     Settings = (Get-Content -Path "$PSScriptRoot\settings.json" | ConvertFrom-Json)
     TraceFilePath = $null

@@ -262,6 +262,7 @@ function Get-SdnInfrastructureInfo {
         - $Global:SdnDiagnostics.EnvironmentInfo.MUX
         - $Global:SdnDiagnostics.EnvironmentInfo.Gateway
         - $Global:SdnDiagnostics.EnvironmentInfo.Host
+        - $Global:SdnDiagnostics.NcRestCredential
     .PARAMETER NcVM
         Specifies one of the network controller VM name.
     .PARAMETER Credential
@@ -316,9 +317,15 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
+        if($PSBoundParameters.ContainsKey('NcRestCredential')){
+            $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
+        }
+
         return $Global:SdnDiagnostics.EnvironmentInfo
     } 
     catch {
+        # Remove cached NcRestCredential if any exception get here to avoid cache invalid credential
+        $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
