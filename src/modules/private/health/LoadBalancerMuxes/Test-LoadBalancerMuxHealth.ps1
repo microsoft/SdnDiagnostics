@@ -20,7 +20,7 @@ function Test-LoadBalancerMuxHealth {
 
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
-        $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri
+        $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri -Credential $Credential
 
         foreach($object in $muxes){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){

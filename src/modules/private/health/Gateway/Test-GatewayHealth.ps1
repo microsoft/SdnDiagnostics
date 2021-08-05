@@ -20,7 +20,7 @@ function Test-GatewayHealth {
 
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
-        $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri
+        $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $Credential
 
         foreach($object in $gateways){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
