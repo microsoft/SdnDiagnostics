@@ -80,7 +80,7 @@
         'Get-VMNetAdapter',
         'Get-VMNetAdapterPortProfile',
         'Install-SdnDiagnostic',
-        'Invoke-GetNetView',
+        'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-SdnDataCollection',
