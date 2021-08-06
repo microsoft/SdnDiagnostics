@@ -28,9 +28,12 @@ function Install-SdnDiagnostic {
     try {
         $moduleMissComputers = [System.Collections.ArrayList]::new()
         $localModuleInfo = Get-Module SdnDiagnostics
+        $moduleDir = Get-Item -Path 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics'
+
+        "Current SdnDiagnostics version is {0}" -f $localModuleInfo.Version | Trace-Output
         if($Force){
             [void]$moduleMissComputers.AddRange($ComputerName)
-            "SdnDiagnostics module will be forcely installed" | Trace-Output -Level:Verbose
+            "SdnDiagnostics module will be forcely installed" | Trace-Output
         }
         else {
             foreach ($computer in $Computername){
@@ -42,7 +45,7 @@ function Install-SdnDiagnostic {
                     # Module need to be installed if Version mismatch
                     if([Version]$remoteModuleInfo.Version -lt [Version]$localModuleInfo.Version){
                         [void]$moduleMissComputers.Add($computer)
-                        "SdnDiagnostics module found on {0} but remote version {1} mismatch with local version {2}.  Will install it" -f $computer, $remoteModuleInfo.Version, $localModuleInfo.Version | Trace-Output -Level:Verbose
+                        "SdnDiagnostics module found on {0} but remote version {1} mismatch with local version {2}. Will perform install." -f $computer, $remoteModuleInfo.Version, $localModuleInfo.Version | Trace-Output
                     }
                     else {
                         "SdnDiagnostics module version {0} matched on {1}. No action taken" -f $remoteModuleInfo.Version, $computer | Trace-Output -Level:Verbose
@@ -51,20 +54,15 @@ function Install-SdnDiagnostic {
                 else {
                     # Module need to be installed if never installed
                     [void]$moduleMissComputers.Add($computer)
-                    "SdnDiagnostics module not found on {0}. Will install it" -f $computer | Trace-Output -Level:Verbose
+                    "SdnDiagnostics module not found on {0}. Will perform install." -f $computer | Trace-Output -Level:Verbose
                 }
             }
         }
         
-        if($moduleMissComputers.Count -gt 0){
-            $modulePath = Get-Item -Path "$PSScriptRoot\..\..\"
-            "SdnDiagnostics module found at {0}" -f $modulePath.FullName | Trace-Output -Level:Verbose
-    
-            if($modulePath){
-                Copy-FileToPSRemoteSession -Path $modulePath.FullName -ComputerName $moduleMissComputers -Destination 'C:\Program Files\WindowsPowerShell\Modules' `
-                    -Credential $Credential -Recurse -Force
-            }    
+        if($moduleMissComputers){
+            Copy-FileToPSRemoteSession -Path $moduleDir.FullName -ComputerName $moduleMissComputers -Destination $moduleDir.FullName -Credential $Credential -Recurse -Force
         }
+
         # ensure that we destroy the current pssessions for the computer to prevent any odd caching issues
         Remove-PSRemotingSession -ComputerName $ComputerName
     }

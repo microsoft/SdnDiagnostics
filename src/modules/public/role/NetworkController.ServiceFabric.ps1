@@ -140,14 +140,28 @@ function Get-SdnServiceFabricService {
     try {
         switch($PSCmdlet.ParameterSetName){
             'NamedService' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName
+                if($ServiceName){
+                    $sb = {
+                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName
+                    }
+                }
+                else {
+                    $sb = {
+                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService
+                    }
                 }
             }
 
             'NamedServiceTypeName' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
+                if($ServiceTypeName){
+                    $sb = {
+                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
+                    }
+                }
+                else {
+                    $sb = {
+                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService
+                    }
                 }
             }
 
