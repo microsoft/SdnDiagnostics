@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
     Cache = @{}
     Credential = $null
