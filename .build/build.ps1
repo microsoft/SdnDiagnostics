@@ -1,8 +1,8 @@
 $currentErrorPref = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 
-& '.\.build\clean.ps1'
 & '.build\generate-version.ps1'
+& '.\.build\clean.ps1'
 
 function Get-ModuleVersion {
     # this is set in a prior step from generateVersion-ps.ps1    
@@ -25,7 +25,7 @@ if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).
         $manifest = Test-ModuleManifest -Path $modManifest.FullName
 
         if($manifest.Version.ToString() -ne $modVersion) {
-            "`r`n{0}: {1} --> {2}" -f $modManifest.BaseName, $manifest.Version.ToString(), $modVersion | Write-Host
+            "`r`nUpdating {0} version: {1} --> {2}" -f $modManifest.BaseName, $manifest.Version.ToString(), $modVersion | Write-Host
             Update-ModuleManifest -ModuleVersion $modVersion -Path $modManifest.FullName
             continue
         }

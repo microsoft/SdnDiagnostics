@@ -26,5 +26,5 @@ foreach($githubRepo in $toolsInitProps.githubRepo){
     Get-ChildItem -Path $destination -Exclude "*.psd1","*.psm1" -Recurse | Remove-Item -Recurse -Force
 }
 
-"Done Cloning Repos" | Write-Host
+"Done cloning remote repos to $DestinationFolder" | Write-Host
 # endregion github
