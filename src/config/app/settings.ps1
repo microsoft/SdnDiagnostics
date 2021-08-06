@@ -1,4 +1,5 @@
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
+    Cache = @{}
     Credential = $null
     EnvironmentInfo = @{}
     Settings = (Get-Content -Path "$PSScriptRoot\settings.json" | ConvertFrom-Json)
@@ -67,4 +68,32 @@ enum NcAppServices {
     SlbManagerService
     UpdateService
     VSwitchService
+}
+
+enum VMState {
+    Other
+    Running
+    Off
+    Stopping
+    Saved
+    Paused
+    Starting
+    Reset
+    Saving
+    Pausing
+    Resuming
+    FastSaved
+    FastSaving
+    RunningCritical
+    OffCritical
+    StoppingCritical
+    SavedCritical
+    PausedCritical
+    StartingCritical
+    ResetCritical
+    SavingCritical
+    PausingCritical
+    ResumingCritical
+    FastSavedCritical
+    FastSavingCritical
 }

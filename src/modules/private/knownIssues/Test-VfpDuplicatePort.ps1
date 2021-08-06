@@ -1,12 +1,21 @@
-function Test-VfpDuplicatePorts {
+function Test-VfpDuplicatePort {
 
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        $vfpPorts = Get-SdnVFPVMSwitchPorts -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddress) -AsJob -PassThru
+        if($Global:SdnDiagnostics.Credential){
+            $Credential = $Global:SdnDiagnostics.Credential
+        }
+
+        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly) -Credential $Credential -AsJob -PassThru
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
     
         if($duplicateObjects){

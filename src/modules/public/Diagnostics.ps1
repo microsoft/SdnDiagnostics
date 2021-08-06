@@ -2,35 +2,33 @@ function Debug-SdnFabricInfrastructure {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
+        [System.String]$NetworkController,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Directory | Select-Object -ExpandProperty Name
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Directory | Select-Object -ExpandProperty Name
             return $possibleValues | ForEach-Object { $_ }
         })]
-        [System.String]$Role,
-
-        [Parameter(Mandatory = $false)]
-        [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\..\private\health" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
-            return $possibleValues | ForEach-Object { $_ }
-        })]
-        [System.String]$ValidationTest
+        [System.String]$Role
     )
 
     try {
-        $Global:SdnDiagnostics.NcUrl = $NcUri.AbsoluteUri
+        $arrayList = [System.Collections.ArrayList]::new()
+        $healthScriptRoot = "$PSScriptRoot\..\private\health"
 
-        $healthScriptRoot = "$PSScriptRoot\..\..\modules\private\health"
-        if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path "$healthScriptRoot\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
+
+        if($PSBoundParameters.ContainsKey('Credential')){
+            $Global:SdnDiagnostics.Credential = $Credential
         }
-        elseif($PSBoundParameters.ContainsKey('ValidationTest')){
-            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.BaseName -ieq $ValidationTest}
-            if($healthValidationScripts.Count -gt 1){
-                throw New-Object System.Exception("Unexpected number of health validations returned")
-            }
+
+        if($PSBoundParameters.ContainsKey('Role')){
+            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         else {
             $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
@@ -39,25 +37,105 @@ function Debug-SdnFabricInfrastructure {
         if($null -eq $healthValidationScripts){
             throw New-Object System.NullReferenceException("No health validations returned")
         }
-
+        
+        "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
         foreach($script in $healthValidationScripts){
-            # get the raw content of the script
-            $code = Get-Content -Path $script.FullName -Raw
+            $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
+            if($functions){
+                foreach($function in $functions){
+                    "Executing {0}" -f $function | Trace-Output -Level:Verbose
+                    $result = Invoke-Expression -Command $function
 
-            # list all the functions in ps1 using language namespace parser
-            $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast,bool]]{$args[0] -is [Management.Automation.Language.FunctionDefinitionAst]}, $false) `
-                | Select-Object -ExpandProperty Name
-            
-            # since there might be multiple functions in the script, we want to filter and only get the validation function
-            $function = $functionName | Where-Object {$_ -like "Test-*"} | Select-Object -First 1
-            
-            # execute the function
-            if($null -ne $function){
-                Invoke-Expression -Command $function
+                    $object = [PSCustomObject]@{
+                        Name = $function
+                        Status = $result.Status
+                        Properties = $result.Properties
+                    }
+
+                    [void]$arrayList.Add($object)
+                }
             }
         }
+
+        $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.Cache.FabricHealth = $arrayList
+
+        "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.FabricHealth
     }
-    catch{
+    catch {
+        $Global:SdnDiagnostics.Credential = $null
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    } 
+}
+
+function Test-SdnKnownIssue {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$NetworkController,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [ArgumentCompleter({
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
+            return $possibleValues | ForEach-Object { $_ }
+        })]
+        [System.String]$Test
+    )
+
+    try {
+        $arrayList = [System.Collections.ArrayList]::new()
+        $knownIssueRoot = "$PSScriptRoot\..\private\knownIssues"
+
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
+
+        if($PSBoundParameters.ContainsKey('Credential')){
+            $Global:SdnDiagnostics.Credential = $Credential
+        }
+
+        if($PSBoundParameters.ContainsKey('Test')){
+            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}
+        }
+        else {
+            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+        }
+
+        if($null -eq $knownIssueScripts){
+            throw New-Object System.NullReferenceException("No known issue scripts found")
+        }
+
+        "Located {0} known issue scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
+        foreach($script in $knownIssueScripts){
+            $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
+            if($functions){
+                foreach($function in $functions){
+                    "Executing {0}" -f $function | Trace-Output -Level:Verbose
+                    $result = Invoke-Expression -Command $function
+
+                    $object = [PSCustomObject]@{
+                        Name = $function
+                        Result = $result.Result
+                        Properties = $result.Properties
+                    }
+
+                    [void]$arrayList.Add($object)
+                }
+            }
+        }
+
+        $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.Cache.KnownIssues = $arrayList
+
+        "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.KnownIssues' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.KnownIssues
+    }
+    catch {
+        $Global:SdnDiagnostics.Credential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     } 
 }

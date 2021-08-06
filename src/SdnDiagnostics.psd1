@@ -21,7 +21,7 @@
     Description = 'SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.'
 
     # Version number of this module.
-    ModuleVersion = '0.1.0.0'
+    ModuleVersion = '1.0.0.0'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -77,14 +77,15 @@
         'Get-SdnSlbStateInformation',
         'Get-SdnVfpVmSwitchPort',
         'Get-VfpVmSwitchPort',
-        'Get-VMNetAdapter',
+        'Get-SdnVMNetAdapter',
         'Get-VMNetAdapterPortProfile',
         'Install-SdnDiagnostic',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-SdnDataCollection',
         'Start-SdnTraceCapture',
-        'Stop-SdnTraceCapture'
+        'Stop-SdnTraceCapture',
+        'Test-SdnKnownIssue'
     )
 
     # Variables to export from this module
