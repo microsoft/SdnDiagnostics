@@ -5,7 +5,7 @@ $ErrorActionPreference = 'Stop'
 & '.build\generate-version.ps1'
 
 function Get-ModuleVersion {
-    # This is set in a prior step from generateVersion-ps.ps1    
+    # this is set in a prior step from generateVersion-ps.ps1    
     return $env:SdnDiagCustomBuildNumber
 }
 
@@ -15,8 +15,9 @@ if(!(Test-Path -Path $outDir)) {
 }
 
 Copy-Item "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Exclude "*.md" -Recurse -Force
+& $PSScriptRoot\restore.ps1 -DestinationFolder "$outDir\SdnDiagnostics"
 
-# Setting the version of the module manifest
+# setting the version of the module manifest
 $modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"
 if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
     try {
