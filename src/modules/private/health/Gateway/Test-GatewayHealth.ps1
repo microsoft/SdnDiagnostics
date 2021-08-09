@@ -17,10 +17,6 @@ function Test-GatewayHealth {
     )
 
     try {
-        if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
-        }
-
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
         $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $Credential

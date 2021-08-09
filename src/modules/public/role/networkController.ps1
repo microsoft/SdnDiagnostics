@@ -52,6 +52,12 @@ function Get-SdnResource {
         }
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
+
+        # Consume the NcRestCredential if cached
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $Credential = $Global:SdnDiagnostics.NcRestCredential
+        }
+
         if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
             $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
         }

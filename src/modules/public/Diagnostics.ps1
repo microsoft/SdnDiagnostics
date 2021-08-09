@@ -13,6 +13,11 @@ function Debug-SdnFabricInfrastructure {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
             $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Directory | Select-Object -ExpandProperty Name
             return $possibleValues | ForEach-Object { $_ }
@@ -24,11 +29,17 @@ function Debug-SdnFabricInfrastructure {
         $arrayList = [System.Collections.ArrayList]::new()
         $healthScriptRoot = "$PSScriptRoot\..\private\health"
 
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-
+        
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
         }
+
+        # NcRestCredential cached in this function cleared after function exit
+        if($PSBoundParameters.ContainsKey('NcRestCredential')){
+            $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
+        }
+
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController
 
         if($PSBoundParameters.ContainsKey('Role')){
             $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
@@ -61,6 +72,7 @@ function Debug-SdnFabricInfrastructure {
         }
 
         $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.NcRestCredential = $null
         $Global:SdnDiagnostics.Cache.FabricHealth = $arrayList
 
         "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
@@ -68,6 +80,7 @@ function Debug-SdnFabricInfrastructure {
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.NcRestCredential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     } 
 }
@@ -82,6 +95,11 @@ function Test-SdnKnownIssue {
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
+        
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
@@ -95,11 +113,16 @@ function Test-SdnKnownIssue {
         $arrayList = [System.Collections.ArrayList]::new()
         $knownIssueRoot = "$PSScriptRoot\..\private\knownIssues"
 
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
         }
+
+        # NcRestCredential cached in this function cleared after function exit
+        if($PSBoundParameters.ContainsKey('NcRestCredential')){
+            $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
+        }
+       
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController
 
         if($PSBoundParameters.ContainsKey('Test')){
             $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}
@@ -132,6 +155,7 @@ function Test-SdnKnownIssue {
         }
 
         $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.NcRestCredential = $null
         $Global:SdnDiagnostics.Cache.KnownIssues = $arrayList
 
         "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.KnownIssues' | Trace-Output
@@ -139,6 +163,7 @@ function Test-SdnKnownIssue {
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null
+        $Global:SdnDiagnostics.NcRestCredential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     } 
 }
