@@ -17,7 +17,7 @@ function Test-NetworkInterfacePlacement {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
