@@ -85,7 +85,7 @@ function Test-SdnKnownIssue {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ine 'helper'} | Select-Object -ExpandProperty BaseName
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$Test
@@ -105,7 +105,7 @@ function Test-SdnKnownIssue {
             $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}
         }
         else {
-            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ine 'helper'}
         }
 
         if($null -eq $knownIssueScripts){

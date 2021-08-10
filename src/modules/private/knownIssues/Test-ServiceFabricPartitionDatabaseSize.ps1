@@ -30,12 +30,14 @@ function Test-ServiceFabricPartitionDatabaseSize {
             $Credential = $Global:SdnDiagnostics.Credential
         }
 
+        $issueDetected = $false
+        $arrayList = [System.Collections.ArrayList]::new()
+
         $ncNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }
 
-        $failedImos = [System.Collections.ArrayList]::new()
         foreach($node in $ncNodes){
             if($node.NodeStatus -ine 'Up'){
                 "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
@@ -72,7 +74,9 @@ function Test-ServiceFabricPartitionDatabaseSize {
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
                     if([float]$($imosStoreFile.Length/1MB) -gt 4096){
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Error
-                        [void]$failedImos.Add($imosInfo)
+                        
+                        $issueDetected = $true
+                        [void]$arrayList.Add($imosInfo)
                     }
                     else {
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Verbose
@@ -84,17 +88,9 @@ function Test-ServiceFabricPartitionDatabaseSize {
             }
         }
 
-        if($failedImos.Count -gt 0){
-            return [PSCustomObject]@{
-                Result = $true
-                Properties = $failedImos
-            }
-        }
-        else {
-            return [PSCustomObject]@{
-                Result = $false
-                Properties = $null
-            }
+        return [PSCustomObject]@{
+            Result = $issueDetected
+            Properties = $arrayList
         }
     }
     catch {

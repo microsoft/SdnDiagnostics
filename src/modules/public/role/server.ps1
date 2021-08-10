@@ -862,7 +862,7 @@ function Get-SdnVMNetAdapter {
     .PARAMETER VmState
         The state of the virtual machine on the host. If ommitted, defaults to Running
     .EXAMPLE
-        Get-VMNetAdapter -ComputerName (Get-SdnServer -ManagementAddressOnly)
+        Get-SdnVMNetAdapter -ComputerName (Get-SdnServer -ManagementAddressOnly)
     #>
 
     param (
