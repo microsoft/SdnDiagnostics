@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-GatewayHealth {
+function Test-GatewayConfigState {
     <#
     #>
 
@@ -17,6 +17,8 @@ function Test-GatewayHealth {
     )
 
     try {
+        "Validating configuration and provisioning state of Gateways" | Trace-Output
+
         if($Global:SdnDiagnostics.Credential){
             $Credential = $Global:SdnDiagnostics.Credential
         }

@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-LoadBalancerMuxHealth {
+function Test-LoadBalancerMuxConfigState {
     <#
     #>
 
@@ -17,6 +17,8 @@ function Test-LoadBalancerMuxHealth {
     )
 
     try {
+        "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
+        
         if($Global:SdnDiagnostics.Credential){
             $Credential = $Global:SdnDiagnostics.Credential
         }

@@ -58,6 +58,7 @@
         'Get-SdnNetControllerConfigurationState',
         'Get-SdnNetworkController',
         'Get-SdnNetworkControllerState',
+        'Get-SdnNetworkInterfaceEncapOverheadSetting',
         'Get-SdnOvsdbAddressMapping',
         'Get-SdnOvsdbFirewallRuleTable',
         'Get-SdnOvsdbGlobalTable',

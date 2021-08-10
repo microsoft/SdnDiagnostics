@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-ServerHealth {
+function Test-ServerConfigState {
     <#
     #>
 
@@ -17,6 +17,8 @@ function Test-ServerHealth {
     )
 
     try {
+        "Validating configuration and provisioning state of Servers" | Trace-Output
+
         if($Global:SdnDiagnostics.Credential){
             $Credential = $Global:SdnDiagnostics.Credential
         }
