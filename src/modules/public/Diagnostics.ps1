@@ -31,7 +31,7 @@ function Debug-SdnFabricInfrastructure {
         }
 
         if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path "$healthScriptRoot\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         else {
             $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
