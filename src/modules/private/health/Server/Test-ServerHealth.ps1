@@ -17,6 +17,11 @@ function Test-ServerHealth {
     )
 
     try {
+        
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $Credential = $Global:SdnDiagnostics.NcRestCredential
+        }
+
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $Credential

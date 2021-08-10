@@ -17,6 +17,11 @@ function Test-LoadBalancerMuxHealth {
     )
 
     try {
+        
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $Credential = $Global:SdnDiagnostics.NcRestCredential
+        }
+
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
         $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri -Credential $Credential
