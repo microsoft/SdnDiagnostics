@@ -39,7 +39,7 @@ function Debug-SdnFabricInfrastructure {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
 
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
 
         if($PSBoundParameters.ContainsKey('Role')){
             $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}

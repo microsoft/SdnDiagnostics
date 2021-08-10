@@ -6,6 +6,9 @@ function Test-GatewayHealth {
     #>
 
     try {
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+
+        $Credential = [System.Management.Automation.PSCredential]::Empty
         
         if($Global:SdnDiagnostics.NcRestCredential){
             $Credential = $Global:SdnDiagnostics.NcRestCredential
