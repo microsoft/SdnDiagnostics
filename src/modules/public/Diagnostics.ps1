@@ -122,7 +122,7 @@ function Test-SdnKnownIssue {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
        
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController
+        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
 
         if($PSBoundParameters.ContainsKey('Test')){
             $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}

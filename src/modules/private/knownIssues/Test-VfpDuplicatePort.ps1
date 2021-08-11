@@ -2,23 +2,25 @@
 # Licensed under the MIT License.
 
 function Test-VfpDuplicatePort {
-
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
+    <#
+    #>
 
     try {
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+
         if($Global:SdnDiagnostics.Credential){
             $Credential = $Global:SdnDiagnostics.Credential
         }
 
-        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly) -Credential $Credential -AsJob -PassThru
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        }
+
+        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName (Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential) -Credential $Credential -AsJob -PassThru
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
     
         if($duplicateObjects){

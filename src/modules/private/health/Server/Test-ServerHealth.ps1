@@ -5,18 +5,10 @@ function Test-ServerHealth {
     <#
     #>
 
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
     try {
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+
+        $Credential = [System.Management.Automation.PSCredential]::Empty
         
         if($Global:SdnDiagnostics.NcRestCredential){
             $Credential = $Global:SdnDiagnostics.NcRestCredential
