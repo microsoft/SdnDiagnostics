@@ -42,6 +42,7 @@ When creating a health validation test, ensure you:
     }
     ```
 3. Health validation tests are executed using `Debug-SdnFabricInfrastructure`. This function will automatically pick up tests under the `~/src/modules/private/health` directory.
+4. The test function accept no parameters. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
 ## Creating Known Issue Tests
 1. Create the `ps1` file under `~/src/modules/private/knownIssues` as the name of the validation test. e.g. `Test-VfpDuplicatePort.ps1`
 2. Function should return a PSCustomObject that contains the following format:
@@ -60,6 +61,7 @@ When creating a health validation test, ensure you:
     }
     ```
 3. Known Issue tests are executed using `Test-SdnKnownIssues`. This function will automatically pick up tests under the `~/src/modules/private/knownIssues` directory.
+4. The test function accept no parameters. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
 # Trademarks
 
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 

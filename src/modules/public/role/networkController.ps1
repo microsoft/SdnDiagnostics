@@ -52,6 +52,7 @@ function Get-SdnResource {
         }
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
+
         if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
             $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
         }
