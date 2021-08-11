@@ -31,12 +31,17 @@ function Install-SdnDiagnostic {
     try {
         $moduleMissComputers = [System.Collections.ArrayList]::new()
         $localModuleInfo = Get-Module SdnDiagnostics
-        $moduleDir = Get-Item -Path 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics'
+        $moduleDir = Get-Item -Path 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics' -ErrorAction SilentlyContinue
+
+        if($null -eq $moduleDir){
+            "Module not found in PS Module path, fall back to script root" | Trace-Output -Level:Verbose
+            $moduleDir = Get-Item -Path "$PSScriptRoot\..\..\"
+        }
 
         "Current SdnDiagnostics version is {0}" -f $localModuleInfo.Version | Trace-Output
         if($Force){
             [void]$moduleMissComputers.AddRange($ComputerName)
-            "SdnDiagnostics module will be forcely installed" | Trace-Output
+            "SdnDiagnostics module will be forcely installed" | Trace-Output 
         }
         else {
             foreach ($computer in $Computername){
@@ -63,7 +68,7 @@ function Install-SdnDiagnostic {
         }
         
         if($moduleMissComputers){
-            Copy-FileToPSRemoteSession -Path $moduleDir.FullName -ComputerName $moduleMissComputers -Destination $moduleDir.FullName -Credential $Credential -Recurse -Force
+            Copy-FileToPSRemoteSession -Path $moduleDir.FullName -ComputerName $moduleMissComputers -Destination "C:\Program Files\WindowsPowerShell\Modules" -Credential $Credential -Recurse -Force
         }
 
         # ensure that we destroy the current pssessions for the computer to prevent any odd caching issues
