@@ -5,23 +5,15 @@ function Test-GatewayConfigState {
     <#
     #>
 
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
     try {
-        "Validating configuration and provisioning state of Gateways" | Trace-Output
-
-        if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+        
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $Credential = $Global:SdnDiagnostics.NcRestCredential
         }
+
+        "Validating configuration and provisioning state of Gateways" | Trace-Output
 
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()

@@ -5,27 +5,18 @@ function Test-LoadBalancerMuxConfigState {
     <#
     #>
 
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
     try {
-        "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
-        
-        if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        $credential = [System.Management.Automation.PSCredential]::Empty
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $credential = $Global:SdnDiagnostics.NcRestCredential
         }
+
+        "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
 
         $unhealthyNode = $false
         $arrayList = [System.Collections.ArrayList]::new()
-        $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri -Credential $Credential
+        $muxes = Get-SdnLoadBalancerMux -NcUri $ncUri.AbsoluteUri -Credential $credential
 
         foreach($object in $muxes){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){

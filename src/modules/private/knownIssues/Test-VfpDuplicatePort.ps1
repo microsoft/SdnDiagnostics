@@ -2,37 +2,28 @@
 # Licensed under the MIT License.
 
 function Test-VfpDuplicatePort {
-
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
-    )
+    <#
+    #>
 
     try {
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+            $credential = $Global:SdnDiagnostics.Credential
         }
+
+        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.NcRestCredential){
-            $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
         }
 
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
-        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential -AsJob -PassThru
+        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $ncRestCredential
+        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $credential -AsJob -PassThru
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
-    
+
         if($duplicateObjects){
             [void]$arrayList.Add($duplicateObjects)
 

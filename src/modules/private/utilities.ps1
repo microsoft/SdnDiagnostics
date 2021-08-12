@@ -753,7 +753,7 @@ function Remove-PSRemotingSession {
                 }
             }
 
-            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -ieq $ComputerName}
+            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -iin $ComputerName}
         }
 
         $stopWatch.Stop()
