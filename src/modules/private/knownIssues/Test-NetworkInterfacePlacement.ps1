@@ -8,21 +8,26 @@ function Test-NetworkInterfacePlacement {
     #>
 
     try {
-        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        "Validate placement of network interfaces between Network Controller and Hypervisor" | Trace-Output
 
+        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        
+        $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+            $credential = $Global:SdnDiagnostics.Credential
         }
+    
+        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.NcRestCredential){
-            $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
         }
 
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $servers = Get-SdnServer -NcUri $ncUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
-        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces
-        $networkAdapters = Get-SdnVMNetAdapter -ComputerName $servers -Credential $Credential -AsJob -Timeout 600 -PassThru
+        $servers = Get-SdnServer -NcUri $ncUri.AbsoluteUri -ManagementAddressOnly -Credential $ncRestCredential
+        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $ncRestCredential
+        $networkAdapters = Get-SdnVMNetAdapter -ComputerName $servers -Credential $credential -AsJob -Timeout 600 -PassThru
         $driftedNetworkInterfaces = Test-NetworkInterfaceLocation -NetworkControllerNetworkInterfaces $networkInterfaces -VMNetworkAdapters $networkAdapters
         if($driftedNetworkInterfaces){
             # we want to focus on instances where network controller api does not have a valid server reference to where the mac address resides

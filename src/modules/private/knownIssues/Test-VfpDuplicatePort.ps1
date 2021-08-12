@@ -8,13 +8,14 @@ function Test-VfpDuplicatePort {
     #>
 
     try {
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-
+        "Validate no duplicate MAC addresses for ports within Virtual Filtering Platform (VFP)" | Trace-Output
+        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        
         $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
             $credential = $Global:SdnDiagnostics.Credential
         }
-
+    
         $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.NcRestCredential){
             $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
@@ -26,9 +27,9 @@ function Test-VfpDuplicatePort {
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $ncRestCredential
         $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $credential -AsJob -PassThru
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
-
         if($duplicateObjects){
             [void]$arrayList.Add($duplicateObjects)
+            $issueDetected = $true
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){

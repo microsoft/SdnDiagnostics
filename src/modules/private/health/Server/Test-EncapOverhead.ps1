@@ -5,32 +5,23 @@ function Test-EncapOverhead {
         and that the settings are configured as expected
     #>
 
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
     [int]$encapOverheadExpectedValue = 160 
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
 
     try {
         "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
 
+        $servers = $SdnDiagnostics.EnvironmentInfo.Host
+
+        $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+            $credential = $Global:SdnDiagnostics.Credential
         }
 
         $arrayList = [System.Collections.ArrayList]::new()
-        $failure = $false
+        $status = 'Success'
 
-        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $Credential -ManagementAddressOnly
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $servers -Credential $Credential -Scriptblock {Get-SdnNetworkInterfaceEncapOverheadSetting}
+        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $servers -Credential $credential -Scriptblock {Get-SdnNetworkInterfaceEncapOverheadSetting}
         foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName | Sort-Object -Unique)){
             foreach($interface in $object.Group){
                 if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
@@ -38,7 +29,7 @@ function Test-EncapOverhead {
 
                     if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
                         "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                        $failure = $true
+                        $status = 'Failure'
 
                         $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
                         [void]$arrayList.Add($interface)
@@ -48,13 +39,6 @@ function Test-EncapOverhead {
                     continue
                 }
             }
-        }
-
-        if($failure){
-            $status = 'Failure'
-        }
-        else {
-            $status = 'Success'
         }
 
         return [PSCustomObject]@{

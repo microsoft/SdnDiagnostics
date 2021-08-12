@@ -8,26 +8,26 @@ function Test-GatewayConfigState {
     #>
 
     try {
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-        
-        if($Global:SdnDiagnostics.NcRestCredential){
-            $Credential = $Global:SdnDiagnostics.NcRestCredential
-        }
-
         "Validating configuration and provisioning state of Gateways" | Trace-Output
 
-        $unhealthyNode = $false
-        $arrayList = [System.Collections.ArrayList]::new()
-        $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $Credential
+        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        
+        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
+        if($Global:SdnDiagnostics.NcRestCredential){
+            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        }
 
+        $status = 'Success'
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        $gateways = Get-SdnGateway -NcUri $ncUri.AbsoluteUri -Credential $ncRestCredential
         foreach($object in $gateways){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 if($object.properties.configurationState.status -ieq 'Uninitialized'){
                     # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                 }
                 else {
-                    $unhealthyNode = $true
+                    $status = 'Failure'
 
                     $details = [PSCustomObject]@{
                         resourceRef = $object.resourceRef
@@ -40,17 +40,9 @@ function Test-GatewayConfigState {
             }
         }
         
-        if($unhealthyNode){
-            return [PSCustomObject]@{
-                Status = 'Failure'
-                Properties = $arrayList
-            }
-        }
-        else {
-            return [PSCustomObject]@{
-                Status = 'Success'
-                Properties = $arrayList
-            }
+        return [PSCustomObject]@{
+            Status = $status
+            Properties = $arrayList
         }
     }
     catch {

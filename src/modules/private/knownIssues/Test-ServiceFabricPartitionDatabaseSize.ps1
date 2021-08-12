@@ -8,17 +8,19 @@ function Test-ServiceFabricPartitionDatabaseSize {
     #>
 
     try {
-        $NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC
+        "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
 
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $networkController = $Global:SdnDiagnostics.EnvironmentInfo.NC
+
+        $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
-            $Credential = $Global:SdnDiagnostics.Credential
+            $credential = $Global:SdnDiagnostics.Credential
         }
-
+    
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $networkController -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }

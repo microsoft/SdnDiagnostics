@@ -8,21 +8,22 @@ function Test-ServerConfigState {
     #>
 
     try {
+        "Validating configuration and provisioning state of Servers" | Trace-Output
+        
         [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        $credential = [System.Management.Automation.PSCredential]::Empty
+
+        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.NcRestCredential){
-            $credential = $Global:SdnDiagnostics.NcRestCredential
+            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
         }
 
-        "Validating configuration and provisioning state of Servers" | Trace-Output
-
-        $unhealthyNode = $false
+        $status = 'Success'
         $arrayList = [System.Collections.ArrayList]::new()
-        $servers = Get-SdnServer -NcUri $ncUri.AbsoluteUri -Credential $credential
 
+        $servers = Get-SdnServer -NcUri $ncUri.AbsoluteUri -Credential $ncRestCredential
         foreach($object in $servers){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                $unhealthyNode = $true
+                $status = 'Failure'
 
                 $details = [PSCustomObject]@{
                     resourceRef = $object.resourceRef
@@ -34,17 +35,9 @@ function Test-ServerConfigState {
             }
         }
         
-        if($unhealthyNode){
-            return [PSCustomObject]@{
-                Status = 'Failure'
-                Properties = $arrayList
-            }
-        }
-        else {
-            return [PSCustomObject]@{
-                Status = 'Success'
-                Properties = $arrayList
-            }
+        return [PSCustomObject]@{
+            Status = $status
+            Properties = $arrayList
         }
     }
     catch {
