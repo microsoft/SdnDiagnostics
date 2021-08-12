@@ -51,6 +51,8 @@
         'Get-OvsdbPhysicalPortTable',
         'Get-OvsdbUcastMacRemoteTable',
         'Get-SdnApiResource',
+        'Get-SdnDiagnosticLog',
+        'Get-SdnEventLogs'
         'Get-SdnGatewayConfigurationState',
         'Get-SdnGateway',
         'Get-SdnInfrastructureInfo',
@@ -70,6 +72,7 @@
         'Get-SdnServiceFabricApplicationHealth',
         'Get-SdnServiceFabricClusterHealth',
         'Get-SdnServiceFabricClusterManifest',
+        'Get-SdnServiceFabricLog',
         'Get-SdnServiceFabricNode'
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',

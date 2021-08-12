@@ -173,7 +173,6 @@ function Get-SdnNetControllerConfigurationState {
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
 
         # enumerate dll binary version for NC application
-        "Getting"
         $ncAppDirectories = Get-ChildItem -Path "C:\Windows\NetworkController" -Directory
         $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "NCApplication") -ItemType Directory -Force
         foreach($directory in $ncAppDirectories){
@@ -535,4 +534,171 @@ function Start-SdnDataCollection {
 
     "Generating output of the NC API resources" | Trace-Output
     Get-SdnApiResource -NcUri $NcUri.AbsoluteUri -OutputDirectory $outputDir.FullName -Credential $Credential
+}
+
+function Get-SdnDiagnosticLog {
+    <#
+        .SYNOPSIS
+        Collect the default enabled logs from SdnDiagnostics folder
+
+        .PARAMETER OutputDirectory
+
+        .PARAMETER FromDate
+        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 120 hours.
+            (Get-Date).AddHours(-4)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [parameter(Mandatory=$false)]
+        [DateTime]$FromDate = (Get-Date).AddHours(-4)
+    )
+
+    try {
+        $localLogDir = "C:\Windows\tracing\SDNDiagnostics\Logs"
+
+        if(!(Test-Path -Path $localLogDir)){
+            "No SdnDiagnostics folder found, this need to run on SDN Infrastructure Nodes" | Trace-Output -Level:Warning
+            return
+        }
+
+        "Collect SdnDiagnostics logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
+
+        # Create local directory for SdnDiagnostics logs
+        $logOutputDir = "$OutputDirectory\SdnDiagnostics"
+        if(!(Test-Path -Path $logOutputDir -PathType Container)){
+            $null = New-Item -Path $logOutputDir -ItemType Directory
+        }
+
+        $sdnDiagLogs = Get-ChildItem -Path $localLogDir | Where-Object {$_.LastWriteTime -ge $FromDate}
+        foreach ($sdnDiagLog in $sdnDiagLogs){
+            Copy-Item $sdnDiagLog.FullName -Destination $logOutputDir
+        }
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnServiceFabricLog {
+    <#
+        .SYNOPSIS
+        Collect the default enabled logs from Service Fabric folder
+
+        .PARAMETER OutputDirectory
+
+        .PARAMETER FromDate
+        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 120 hours.
+            (Get-Date).AddHours(-4)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [parameter(Mandatory=$false)]
+        [DateTime]$FromDate = (Get-Date).AddHours(-4)
+    )
+
+    try {
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+
+        # ensure that the appropriate windows feature is installed and ensure module is imported
+        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+        if(!$confirmFeatures){
+            throw New-Object System.Exception("Required feature is missing")
+        }
+
+        $localLogDir = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
+
+        "Collect Service Fabric logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
+
+        # Create local directory for ServiceFabricTraces logs
+        $logOutputDir = "$OutputDirectory\ServiceFabricTraces"
+        if(!(Test-Path -Path $logOutputDir -PathType Container)){
+            $null = New-Item -Path $logOutputDir -ItemType Directory
+        }
+
+        $serviceFabricLogs = Get-ChildItem -Path $localLogDir | Where-Object {$_.LastWriteTime -ge $FromDate}
+        foreach ($serviceFabricLog in $serviceFabricLogs){
+            Copy-Item $serviceFabricLog.FullName -Destination $logOutputDir
+        }
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnEventLogs {
+    <#
+    .SYNOPSIS
+    Collect the Windows Event Logs for different SDN Roles
+
+    .PARAMETER OutputDirectory
+
+    .PARAMETER FromDate
+    Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 1 day.
+        (Get-Date).AddDays(-1)
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [SdnRoles]$Role,
+
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [parameter(Mandatory=$false)]
+        [DateTime]$FromDate = (Get-Date).AddDays(-1)
+    )
+    try {
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+
+        # ensure that the appropriate windows feature is installed and ensure module is imported
+        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+        if(!$confirmFeatures){
+            throw New-Object System.Exception("Required feature is missing")
+        }
+
+        # build array of win events based on which role the function is being executed
+        # we will build these and dump the results at the end
+        $eventLogs = [System.Collections.ArrayList]::new()
+        $eventLogProviders = $config.properties.eventLogProviders
+        foreach($provider in $eventLogProviders)
+        {
+            "Looking for Event matching {0}" -f $provider | Trace-Output -Level:Verbose
+            $eventLogsToAdd = Get-WinEvent -ListLog "$provider" | Where-Object {$_.RecordCount}
+            if($eventLogsToAdd.Count -gt 1){
+                [void]$eventLogs.AddRange($eventLogsToAdd)
+            }
+            elseif ($eventLogsToAdd.Count -gt 0) {
+                [void]$eventLogs.Add($eventLogsToAdd)
+            }
+            else {
+                "No Event match {0}" -f $provider | Trace-Output -Level:Warning
+            }
+        }
+
+        # export the event logs in csv and evtx formats
+        $eventLogFolder = "$OutputDirectory\EventLogs"
+        if(!(Test-Path -Path $eventLogFolder -PathType Container)){
+            $null = New-Item -Path $eventLogFolder -ItemType Directory -Force
+        }
+
+        foreach($eventLog in $eventLogs){
+            "Export Event log {0} to {1}" -f $eventLog.LogName, "$eventLogFolder\$($eventLog.LogName).csv".Replace("/","_") | Trace-Output -Level:Verbose
+            Get-WinEvent -LogName $eventLog.LogName `
+            | Where-Object {$_.TimeCreated -gt $FromDate} `
+            | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
+            | Export-Csv -Path "$eventLogFolder\$($eventLog.LogName).csv".Replace("/","_") -NoTypeInformation -Force
+            wevtutil epl $eventLog.LogName "$eventLogFolder\$($eventLog.LogName).evtx".Replace("/","_") /ow
+        }
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
 }
