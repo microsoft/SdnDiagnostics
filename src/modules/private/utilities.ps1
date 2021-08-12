@@ -735,7 +735,7 @@ function Remove-PSRemotingSession {
         [int]$timeOut = 120
         $stopWatch =  [System.Diagnostics.Stopwatch]::StartNew()
 
-        $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -ieq $ComputerName}
+        $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -iin $ComputerName}
         while($sessions){
             if($stopWatch.Elapsed.TotalSeconds -gt $timeOut){
                 throw New-Object System.TimeoutException("Unable to drain PSSessions")
