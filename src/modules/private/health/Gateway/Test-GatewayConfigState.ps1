@@ -3,6 +3,8 @@
 
 function Test-GatewayConfigState {
     <#
+    .SYNOPSIS
+        Validate that the configurationState and provisioningState is Success
     #>
 
     try {

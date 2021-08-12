@@ -3,6 +3,8 @@
 
 function Test-ServerConfigState {
     <#
+    .SYNOPSIS
+        Validate that the configurationState and provisioningState is Success
     #>
 
     try {

@@ -3,10 +3,13 @@
 
 function Test-VfpDuplicatePort {
     <#
+    .SYNOPSIS
+        Validate there are no ports within VFP layer that may have duplicate MAC addresses
     #>
 
     try {
         [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+
         $credential = [System.Management.Automation.PSCredential]::Empty
         if($Global:SdnDiagnostics.Credential){
             $credential = $Global:SdnDiagnostics.Credential

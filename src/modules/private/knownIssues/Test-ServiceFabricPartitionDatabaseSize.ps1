@@ -8,11 +8,9 @@ function Test-ServiceFabricPartitionDatabaseSize {
     #>
 
     try {
-
         $NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC
 
         $Credential = [System.Management.Automation.PSCredential]::Empty
-
         if($Global:SdnDiagnostics.Credential){
             $Credential = $Global:SdnDiagnostics.Credential
         }
