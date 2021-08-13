@@ -605,15 +605,12 @@ function Get-SdnServiceFabricLog {
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
-
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
-            throw New-Object System.Exception("Required feature is missing")
-        }
-
         $localLogDir = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
+
+        if(!(Test-Path -Path $localLogDir)){
+            "No Service Farbci Traces folder found at {0}, this need to run on Network Controller" -f $localLogDir | Trace-Output -Level:Warning
+            return
+        }
 
         "Collect Service Fabric logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
 
@@ -633,7 +630,7 @@ function Get-SdnServiceFabricLog {
     }
 }
 
-function Get-SdnEventLogs {
+function Get-SdnEventLog {
     <#
     .SYNOPSIS
     Collect the Windows Event Logs for different SDN Roles
