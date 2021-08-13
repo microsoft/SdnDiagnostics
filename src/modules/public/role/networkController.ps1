@@ -323,6 +323,12 @@ function Get-SdnInfrastructureInfo {
         return $Global:SdnDiagnostics.EnvironmentInfo
     } 
     catch {
+        # Remove any cached info in case of exception as the cached info might be incorrect
+        $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.NC = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
