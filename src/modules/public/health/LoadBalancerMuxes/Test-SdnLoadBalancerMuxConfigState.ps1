@@ -47,6 +47,13 @@ function Test-SdnLoadBalancerMuxConfigState {
                 }
     
                 [void]$arrayList.Add($details)
+
+                "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
+                    -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Warning
+            }
+            else {
+                "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
+                    -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Verbose
             }
         }
 

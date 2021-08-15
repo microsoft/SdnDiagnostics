@@ -695,7 +695,6 @@ function Get-FunctionFromFile {
     )
 
     try {
-        "Locating functions within {0} that match {1}" -f $FilePath.FullName, $Verb | Trace-Output -Level:Verbose
         # get the raw content of the script
         $code = Get-Content -Path $FilePath.FullName -Raw
 
@@ -704,7 +703,6 @@ function Get-FunctionFromFile {
             | Select-Object -ExpandProperty Name
         
         if($functionName){
-            "Identified {0} functions: {1}" -f $functionName.Count, ($functionName -join ', ') | Trace-Output -Level:Verbose
             return ($functionName | Where-Object {$_ -like "$Verb-*"})
         }
         else {
