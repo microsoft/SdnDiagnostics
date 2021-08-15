@@ -1,9 +1,20 @@
-function Test-EncapOverhead {
+function Test-SdnEncapOverhead {
     <#
     .SYNOPSIS
         Retrieves the VMSwitch across servers in the dataplane to confirm that the network interfaces support EncapOverhead or JumboPackets
         and that the settings are configured as expected
     #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Host,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
 
     [int]$encapOverheadExpectedValue = 160 
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
@@ -11,19 +22,29 @@ function Test-EncapOverhead {
     try {
         "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
 
-        $servers = $SdnDiagnostics.EnvironmentInfo.Host
+        if($null -eq $ComputerName){
+            throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
+        }
 
-        $credential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.Credential){
-            $credential = $Global:SdnDiagnostics.Credential
+        # if Credential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('Credential')){
+            if($Global:SdnDiagnostics.Credential){
+                $Credential = $Global:SdnDiagnostics.Credential
+            }    
         }
 
         $arrayList = [System.Collections.ArrayList]::new()
         $status = 'Success'
 
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $servers -Credential $credential -Scriptblock {Get-SdnNetworkInterfaceEncapOverheadSetting}
-        foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName | Sort-Object -Unique)){
+        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-NetworkInterfaceEncapOverheadSetting}
+        if($null -eq $encapOverheadResults){
+            throw New-Object System.NullReferenceException("No encap overhead results found")
+        }
+
+        foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName)){
             foreach($interface in $object.Group){
+                "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
+
                 if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
                     "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
 
@@ -34,9 +55,6 @@ function Test-EncapOverhead {
                         $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
                         [void]$arrayList.Add($interface)
                     }
-                }
-                else {
-                    continue
                 }
             }
         }

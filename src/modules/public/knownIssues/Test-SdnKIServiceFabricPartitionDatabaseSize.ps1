@@ -1,26 +1,41 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-ServiceFabricPartitionDatabaseSize {
+function Test-KIServiceFabricPartitionDatabaseSize {
     <#
     .SYNOPSIS
         Validate the Service Fabric partition size for each of the services running on Network Controller
     #>
 
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName = $Global:SdnDiagnostics.EnvironmentInfo.NC,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
     try {
         "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
 
-        $networkController = $Global:SdnDiagnostics.EnvironmentInfo.NC
-
-        $credential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.Credential){
-            $credential = $Global:SdnDiagnostics.Credential
+        if($null -eq $ComputerName){
+            throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
-    
+
+        # if Credential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('Credential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $Credential = $Global:SdnDiagnostics.Credential
+            }    
+        }
+
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $networkController -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $ComputerName -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }

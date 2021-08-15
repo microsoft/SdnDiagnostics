@@ -255,15 +255,14 @@ function Invoke-PSRemoteCommand {
             "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
             
             if($AsJob){
-                $result = Invoke-Command -Session $session -HideComputerName -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
+                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
                 if($PassThru){
                     $result = Wait-PSRemoteJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
                 }
             }
             else {
-                $result = Invoke-Command -Session $session -HideComputerName -ScriptBlock $ScriptBlock
+                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
             }
-
 
             return $result
         }

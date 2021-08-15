@@ -1,26 +1,41 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-NetworkInterfaceAPIDuplicateMacAddress {
+function Test-KINetworkInterfaceAPIDuplicateMacAddress {
     <#
     .SYNOPSIS
-        Validate there are no adapters within hyper-v dataplane that may have duplicate MAC addresses
+        Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate
     #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+    )
     
     try {
         "Checking for orphaned network interfaces in Network Controller" | Trace-Output
 
-        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        if($null -eq $NcUri){
+            throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
+        }
         
-        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.NcRestCredential){
-            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        # if NcRestCredential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            }    
         }
 
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $ncRestCredential
+        $networkInterfaces = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
         $duplicateObjects = $networkInterfaces | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
 
         if($duplicateObjects){

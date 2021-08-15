@@ -901,7 +901,7 @@ function Get-SdnVMNetAdapter {
     }
 }
 
-function Get-SdnNetworkInterfaceEncapOverheadSetting {
+function Get-NetworkInterfaceEncapOverheadSetting {
     <#
     .SYNOPSIS
         Retrieves the EncapOverhead and JumboPacket properties of each network interface attached to vmswitch
@@ -919,7 +919,6 @@ function Get-SdnNetworkInterfaceEncapOverheadSetting {
     
             # enumerate each of the physical network adapters that are bound to the vmswitch
             foreach($physicalNicIfDesc in $switch.NetAdapterInterfaceDescriptions){
-                "Getting network interface properties for: {0}" -f $physicalNicIfDesc | Trace-Output -Level:Verbose
     
                 # get the encap overhead settings for each of the network interfaces within the vm switch team
                 $encapOverhead = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*Encapoverhead" -ErrorAction SilentlyContinue
@@ -934,7 +933,7 @@ function Get-SdnNetworkInterfaceEncapOverheadSetting {
                 # get the jumbo packet settings for each of the network interfaces within the vm switch team
                 $jumboPacket = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*JumboPacket" -ErrorAction SilentlyContinue
                 if($null -eq $jumboPacket){
-                        "Network interface {0} does not support JumboPacket." -f $physicalNicIfDesc | Trace-Output -Level:Warning
+                    "Network interface {0} does not support JumboPacket." -f $physicalNicIfDesc | Trace-Output -Level:Warning
                 }
                 else {
                     $supportsJumboPacket = $true

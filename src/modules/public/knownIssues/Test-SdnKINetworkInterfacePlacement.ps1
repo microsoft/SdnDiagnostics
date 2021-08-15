@@ -1,33 +1,55 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-NetworkInterfacePlacement {
+function Test-KINetworkInterfacePlacement {
     <#
     .SYNOPSIS
         Validates the placement of Network Controller Network Interface API placement compared to Hypervisor.
     #>
 
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+    )
+
     try {
         "Validate placement of network interfaces between Network Controller and Hypervisor" | Trace-Output
 
-        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        
-        $credential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.Credential){
-            $credential = $Global:SdnDiagnostics.Credential
-        }
-    
-        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.NcRestCredential){
-            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        if($null -eq $NcUri){
+            throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
+        # if NcRestCredential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            }
+        }
+
+        # if Credential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('Credential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $Credential = $Global:SdnDiagnostics.Credential
+            }
+        }
+        
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $servers = Get-SdnServer -NcUri $ncUri.AbsoluteUri -ManagementAddressOnly -Credential $ncRestCredential
-        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $ncRestCredential
-        $networkAdapters = Get-SdnVMNetAdapter -ComputerName $servers -Credential $credential -AsJob -Timeout 600 -PassThru
+        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
+        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
+        $networkAdapters = Get-SdnVMNetAdapter -ComputerName $servers -Credential $Credential -AsJob -Timeout 600 -PassThru
         $driftedNetworkInterfaces = Test-NetworkInterfaceLocation -NetworkControllerNetworkInterfaces $networkInterfaces -VMNetworkAdapters $networkAdapters
         if($driftedNetworkInterfaces){
             # we want to focus on instances where network controller api does not have a valid server reference to where the mac address resides

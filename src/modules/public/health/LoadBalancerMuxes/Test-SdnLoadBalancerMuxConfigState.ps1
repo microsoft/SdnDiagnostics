@@ -1,26 +1,41 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-LoadBalancerMuxConfigState {
+function Test-SdnLoadBalancerMuxConfigState {
     <#
     .SYNOPSIS
         Validate that the configurationState and provisioningState is Success
     #>
 
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+    )
+
     try {
         "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
+        
+        if($null -eq $NcUri){
+            throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
+        }
 
-        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-
-        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.NcRestCredential){
-            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        # if NcRestCredential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            }    
         }
 
         $status = 'Success'
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $muxes = Get-SdnLoadBalancerMux -NcUri $ncUri.AbsoluteUri -Credential $ncRestCredential
+        $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
         foreach($object in $muxes){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 $status = 'Failure'

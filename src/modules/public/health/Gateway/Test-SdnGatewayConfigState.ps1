@@ -1,26 +1,41 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-GatewayConfigState {
+function Test-SdnGatewayConfigState {
     <#
     .SYNOPSIS
         Validate that the configurationState and provisioningState is Success
     #>
 
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+    )
+
     try {
         "Validating configuration and provisioning state of Gateways" | Trace-Output
 
-        [Uri]$ncUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        
-        $ncRestCredential = [System.Management.Automation.PSCredential]::Empty
-        if($Global:SdnDiagnostics.NcRestCredential){
-            $ncRestCredential = $Global:SdnDiagnostics.NcRestCredential
+        if($null -eq $NcUri){
+            throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
+        }
+
+        # if NcRestCredential parameter not defined, check to see if global cache is populated
+        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
+            if($Global:SdnDiagnostics.NcRestCredential){
+                $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
+            }    
         }
 
         $status = 'Success'
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $gateways = Get-SdnGateway -NcUri $ncUri.AbsoluteUri -Credential $ncRestCredential
+        $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
         foreach($object in $gateways){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 if($object.properties.configurationState.status -ieq 'Uninitialized'){
