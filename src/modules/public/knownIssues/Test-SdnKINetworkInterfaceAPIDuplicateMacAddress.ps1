@@ -19,7 +19,7 @@ function Test-KINetworkInterfaceAPIDuplicateMacAddress {
     )
     
     try {
-        "Checking for duplicate network interfaces in Network Controller" | Trace-Output
+        "Validate no duplicate MAC addresses for network interfaces in Network Controller" | Trace-Output
 
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
