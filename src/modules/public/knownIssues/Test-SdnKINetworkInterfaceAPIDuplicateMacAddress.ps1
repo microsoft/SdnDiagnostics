@@ -19,7 +19,7 @@ function Test-KINetworkInterfaceAPIDuplicateMacAddress {
     )
     
     try {
-        "Checking for orphaned network interfaces in Network Controller" | Trace-Output
+        "Checking for duplicate network interfaces in Network Controller" | Trace-Output
 
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
@@ -36,18 +36,23 @@ function Test-KINetworkInterfaceAPIDuplicateMacAddress {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $networkInterfaces = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
-        $duplicateObjects = $networkInterfaces | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
+        if($null -eq $networkInterfaces){
+            throw New-Object System.NullReferenceException("No network interfaces returned from Network Controller")
+        }
 
+        $duplicateObjects = $networkInterfaces.properties | Group-Object -Property privateMacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
-            [void]$arrayList.Add($duplicateObjects)
             $issueDetected = $true
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
+                $duplicateInterfaces = $networkInterfaces | Where-Object {$_.properties.privateMacAddress -eq $obj.Name}
+                [void]$arrayList.Add($duplicateInterfaces)
+
                 "Located {0} virtual machines associated with MAC address {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
-                    ($obj.Group `
-                    | Select-Object @{n="ResourceId";e={"`t$($_.resourceId)"}} `
-                    | Select-Object -ExpandProperty ResourceId `
+                    ($duplicateInterfaces `
+                    | Select-Object @{n="ResourceRef";e={"`t$($_.resourceRef)"}} `
+                    | Select-Object -ExpandProperty ResourceRef `
                     | Out-String `
                 ) | Trace-Output -Level:Warning
             }
