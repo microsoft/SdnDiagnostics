@@ -49,7 +49,7 @@ function Test-KINetworkInterfacePlacement {
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
         $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
-        $networkAdapters = Get-SdnVMNetAdapter -ComputerName $servers -Credential $Credential -AsJob -Timeout 600 -PassThru
+        $networkAdapters = Get-SdnVMNetworkAdapter -ComputerName $servers -Credential $Credential -AsJob -Timeout 600 -PassThru
         $driftedNetworkInterfaces = Test-NetworkInterfaceLocation -NetworkControllerNetworkInterfaces $networkInterfaces -VMNetworkAdapters $networkAdapters
         if($driftedNetworkInterfaces){
             # we want to focus on instances where network controller api does not have a valid server reference to where the mac address resides

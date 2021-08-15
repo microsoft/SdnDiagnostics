@@ -48,7 +48,7 @@ function Test-KIVMNetAdapterDuplicateMacAddress {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
-        $vmNetAdapters = Get-SdnVMNetAdapter -ComputerName $servers -AsJob -PassThru -Timeout 900 -Credential $Credential
+        $vmNetAdapters = Get-SdnVMNetworkAdapter -ComputerName $servers -AsJob -PassThru -Timeout 900 -Credential $Credential
         $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
             [void]$arrayList.Add($duplicateObjects)
