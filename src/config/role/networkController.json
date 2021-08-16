@@ -11,7 +11,7 @@
         "eventLogProviders": [
             "Application",
             "Microsoft-Windows-NetworkController*",
-            "Microsoft-ServiceFabric",
+            "Microsoft-ServiceFabric*",
             "System"
         ],
         "netControllerStatePath": "C:\\Windows\\Tracing\\SDNDiagnostics\\NetworkControllerState",
