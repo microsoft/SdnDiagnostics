@@ -54,7 +54,7 @@ function Invoke-SdnServiceFabricCommand {
                 }
     
                 try {
-                    $connection = Invoke-Command -Session $session -HideComputerName -ScriptBlock {
+                    $connection = Invoke-Command -Session $session -ScriptBlock {
                         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
                         Connect-ServiceFabricCluster 3>$null 4>$null
                     } -ErrorAction Stop

@@ -19,7 +19,7 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\health" -Directory | Select-Object -ExpandProperty Name
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\health" -Directory | Select-Object -ExpandProperty Name
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$Role
@@ -27,22 +27,23 @@ function Debug-SdnFabricInfrastructure {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
-        $healthScriptRoot = "$PSScriptRoot\..\private\health"
+        $healthScriptRoot = "$PSScriptRoot\health"
 
-        
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
         }
 
-        # NcRestCredential cached in this function cleared after function exit
         if($PSBoundParameters.ContainsKey('NcRestCredential')){
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
 
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        if($null -eq $environmentInfo){
+            throw New-Object System.NullReferenceException("Unable to retrieve environment details")
+        }
 
         if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
+            $healthValidationScripts = Get-ChildItem -Path "$healthScriptRoot\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1'}
         }
         else {
             $healthValidationScripts = Get-ChildItem -Path $healthScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1'}
@@ -103,7 +104,7 @@ function Test-SdnKnownIssue {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\..\private\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
+            $possibleValues = Get-ChildItem -Path "$PSScriptRoot\knownIssues" -Recurse | Where-Object {$_.Extension -eq '.ps1'} | Select-Object -ExpandProperty BaseName
             return $possibleValues | ForEach-Object { $_ }
         })]
         [System.String]$Test
@@ -111,18 +112,20 @@ function Test-SdnKnownIssue {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
-        $knownIssueRoot = "$PSScriptRoot\..\private\knownIssues"
+        $knownIssueRoot = "$PSScriptRoot\knownIssues"
 
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
         }
 
-        # NcRestCredential cached in this function cleared after function exit
         if($PSBoundParameters.ContainsKey('NcRestCredential')){
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
        
-        $null = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        if($null -eq $environmentInfo){
+            throw New-Object System.NullReferenceException("Unable to retrieve environment details")
+        }
 
         if($PSBoundParameters.ContainsKey('Test')){
             $knownIssueScripts = Get-ChildItem -Path $knownIssueRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}

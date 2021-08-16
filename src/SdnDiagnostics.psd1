@@ -45,6 +45,7 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Debug-SdnFabricInfrastructure',
+        'Get-NetworkInterfaceEncapOverheadSetting',
         'Get-OvsdbAddressMapping',
         'Get-OvsdbFirewallRuleTable',
         'Get-OvsdbGlobalTable',
@@ -53,8 +54,8 @@
         'Get-SdnApiResource',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog'
-        'Get-SdnGatewayConfigurationState',
         'Get-SdnGateway',
+        'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
         'Get-SdnLoadBalancerMux',
         'Get-SdnNetControllerConfigurationState',
@@ -67,8 +68,8 @@
         'Get-SdnOvsdbUcastMacRemoteTable',
         'Get-SdnProviderAddress',
         'Get-SdnResource',
-        'Get-SdnServerConfigurationState',
         'Get-SdnServer',
+        'Get-SdnServerConfigurationState',
         'Get-SdnServiceFabricApplicationHealth',
         'Get-SdnServiceFabricClusterHealth',
         'Get-SdnServiceFabricClusterManifest',
@@ -76,12 +77,12 @@
         'Get-SdnServiceFabricNode'
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',
-        'Get-SdnSlbMuxConfigurationState'
+        'Get-SdnSlbMuxConfigurationState',
         'Get-SdnSlbStateInformation',
         'Get-SdnVfpVmSwitchPort',
-        'Get-VfpVmSwitchPort',
-        'Get-SdnVMNetAdapter',
-        'Get-VMNetAdapterPortProfile',
+        'Get-SdnVMNetworkAdapter',
+        'Get-VfpVMSwitchPort',
+        'Get-VMNetworkAdapterPortProfile',
         'Install-SdnDiagnostic',
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
@@ -89,7 +90,20 @@
         'Start-SdnDataCollection',
         'Start-SdnTraceCapture',
         'Stop-SdnTraceCapture',
-        'Test-SdnKnownIssue'
+        'Test-KINetworkInterfaceAPIDuplicateMacAddress',
+        'Test-KINetworkInterfacePlacement',
+        'Test-KIServiceFabricPartitionDatabaseSize',
+        'Test-KIVfpDuplicatePort',
+        'Test-KIVMNetAdapterDuplicateMacAddress',
+        'Test-SdnEncapOverhead',
+        'Test-SdnGatewayConfigState',
+        'Test-SdnGatewayServiceState',
+        'Test-SdnKnownIssue',
+        'Test-SdnLoadBalancerMuxConfigState',
+        'Test-SdnLoadBalancerMuxServiceState',
+        'Test-SdnNetworkControllerServiceState',
+        'Test-SdnServerConfigState',
+        'Test-SdnServerServiceState'
     )
 
     # Variables to export from this module

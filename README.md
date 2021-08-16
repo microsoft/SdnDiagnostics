@@ -25,43 +25,40 @@ When contributing to this project, ensure you:
 
 ## Creating Health Validation Tests
 When creating a health validation test, ensure you:
-1. Create the `ps1` file under `~/src/modules/private/health` as the name of the validation test. e.g. `Test-ServerHealth.ps1`
+1. Create the `ps1` file under `~/src/modules/public/health` as the name of the validation test. e.g. `Test-SdnServerHealth.ps1`
 2. Function should return a PSCustomObject that contains the following format:
     ```
-    if($unhealthyNode){
-        return [PSCustomObject]@{
-            Status = 'Failure'
-            Properties = $arrayList
-        }
-    }
+    # $status should contain either 'Success' or 'Failure'
+    # $properties will contain any related information in scenario of 'Failure' status 
     else {
         return [PSCustomObject]@{
-            Status = 'Success'
+            Status = $status
             Properties = $arrayList
         }
     }
     ```
-3. Health validation tests are executed using `Debug-SdnFabricInfrastructure`. This function will automatically pick up tests under the `~/src/modules/private/health` directory.
-4. The test function accept no parameters. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+3. Health validation tests are executed using `Debug-SdnFabricInfrastructure` or executing the cmdlet directly.
+ - `Debug-SdnFabricInfrastructure` will automatically pick up tests under the `~/src/modules/public/health` directory.
+ - The health validation function should be added to `SdnDiagnostics.psd1` under `FunctionsToExport`
+4. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+
 ## Creating Known Issue Tests
-1. Create the `ps1` file under `~/src/modules/private/knownIssues` as the name of the validation test. e.g. `Test-VfpDuplicatePort.ps1`
+1. Create the `ps1` file under `~/src/modules/public/knownIssues` as the name of the validation test. e.g. `Test-KIVfpDuplicatePort.ps1`
 2. Function should return a PSCustomObject that contains the following format:
     ```
-    if($issueFound)
-        return [PSCustomObject]@{
-            Result = $true
-            Properties = $duplicateObjects
-        }
-    }
+    # $issueIdentified should either be $true or $false depending on if issue was detected
+    # $properties will contain any related information in scenario of $true status 
     else {
         return [PSCustomObject]@{
-            Result = $false
-            Properties = $null
+            Result = $issueIdentified
+            Properties = $arrayList
         }
     }
     ```
-3. Known Issue tests are executed using `Test-SdnKnownIssues`. This function will automatically pick up tests under the `~/src/modules/private/knownIssues` directory.
-4. The test function accept no parameters. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+3. Known Issue tests are executed using `Test-SdnKnownIssues` or executing the cmdlet directly.
+ - `Test-SdnKnownIssues` will automatically pick up tests under the `~/src/modules/public/health` directory.
+ - The health validation function should be added to `SdnDiagnostics.psd1` under `FunctionsToExport`
+4. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
 # Trademarks
 
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
