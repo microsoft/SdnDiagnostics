@@ -52,7 +52,7 @@
         'Get-OvsdbUcastMacRemoteTable',
         'Get-SdnApiResource',
         'Get-SdnDiagnosticLog',
-        'Get-SdnEventLogs'
+        'Get-SdnEventLog'
         'Get-SdnGatewayConfigurationState',
         'Get-SdnGateway',
         'Get-SdnInfrastructureInfo',
