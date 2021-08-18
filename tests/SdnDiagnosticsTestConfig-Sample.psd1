@@ -4,6 +4,8 @@
 
     # Configure NcRestCredential if needed
     # NcRestCredentialUser = 'domain\user'
+
+    # The Password need to be secure string from (Get-Credential).Password | ConvertFrom-SecureString
     # NcRestCredentialPassword = 'YourPassword'
 
     # Required. Specify the SdnDiagnosticsModule Path
