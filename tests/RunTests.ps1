@@ -16,4 +16,6 @@ if($null -ne $configdata.NcRestCredentialUser){
 
 Import-Module $Global:PesterGlobal.ConfigData.SdnDiagnosticsModule
 
-Invoke-Pester "..\*Tests.ps1" -Output Detailed
+# Tests can be arranged in different wave if order matters
+Invoke-Pester ".\wave1\*Tests.ps1" -Output Detailed
+Invoke-Pester ".\waveAll\*Tests.ps1" -Output Detailed

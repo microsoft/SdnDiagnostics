@@ -1,12 +1,15 @@
 @{
+    # Required. Specify the one of NC VM Name for tests to start with
     NcVM = 'sdnexpnc01.corp.contoso.com'
+
     # Configure NcRestCredential if needed
-    # NcRestCredentialUser = 'corp\luyaof'
+    # NcRestCredentialUser = 'domain\user'
     # NcRestCredentialPassword = 'YourPassword'
 
-    # Modify this to load SdnDiagnosticsModule
+    # Required. Specify the SdnDiagnosticsModule Path
     SdnDiagnosticsModule = '<The Path of SdnDiagnostics Module>'
 
+    # The number of each infra node. This will ensure the module able to get information match the test environment. 
     NumberOfNc = 3
     NumberOfMux = 2
     NumberOfServer = 3
