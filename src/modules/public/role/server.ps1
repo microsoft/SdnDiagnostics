@@ -937,7 +937,7 @@ function Get-NetworkInterfaceEncapOverheadSetting {
                 }
                 else {
                     $supportsJumboPacket = $true
-                    [int]$jumboPacketValue = $jumboPacket.DisplayValue
+                    [int]$jumboPacketValue = $jumboPacket.RegistryValue[0]
                 }
 
                 $object = [PSCustomObject]@{
