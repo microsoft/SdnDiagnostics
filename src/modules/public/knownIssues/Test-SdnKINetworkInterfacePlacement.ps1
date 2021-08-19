@@ -39,7 +39,7 @@ function Test-KINetworkInterfacePlacement {
 
         # if Credential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.NcRestCredential){
+            if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
