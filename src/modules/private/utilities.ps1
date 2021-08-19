@@ -255,15 +255,14 @@ function Invoke-PSRemoteCommand {
             "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
             
             if($AsJob){
-                $result = Invoke-Command -Session $session -HideComputerName -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
+                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
                 if($PassThru){
                     $result = Wait-PSRemoteJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
                 }
             }
             else {
-                $result = Invoke-Command -Session $session -HideComputerName -ScriptBlock $ScriptBlock
+                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
             }
-
 
             return $result
         }
@@ -696,7 +695,6 @@ function Get-FunctionFromFile {
     )
 
     try {
-        "Locating functions within {0} that match {1}" -f $FilePath.FullName, $Verb | Trace-Output -Level:Verbose
         # get the raw content of the script
         $code = Get-Content -Path $FilePath.FullName -Raw
 
@@ -705,7 +703,6 @@ function Get-FunctionFromFile {
             | Select-Object -ExpandProperty Name
         
         if($functionName){
-            "Identified {0} functions: {1}" -f $functionName.Count, ($functionName -join ', ') | Trace-Output -Level:Verbose
             return ($functionName | Where-Object {$_ -like "$Verb-*"})
         }
         else {
