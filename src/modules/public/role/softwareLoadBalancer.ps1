@@ -124,11 +124,11 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
                 $publicIpAddress = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Credential $Credential -ResourceRef $publicIpRef
                 if($publicIpAddress){
                     [void]$arrayList.Add(
-                        @(
+                        [PSCustomObject]@(
                             IPConfigResourceRef = $ipConfig.resourceRef
-                            IPConfigPrivateIP = $ipConfig.properties.privateIPAddress
+                            IPConfigPrivateIPAddress = $ipConfig.properties.privateIPAddress
                             PublicIPResourceRef = $publicIpAddress.resourceRef
-                            PublicIP = $publicIpAddress.properties.ipAddress
+                            PublicIPAddress = $publicIpAddress.properties.ipAddress
                         )
                     )
                 }
