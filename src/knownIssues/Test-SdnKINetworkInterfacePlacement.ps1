@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-KINetworkInterfacePlacement {
+function Test-SdnKINetworkInterfacePlacement {
     <#
     .SYNOPSIS
         Validates the placement of Network Controller Network Interface API placement compared to Hypervisor.

@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-KIServiceFabricPartitionDatabaseSize {
+function Test-SdnKIServiceFabricPartitionDatabaseSize {
     <#
     .SYNOPSIS
         Validate the Service Fabric partition size for each of the services running on Network Controller
