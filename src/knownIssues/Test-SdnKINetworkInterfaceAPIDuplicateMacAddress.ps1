@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Test-KINetworkInterfaceAPIDuplicateMacAddress {
+function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
     <#
     .SYNOPSIS
         Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate
