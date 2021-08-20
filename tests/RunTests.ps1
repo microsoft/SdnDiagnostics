@@ -5,7 +5,7 @@ param(
 $Global:PesterGlobal  = @{
 }
 
-$Global:PesterGlobal.ConfigData = [hashtable] (Invoke-Expression (Get-Content $ConfigurationFile | out-string))
+$Global:PesterGlobal.ConfigData = [hashtable] (Invoke-Expression (Get-Content $ConfigurationFile | Out-String))
 
 $Global:PesterGlobal.NcRestCredential = [System.Management.Automation.PSCredential]::Empty
 #$ncAdminCredential = [System.Management.Automation.PSCredential]::Empty

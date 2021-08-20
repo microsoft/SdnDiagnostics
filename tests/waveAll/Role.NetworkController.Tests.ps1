@@ -17,7 +17,7 @@ Describe 'Get-SdnInfrastructureInfo test' {
     $infraInfo.Gateway.Count | Should -Be $Global:PesterGlobal.ConfigData.NumberOfGateway
   }
 
-  It "All Serer retrieved" {
+  It "All Server retrieved" {
     $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterGlobal.configdata.NcVM -NcRestCredential $Global:PesterGlobal.NcRestCredential
     $infraInfo.Host.Count | Should -Be $Global:PesterGlobal.ConfigData.NumberOfServer
   }
