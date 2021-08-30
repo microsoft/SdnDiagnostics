@@ -138,7 +138,7 @@ function Get-SdnServerConfigurationState {
     $ProgressPreference = 'Continue'
 }
 
-function Get-SdnNetControllerConfigurationState {
+function Get-SdnNetworkControllerConfigurationState {
     <#
     #>
 
