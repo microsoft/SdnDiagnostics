@@ -34,9 +34,14 @@ function Get-PublicIpReference {
             foreach($group in $loadBalancers.properties.frontendIPConfigurations | Group-Object resourceRef){
                 [void]$frontendHash.Add($group.Name, $group.Group)
             }
+
+            $backendNatRulesHash = [System.Collections.Hashtable]::new()
+            foreach($group in $loadBalancers.properties.outboundNatRules | Group-Object resourceRef){
+                [void]$backendNatRulesHash.Add($group.Name, $group.Group)
+            }
         
             $backendHash = [System.Collections.Hashtable]::new()
-            foreach($group in $loadBalancers.properties.BackendAddressPools | Group-Object resourceRef){
+            foreach($group in $loadBalancers.properties.backendAddressPools | Group-Object resourceRef){
                 [void]$backendHash.Add($group.Name, $group.Group)
             }
 
@@ -52,9 +57,9 @@ function Get-PublicIpReference {
             }
         
             if($obRuleRef){
-                $frontEnd = $frontendHash[$obRule.properties.frontendIPConfigurations[0].resourceRef]
-
-                "Located frontend IP configuration associated with {0}" -f $frontEnd.resourceRef | Trace-Output -Level:Verbose
+                $natRule = $backendNatRulesHash[$obRuleRef]
+                $frontend = $frontendHash[$natRule.properties.frontendIPConfigurations.resourceRef]
+                "Located {0} associated with outbound NAT rule {0}" -f $frontEnd.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
                 return ($frontEnd.properties.publicIPAddress.resourceRef)
             }
         }
