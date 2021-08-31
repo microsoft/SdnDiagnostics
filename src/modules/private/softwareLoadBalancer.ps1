@@ -18,6 +18,7 @@ function Get-PublicIpReference {
 
         # NIC is directly connected to a Public IP
         if($IpConfiguration.properties.publicIPAddress){
+            "Located public IP address attached to {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
             return ($IpConfiguration.properties.publicIPAddress.resourceRef)
         }
 
@@ -25,6 +26,7 @@ function Get-PublicIpReference {
         # or NIC is not associated to a public IP by any means and instead is connected via implicit load balancer attached
         # to a virtual network
         if($IpConfiguration.properties.loadBalancerBackendAddressPools){
+            "Located backend address pool association for {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
             $loadBalancers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:LoadBalancers -Credential $Credential
             $allBackendPoolRefs = @($IpConfiguration.properties.loadBalancerBackendAddressPools.resourceRef)
         
@@ -42,6 +44,8 @@ function Get-PublicIpReference {
                 $bePool = $backendHash[$backendPoolRef]
         
                 if($bePool.properties.outboundNatRules){
+                    "Located outbound NAT rule associated with {0}" -f $bePool.resourceRef | Trace-Output -Level:Verbose
+
                     $obRuleRef = $loadBalancer.properties.outboundNatRules[0].resourceRef
                     break
                 }
@@ -49,6 +53,8 @@ function Get-PublicIpReference {
         
             if($obRuleRef){
                 $frontEnd = $frontendHash[$obRule.properties.frontendIPConfigurations[0].resourceRef]
+
+                "Located frontend IP configuration associated with {0}" -f $frontEnd.resourceRef | Trace-Output -Level:Verbose
                 return ($frontEnd.properties.publicIPAddress.resourceRef)
             }
         }
