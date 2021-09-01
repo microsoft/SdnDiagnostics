@@ -48,9 +48,10 @@ function Get-PublicIpReference {
         
             if($obRuleRef){
                 $natRule = $loadBalancers.properties.outboundNatRules | Where-Object {$_.resourceRef -eq $obRuleRef}
-                $frontend = $natRule.properties.frontendIPConfigurations[0].resourceRef
-                "Located {0} associated with outbound NAT rule {0}" -f $frontEnd.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
-                return ($frontEnd.properties.publicIPAddress.resourceRef)
+                $frontendConfig = $loadBalancers.properties.frontendIPConfigurations | Where-Object {$_.resourceRef -eq $natRule.properties.frontendIPConfigurations[0].resourceRef}
+
+                "Located {0} associated with outbound NAT rule {0}" -f $frontendConfig.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
+                return ($frontendConfig.properties.publicIPAddress.resourceRef)
             }
         }
 
