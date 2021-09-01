@@ -30,16 +30,6 @@ function Get-PublicIpReference {
             $loadBalancers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:LoadBalancers -Credential $Credential
             $allBackendPoolRefs = @($IpConfiguration.properties.loadBalancerBackendAddressPools.resourceRef)
         
-            $frontendHash = [System.Collections.Hashtable]::new()
-            foreach($group in $loadBalancers.properties.frontendIPConfigurations | Group-Object resourceRef){
-                [void]$frontendHash.Add($group.Name, $group.Group)
-            }
-
-            $backendNatRulesHash = [System.Collections.Hashtable]::new()
-            foreach($group in $loadBalancers.properties.outboundNatRules | Group-Object resourceRef){
-                [void]$backendNatRulesHash.Add($group.Name, $group.Group)
-            }
-        
             $backendHash = [System.Collections.Hashtable]::new()
             foreach($group in $loadBalancers.properties.backendAddressPools | Group-Object resourceRef){
                 [void]$backendHash.Add($group.Name, $group.Group)
@@ -57,8 +47,8 @@ function Get-PublicIpReference {
             }
         
             if($obRuleRef){
-                $natRule = $backendNatRulesHash[$obRuleRef]
-                $frontend = $frontendHash[$natRule.properties.frontendIPConfigurations.resourceRef]
+                $natRule = $loadBalancers.properties.outboundNatRules | Where-Object {$_.resourceRef -eq $obRuleRef}
+                $frontend = $natRule.properties.frontendIPConfigurations[0].resourceRef
                 "Located {0} associated with outbound NAT rule {0}" -f $frontEnd.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
                 return ($frontEnd.properties.publicIPAddress.resourceRef)
             }
