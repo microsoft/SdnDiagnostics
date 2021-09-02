@@ -58,7 +58,8 @@
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
         'Get-SdnLoadBalancerMux',
-        'Get-SdnNetControllerConfigurationState',
+        'Get-SdnNetworkInterfaceOutboundPublicIPAddress'
+        'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkController',
         'Get-SdnNetworkControllerState',
         'Get-SdnOvsdbAddressMapping',
