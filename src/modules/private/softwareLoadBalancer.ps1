@@ -41,7 +41,7 @@ function Get-PublicIpReference {
                 if($bePool.properties.outboundNatRules){
                     "Located outbound NAT rule associated with {0}" -f $bePool.resourceRef | Trace-Output -Level:Verbose
 
-                    $obRuleRef = $loadBalancer.properties.outboundNatRules[0].resourceRef
+                    $obRuleRef = $bePool.properties.outboundNatRules[0].resourceRef
                     break
                 }
             }
