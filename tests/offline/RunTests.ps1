@@ -4,9 +4,9 @@
 $sdnApiResourcesPath = ".\data\SdnApiResources"
 $Global:PesterOfflineTests = @{}
 $Global:PesterOfflineTests.SdnApiResources = @{}
-foreach($file in Get-ChildItem $sdnApiResourcesPath)
+foreach($file in Get-ChildItem -Path $sdnApiResourcesPath)
 {
-    $Global:PesterOfflineTests.SdnApiResources[$file.BaseName] = Get-Content $file.FullName | ConvertFrom-Json
+    $Global:PesterOfflineTests.SdnApiResources[$file.BaseName] = Get-Content -Path $file.FullName | ConvertFrom-Json
 }
 
 $Global:PesterOfflineTests.SdnApiResourcesByRef = [System.Collections.Hashtable]::new()
