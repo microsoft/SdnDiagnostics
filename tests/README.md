@@ -15,6 +15,7 @@ The tests are categorized into two type of tests **offline** and **online**
 - `wave1`... `waveAll` include all test scripts grouped into different wave. Tests will be executed in order of wave.
 
 ## Run offline tests
+- Install latest Pester by `Install-Module -Name Pester -Force -SkipPublisherCheck`. More info from [Pester Update](https://pester-docs.netlify.app/docs/introduction/installation)
 - The `offline\data` folder include the sample data like `SdnApiResources`. The data is loaded into `$Global:PesterOfflineTest`
 - Run offline test at offline folder by `.\RunTests.ps1`
 
