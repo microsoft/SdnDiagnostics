@@ -34,6 +34,7 @@ $healthValidations = @(
     'LoadBalancerMuxes\Test-SdnLoadBalancerMuxServiceState'
     'NetworkController\Test-NetworkControllerServiceState'
     'Server\Test-SdnEncapOverhead'
+    'Server\Test-SdnProviderNetwork'
     'Server\Test-SdnServerConfigState'
     'Server\Test-SdnServerServiceState'
     'Debug-SdnFabricInfrastructure'

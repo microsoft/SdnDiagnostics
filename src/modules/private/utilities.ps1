@@ -761,3 +761,63 @@ function Remove-PSRemotingSession {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
+function Test-Ping {
+    <#
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [IPAddress]$DestinationAddress,
+
+        [Parameter(Mandatory = $true)]
+        [IPAddress]$SourceAddress,
+
+        [Parameter(Mandatory = $false)]
+        [int]$CompartmentId = (Get-NetCompartment | Where-Object {$_.CompartmentDescription -ieq 'Default Compartment'}).CompartmentId,
+
+        [Parameter()]
+        [int[]]$BufferSize = 1472,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$DontFragment
+    )
+
+    try {
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        foreach($size in $BufferSize){
+            $Global:LASTEXITCODE = 0
+            if($DontFragment){
+                $ping = ping $DestinationAddress.IPAddressToString -c $CompartmentId -l $size -S $SourceAddress.IPAddressToString -n 2-f
+            }
+            else {
+                $ping = ping $DestinationAddress.IPAddressToString -c $CompartmentId -l $size -S $SourceAddress.IPAddressToString -n 2
+            }
+    
+            if($LASTEXITCODE -ieq 0){
+                $status = 'Success'
+            }
+            else {
+                $status = 'Failure'
+            }
+    
+            $result = [PSCustomObject]@{
+                SourceAddress = $SourceAddress.IPAddressToString
+                DestinationAddress = $DestinationAddress.IPAddressToString
+                CompartmentId = $CompartmentId
+                BufferSize = $size
+                Status = $status
+                Result = $ping
+            }
+
+            [void]$arrayList.Add($result)
+        }
+
+        return $arrayList
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
