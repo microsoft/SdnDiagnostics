@@ -764,6 +764,18 @@ function Remove-PSRemotingSession {
 
 function Test-Ping {
     <#
+    .SYNOPSIS
+        Sends ICMP echo request packets.
+    .PARAMETER DestinationAddress
+        Specifies the destination IP address to use.
+    .PARAMETER SourceAddress
+        Specifies the source IP address to use.
+    .PARAMETER CompartmentId
+        Specifies an ID of compartment to perform the ping from within.
+    .PARAMETER BufferSize
+        Specifies the size, in bytes, of the buffer sent with this command. The default value is 1472.
+    .PARAMETER DontFragment
+        This parameter sets the Don't Fragment flag in the IP header. You can use this parameter with the BufferSize parameter to test the Path MTU size.
     #>
 
     [CmdletBinding()]

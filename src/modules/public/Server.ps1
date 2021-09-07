@@ -971,7 +971,10 @@ function Get-NetworkInterfaceEncapOverheadSetting {
 
 function Test-SdnProviderAddressConnectivity {
     <#
-    
+    .SYNOPSIS
+        Tests whether jumbo packets can be sent between the provider addresses on the current host to the remote provider addresses defined.
+    .PARAMETER ProviderAddress
+        The IP address assigned to a hidden network adapter in a non-default network compartment
     #>
 
     [CmdletBinding()]
