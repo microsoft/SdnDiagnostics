@@ -103,6 +103,8 @@
         'Test-SdnLoadBalancerMuxConfigState',
         'Test-SdnLoadBalancerMuxServiceState',
         'Test-SdnNetworkControllerServiceState',
+        'Test-SdnProviderAddressConnectivity',
+        'Test-SdnProviderNetwork',
         'Test-SdnServerConfigState',
         'Test-SdnServerServiceState'
     )
