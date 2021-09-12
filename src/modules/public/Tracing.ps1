@@ -45,33 +45,28 @@ function Disable-SdnGatewayTracing {
     }
 }
 
-function Start-NetshTrace {
+function Enable-NetshTrace {
     <#
     .SYNOPSIS
         Enables netsh tracing. Supports pre-configured trace providers or custom provider strings.
-    .PARAMETER ComputerName
-        The computer name to perform the operation against
-    .PARAMETER TraceProvider
-        The trace providers in string format that you want to trace on
+    .PARAMETER TraceProviderString
+        The trace providers in string format that you want to trace on.
     .PARAMETER TraceFile
-        The trace file that will be written. If omitted, the trace files will be generated under (Get-AzsSupportWorkingDirectory)\$($env:COMPUTERNAME)_netshTrace.etl on the computers defined
+        The trace file that will be written. Requires full path name and trace file with etl extension.
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     .PARAMETER Capture
-        Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default entry for capture is $true.
+        Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default is No.
     .PARAMETER Overwrite
-        Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the parameter defaults to $true.
+        Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
     .PARAMETER Report
-        Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default entry for report is disabled.
+        Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default is disabled.
     #>
     
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [string[]]$ComputerName,
-
         [Parameter(Mandatory = $false)]
-        [string]$TraceProvider = $null,
+        [System.String]$TraceProviderString,
 
         [Parameter(Mandatory = $true)]
         [ValidateScript({
@@ -86,10 +81,12 @@ function Start-NetshTrace {
         [int]$MaxTraceSize = 1024,
 
         [Parameter(Mandatory = $false)]
-        [boolean]$Capture,
+        [ValidateSet('Yes', 'No')]
+        [System.String]$Capture = 'No',
 
         [Parameter(Mandatory = $false)]
-        [boolean]$Overwrite,
+        [ValidateSet('Yes', 'No')]
+        [System.String]$Overwrite = 'Yes',
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('Enabled','Disabled')]
@@ -99,23 +96,8 @@ function Start-NetshTrace {
     try {
         # ensure that we at least are attempting to configure NDIS tracing or ETW provider tracing, else the netsh
         # command will return a generic exception that is not useful to the operator
-        if(!$Capture -and !$TraceProvider){
+        if($Capture -ieq 'No' -and !$TraceProvider){
             throw New-Object System.Exception("You must at least specify Capture or TraceProvider parameter")
-        }
-
-        # netsh expects the command to be in yes or no format for several of it's parameters
-        if($Capture){
-            [string]$Capture = 'Yes'
-        }
-        else {
-            [string]$Capture = 'No'
-        }
-
-        if($Overwrite){
-            [string]$Overwrite = 'Yes'
-        }
-        else {
-            [string]$Overwrite = 'No'
         }
 
         # ensure that the directory exists for file path
@@ -124,36 +106,56 @@ function Start-NetshTrace {
         }
 
         # enable the network trace
-        if($using:TraceProvider){
+        if($TraceProvider){
             $cmd = "netsh trace start capture=$Capture $TraceProvider tracefile=$FilePath maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report"
         }
         else {
             $cmd = "netsh trace start capture=$Capture tracefile=$FilePath maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report"
         }
 
-        $result = Invoke-Expression -Command $cmd
+        $start = Invoke-Expression -Command $cmd
+        if($start -ilike "*Running*"){
+            $object = New-Object -TypeName PSCustomObject -Property (
+                [Ordered]@{
+                    Status = $start[3].split(' ')[-1].Trim()
+                    FileName = $start[4].split(' ')[-1].Trim()
+                    Append = $start[5].split(' ')[-1].Trim()
+                    Circular = $start[6].split(' ')[-1].Trim()
+                    MaxSize = $start[7].split(' ')[-1].Trim()
+                    Report = $start[8].split(' ')[-1].Trim()
+                }
+            )
+        }
+        else {
+            # typically, the first line returned in scenarios where there was an error thrown will contain the error details
+            throw New-Object System.Exception($start[0])
+        }
+
+        return $object
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
 
-function Stop-NetshTrace {
+function Disable-NetshTrace {
     <#
     .SYNOPSIS
         Disables netsh tracing.
-    .PARAMETER ComputerName
-        The computer name to perform the operation against
     #>
     
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [string[]]$ComputerName
-    )
-
     try {
-        $result = Invoke-Expression -Command "netsh trace stop"
+        $stop = Invoke-Expression -Command "netsh trace stop"
+        if($stop -ilike "*Tracing session was successfully stopped.*"){
+            $object = New-Object -TypeName PSCustomObject -Property (
+                [Ordered]@{
+                    Status = 'Stopped'
+                    Details = $stop
+                }
+            )
+        }
+
+        return $object
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
@@ -202,16 +204,16 @@ function Convert-EtwTraceToTxt {
 
         [System.String]$outputFile = "{0}.txt" -f (Join-Path -Path $Destination.FullName -ChildPath $FileName.BaseName)
         [System.String]$cmd = "netsh trace convert input={0} output={1} overwrite={2} report={3}" -f $FileName.FullName, $outputFile, $Overwrite, $Report
-        $convert = Invoke-Expression -Command "$cmd"
+        $convert = Invoke-Expression -Command $cmd
 
         # output returned is string objects, so need to manually do some mapping to correlate the properties
         # that can be then returned as psobject to the call
-        if($convert[5] -ieq 'Generating dump ... done'){
+        if($convert[5] -ilike "*done*"){
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Success'
-                    Input = $convert[1].Trim().Split('  ')[-1]
-                    Output = $convert[2].Trim().Split('  ')[-1]
+                    Input = $convert[1].Split(' ')[-1].Trim()
+                    Output = $convert[2].Split(' ')[-1].Trim()
                     Format = 'txt'
                 }
             )
