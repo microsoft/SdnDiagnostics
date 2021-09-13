@@ -16,14 +16,27 @@ function Enable-RasGatewayTracing {
         }
 
         # remove any previous or stale logs
-        $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl'
+        $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl' | Where-Object {$_.LastWriteTime -le (Get-Date).AddHours(-1)}
         if($files){
             "Cleaning up files from previous collections" | Trace-Output -Level:Verbose
             $files | Remove-Item -Force
         }
 
         # enable ras tracing
-        netsh ras set tracing * enabled
+        $expression = Invoke-Expression -Command "netsh ras set tracing * enabled"
+        if($expression -ilike "*Unable to start ETW*"){
+            $msg = $expression[1]
+            throw New-Object -TypeName System.Exception($msg)
+        }
+        else {
+            $object = New-Object -TypeName PSCustomObject -Property (
+                [Ordered]@{
+                    Status = 'Running'
+                }
+            )
+        }
+
+        return $object
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
@@ -39,15 +52,20 @@ function Disable-RasGatewayTracing {
     try {
         $config = Get-SdnRoleConfiguration -Role:Gateway
         
-        # disable ras tracing and copy logs to the output directory
-        netsh ras set tracing * disabled
+        # since there has not been a time when this as returned an error, just invoking the expression and not doing any error handling
+        Invoke-Expression -Command "netsh ras set tracing * disabled"
 
         Start-Sleep -Seconds 5
         $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl'
     
-        if($files){
-            return $files.FullName
-        }
+        $object = New-Object -TypeName PSCustomObject -Property (
+            [Ordered]@{
+                Status = 'Stopped'
+                Files = $files.FullName
+            }
+        )
+
+        return $object
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
