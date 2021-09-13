@@ -49,9 +49,7 @@ function Disable-RasGatewayTracing {
         Disable netsh tracing for the RAS components
     #>
 
-    try {
-        $config = Get-SdnRoleConfiguration -Role:Gateway
-        
+    try {      
         # since there has not been a time when this as returned an error, just invoking the expression and not doing any error handling
         Invoke-Expression -Command "netsh ras set tracing * disabled"
 
