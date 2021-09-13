@@ -358,7 +358,7 @@ function Wait-PSRemoteJob {
 }
 
 function Get-FormattedDateTimeUTC {
-    return ((Get-Date).ToUniversalTime().ToString('yyyyMMdd-HHmmss'))
+    return ([DateTime]::UtcNow.ToString('yyyyMMdd-HHmmss'))
 }
 
 function Format-MacAddressWithDashes {

@@ -1,78 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Enable-SdnGatewayTracing {
-    <#
-    .SYNOPSIS
-        Enables netsh tracing for the RAS components. Files will be saved to C:\Windows\Tracing by default
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$OutputDirectory,
-
-        [Parameter(Mandatory = $false)]
-        [int]$MaxTraceSize = 1024
-    )]
-
-    try {
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $config = Get-SdnRoleConfiguration -Role:Gateway
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
-            throw New-Object System.Exception("Required feature is missing")
-        }
-
-        # remove any previous or stale logs
-        $files = Get-ChildItem -Path $config.properties.commonPaths.rasGatewayTraces -Include '*.log','*.etl'
-        if($files){
-            "Cleaning up files from previous collections" | Trace-Output -Level:Verbose
-            $files | Remove-Item -Force
-        }
-
-        # enable ras tracing
-        netsh ras set tracing * enabled
-
-        # enable netsh tracing with capture
-        $traceProviderString = Get-TraceProviders -Role:Gateway -Providers Default -AsString
-        Start-NetshTrace -TraceFile $OutputDirectory.FullName -TraceProviderString $traceProviderString -MaxTraceSize $MaxTraceSize -Report 'Disabled' -Capture 'Yes' -Overwrite 'Yes'
-    }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
-}
-
-function Disable-SdnGatewayTracing {
-    <#
-    .SYNOPSIS
-        Disable netsh tracing for the RAS components
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$OutputDirectory
-    )]
-
-    try {
-        # disable ras tracing and copy logs to the output directory
-        netsh ras set tracing * disabled
-        $files = Get-ChildItem -Path $config.properties.commonPaths.rasGatewayTraces -Include '*.log','*.etl'
-        if($files){
-            $files | Move-Item -Destination $OutputDirectory.FullName -Force
-        }
-
-        # disable the netsh trace
-        Stop-NetshTrace
-    }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
-}
-
-
-
 function Start-NetshTrace {
     <#
     .SYNOPSIS
@@ -176,6 +104,18 @@ function Stop-NetshTrace {
     try {
         $expression = Invoke-Expression -Command "netsh trace stop"
         if($expression -ilike "*Tracing session was successfully stopped.*"){
+            "Tracing was successfully stopped" | Trace-Output -Level:Verbose
+            
+            $object = New-Object -TypeName PSCustomObject -Property (
+                [Ordered]@{
+                    Status = 'Stopped'
+                    Details = $expression
+                }
+            )
+        }
+        elseif($expression -ilike "*There is no trace session currently in progress.*"){
+            "There is no trace session currently in progress" | Trace-Output -Level:Warning
+
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Stopped'

@@ -46,6 +46,8 @@
     FunctionsToExport = @(
         'Convert-EtwTraceToTxt'
         'Debug-SdnFabricInfrastructure',
+        'Disable-SdnGatewayTracing',
+        'Enable-SdnGatewayTracing'
         'Get-NetworkInterfaceEncapOverheadSetting',
         'Get-OvsdbAddressMapping',
         'Get-OvsdbFirewallRuleTable',
