@@ -27,7 +27,7 @@ function Enable-SdnGatewayTracing {
         $traceFileName = "{0}\{1}_{2}.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
 
         # remove any previous or stale logs
-        $files = Get-ChildItem -Path $config.properties.commonPaths.rasGatewayTraces -Include '*.log','*.etl'
+        $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl'
         if($files){
             "Cleaning up files from previous collections" | Trace-Output -Level:Verbose
             $files | Remove-Item -Force
@@ -65,7 +65,7 @@ function Disable-SdnGatewayTracing {
 
         Start-Sleep -Seconds 5
 
-        $files = Get-ChildItem -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Filter '*.log','*.etl'
+        $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl'
         if($files){
             $files | Move-Item -Destination $OutputDirectory.FullName -Force
         }

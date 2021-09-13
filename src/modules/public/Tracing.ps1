@@ -77,7 +77,17 @@ function Start-NetshTrace {
         if($expression -ilike "*Running*"){
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
-                    Status = $expression[3].split(' ')[-1].Trim()
+                    Status = 'Running'
+                    Details = $expression
+                }
+            )
+        }
+        elseif($expression -ilike "*A tracing session is already in progress*"){
+            "A tracing session is already in progress" | Trace-Output -Level:Warning
+
+            $object = New-Object -TypeName PSCustomObject -Property (
+                [Ordered]@{
+                    Status = 'Running'
                     Details = $expression
                 }
             )
