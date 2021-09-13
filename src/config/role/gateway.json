@@ -33,7 +33,9 @@
                 "isOptional": "false",
                 "providers":[
                     "{106b464d-8043-46b1-8cb8-e92a0cd7a560}"
-                ]
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             },
             {
                 "name": "rasgateway",
@@ -43,7 +45,9 @@
                     "{24989972-0967-4E21-A926-93854033638E}", 
                     "{F3F35A3B-6D33-4C32-BC81-21513D8BD708}", 
                     "{58ac8283-c536-5244-63c2-eb41247e4a10}"
-                ]
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             }
         ]
     }

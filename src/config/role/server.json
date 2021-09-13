@@ -50,7 +50,9 @@
                     "{dbc217a8-018f-4d8e-a849-acea31bc93f9}",
                     "{41DC7652-AAF6-4428-BBBB-CFBDA322F9F3}",
                     "{F2605199-8A9B-4EBD-B593-72F32DEEC058}"
-                ]
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             },
             {
                 "name": "nvsp",
@@ -58,24 +60,29 @@
                 "providers": [
                     "{1F387CBC-6818-4530-9DB6-5F1058CD7E86}",
                     "{6C28C7E5-331B-4437-9C69-5352A2F7F296}"
-                ]
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             },
             {
                 "name": "slbhostagent",
                 "isOptional": "false",
                 "providers": [
                     "{2380c5ee-ab89-4d14-b2e6-142200cb703c}"
-                ]
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             },
             {
                 "name": "vfpext",
                 "isOptional": "true",
                 "providers": [
                     "{9F2660EA-CFE7-428F-9850-AECA612619B0}",
-                    "Microsoft-Windows-Hyper-V-Vmswitch"
-                ]
+                    "{67DC0D66-3695-47C0-9642-33F76F7BD7AD}"
+                ],
+                "level": "4",
+                "keywords": "0xFFFFFFFFFFFFFFFF"
             }
-
         ]
     }
 }
