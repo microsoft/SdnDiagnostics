@@ -7,8 +7,7 @@ function Start-NetshTrace {
         Enables netsh tracing. Supports pre-configured trace providers or custom provider strings.
     .PARAMETER TraceProviderString
         The trace providers in string format that you want to trace on.
-    .PARAMETER TraceFile
-        The trace file that will be written. Requires full path name and trace file with etl extension.
+    .PARAMETER OutputDirectory
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     .PARAMETER Capture
@@ -22,13 +21,7 @@ function Start-NetshTrace {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-			if($_ -notmatch "(\.etl)"){
-				throw "The file specified in the TraceFile argument must be etl extension"
-			}
-            return $true
-        })]
-        [System.IO.FileInfo]$TraceFile,
+        [System.IO.FileInfo]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]
         [System.String]$TraceProviderString,
@@ -56,19 +49,20 @@ function Start-NetshTrace {
             throw New-Object System.Exception("You must at least specify Capture or TraceProvider parameter")
         }
 
-        # ensure that the directory exists for file path
-        if(!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)){
-            $null = New-Item -Path (Split-Path -Path $TraceFile.FullName -Parent) -ItemType Directory -Force
+        # ensure that the directory exists and specify the trace file name
+        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
+            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
+        $traceFile = "{0}\{1}_{2}.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
 
         # enable the network trace
         if($TraceProvider){
             $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5}" `
-                -f $Capture, $TraceFile.FullName, $TraceProviderString, $MaxTraceSize, $Overwrite, $Report
+                -f $Capture, $traceFile, $TraceProviderString, $MaxTraceSize, $Overwrite, $Report
         }
         else {
             $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}" `
-                -f $Capture, $TraceFile.FullName, $MaxTraceSize, $Overwrite, $Report
+                -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report
         }
 
         "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
@@ -78,7 +72,7 @@ function Start-NetshTrace {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Running'
-                    Details = $expression
+                    FileName = $traceFile
                 }
             )
         }
@@ -88,7 +82,6 @@ function Start-NetshTrace {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Running'
-                    Details = $expression
                 }
             )
         }
@@ -119,7 +112,6 @@ function Stop-NetshTrace {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Stopped'
-                    Details = $expression
                 }
             )
         }
@@ -129,7 +121,6 @@ function Stop-NetshTrace {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Stopped'
-                    Details = $expression
                 }
             )
         }
@@ -199,7 +190,6 @@ function Convert-EtwTraceToTxt {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Success'
-                    Details = $expression
                 }
             )
         }
