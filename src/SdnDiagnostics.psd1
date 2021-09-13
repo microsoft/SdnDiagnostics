@@ -44,6 +44,7 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
+        'Convert-EtwTraceToTxt'
         'Debug-SdnFabricInfrastructure',
         'Get-NetworkInterfaceEncapOverheadSetting',
         'Get-OvsdbAddressMapping',
@@ -89,8 +90,10 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-SdnDataCollection',
-        'Start-SdnTraceCapture',
-        'Stop-SdnTraceCapture',
+        'Start-EtwTraceCapture',
+        'Start-NetshTrace'
+        'Stop-EtwTraceCapture',
+        'Stop-NetshTrace',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
         'Test-SdnKINetworkInterfacePlacement',
         'Test-SdnKIServiceFabricPartitionDatabaseSize',

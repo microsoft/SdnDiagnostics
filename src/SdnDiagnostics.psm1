@@ -10,6 +10,7 @@ $modules = @(
     'private\networkController'
     'private\server'
     'private\softwareLoadBalancer'
+    'private\tracing'
     'private\utilities'
     'public\DataCollection'
     'public\Gateway'
