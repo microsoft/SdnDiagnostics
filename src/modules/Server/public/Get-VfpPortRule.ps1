@@ -16,6 +16,9 @@ function Get-VfpPortRule {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpRules = vfpctrl /list-rule /port $PortId /layer $Layer /group $Group
+        if ($null -eq $vfpRules){
+            return $null
+        }
 
         foreach ($line in $vfpRules) {
 

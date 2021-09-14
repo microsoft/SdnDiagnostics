@@ -15,17 +15,17 @@ function Get-SdnSlbMuxConfigurationState {
 
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
+        if (!$confirmFeatures) {
             throw New-Object System.Exception("Required feature is missing")
         }
 
         $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if(!$confirmModules){
+        if (!$confirmModules) {
             throw New-Object System.Exception("Required module is not loaded")
         }
 
         # create the OutputDirectory if does not already exist
-        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
+        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 

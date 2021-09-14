@@ -10,6 +10,9 @@ function Get-VfpPortLayer {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpLayers = vfpctrl /list-layer /port $PortId
+        if ($null -eq $vfpLayers) {
+            return $null
+        }
 
         foreach ($line in $vfpLayers) {
             # lines in the VFP output that contain : contain properties and values

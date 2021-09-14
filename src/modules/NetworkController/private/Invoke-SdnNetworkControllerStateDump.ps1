@@ -26,11 +26,11 @@ function Invoke-SdnNetworkControllerStateDump {
     )
 
     try {
-        $stopWatch =  [system.diagnostics.stopwatch]::StartNew()
+        $stopWatch = [system.diagnostics.stopwatch]::StartNew()
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion 'v1' -ServiceName:NetworkControllerState
 
-        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
-            $null = Invoke-WebRequest -Headers @{"Accept"="application/json"} `
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $null = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
                 -Content "application/json; charset=UTF-8" `
                 -Uri $uri `
                 -Body "{}" `
@@ -39,7 +39,7 @@ function Invoke-SdnNetworkControllerStateDump {
                 -UseBasicParsing
         }
         else {
-            $null = Invoke-WebRequest -Headers @{"Accept"="application/json"} `
+            $null = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
                 -Content "application/json; charset=UTF-8" `
                 -Uri $uri `
                 -Body "{}" `
@@ -49,21 +49,21 @@ function Invoke-SdnNetworkControllerStateDump {
         }
 
         # monitor until the provisionState for the object is not in 'Updating' state
-        while($true){
+        while ($true) {
             Start-Sleep -Seconds $PollingInterval
-            if($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut){
+            if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
                 throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
             }
 
             $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkControllerState -Credential $Credential
-            if($result.properties.provisioningState -ine 'Updating'){
+            if ($result.properties.provisioningState -ine 'Updating') {
                 break
             }
         }
 
         $stopWatch.Stop()
     
-        if($result.properties.provisioningState -ine 'Succeeded'){
+        if ($result.properties.provisioningState -ine 'Succeeded') {
             $msg = "Unable to get NetworkControllerState. ProvisioningState: {0}" -f $result.properties.provisioningState
             throw New-Object System.Exception($msg)
         }

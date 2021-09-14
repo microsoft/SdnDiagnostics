@@ -24,12 +24,12 @@ function Start-EtwTraceSession {
         [string[]]$TraceProviders,
 
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-			if($_ -notmatch "(\.etl)"){
-				throw "The file specified in the TraceFile argument must be etl extension"
-			}
-            return $true
-        })]
+        [ValidateScript( {
+                if ($_ -notmatch "(\.etl)") {
+                    throw "The file specified in the TraceFile argument must be etl extension"
+                }
+                return $true
+            })]
         [System.IO.FileInfo]$TraceFile,
 
         [Parameter(Mandatory = $false)]
@@ -38,7 +38,7 @@ function Start-EtwTraceSession {
 
     try {
         # ensure that the directory exists for file path
-        if(!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)){
+        if (!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)) {
             $null = New-Item -Path (Split-Path -Path $TraceFile.FullName -Parent) -ItemType Directory -Force
         }
 
@@ -47,17 +47,17 @@ function Start-EtwTraceSession {
 
         # Session create failure error need to be reported to user to be aware, this means we have one trace session missing. 
         # Provider add failure might be ignored and exposed via verbose trace/log file only to debug. 
-        if("$result".Contains("Error")){
+        if ("$result".Contains("Error")) {
             "Create session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
         }
         else {
-            "Created session {0} with result {1}" -f $TraceName,"$result" | Trace-Output -Level:Verbose
+            "Created session {0} with result {1}" -f $TraceName, "$result" | Trace-Output -Level:Verbose
         }
 
         foreach ($provider in $TraceProviders) {
             $logmanCmd = 'logman update trace $TraceName -p "$provider" 0xffffffffffffffff 0xff -ets'
             $result = Invoke-Expression -Command $logmanCmd
-            "Added provider {0} with result {1}" -f $provider,"$result" | Trace-Output -Level:Verbose
+            "Added provider {0} with result {1}" -f $provider, "$result" | Trace-Output -Level:Verbose
         }
     }
     catch {

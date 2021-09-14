@@ -25,14 +25,14 @@ function Get-TraceProviders {
         $config = Get-SdnRoleConfiguration -Role $Role
         $traceProvidersArray = [System.Collections.ArrayList]::new()
         foreach ($traceProviders in $config.properties.etwTraceProviders) {
-            switch($Providers){
+            switch ($Providers) {
                 "Default" {
-                    if($traceProviders.isOptional -ne $true){
+                    if ($traceProviders.isOptional -ne $true) {
                         [void]$traceProvidersArray.Add($traceProviders)
                     }
                 }
                 "Optional" {
-                    if($traceProviders.isOptional -eq $true){
+                    if ($traceProviders.isOptional -eq $true) {
                         [void]$traceProvidersArray.Add($traceProviders)
                     }
                 }
@@ -44,10 +44,10 @@ function Get-TraceProviders {
 
         # we want to be able to return string value back so it can then be passed to netsh trace command
         # enumerate the properties that have values to build a formatted string that netsh expects
-        if($PSBoundParameters.ContainsKey('AsString') -and $traceProvidersArray){
+        if ($PSBoundParameters.ContainsKey('AsString') -and $traceProvidersArray) {
             [string]$formattedString = $null
-            foreach($traceProvider in $traceProvidersArray){
-                foreach($provider in $traceProvider.Providers){
+            foreach ($traceProvider in $traceProvidersArray) {
+                foreach ($provider in $traceProvider.Providers) {
                     $formattedString += "$(Format-NetshTraceProviderAsString -Provider $provider -Level $traceProvider.level -Keywords $traceProvider.keywords) "
                 }
             }

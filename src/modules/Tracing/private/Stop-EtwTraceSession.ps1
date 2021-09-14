@@ -18,11 +18,11 @@ function Stop-EtwTraceSession {
     try {
         $logmanCmd = "logman stop $TraceName -ets"
         $result = Invoke-Expression -Command $logmanCmd
-        if("$result".Contains("Error")){
+        if ("$result".Contains("Error")) {
             "Stop session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
         }
         else {
-            "Stop session {0} with result {1}" -f $TraceName,"$result" | Trace-Output -Level:Verbose
+            "Stop session {0} with result {1}" -f $TraceName, "$result" | Trace-Output -Level:Verbose
         }
     }
     catch {

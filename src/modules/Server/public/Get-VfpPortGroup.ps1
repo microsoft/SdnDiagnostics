@@ -13,6 +13,9 @@ function Get-VfpPortGroup {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpGroups = vfpctrl /list-group /port $PortId /layer $Layer
+        if ($null -eq $vfpGroups){
+            return $null
+        }
 
         foreach ($line in $vfpGroups) {
 

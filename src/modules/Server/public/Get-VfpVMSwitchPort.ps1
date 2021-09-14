@@ -8,7 +8,7 @@ function Get-VfpVMSwitchPort {
         $arrayList = [System.Collections.ArrayList]::new()
     
         $vfpResults = vfpctrl /list-vmswitch-port
-        if (!$vfpResults) {
+        if ($null -eq $vfpResults) {
             $msg = "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_
             throw New-Object System.NullReferenceException($msg)
         }

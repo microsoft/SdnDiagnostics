@@ -129,9 +129,9 @@ $knownIssues = @(
 )
 
 foreach($item in $knownIssues){
-    . ("{0}\{1}.ps1" -f "$PSScriptRoot\knownIssues", $item)
+    . ("{0}\{1}" -f "$PSScriptRoot\knownIssues", $item)
 }
 
-. "$PSScriptRoot\config\app\settings.ps1"
+. "$PSScriptRoot\config\settings.ps1"
 
 $ErrorActionPreference = 'Continue'
