@@ -10,6 +10,10 @@ function Get-OvsdbUcastMacRemoteTable {
         $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
         $ucastMacsRemoteTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
 
+        if ($null -eq $ucastMacsRemoteTable) {
+            return $null
+        }
+        
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $ucastMacsRemoteTable.data) {
             $result = New-Object PSObject -Property @{

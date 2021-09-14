@@ -10,6 +10,10 @@ function Get-OvsdbGlobalTable {
         $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
         $globalTable = $ovsdbResults | Where-Object { $_.caption -eq 'Global table' }
 
+        if ($null -eq $globalTable) {
+            return $null
+        }
+
         # enumerate the json results and add to psobject
         foreach ($obj in $globalTable.data) {
             $result = New-Object PSObject -Property @{

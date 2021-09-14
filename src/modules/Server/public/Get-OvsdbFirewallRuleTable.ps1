@@ -10,6 +10,9 @@ function Get-OvsdbFirewallRuleTable {
         $ovsdbResults = Get-OvsdbDatabase -Table ms_firewall
         $firewallTable = $ovsdbResults | Where-Object { $_.caption -eq 'FW_Rules table' }
 
+        if ($null -eq $firewallTable) {
+            return $null
+        }
         # enumerate the json rules and create object for each firewall rule returned
         # there is no nice way to generate this and requires manually mapping as only the values are return
         foreach ($obj in $firewallTable.data) {

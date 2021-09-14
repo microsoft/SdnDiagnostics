@@ -10,6 +10,10 @@ function Get-OvsdbPhysicalPortTable {
         $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
         $portTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Port table' }
 
+        if ($null -eq $portTable) {
+            return $null
+        }
+        
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $portTable.data) {
             $result = New-Object PSObject -Property @{

@@ -12,6 +12,10 @@ function Get-OvsdbAddressMapping {
         $caMappingTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
         $logicalSwitchTable = $ovsdbResults | Where-Object { $_.caption -eq 'Logical_Switch table' }
 
+        if ($null -eq $caMappingTable) {
+            return $null
+        }
+
         # enumerate the json rules for each of the tables and create psobject for the mappings
         # unfortunately these values do not return in key/value pair and need to manually map each property
         foreach ($caMapping in $caMappingTable.Data) {
