@@ -1,8 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-. "$PSScriptRoot\config\app\settings.ps1"
-
 # dot source the modules scripts
 $modules = @(
     'Common\private\Export-RegistryKeyConfigDetails.ps1'
@@ -133,5 +131,7 @@ $knownIssues = @(
 foreach($item in $knownIssues){
     . ("{0}\{1}.ps1" -f "$PSScriptRoot\knownIssues", $item)
 }
+
+. "$PSScriptRoot\config\app\settings.ps1"
 
 $ErrorActionPreference = 'Continue'

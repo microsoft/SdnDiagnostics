@@ -7,6 +7,26 @@
         "NetworkController"
     ],
     "properties": {
+        "apiResources": [
+            "accessControlLists",
+            "credentials",
+            "gatewayPools",
+            "gateways",
+            "iDNSServer/configuration",
+            "loadBalancerManager/config",
+            "loadBalancerMuxes",
+            "loadBalancers",
+            "logicalNetworks",
+            "macPools",
+            "networkInterfaces",
+            "publicIPAddresses",
+            "servers",
+            "routeTables",
+            "virtualGateways",
+            "virtualNetworkManager/configuration",
+            "virtualNetworks",
+            "virtualServers"
+        ],
         "commonPaths": {},
         "eventLogProviders": [
             "Application",
