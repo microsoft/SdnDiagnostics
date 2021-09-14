@@ -1,0 +1,32 @@
+{
+    "name": "NetworkController",
+    "windowsFeature": [
+        "NetworkController"
+    ],
+    "requiredModules": [
+        "NetworkController"
+    ],
+    "properties": {
+        "commonPaths": {},
+        "eventLogProviders": [
+            "Application",
+            "Microsoft-Windows-NetworkController*",
+            "Microsoft-ServiceFabric*",
+            "System"
+        ],
+        "netControllerStatePath": "C:\\Windows\\Tracing\\SDNDiagnostics\\NetworkControllerState",
+        "regKeyPaths": [
+            "HKLM:\\Software\\Microsoft\\NetworkController",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Network Controller"
+        ],
+        "services": [
+            {
+                "name": "FabricHostSvc",
+                "properties": {
+                    "displayName": "Service Fabric Host Service"
+                }   
+            }
+        ]
+    }
+}
