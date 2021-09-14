@@ -35,7 +35,7 @@ function Install-SdnDiagnostic {
 
         if ($null -eq $moduleDir) {
             "Module not found in PS Module path, fall back to script root" | Trace-Output -Level:Verbose
-            $moduleDir = Get-Item -Path "$PSScriptRoot\..\..\"
+            $moduleDir = Get-Item -Path "$PSScriptRoot\..\..\..\"
         }
 
         "Current SdnDiagnostics version is {0}" -f $localModuleInfo.Version | Trace-Output
