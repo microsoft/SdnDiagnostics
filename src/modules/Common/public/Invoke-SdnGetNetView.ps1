@@ -2,11 +2,8 @@ function Invoke-SdnGetNetView {
     <#
     .SYNOPSIS
         Invokes Get-Netview function on the specified ComputerNames.
-    .PARAMETER ComputerName
-        The computer name(s) to perform operation against
     .PARAMETER OutputDirectory
-        Optional path to the directory where the output should be saved. Can be either a relative or an absolute path.
-        If unspecified, the current user's Desktop will be used by default.
+        Specifies a specific path and folder in which to save the files.
     .PARAMETER BackgroundThreads
         Maximum number of background tasks, from 0 - 16. Defaults to 5.
     .PARAMETER SkipAdminCheck
@@ -24,9 +21,6 @@ function Invoke-SdnGetNetView {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName,
-
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
@@ -69,9 +63,9 @@ function Invoke-SdnGetNetView {
             -SkipVm:$SkipVm.IsPresent *> $null
 
         # remove the uncompressed files and folders to free up ~ 1.5GB of space
-        $compressedArchive = Get-ChildItem -Path $OutputDirectory -Filter "*.zip"
+        $compressedArchive = Get-ChildItem -Path $OutputDirectory.FullName -Filter "*.zip"
         if ($compressedArchive) {
-            Get-ChildItem -Path $OutputDirectory -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
+            Get-ChildItem -Path $OutputDirectory.FullName -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
         }
 
         return $compressedArchive.FullName

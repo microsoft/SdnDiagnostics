@@ -19,7 +19,8 @@ function Start-SdnDataCollection {
         Optional switch parameter that allows you to collect network traces as part of the data collection process
 
         .PARAMETER OutputDirectory
-
+        Specifies a specific path and folder in which to save the files.
+        
         .PARAMETER RemoteSharePath
         Optional parameter that allows you to output results to a remote network share
 

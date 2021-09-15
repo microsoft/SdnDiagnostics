@@ -1,6 +1,7 @@
 $currentErrorPref = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 
+& '.build\validate-functions.ps1'
 & '.build\generate-version.ps1'
 & '.\.build\clean.ps1'
 

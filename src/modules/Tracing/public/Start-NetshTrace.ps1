@@ -5,6 +5,7 @@ function Start-NetshTrace {
     .PARAMETER TraceProviderString
         The trace providers in string format that you want to trace on.
     .PARAMETER OutputDirectory
+        Specifies a specific path and folder in which to save the files.
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     .PARAMETER Capture
