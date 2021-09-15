@@ -16,50 +16,50 @@ function Test-SdnKnownIssue {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-SdnKI*"} | Select-Object -ExpandProperty BaseName
-            return $possibleValues | ForEach-Object { $_ }
-        })]
+                $possibleValues = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object { $_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-SdnKI*" } | Select-Object -ExpandProperty BaseName
+                return $possibleValues | ForEach-Object { $_ }
+            })]
         [System.String]$Test
     )
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
 
-        if($PSBoundParameters.ContainsKey('Credential')){
+        if ($PSBoundParameters.ContainsKey('Credential')) {
             $Global:SdnDiagnostics.Credential = $Credential
         }
 
-        if($PSBoundParameters.ContainsKey('NcRestCredential')){
+        if ($PSBoundParameters.ContainsKey('NcRestCredential')) {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
        
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        if($null -eq $environmentInfo){
+        if ($null -eq $environmentInfo) {
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
         }
 
-        if($PSBoundParameters.ContainsKey('Test')){
-            $knownIssueScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object {$_.BaseName -ieq $Test}
+        if ($PSBoundParameters.ContainsKey('Test')) {
+            $knownIssueScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object { $_.BaseName -ieq $Test }
         }
         else {
-            $knownIssueScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-SdnKI*"}
+            $knownIssueScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object { $_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-SdnKI*" }
         }
 
-        if($null -eq $knownIssueScripts){
+        if ($null -eq $knownIssueScripts) {
             throw New-Object System.NullReferenceException("No known issue scripts found")
         }
 
         "Located {0} known issue scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
-        foreach($script in $knownIssueScripts){
+        foreach ($script in $knownIssueScripts) {
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
-            if($functions){
-                foreach($function in $functions){
+            if ($functions) {
+                foreach ($function in $functions) {
                     "Executing {0}" -f $function | Trace-Output -Level:Verbose
                     $result = Invoke-Expression -Command $function
 
                     $object = [PSCustomObject]@{
-                        Name = $function
-                        Result = $result.Result
+                        Name       = $function
+                        Result     = $result.Result
                         Properties = $result.Properties
                     }
 

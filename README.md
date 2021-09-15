@@ -16,20 +16,22 @@ contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additio
 
 When contributing to this project, ensure you:
 1. Review existing functions already available and reuse where possible.
-2. If your function should be exported and available after module import, be sure to add your function to the export list in `~/SDNDiagnostics.psd1`.
-3. Return native .NET objects whenever possible.
-4. Rarely should you return from a function with format-table, format-list, etc..
-5. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
-6. Leverage `$Global:SdnDiagnostics` for caching when appropriate. 
+1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`. 
+    - Function name should match the file name.
+    - Limit one function per file.
+    - Ensure that the file name is added to `src\SDNDiagnostics.psm1` so it is dot sourced on module import.
+    - Use [Approved Verbs for PowerShell Commands](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands).
+1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SDNDiagnostics.psd1` under `FunctionsToExport`.
+1. Return native .NET objects whenever possible.
+1. Rarely should you return from a function with format-table, format-list, etc.. If they do, they should use the PowerShell verb `Show`.
+1. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
+1. Leverage `$Global:SdnDiagnostics` for caching when appropriate. 
 
 
 ## Creating Health Validation Tests
 When creating a health validation test, ensure you:
-1. Create the `ps1` file under `src\health\<role>\` as the name of the validation test. e.g. `Test-SdnServerHealth.ps1`
-    - Filename and function name should match.
-    - Ensure that the file is added to `SdnDiagnostics.psm1` under the `$healthValidations` so it can be dot sourced.
-    - Ensure the function is exported by adding it to `SdnDiagnostics.psd1` under `FunctionsToExport`
-2. Function should return a PSCustomObject that contains the following format:
+1. Create the `ps1` file under `src\health\[role]\` as the name of the validation test. e.g. `Test-SdnServerHealth.ps1`
+1. Function should return a PSCustomObject that contains the following format:
     ```
     # $status should contain either 'Success' or 'Failure'
     # $properties will contain any related information in scenario of 'Failure' status 
@@ -40,16 +42,13 @@ When creating a health validation test, ensure you:
         }
     }
     ```
-3. Health validation tests are executed using `Debug-SdnFabricInfrastructure` or executing the cmdlet directly.
- - `Debug-SdnFabricInfrastructure` will automatically pick up tests under the `\src\health` directory.
-4. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+1. Health validation tests are executed using `Debug-SdnFabricInfrastructure` or executing the cmdlet directly.
+    - `Debug-SdnFabricInfrastructure` will automatically pick up tests under the `src\health` directory.
+1. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
 
 ## Creating Known Issue Tests
 1. Create the `ps1` file under `src\knownIssues` as the name of the validation test. e.g. `Test-SdnKIVfpDuplicatePort.ps1`
-    - Filename and function name should match and should be prefixed with `Test-SdnKI*`.
-    - Ensure that the file is added to `SdnDiagnostics.psm1` under the `$knownIssues` so it can be dot sourced.
-    - Ensure the function is exported by adding it to `SdnDiagnostics.psd1` under `FunctionsToExport`
-2. Function should return a PSCustomObject that contains the following format:
+1. Function should return a PSCustomObject that contains the following format:
     ```
     # $issueIdentified should either be $true or $false depending on if issue was detected
     # $properties will contain any related information in scenario of $true status 
@@ -60,9 +59,26 @@ When creating a health validation test, ensure you:
         }
     }
     ```
-3. Known Issue tests are executed using `Test-SdnKnownIssues` or executing the cmdlet directly.
- - `Test-SdnKnownIssues` will automatically pick up tests under the `src\health` directory.
-4. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+1. Known Issue tests are executed using `Test-SdnKnownIssues` or executing the cmdlet directly.
+    - `Test-SdnKnownIssues` will automatically pick up tests under the `src\knownIssues` directory.
+1. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
+
+# Build Validation and Testing
+1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`. 
+1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
+1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
+1. Install the modules to the SDN nodes in the dataplane. 
+```powershell
+$uri = 'https://NcURI'
+
+$nodes = @()
+$nodes += (Get-SdnServer -NcUri $uri -ManagementAddress)
+$nodes += (Get-SdnGateway -NcUri $uri -ManagementAddress)
+$nodes += (Get-SdnLoadBalancerMux -NcUri $uri -ManagementAddress)
+$nodes += (Get-SdnNetworkController -NetworkController 'SA20N26-NC01' -ServerNameOnly)
+
+Install-SdnDiagnostic -ComputerName $nodes -Force
+```
 # Trademarks
 
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
