@@ -1,7 +1,13 @@
 # Load the baseline test data needed for Pester Mock
 
+$modulePath = Get-Item -Path "$PSScriptRoot\..\..\out\build\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction SilentlyContinue
+if($null -eq $modulePath){
+    "Unable to locate module. Generate a local build first" | Write-Host -ForegroundColor:Yellow
+    return
+}
+
 # API resources
-$sdnApiResourcesPath = ".\data\SdnApiResources"
+$sdnApiResourcesPath = "$PSScriptRoot\data\SdnApiResources"
 $Global:PesterOfflineTests = @{}
 $Global:PesterOfflineTests.SdnApiResources = @{}
 foreach($file in Get-ChildItem -Path $sdnApiResourcesPath)
@@ -21,6 +27,6 @@ foreach($resourceType in $Global:PesterOfflineTests.SdnApiResources.Keys)
     }
 }
 
-Import-Module "..\..\out\build\SdnDiagnostics\SdnDiagnostics.psd1" -Force
+Import-Module -Name $modulePath.FullName -Force
 
-Invoke-Pester ".\*Tests.ps1" -Output Detailed
+Invoke-Pester "$PSScriptRoot\*Tests.ps1" -Output Detailed
