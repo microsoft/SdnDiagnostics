@@ -76,7 +76,7 @@ $modules = @(
     'Utilities\private\Export-ObjectToFile.ps1'
     'Utilities\private\Format-MacAddressNoDashes.ps1'
     'Utilities\private\Format-MacAddressWithDashes.ps1'
-    'Utilities\private\Format-NetshTraceProvidersAsString.ps1'
+    'Utilities\private\Format-NetshTraceProviderAsString.ps1'
     'Utilities\private\Get-FormattedDateTimeUTC.ps1'
     'Utilities\private\Get-FunctionFromFile.ps1'
     'Utilities\private\Get-TraceOutputFile.ps1'
