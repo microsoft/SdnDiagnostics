@@ -1,4 +1,4 @@
-$files = Get-ChildItem -Path "$PSScriptRoot\..\src" -Include *.ps1 -Exclude settings.ps1 -Recurse
+$files = Get-ChildItem -Path "$PSScriptRoot\..\src\*" -Include *.ps1 -Exclude settings.ps1 -Recurse
 foreach($file in $files){
     $code = Get-Content -Path $file.FullName -Raw
 

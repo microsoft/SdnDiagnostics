@@ -1,9 +1,9 @@
 $currentErrorPref = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 
-& '.build\validate-functions.ps1'
-& '.build\generate-version.ps1'
-& '.\.build\clean.ps1'
+& "$PSScriptRoot\validate-functions.ps1"
+& "$PSScriptRoot\generate-version.ps1"
+& "$PSScriptRoot\clean.ps1"
 
 function Get-ModuleVersion {
     # this is set in a prior step from generateVersion-ps.ps1    
