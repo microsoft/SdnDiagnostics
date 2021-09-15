@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 function Trace-Output {
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]

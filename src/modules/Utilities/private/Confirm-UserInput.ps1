@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 function Confirm-UserInput {
     param(
         [Parameter(Position = 0, ValueFromPipeline = $true)]

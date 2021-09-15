@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 function Export-RegistryKeyConfigDetails {
     [CmdletBinding()]
     param (
