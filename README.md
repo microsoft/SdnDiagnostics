@@ -36,7 +36,7 @@ To help ensure consistency, leverage `.build\utilities\create-function.ps1` to h
 ```powershell
 .\create-core-function.ps1 -FunctionName 'Disable-RasGatewayTracing' -Module Gateway -Template basic_template.ps1 -IsPublic
 ```
-    - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. Specify `-IsPublic` if you are planning for this function to be exported.
+- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. Specify `-IsPublic` if you are planning for this function to be exported.
 
 ## Creating Health Validation Tests
 When creating a health validation test, ensure you:
@@ -60,7 +60,7 @@ To help ensure consistency, leverage `.build\utilities\create-health-function.ps
 ```powershell
 .\create-health-function.ps1 -FunctionName 'Test-SdnLoadBalancerMuxOnline' -Module SoftwareLoadBalancer -Template basic_health_template.ps1
 ```
-    - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. 
+- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. 
 
 ## Creating Known Issue Tests
 1. Create the `ps1` file under `src\knownIssues` as the name of the validation test. e.g. `Test-SdnKIVfpDuplicatePort.ps1`
@@ -84,7 +84,7 @@ To help ensure consistency, leverage `.build\utilities\create-knownissue-functio
 ```powershell
 .\create-knownissue-function.ps1 -FunctionName 'Test-SdnKIVfpDuplicatePort' -Template basic_knownIssue_template.ps1
 ```
-    - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
+- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
 
 # Build Validation and Testing
 1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`. 
