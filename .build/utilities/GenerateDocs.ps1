@@ -1,6 +1,8 @@
 <#
+    .SYNOPSIS
+        Builds the markdown documentation for the module.
     .DESCRIPTION
-        This script leverages platyPS to generate markdown files for every command listed in SdnDiagnostics.psd1 ExportedFunctions.
+        Builds the markdown documentation for the module using the PlatyPS PowerShell module.
 #>
 
 [CmdletBinding()]
