@@ -70,12 +70,13 @@ When creating a health validation test, ensure you:
 1. Install the modules to the SDN nodes in the dataplane. 
 ```powershell
 $uri = 'https://NcURI'
+$netConroller = 'NC01' 
 
 $nodes = @()
 $nodes += (Get-SdnServer -NcUri $uri -ManagementAddress)
 $nodes += (Get-SdnGateway -NcUri $uri -ManagementAddress)
 $nodes += (Get-SdnLoadBalancerMux -NcUri $uri -ManagementAddress)
-$nodes += (Get-SdnNetworkController -NetworkController 'SA20N26-NC01' -ServerNameOnly)
+$nodes += (Get-SdnNetworkController -NetworkController $netController -ServerNameOnly)
 
 Install-SdnDiagnostic -ComputerName $nodes -Force
 ```
