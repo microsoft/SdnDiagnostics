@@ -23,7 +23,7 @@ foreach($githubRepo in $toolsInitProps.githubRepo){
 
     # keep only the psd1 and psm1 files
     Get-ChildItem -Path $destination -Hidden -Recurse | Remove-Item -Recurse -Force
-    Get-ChildItem -Path $destination -Exclude "*.psd1","*.psm1" -Recurse | Remove-Item -Recurse -Force
+    Get-ChildItem -Path $destination -Exclude "*.psd1","*.psm1","LICENSE","README.md" -Recurse | Remove-Item -Recurse -Force
 }
 
 "Done cloning remote repos to $DestinationFolder" | Write-Host
