@@ -4,7 +4,7 @@
 function Get-OvsdbGlobalTable {
     <#
     .SYNOPSIS
-        Returns the global table configuration from OVSDB
+        Returns the global table configuration from OVSDB database.
     #>
 
     try {      

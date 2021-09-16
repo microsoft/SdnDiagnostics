@@ -2,6 +2,21 @@
 # Licensed under the MIT License.
 
 function Get-VfpPortGroup {
+    <#
+    .SYNOPSIS
+        Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
+    .PARAMETER PortId
+        The Port ID GUID for the network interface.
+    .PARAMETER Layer
+        Specify the target layer.
+    .PARAMETER Name
+        Returns the specific group name. If ommitted, will return all groups within the VFP layer.
+    .EXAMPLE
+        PS> Get-VfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
+    .EXAMPLE
+        PS> Get-VfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
+    #>
+
     param (
         [Parameter(Mandatory = $true)]
         [GUID]$PortId,

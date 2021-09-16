@@ -3,6 +3,10 @@
 
 function Get-SdnGatewayConfigurationState {
     <#
+    .SYNOPSIS
+        Outputs a set of configuration state files for the gateway role.
+    .PARAMETER OutputDirectory
+        Specifies a specific path and folder in which to save the files.
     #>
 
     [CmdletBinding()]

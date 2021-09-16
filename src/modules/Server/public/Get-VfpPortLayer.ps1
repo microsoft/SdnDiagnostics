@@ -2,6 +2,19 @@
 # Licensed under the MIT License.
 
 function Get-VfpPortLayer {
+    <#
+    .SYNOPSIS
+        Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
+    .PARAMETER PortId
+        The Port ID GUID for the network interface.
+    .PARAMETER Name
+        Returns the specific layer name. If ommitted, will return all layers within VFP.
+    .EXAMPLE
+        PS> Get-VfpPortLayer
+    .EXAMPLE
+        PS> Get-VfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
+    #>
+
     param (
         [Parameter(Mandatory = $true)]
         [GUID]$PortId,

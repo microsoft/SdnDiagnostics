@@ -8,7 +8,7 @@ function Get-SdnServiceFabricLog {
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .PARAMETER FromDate
-        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 120 hours.
+        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 4 hours.
         (Get-Date).AddHours(-4)
     #>
 

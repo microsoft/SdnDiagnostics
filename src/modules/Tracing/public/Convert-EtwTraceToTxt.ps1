@@ -4,7 +4,7 @@
 function Convert-EtwTraceToTxt {
     <#
     .SYNOPSIS
-        Used to convert existing etw provider traces into text readable format
+        Used to convert existing etw (.etl) provider traces into text readable format
     .PARAMETER FileName
         ETL trace file path and name to convert 
     .PARAMETER Destination
