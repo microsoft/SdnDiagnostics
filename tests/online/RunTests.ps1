@@ -17,5 +17,5 @@ if($null -ne $Global:PesterOnlineTests.ConfigData.NcRestCredentialUser){
 Import-Module $Global:PesterOnlineTests.ConfigData.SdnDiagnosticsModule -Force
 
 # Tests can be arranged in different wave if order matters
-Invoke-Pester ".\wave1\*Tests.ps1" -Output Detailed
-Invoke-Pester ".\waveAll\*Tests.ps1" -Output Detailed
+Invoke-Pester "$PSScriptRoot\wave1\*Tests.ps1" -Output Detailed
+Invoke-Pester "$PSScriptRoot\waveAll\*Tests.ps1" -Output Detailed
