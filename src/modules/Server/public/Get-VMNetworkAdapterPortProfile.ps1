@@ -10,7 +10,7 @@ function Get-VMNetworkAdapterPortProfile {
     .PARAMETER AllVMs
         Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
     .PARAMETER PortProfileFeatureId
-        Specifies the unique identifier of the feature supported by the virtual switch extension. If ommitted, defaults to 9940cd46-8b06-43bb-b9d5-93d50381fd56.
+        Specifies the unique identifier of the feature supported by the virtual switch extension. If omitted, defaults to 9940cd46-8b06-43bb-b9d5-93d50381fd56.
     .EXAMPLE
         Get-VMNetworkAdapterPortProfile -VMName 'VM01'
     .EXAMPLE

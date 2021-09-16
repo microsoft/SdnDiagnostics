@@ -8,11 +8,11 @@ function Convert-EtwTraceToTxt {
     .PARAMETER FileName
         ETL trace file path and name to convert 
     .PARAMETER Destination
-        Output file name and directory. If ommitted, will use the FileName path and base name.
+        Output file name and directory. If omitted, will use the FileName path and base name.
     .PARAMETER Overwrite
-        Overwrites existing files. If ommitted, defaults to no.
+        Overwrites existing files. If omitted, defaults to no.
     .PARAMETER Report
-        Generates an HTML report. If ommitted, defaults to no.
+        Generates an HTML report. If omitted, defaults to no.
     #>
 
     [CmdletBinding()]

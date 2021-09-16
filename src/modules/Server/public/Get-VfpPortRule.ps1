@@ -12,7 +12,7 @@ function Get-VfpPortRule {
     .PARAMETER Group
         Specify the group layer.
     .PARAMETER Name
-        Returns the specific rule name. If ommitted, will return all rules within the VFP group.
+        Returns the specific rule name. If omitted, will return all rules within the VFP group.
     .EXAMPLE
         PS> Get-VfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE

@@ -8,7 +8,7 @@ function Get-VfpPortLayer {
     .PARAMETER PortId
         The Port ID GUID for the network interface.
     .PARAMETER Name
-        Returns the specific layer name. If ommitted, will return all layers within VFP.
+        Returns the specific layer name. If omitted, will return all layers within VFP.
     .EXAMPLE
         PS> Get-VfpPortLayer
     .EXAMPLE

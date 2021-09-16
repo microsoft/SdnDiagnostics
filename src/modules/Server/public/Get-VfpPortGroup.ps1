@@ -10,7 +10,7 @@ function Get-VfpPortGroup {
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Name
-        Returns the specific group name. If ommitted, will return all groups within the VFP layer.
+        Returns the specific group name. If omitted, will return all groups within the VFP layer.
     .EXAMPLE
         PS> Get-VfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
     .EXAMPLE

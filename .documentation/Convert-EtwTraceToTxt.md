@@ -48,7 +48,7 @@ Accept wildcard characters: False
 
 ### -Destination
 Output file name and directory.
-If ommitted, will use the FileName path and base name.
+If omitted, will use the FileName path and base name.
 
 ```yaml
 Type: FileInfo
@@ -64,7 +64,7 @@ Accept wildcard characters: False
 
 ### -Overwrite
 Overwrites existing files.
-If ommitted, defaults to no.
+If omitted, defaults to no.
 
 ```yaml
 Type: String
@@ -80,7 +80,7 @@ Accept wildcard characters: False
 
 ### -Report
 Generates an HTML report.
-If ommitted, defaults to no.
+If omitted, defaults to no.
 
 ```yaml
 Type: String

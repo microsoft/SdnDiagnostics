@@ -1,6 +1,6 @@
 ---
 external help file: SdnDiagnostics-help.xml
-Module Name:
+Module Name: SdnDiagnostics
 online version:
 schema: 2.0.0
 ---
