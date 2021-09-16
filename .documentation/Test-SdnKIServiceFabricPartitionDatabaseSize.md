@@ -13,7 +13,7 @@ Validate the Service Fabric partition size for each of the services running on N
 ## SYNTAX
 
 ```
-Test-SdnKIServiceFabricPartitionDatabaseSize [[-ComputerName] <String[]>] [[-Credential] <PSCredential>]
+Test-SdnKIServiceFabricPartitionDatabaseSize [[-NetworkController] <String[]>] [[-Credential] <PSCredential>]
  [<CommonParameters>]
 ```
 
@@ -31,8 +31,8 @@ PS C:\> {{ Add example code here }}
 
 ## PARAMETERS
 
-### -ComputerName
-{{ Fill ComputerName Description }}
+### -NetworkController
+Specifies the name or IP address of the network controller node on which this cmdlet operates.
 
 ```yaml
 Type: String[]

@@ -36,6 +36,21 @@ PS C:\> {{ Add example code here }}
 
 ## PARAMETERS
 
+### -VMName
+{{ Fill VMName Description }}
+
+```yaml
+Type: String
+Parameter Sets: SingleVM
+Aliases:
+
+Required: True
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
 ### -AllVMs
 {{ Fill AllVMs Description }}
 
@@ -60,21 +75,6 @@ Parameter Sets: (All)
 Aliases:
 
 Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
-### -VMName
-{{ Fill VMName Description }}
-
-```yaml
-Type: String
-Parameter Sets: SingleVM
-Aliases:
-
-Required: True
 Position: Named
 Default value: None
 Accept pipeline input: False

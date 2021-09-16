@@ -13,7 +13,7 @@ Returns a list of servers from network controller
 ## SYNTAX
 
 ```
-Get-SdnNetworkController [-NetworkController] <String> [-ServerNameOnly] [[-Credential] <PSCredential>]
+Get-SdnNetworkController [-NetworkController] <String> [[-Credential] <PSCredential>] [-ServerNameOnly]
  [<CommonParameters>]
 ```
 
@@ -46,21 +46,6 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -ServerNameOnly
-{{ Fill ServerNameOnly Description }}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: False
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -Credential
 {{ Fill Credential Description }}
 
@@ -72,6 +57,21 @@ Aliases:
 Required: False
 Position: 2
 Default value: [System.Management.Automation.PSCredential]::Empty
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -ServerNameOnly
+{{ Fill ServerNameOnly Description }}
+
+```yaml
+Type: SwitchParameter
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```

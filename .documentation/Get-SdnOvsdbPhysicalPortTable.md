@@ -31,21 +31,6 @@ PS C:\> {{ Add example code here }}
 
 ## PARAMETERS
 
-### -AsJob
-{{ Fill AsJob Description }}
-
-```yaml
-Type: SwitchParameter
-Parameter Sets: (All)
-Aliases:
-
-Required: False
-Position: Named
-Default value: None
-Accept pipeline input: False
-Accept wildcard characters: False
-```
-
 ### -ComputerName
 {{ Fill ComputerName Description }}
 
@@ -66,6 +51,21 @@ Accept wildcard characters: False
 
 ```yaml
 Type: PSCredential
+Parameter Sets: (All)
+Aliases:
+
+Required: False
+Position: Named
+Default value: None
+Accept pipeline input: False
+Accept wildcard characters: False
+```
+
+### -AsJob
+{{ Fill AsJob Description }}
+
+```yaml
+Type: SwitchParameter
 Parameter Sets: (All)
 Aliases:
 

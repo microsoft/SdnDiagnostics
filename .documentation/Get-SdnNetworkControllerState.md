@@ -13,7 +13,7 @@ Gathers the IMOS dump files from each of the Network Controllers
 ## SYNTAX
 
 ```
-Get-SdnNetworkControllerState [-NcUri] <Uri> [-ComputerName] <String[]> [-OutputDirectory] <FileInfo>
+Get-SdnNetworkControllerState [-NcUri] <Uri> [-NetworkController] <String[]> [-OutputDirectory] <FileInfo>
  [[-Credential] <PSCredential>] [[-NcRestCredential] <PSCredential>] [[-ExecutionTimeOut] <Int32>]
  [<CommonParameters>]
 ```
@@ -45,7 +45,7 @@ Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
-### -ComputerName
+### -NetworkController
 The computer name(s) of the Network Controllers that the IMOS dump files need to be collected from
 
 ```yaml
