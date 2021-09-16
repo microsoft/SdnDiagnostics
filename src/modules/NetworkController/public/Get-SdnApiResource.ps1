@@ -24,12 +24,14 @@ function Get-SdnApiResource {
     )
 
     try {
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+
         [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'SdnApiResources'
         if (!(Test-Path -Path $outputDir.FullName -PathType Container)) {
             $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
         }
 
-        foreach ($resource in $SdnDiagnostics.Settings.apiResources) {
+        foreach ($resource in $config.properties.apiResources) {
             try {
                 Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource -Credential $Credential | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/', '_') -FileType json
             }
