@@ -1,7 +1,7 @@
 # Pester tests
 Describe 'Install-SdnDiagnostic test' { 
     It "Install-SdnDiagnostic installed SdnDiagnostic Module successfully" {
-        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterGlobal.configdata.NcVM -NcRestCredential $Global:PesterGlobal.NcRestCredential
+        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential
         Install-SdnDiagnostic -ComputerName $infraInfo.NC
         Install-SdnDiagnostic -ComputerName $infraInfo.MUX
         Install-SdnDiagnostic -ComputerName $infraInfo.Gateway
