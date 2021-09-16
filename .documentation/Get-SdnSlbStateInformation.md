@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnSlbStateInformation
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Generates an aggregated report of Virtual IPs (VIPs) in the environment and their current status as reported by the MUXes.
 
 ## SYNTAX
 
@@ -22,12 +15,20 @@ Get-SdnSlbStateInformation [-NcUri] <Uri> [[-Credential] <PSCredential>] [[-Exec
 
 ## EXAMPLES
 
-### Example 1
-```powershell
-PS C:\> {{ Add example code here }}
+### EXAMPLE 1
+```
+Get-SdnSlbStateInformation
 ```
 
-{{ Add example description here }}
+### EXAMPLE 2
+```
+Get-SdnSlbStateInformation -Credential (Get-Credential)
+```
+
+### EXAMPLE 3
+```
+Get-SdnSlbStateInformation -ExecutionTimeout 1200
+```
 
 ## PARAMETERS
 
@@ -47,7 +48,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -56,13 +58,14 @@ Aliases:
 
 Required: False
 Position: 2
-Default value: None
+Default value: [System.Management.Automation.PSCredential]::Empty
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -ExecutionTimeOut
-{{ Fill ExecutionTimeOut Description }}
+Specify the timeout duration to wait before automatically terminated.
+If omitted, defaults to 600 seconds.
 
 ```yaml
 Type: Int32
@@ -71,13 +74,13 @@ Aliases:
 
 Required: False
 Position: 3
-Default value: None
+Default value: 600
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -PollingInterval
-{{ Fill PollingInterval Description }}
+Interval in which to query the state of the request to determine completion.
 
 ```yaml
 Type: Int32
@@ -86,7 +89,7 @@ Aliases:
 
 Required: False
 Position: 4
-Default value: None
+Default value: 5
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -96,11 +99,8 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### None
-
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnNetworkControllerState
 
 ## SYNOPSIS
-Gathers the IMOS dump files from each of the Network Controllers
+Gathers the Network Controller State dump files (IMOS) from each of the Network Controllers
 
 ## SYNTAX
 
@@ -25,7 +18,7 @@ Get-SdnNetworkControllerState [-NcUri] <Uri> [-NetworkController] <String[]> [-O
 
 ### EXAMPLE 1
 ```
-Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -ComputerName $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
+Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -NetworkController $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
 ```
 
 ## PARAMETERS
@@ -77,7 +70,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -92,7 +86,8 @@ Accept wildcard characters: False
 ```
 
 ### -NcRestCredential
-{{ Fill NcRestCredential Description }}
+Specifies a user account that has permission to access the northbound NC API interface.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -107,8 +102,8 @@ Accept wildcard characters: False
 ```
 
 ### -ExecutionTimeOut
-Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation
-Default: 300
+Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation.
+If omitted, defaults to 300 seconds.
 
 ```yaml
 Type: Int32

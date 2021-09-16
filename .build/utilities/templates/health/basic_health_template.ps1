@@ -4,7 +4,21 @@
 function VERB-NAME {
     <#
     .SYNOPSIS
-        Validate that the configurationState and provisioningState is Success
+        <simple overview>
+    .DESCRIPTION
+        <detailed overview>
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .EXAMPLE
+        PS> <sample 1>
+    .EXAMPLE
+        PS> <sample 2>
     #>
 
     [CmdletBinding()]

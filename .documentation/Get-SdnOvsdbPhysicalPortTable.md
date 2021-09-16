@@ -1,14 +1,6 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnOvsdbPhysicalPortTable
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
 
 ## SYNTAX
 
@@ -32,7 +24,9 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -ComputerName
-{{ Fill ComputerName Description }}
+Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+To specify the local computer, type the computer name, localhost, or a dot (.).
+When the computer is in a different domain than the user, the fully qualified domain name is required
 
 ```yaml
 Type: String[]
@@ -47,7 +41,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -56,13 +51,13 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: [System.Management.Automation.PSCredential]::Empty
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -AsJob
-{{ Fill AsJob Description }}
+Switch indicating to trigger a background job to perform the operation.
 
 ```yaml
 Type: SwitchParameter
@@ -71,13 +66,13 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -PassThru
-{{ Fill PassThru Description }}
+Switch indicating to wait for background job completes and display results to current session.
 
 ```yaml
 Type: SwitchParameter
@@ -86,13 +81,14 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -Timeout
-{{ Fill Timeout Description }}
+Specify the timeout duration to wait before job is automatically terminated.
+If omitted, defaults to 300 seconds.
 
 ```yaml
 Type: Int32
@@ -101,7 +97,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: 300
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -111,11 +107,8 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### None
-
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

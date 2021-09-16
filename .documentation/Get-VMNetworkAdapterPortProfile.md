@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-VMNetworkAdapterPortProfile
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Retrieves the port profile applied to the virtual machine network interfaces.
 
 ## SYNTAX
 
@@ -27,17 +20,20 @@ Get-VMNetworkAdapterPortProfile [-AllVMs] [-PortProfileFeatureId <Guid>] [<Commo
 
 ## EXAMPLES
 
-### Example 1
-```powershell
-PS C:\> {{ Add example code here }}
+### EXAMPLE 1
+```
+Get-VMNetworkAdapterPortProfile -VMName 'VM01'
 ```
 
-{{ Add example description here }}
+### EXAMPLE 2
+```
+Get-VMNetworkAdapterPortProfile -AllVMs
+```
 
 ## PARAMETERS
 
 ### -VMName
-{{ Fill VMName Description }}
+Specifies the name of the virtual machine to be retrieved.
 
 ```yaml
 Type: String
@@ -52,7 +48,7 @@ Accept wildcard characters: False
 ```
 
 ### -AllVMs
-{{ Fill AllVMs Description }}
+Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
 
 ```yaml
 Type: SwitchParameter
@@ -61,13 +57,14 @@ Aliases:
 
 Required: True
 Position: Named
-Default value: None
+Default value: False
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -PortProfileFeatureId
-{{ Fill PortProfileFeatureId Description }}
+Specifies the unique identifier of the feature supported by the virtual switch extension.
+If omitted, defaults to 9940cd46-8b06-43bb-b9d5-93d50381fd56.
 
 ```yaml
 Type: Guid
@@ -76,7 +73,7 @@ Aliases:
 
 Required: False
 Position: Named
-Default value: None
+Default value: 9940cd46-8b06-43bb-b9d5-93d50381fd56
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -86,11 +83,8 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### None
-
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

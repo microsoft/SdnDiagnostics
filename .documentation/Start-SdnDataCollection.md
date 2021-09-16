@@ -1,10 +1,3 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Start-SdnDataCollection
 
 ## SYNOPSIS

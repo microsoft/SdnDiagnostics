@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Convert-EtwTraceToTxt
 
 ## SYNOPSIS
-Used to convert existing etw provider traces into text readable format
+Used to convert existing etw (.etl) provider traces into text readable format
 
 ## SYNTAX
 

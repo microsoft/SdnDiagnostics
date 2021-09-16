@@ -1,10 +1,3 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnLoadBalancerMux
 
 ## SYNOPSIS
@@ -47,7 +40,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential

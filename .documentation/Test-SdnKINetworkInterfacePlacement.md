@@ -1,10 +1,3 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Test-SdnKINetworkInterfacePlacement
 
 ## SYNOPSIS
@@ -32,7 +25,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -NcUri
-{{ Fill NcUri Description }}
+Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 
 ```yaml
 Type: Uri
@@ -47,7 +40,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -62,7 +56,8 @@ Accept wildcard characters: False
 ```
 
 ### -NcRestCredential
-{{ Fill NcRestCredential Description }}
+Specifies a user account that has permission to access the northbound NC API interface.
+The default is the current user.
 
 ```yaml
 Type: PSCredential

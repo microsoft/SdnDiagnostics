@@ -1,10 +1,3 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Test-SdnGatewayConfigState
 
 ## SYNOPSIS
@@ -21,17 +14,20 @@ Test-SdnGatewayConfigState [[-NcUri] <Uri>] [[-NcRestCredential] <PSCredential>]
 
 ## EXAMPLES
 
-### Example 1
-```powershell
-PS C:\> {{ Add example code here }}
+### EXAMPLE 1
+```
+Test-SdnGatewayConfigState
 ```
 
-{{ Add example description here }}
+### EXAMPLE 2
+```
+Test-SdnGatewayConfigState -NcRestCredential (Get-Credential)
+```
 
 ## PARAMETERS
 
 ### -NcUri
-{{ Fill NcUri Description }}
+Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 
 ```yaml
 Type: Uri
@@ -46,7 +42,8 @@ Accept wildcard characters: False
 ```
 
 ### -NcRestCredential
-{{ Fill NcRestCredential Description }}
+Specifies a user account that has permission to access the northbound NC API interface.
+The default is the current user.
 
 ```yaml
 Type: PSCredential

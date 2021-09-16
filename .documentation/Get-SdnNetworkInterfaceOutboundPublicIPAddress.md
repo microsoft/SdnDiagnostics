@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnNetworkInterfaceOutboundPublicIPAddress
 
 ## SYNOPSIS
-Gets the outbound public IP address that is used by a network interface
+Gets the outbound public IP address that is used by a network interface.
 
 ## SYNTAX
 
@@ -32,7 +25,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -NcUri
-{{ Fill NcUri Description }}
+Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 
 ```yaml
 Type: Uri
@@ -47,7 +40,7 @@ Accept wildcard characters: False
 ```
 
 ### -ResourceId
-{{ Fill ResourceId Description }}
+Specifies the unique identifier for the networkinterface resource.
 
 ```yaml
 Type: String
@@ -62,7 +55,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential

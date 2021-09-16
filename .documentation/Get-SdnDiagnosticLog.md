@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnDiagnosticLog
 
 ## SYNOPSIS
-Collect the default enabled logs from SdnDiagnostics folder
+Collect the default enabled logs from SdnDiagnostics folder.
 
 ## SYNTAX
 
@@ -47,7 +40,7 @@ Accept wildcard characters: False
 
 ### -FromDate
 Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified.
-Default is 120 hours.
+Default is 4 hours.
 (Get-Date).AddHours(-4)
 
 ```yaml

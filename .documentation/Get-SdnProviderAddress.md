@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnProviderAddress
 
 ## SYNOPSIS
-Retrieves the Provider Address that is assigned to the computer
+Retrieves the Provider Address that is assigned to the computer.
 
 ## SYNTAX
 
@@ -32,7 +25,9 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -ComputerName
-{{ Fill ComputerName Description }}
+Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+To specify the local computer, type the computer name, localhost, or a dot (.).
+When the computer is in a different domain than the user, the fully qualified domain name is required
 
 ```yaml
 Type: String[]
@@ -47,7 +42,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -62,7 +58,7 @@ Accept wildcard characters: False
 ```
 
 ### -AsJob
-{{ Fill AsJob Description }}
+Switch indicating to trigger a background job to perform the operation.
 
 ```yaml
 Type: SwitchParameter
@@ -77,7 +73,7 @@ Accept wildcard characters: False
 ```
 
 ### -PassThru
-{{ Fill PassThru Description }}
+Switch indicating to wait for background job completes and display results to current session.
 
 ```yaml
 Type: SwitchParameter
@@ -92,7 +88,8 @@ Accept wildcard characters: False
 ```
 
 ### -Timeout
-{{ Fill Timeout Description }}
+Specify the timeout duration to wait before job is automatically terminated.
+If omitted, defaults to 300 seconds.
 
 ```yaml
 Type: Int32

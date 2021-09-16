@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Test-SdnKnownIssue
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Executes a series of detection scripts to isolate well known issues that may cause impact to workloads running on the SDN fabric.
 
 ## SYNTAX
 
@@ -32,7 +25,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -NetworkController
-{{ Fill NetworkController Description }}
+Specifies the name or IP address of the network controller node on which this cmdlet operates.
 
 ```yaml
 Type: String
@@ -47,7 +40,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -56,13 +50,14 @@ Aliases:
 
 Required: False
 Position: 2
-Default value: None
+Default value: [System.Management.Automation.PSCredential]::Empty
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
 
 ### -NcRestCredential
-{{ Fill NcRestCredential Description }}
+Specifies a user account that has permission to access the northbound NC API interface.
+The default is the current user.
 
 ```yaml
 Type: PSCredential
@@ -71,7 +66,7 @@ Aliases:
 
 Required: False
 Position: 3
-Default value: None
+Default value: [System.Management.Automation.PSCredential]::Empty
 Accept pipeline input: False
 Accept wildcard characters: False
 ```
@@ -96,11 +91,8 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### None
-
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS

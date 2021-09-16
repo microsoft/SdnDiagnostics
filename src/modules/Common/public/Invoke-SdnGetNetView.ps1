@@ -19,7 +19,7 @@ function Invoke-SdnGetNetView {
     .PARAMETER SkipCounters
         If present, skip the Windows Performance Counters (WPM) data gather phases.
     .EXAMPLE
-        PS > Invoke-SdnGetNetView -ComputerName (Get-SdnServer -NcUri $uri -ManagementAddressOnly)
+        PS> Invoke-SdnGetNetView -ComputerName (Get-SdnServer -NcUri $uri -ManagementAddressOnly)
     #>
 
     [CmdletBinding()]

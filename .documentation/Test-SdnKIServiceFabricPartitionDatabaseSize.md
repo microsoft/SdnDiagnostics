@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Test-SdnKIServiceFabricPartitionDatabaseSize
 
 ## SYNOPSIS
-Validate the Service Fabric partition size for each of the services running on Network Controller
+Validate the Service Fabric partition size for each of the services running on Network Controller.
 
 ## SYNTAX
 
@@ -47,7 +40,8 @@ Accept wildcard characters: False
 ```
 
 ### -Credential
-{{ Fill Credential Description }}
+Specifies a user account that has permission to perform this action.
+The default is the current user.
 
 ```yaml
 Type: PSCredential

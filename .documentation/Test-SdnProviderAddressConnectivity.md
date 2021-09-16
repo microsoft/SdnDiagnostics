@@ -1,10 +1,3 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Test-SdnProviderAddressConnectivity
 
 ## SYNOPSIS
@@ -31,7 +24,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -ProviderAddress
-The IP address assigned to a hidden network adapter in a non-default network compartment
+The IP address assigned to a hidden network adapter in a non-default network compartment.
 
 ```yaml
 Type: String[]

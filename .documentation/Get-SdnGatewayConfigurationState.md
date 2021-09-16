@@ -1,14 +1,7 @@
----
-external help file: SdnDiagnostics-help.xml
-Module Name: SdnDiagnostics
-online version:
-schema: 2.0.0
----
-
 # Get-SdnGatewayConfigurationState
 
 ## SYNOPSIS
-{{ Fill in the Synopsis }}
+Outputs a set of configuration state files for the gateway role.
 
 ## SYNTAX
 
@@ -31,7 +24,7 @@ PS C:\> {{ Add example code here }}
 ## PARAMETERS
 
 ### -OutputDirectory
-{{ Fill OutputDirectory Description }}
+Specifies a specific path and folder in which to save the files.
 
 ```yaml
 Type: FileInfo
@@ -50,11 +43,8 @@ This cmdlet supports the common parameters: -Debug, -ErrorAction, -ErrorVariable
 
 ## INPUTS
 
-### None
-
 ## OUTPUTS
 
-### System.Object
 ## NOTES
 
 ## RELATED LINKS
