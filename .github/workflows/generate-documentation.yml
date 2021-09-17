@@ -25,7 +25,9 @@ jobs:
 
       - name: Build SdnDiagnostics Module
         run: |
-          .\.build\build.ps1
+          Get-Location
+          Get-ChildItem
+          .\main\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
