@@ -4,9 +4,9 @@ name: GenerateDocumentation
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the main branch
+  # Triggers the workflow on push events but only for the main branch
   push:
-    branches: [ arudell ]
+    branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -26,18 +26,18 @@ jobs:
           path: main
 
       - name: Build SdnDiagnostics Module
-        run: .\main\.build\build.ps1
+        run: .\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
-        run: .\main\.build\utilities\generate-documentation.ps1
+        run: .\.build\utilities\generate-documentation.ps1
         shell: powershell
 
       - name: Commit to SdnDiagnostics
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .\main\.documentation
+          git add .
           git commit -m "Auto-Generated Documentation"
 
       - name: Push to SdnDiagnostics
@@ -53,13 +53,13 @@ jobs:
       - name: Copy Documentation to SdnDiagnostics.Wiki
         shell: powershell
         run: |
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\" -Force -Verbose
+          Copy-Item -Path ".documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\" -Force -Verbose
 
       - name: Commit to SdnDiagnostics.Wiki
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .\SdnDiagnostics.Wiki\
+          git add .
           git commit -m "Auto-Updated Documentation"
 
       - name: Push to SdnDiagnostics.Wiki
