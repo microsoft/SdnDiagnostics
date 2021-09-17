@@ -10,6 +10,7 @@ function Get-SdnGateway {
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER ManagementAddressOnly
+        Optional parameter to only return back the Management Address value.
     #>
 
     [CmdletBinding()]

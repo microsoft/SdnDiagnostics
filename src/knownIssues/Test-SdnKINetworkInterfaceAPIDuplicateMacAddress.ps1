@@ -9,6 +9,12 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 	.PARAMETER NcRestCredential
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnKINetworkInterfaceAPIDuplicateMacAddress
+    .EXAMPLE
+        PS> Test-SdnKINetworkInterfaceAPIDuplicateMacAddress -NcUri "https://nc.contoso.com"
+    .EXAMPLE
+        PS> Test-SdnKINetworkInterfaceAPIDuplicateMacAddress -NcUri "https://nc.contoso.com" -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

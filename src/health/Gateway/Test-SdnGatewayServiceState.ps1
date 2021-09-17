@@ -6,9 +6,15 @@ function Test-SdnGatewayServiceState {
     .SYNOPSIS
         Confirms that critical services for gateway are running
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required.
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnGatewayServiceState
+    .EXAMPLE
+        PS> Test-SdnGatewayServiceState -ComputerName 'Gateway01','Gateway02'
+    .EXAMPLE
+        PS> Test-SdnGatewayServiceState -ComputerName 'Gateway01','Gateway02' -Credential (Get-Credential)
     #>
    
     [CmdletBinding()]

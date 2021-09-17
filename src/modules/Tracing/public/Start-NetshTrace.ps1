@@ -17,6 +17,15 @@ function Start-NetshTrace {
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
     .PARAMETER Report
         Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default is disabled.
+    .EXAMPLE
+        PS> Start-NetshTrace -OutputDirectory "C:\Temp\CSS_SDN" -Capture Yes
+    .EXAMPLE
+        PS> Start-NetshTrace -OutputDirectory "C:\Temp\CSS_SDN" -TraceProviderString 'provider="{EB171376-3B90-4169-BD76-2FB821C4F6FB}" level=0xff' -Capture No
+    .EXAMPLE
+        PS> Start-NetshTrace -OutputDirectory "C:\Temp\CSS_SDN" -TraceProviderString 'provider="{EB171376-3B90-4169-BD76-2FB821C4F6FB}" level=0xff' -Capture Yes
+    .EXAMPLE
+        PS> Start-NetshTrace -OutputDirectory "C:\Temp\CSS_SDN" -Capture Yes -MaxTraceSize 2048 -Report Disabled
+    .EXAMPLE
     #>
     
     [CmdletBinding()]

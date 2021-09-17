@@ -13,6 +13,8 @@ function Test-SdnGatewayConfigState {
         PS> Test-SdnGatewayConfigState
     .EXAMPLE
         PS> Test-SdnGatewayConfigState -NcRestCredential (Get-Credential)
+    .EXAMPLE
+        PS> Test-SdnGatewayConfigState -NcUri "https://nc.contoso.com" -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

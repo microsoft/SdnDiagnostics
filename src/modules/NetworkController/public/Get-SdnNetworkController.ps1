@@ -9,6 +9,10 @@ function Get-SdnNetworkController {
         Specifies the name or IP address of the network controller node on which this cmdlet operates.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnNetworkController
+    .EXAMPLE
+        PS> Get-SdnNetworkController -NetworkController 'NC01' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

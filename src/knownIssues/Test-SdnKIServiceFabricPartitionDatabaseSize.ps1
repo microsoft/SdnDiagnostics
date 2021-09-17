@@ -9,6 +9,12 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
         Specifies the name or IP address of the network controller node on which this cmdlet operates.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02'
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

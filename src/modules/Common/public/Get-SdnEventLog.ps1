@@ -4,13 +4,19 @@
 function Get-SdnEventLog {
     <#
     .SYNOPSIS
-        Collect the Windows Event Logs for different SDN Roles
+        Collect the Windows Event Logs for different SDN Roles.
+    .PARAMETER Role
+        The specific SDN role to collect windows event logs from.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .PARAMETER FromDate
         Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 1 day.
-        (Get-Date).AddDays(-1)
+    .EXAMPLE
+        PS> Get-SdnEventLog -OutputDirectory "C:\Temp\CSS_SDN"
+    .EXAMPLE
+        PS> Get-SdnEventLog -OutputDirectory "C:\Temp\CSS_SDN" -FromDate (Get-Date).AddHours(-12)
     #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]

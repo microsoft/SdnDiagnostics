@@ -11,6 +11,10 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnKIVMNetAdapterDuplicateMacAddress
+    .EXAMPLE
+        PS> Test-SdnKIVMNetAdapterDuplicateMacAddress -NcUri "https://nc.contoso.com" -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

@@ -15,6 +15,16 @@ function Get-SdnOvsdbAddressMapping {
         Switch indicating to wait for background job completes and display results to current session.
     .PARAMETER Timeout
         Specify the timeout duration to wait before job is automatically terminated. If omitted, defaults to 300 seconds.
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02'
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02' -AsJob
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02' -AsJob -PassThru
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]

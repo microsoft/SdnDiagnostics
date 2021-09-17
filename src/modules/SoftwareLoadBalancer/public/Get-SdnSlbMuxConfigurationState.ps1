@@ -7,6 +7,8 @@ function Get-SdnSlbMuxConfigurationState {
         Outputs a set of configuration state files for the load balancer role.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
+    .EXAMPLE
+        PS> Get-SdnSlbMuxConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]

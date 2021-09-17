@@ -11,6 +11,10 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
         Specifies the unique identifier for the networkinterface resource.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://nc.contoso.com" -ResourceId '8f9faf0a-837b-43cd-b4bf-dbe996993514'
+    .EXAMPLE
+        PS> Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://nc.contoso.com" -ResourceId '8f9faf0a-837b-43cd-b4bf-dbe996993514' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

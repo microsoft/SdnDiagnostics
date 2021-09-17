@@ -11,6 +11,10 @@ function Test-SdnKnownIssue {
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .EXAMPLE
+        PS> Debug-SdnFabricInfrastructure
+    .EXAMPLE
+        PS> Debug-SdnFabricInfrastructure -NetworkController 'NC01' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

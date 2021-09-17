@@ -16,7 +16,15 @@ function Get-SdnVMNetworkAdapter {
     .PARAMETER Timeout
         Specify the timeout duration to wait before job is automatically terminated. If omitted, defaults to 600 seconds.
     .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName (Get-SdnServer -ManagementAddressOnly)
+        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02'
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
     param (

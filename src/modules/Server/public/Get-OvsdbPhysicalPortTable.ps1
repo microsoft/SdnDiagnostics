@@ -5,6 +5,8 @@ function Get-OvsdbPhysicalPortTable {
     <#
     .SYNOPSIS
         Returns a list of ports defined within the Physical_Port table of the OVSDB database.
+    .EXAMPLE
+        PS> Get-OvsdbPhysicalPortTable
     #>
 
     try {

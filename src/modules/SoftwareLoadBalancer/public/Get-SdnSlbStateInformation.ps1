@@ -12,11 +12,11 @@ function Get-SdnSlbStateInformation {
     .PARAMETER PollingInterval
         Interval in which to query the state of the request to determine completion.
     .EXAMPLE
-        Get-SdnSlbStateInformation
+        Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com"
     .EXAMPLE
-        Get-SdnSlbStateInformation -Credential (Get-Credential)
+        Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
     .EXAMPLE
-        Get-SdnSlbStateInformation -ExecutionTimeout 1200
+        Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com" -ExecutionTimeout 1200
     #>
 
     [CmdletBinding()]

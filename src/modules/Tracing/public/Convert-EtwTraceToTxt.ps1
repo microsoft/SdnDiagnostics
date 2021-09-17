@@ -13,6 +13,14 @@ function Convert-EtwTraceToTxt {
         Overwrites existing files. If omitted, defaults to no.
     .PARAMETER Report
         Generates an HTML report. If omitted, defaults to no.
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl"
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Destination "C:\Temp\CSS_SDN_NEW\trace.txt"
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Overwrite Yes
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Report Yes
     #>
 
     [CmdletBinding()]

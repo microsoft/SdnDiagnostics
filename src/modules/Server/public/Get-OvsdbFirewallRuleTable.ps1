@@ -5,6 +5,8 @@ function Get-OvsdbFirewallRuleTable {
     <#
     .SYNOPSIS
         Returns a list of firewall rules defined within the firewall table of the OVSDB database.
+    .EXAMPLE
+        PS> Get-OvsdbFirewallRuleTable
     #>
 
     try {

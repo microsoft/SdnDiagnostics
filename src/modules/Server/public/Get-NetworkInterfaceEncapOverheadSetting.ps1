@@ -5,6 +5,8 @@ function Get-NetworkInterfaceEncapOverheadSetting {
     <#
     .SYNOPSIS
         Retrieves the EncapOverhead and JumboPacket properties of each network interface attached to vmswitch
+    .EXAMPLE
+        PS> Get-NetworkInterfaceEncapOverheadSetting
     #>
 
     try {
