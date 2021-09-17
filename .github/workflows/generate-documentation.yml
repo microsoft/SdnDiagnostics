@@ -37,7 +37,7 @@ jobs:
         uses: actions/checkout@v2
         with:
           repository: microsoft/SdnDiagnostics.wiki.git
-          ref: main
+          ref: master
           path: wiki
 
       - name: Copy Documentation to SdnDiagnostics.Wiki
