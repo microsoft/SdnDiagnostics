@@ -37,7 +37,7 @@ jobs:
       - name: Checkout SdnDiagnostics.Wiki
         uses: actions/checkout@v2
         with:
-          repository: Microsoft/SdnDiagnostics.Wiki.Git
+          repository: microsoft/SdnDiagnostics.wiki.git
           ref: main
           path: SdnDiagnostics.Wiki
 
