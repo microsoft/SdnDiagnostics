@@ -4,7 +4,13 @@
 function Test-SdnKIVfpDuplicatePort {
     <#
     .SYNOPSIS
-        Validate there are no ports within VFP layer that may have duplicate MAC addresses
+        Validate there are no ports within VFP layer that may have duplicate MAC addresses.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+	.PARAMETER NcRestCredential
+		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]

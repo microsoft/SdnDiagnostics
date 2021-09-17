@@ -3,6 +3,10 @@
 
 function Get-SdnServerConfigurationState {
     <#
+    .SYNOPSIS
+        Outputs a set of configuration state files for the server role.
+    .PARAMETER OutputDirectory
+        Specifies a specific path and folder in which to save the files.
     #>
 
     [CmdletBinding()]

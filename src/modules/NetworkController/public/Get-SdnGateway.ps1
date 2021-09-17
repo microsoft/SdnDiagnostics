@@ -4,9 +4,12 @@
 function Get-SdnGateway {
     <#
     .SYNOPSIS
-        Returns a list of gateways from network controller
+        Returns a list of gateways from network controller.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER ManagementAddressOnly
     #>
 
     [CmdletBinding()]
@@ -15,12 +18,12 @@ function Get-SdnGateway {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ManagementAddressOnly,
-
-        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementAddressOnly
     )
 
     try {

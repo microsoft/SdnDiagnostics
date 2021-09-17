@@ -2,6 +2,23 @@
 # Licensed under the MIT License.
 
 function Get-VfpPortRule {
+    <#
+    .SYNOPSIS
+        Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
+    .PARAMETER PortId
+        The Port ID GUID for the network interface.
+    .PARAMETER Layer
+        Specify the target layer.
+    .PARAMETER Group
+        Specify the group layer.
+    .PARAMETER Name
+        Returns the specific rule name. If omitted, will return all rules within the VFP group.
+    .EXAMPLE
+        PS> Get-VfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
+    .EXAMPLE
+        PS> Get-VfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
+    #>
+
     param (
         [Parameter(Mandatory = $true)]
         [GUID]$PortId,

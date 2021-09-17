@@ -4,9 +4,11 @@
 function Get-SdnNetworkController {
     <#
     .SYNOPSIS
-        Returns a list of servers from network controller
+        Returns a list of servers from network controller.
     .PARAMETER NetworkController
-        One network conroller node name or ip address
+        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -15,12 +17,12 @@ function Get-SdnNetworkController {
         [System.String]$NetworkController,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ServerNameOnly,
-
-        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ServerNameOnly
     )
 
     try {

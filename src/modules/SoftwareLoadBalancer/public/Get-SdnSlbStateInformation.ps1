@@ -2,6 +2,23 @@
 # Licensed under the MIT License.
 
 function Get-SdnSlbStateInformation {
+    <#
+    .SYNOPSIS
+        Generates an aggregated report of Virtual IPs (VIPs) in the environment and their current status as reported by the MUXes.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER ExecutionTimeout
+        Specify the timeout duration to wait before automatically terminated. If omitted, defaults to 600 seconds.
+    .PARAMETER PollingInterval
+        Interval in which to query the state of the request to determine completion.
+    .EXAMPLE
+        Get-SdnSlbStateInformation
+    .EXAMPLE
+        Get-SdnSlbStateInformation -Credential (Get-Credential)
+    .EXAMPLE
+        Get-SdnSlbStateInformation -ExecutionTimeout 1200
+    #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
@@ -13,7 +30,7 @@ function Get-SdnSlbStateInformation {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [int]$ExecutionTimeOut = 900,
+        [int]$ExecutionTimeOut = 600,
     
         [Parameter(Mandatory = $false)]
         [int]$PollingInterval = 5

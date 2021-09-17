@@ -5,6 +5,12 @@ function Test-SdnKINetworkInterfacePlacement {
     <#
     .SYNOPSIS
         Validates the placement of Network Controller Network Interface API placement compared to Hypervisor.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+	.PARAMETER NcRestCredential
+		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]

@@ -5,6 +5,10 @@ function Test-SdnServerConfigState {
     <#
     .SYNOPSIS
         Validate that the configurationState and provisioningState is Success
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER NcRestCredential
+		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]

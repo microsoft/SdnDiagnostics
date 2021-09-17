@@ -4,7 +4,11 @@
 function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
     <#
     .SYNOPSIS
-        Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate
+        Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER NcRestCredential
+		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]

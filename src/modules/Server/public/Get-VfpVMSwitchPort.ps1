@@ -4,7 +4,7 @@
 function Get-VfpVMSwitchPort {
     <#
     .SYNOPSIS
-        Returns a list of ports from within VFP
+        Returns a list of ports from within VFP.
     #>
 
     try {

@@ -4,7 +4,13 @@
 function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
     <#
     .SYNOPSIS
-        Gets the outbound public IP address that is used by a network interface
+        Gets the outbound public IP address that is used by a network interface.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER ResourceId
+        Specifies the unique identifier for the networkinterface resource.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
