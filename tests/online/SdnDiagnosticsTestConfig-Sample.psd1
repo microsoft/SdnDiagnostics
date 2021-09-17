@@ -9,7 +9,7 @@
     # NcRestCredentialPassword = 'YourPassword'
 
     # Required. Specify the SdnDiagnosticsModule Path
-    SdnDiagnosticsModule = '<The Path of SdnDiagnostics Module>'
+    # SdnDiagnosticsModule = '<The Path of SdnDiagnostics Module>'
 
     # The number of each infra node. This will ensure the module able to get information match the test environment. 
     NumberOfNc = 3
