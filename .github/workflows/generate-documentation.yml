@@ -43,14 +43,12 @@ jobs:
       - name: Copy Documentation to SdnDiagnostics.Wiki
         shell: powershell
         run: |
-          Get-ChildItem
           Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\" -Force -Verbose
       
       - name: Commit to SdnDiagnostics.Wiki
         run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .\wiki/\*.md
+          cd ".\wiki"
+          git add .
           git commit -m "Auto-Updated Documentation"
       
       - name: Push to SdnDiagnostics.Wiki
