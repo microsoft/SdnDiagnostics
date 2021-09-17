@@ -31,4 +31,4 @@ jobs:
         shell: powershell
     
       - name: Run Online Test
-        run: .\test\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
+        run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
