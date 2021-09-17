@@ -24,22 +24,16 @@ jobs:
           path: main
 
       - name: Build SdnDiagnostics Module
-        run: .\.build\build.ps1
+        run: |
+          .\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
-        run: .\.build\utilities\generate-documentation.ps1
+        run: |
+          .\.build\utilities\generate-documentation.ps1
+          Get-Item -Path .\
         shell: powershell
 
-      - name: Commit to SdnDiagnostics
-        run: |
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .documentation/\*.md
-          git commit -m "Auto-Generated Documentation"
-      - name: Push to SdnDiagnostics
-        run: |
-          git push
       - name: Checkout SdnDiagnostics.Wiki
         uses: actions/checkout@v2
         with:
