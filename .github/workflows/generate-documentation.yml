@@ -31,7 +31,7 @@ jobs:
       - name: Generate Documentation
         run: |
           .\.build\utilities\generate-documentation.ps1
-          Get-Item -Path .\SdnDiagnostics\.documentation\*
+          Get-Item -Path .\.documentation\*
         shell: powershell
 
       - name: Checkout SdnDiagnostics.Wiki
