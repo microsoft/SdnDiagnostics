@@ -44,7 +44,7 @@ jobs:
         shell: powershell
         run: |
           Get-ChildItem
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\SdnDiagnostics.Wiki\" -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\" -Force -Verbose
       
       - name: Commit to SdnDiagnostics.Wiki
         run: |
