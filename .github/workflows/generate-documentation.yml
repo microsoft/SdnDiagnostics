@@ -26,11 +26,12 @@ jobs:
           path: main
 
       - name: Build SdnDiagnostics Module
-        run: .\.build\build.ps1
+        run: .\main\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
-        run: $GITHUB_WORKSPACE\main\.build\utilities\generate-documentation.ps1
+        run: .\main\.build\utilities\generate-documentation.ps1
+        shell: powershell
 
       - name: Commit to SdnDiagnostics
         run: |
@@ -51,7 +52,7 @@ jobs:
       - name: Copy Documentation to SdnDiagnostics.Wiki
         shell: powershell
         run: |
-          Copy-Item -Path "$GITHUB_WORKSPACE\main\.documentation\*" -Include *.md -Destination "$GITHUB_WORKSPACE\SdnDiagnostics.Wiki\" -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\" -Force -Verbose
 
       - name: Commit to SdnDiagnostics.Wiki
         run: |
