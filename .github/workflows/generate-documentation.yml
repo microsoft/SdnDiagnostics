@@ -18,6 +18,11 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      - name: Check current directory
+        run: |
+          Get-ChildItem -Recurse
+          Remove-Item -Path .\* -Recurse -WhatIf
+          
       - name: Checkout SdnDiagnostics
         uses: actions/checkout@v2
         with:
