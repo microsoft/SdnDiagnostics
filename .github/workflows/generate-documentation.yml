@@ -25,15 +25,12 @@ jobs:
 
       - name: Build SdnDiagnostics Module
         run: |
-          Get-Location
-          Get-ChildItem
           .\main\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
         run: |
-          .\.build\utilities\generate-documentation.ps1
-          Get-Item -Path .\.documentation\*
+          .\main\.build\utilities\generate-documentation.ps1
         shell: powershell
 
       - name: Checkout SdnDiagnostics.Wiki
@@ -47,7 +44,7 @@ jobs:
         shell: powershell
         run: |
           Get-ChildItem
-          Copy-Item -Path ".documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\" -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\SdnDiagnostics.Wiki\" -Force -Verbose
       
       - name: Commit to SdnDiagnostics.Wiki
         run: |
