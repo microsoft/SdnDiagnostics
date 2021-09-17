@@ -1,12 +1,10 @@
-# This is a basic workflow to help you get started with Actions
-
 name: GenerateDocumentation
 
 # Controls when the workflow will run
 on:
   # Triggers the workflow on push events but only for the main branch
   push:
-    branches: [ main ]
+    branches: [ user/arudell/docgen1 ]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -23,6 +21,7 @@ jobs:
       - name: Checkout SdnDiagnostics
         uses: actions/checkout@v2
         with:
+          ref: "user/arudell/docgen1"
           path: main
 
       - name: Build SdnDiagnostics Module
@@ -37,13 +36,11 @@ jobs:
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .
+          git add .documentation/\*.md
           git commit -m "Auto-Generated Documentation"
-
       - name: Push to SdnDiagnostics
         run: |
           git push
-
       - name: Checkout SdnDiagnostics.Wiki
         uses: actions/checkout@v2
         with:
@@ -54,14 +51,12 @@ jobs:
         shell: powershell
         run: |
           Copy-Item -Path ".documentation\*" -Include *.md -Destination ".\SdnDiagnostics.Wiki\" -Force -Verbose
-
       - name: Commit to SdnDiagnostics.Wiki
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .
+          git add ./\*.md
           git commit -m "Auto-Updated Documentation"
-
       - name: Push to SdnDiagnostics.Wiki
         run: |
           git push
