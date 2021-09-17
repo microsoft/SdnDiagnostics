@@ -10,16 +10,17 @@ function Invoke-SdnGetNetView {
     .PARAMETER BackgroundThreads
         Maximum number of background tasks, from 0 - 16. Defaults to 5.
     .PARAMETER SkipAdminCheck
-        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and
-        usefulness of the collected data is limited.
+        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and usefulness of the collected data is limited.
     .PARAMETER SkipLogs
         If present, skip the EVT and WER logs gather phases.
     .PARAMETER SkipNetshTrace
         If present, skip the Netsh Trace data gather phases.
     .PARAMETER SkipCounters
         If present, skip the Windows Performance Counters (WPM) data gather phases.
+    .PARAMETER SkipVM
+        If present, skip the Virtual Machine (VM) data gather phases.
     .EXAMPLE
-        PS > Invoke-SdnGetNetView -ComputerName (Get-SdnServer -NcUri $uri -ManagementAddressOnly)
+        PS> Invoke-SdnGetNetView -ComputerName (Get-SdnServer -NcUri $uri -ManagementAddressOnly)
     #>
 
     [CmdletBinding()]

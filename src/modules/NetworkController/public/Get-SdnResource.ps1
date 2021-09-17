@@ -8,13 +8,15 @@ function Get-SdnResource {
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER ResourceRef
-        The resource ref of the object you want to perform the operation against
+        The resource ref of the object you want to perform the operation against.
     .PARAMETER ResourceType
-        The resource type you want to perform the operation against
+        The resource type you want to perform the operation against.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        Get-SdnResource -ResourceType PublicIPAddresses
+        PS> Get-SdnResource -ResourceType PublicIPAddresses
     .EXAMPLE
-        Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
     #>
 
     [CmdletBinding()]

@@ -4,13 +4,23 @@
 function Test-SdnKIServiceFabricPartitionDatabaseSize {
     <#
     .SYNOPSIS
-        Validate the Service Fabric partition size for each of the services running on Network Controller
+        Validate the Service Fabric partition size for each of the services running on Network Controller.
+    .PARAMETER NetworkController
+        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02'
+    .EXAMPLE
+        PS> Test-SdnKIServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $Global:SdnDiagnostics.EnvironmentInfo.NC,
+        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -21,8 +31,8 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
     try {
         "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
 
-        if($null -eq $ComputerName){
-            throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
+        if($null -eq $NetworkController){
+            throw New-Object System.NullReferenceException("Please specify NetworkController parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
@@ -35,7 +45,7 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $ComputerName -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }

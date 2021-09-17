@@ -8,7 +8,7 @@ function Copy-FileToPSRemoteSession {
     .PARAMETER Path
         Specifies, as a string array, the path to the items to copy. Wildcard characters are permitted.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required.
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER Destination
         Specifies the path to the new location. The default is the current directory.
         To rename the item being copied, specify a new name in the value of the Destination parameter.

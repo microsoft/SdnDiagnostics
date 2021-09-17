@@ -4,7 +4,9 @@
 function Get-OvsdbUcastMacRemoteTable {
     <#
     .SYNOPSIS
-        Returns a list of mac addresses defined within the Ucast_Macs_Remote table
+        Returns a list of mac addresses defined within the Ucast_Macs_Remote table of the OVSDB database.
+    .EXAMPLE
+        PS> Get-OvsdbUcastMacRemoteTable
     #>
 
     try {

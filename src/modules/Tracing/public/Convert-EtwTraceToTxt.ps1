@@ -4,15 +4,23 @@
 function Convert-EtwTraceToTxt {
     <#
     .SYNOPSIS
-        Used to convert existing etw provider traces into text readable format
+        Used to convert existing etw (.etl) provider traces into text readable format
     .PARAMETER FileName
         ETL trace file path and name to convert 
     .PARAMETER Destination
-        Output file name and directory. If ommitted, will use the FileName path and base name.
+        Output file name and directory. If omitted, will use the FileName path and base name.
     .PARAMETER Overwrite
-        Overwrites existing files. If ommitted, defaults to no.
+        Overwrites existing files. If omitted, defaults to no.
     .PARAMETER Report
-        Generates an HTML report. If ommitted, defaults to no.
+        Generates an HTML report. If omitted, defaults to no.
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl"
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Destination "C:\Temp\CSS_SDN_NEW\trace.txt"
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Overwrite Yes
+    .EXAMPLE
+        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Report Yes
     #>
 
     [CmdletBinding()]

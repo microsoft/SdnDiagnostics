@@ -4,7 +4,9 @@
 function Get-OvsdbAddressMapping {
     <#
     .SYNOPSIS
-        Returns a list of address mappings from within the SDN OVSDB servers
+        Returns a list of address mappings from within the OVSDB database.
+    .EXAMPLE
+        PS> Get-OvsdbAddressMapping
     #>
 
     try {

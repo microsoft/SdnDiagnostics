@@ -5,6 +5,16 @@ function Test-SdnGatewayConfigState {
     <#
     .SYNOPSIS
         Validate that the configurationState and provisioningState is Success
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER NcRestCredential
+		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .EXAMPLE
+        PS> Test-SdnGatewayConfigState
+    .EXAMPLE
+        PS> Test-SdnGatewayConfigState -NcRestCredential (Get-Credential)
+    .EXAMPLE
+        PS> Test-SdnGatewayConfigState -NcUri "https://nc.contoso.com" -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

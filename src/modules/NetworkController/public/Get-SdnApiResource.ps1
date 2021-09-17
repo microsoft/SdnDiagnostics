@@ -7,6 +7,14 @@ function Get-SdnApiResource {
         Returns a list of gateways from network controller
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnApiResource
+    .EXAMPLE
+        PS> Get-SdnApiResource -NcUri "https://nc.contoso.com"
+    .EXAMPLE
+        PS> Get-SdnApiResource -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

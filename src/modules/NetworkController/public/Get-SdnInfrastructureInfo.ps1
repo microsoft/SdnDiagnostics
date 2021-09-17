@@ -4,19 +4,17 @@
 function Get-SdnInfrastructureInfo {
     <#
     .SYNOPSIS
-        Get the SDN Infrastrucutre Info based on one NC VM. The function will update:
-        - $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        - $Global:SdnDiagnostics.EnvironmentInfo.NC
-        - $Global:SdnDiagnostics.EnvironmentInfo.MUX
-        - $Global:SdnDiagnostics.EnvironmentInfo.Gateway
-        - $Global:SdnDiagnostics.EnvironmentInfo.Host
-    .PARAMETER NcVM
-        Specifies one of the network controller VM name.
+        Get the SDN infrastructure information from network controller. The function will update the $Global:SdnDiagnostics.EnvironmentInfo variable.
+    .PARAMETER NetworkController
+        Specifies the name or IP address of the network controller node on which this cmdlet operates.
     .PARAMETER Credential
-        The NC Admin Credential if different from current logon user credential.
+		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
-        The NC Rest API credential if different from current logon user credential.    
-        
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnInfrastructureInfo
+    .EXAMPLE
+        PS> Get-SdnInfrastructureInfo -NetworkController 'NC01' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

@@ -3,6 +3,12 @@
 
 function Get-SdnNetworkControllerConfigurationState {
     <#
+    .SYNOPSIS
+        Outputs a set of configuration state files for the network controller role.
+    .PARAMETER OutputDirectory
+        Specifies a specific path and folder in which to save the files.
+    .EXAMPLE
+        PS> Get-SdnNetworkControllerConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
