@@ -16,7 +16,7 @@ on:
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
   # This workflow contains a single job called "build"
-  build:
+  build-and-test:
     # The type of runner that the job will run on
     runs-on: [self-hosted,Windows,X64]
 
@@ -29,3 +29,6 @@ jobs:
       - name: Build the SdnDiagnostics Module
         run: .\.build\build.ps1
         shell: powershell
+    
+      - name: Run Online Test
+        run: .\test\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"

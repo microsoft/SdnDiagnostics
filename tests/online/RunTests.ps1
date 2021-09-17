@@ -14,7 +14,14 @@ if($null -ne $Global:PesterOnlineTests.ConfigData.NcRestCredentialUser){
     $Global:PesterOnlineTests.NcRestCredential = New-Object System.Management.Automation.PsCredential($Global:PesterOnlineTests.ConfigData.NcRestCredentialUser, $ncRestSecurePassword)
 }
 
-Import-Module $Global:PesterOnlineTests.ConfigData.SdnDiagnosticsModule -Force
+if($null -eq $Global:PesterOnlineTests.ConfigData.SdnDiagnosticsModule)
+{
+    $modulePathFromBuild = "$PSScriptRoot\..\..\out\build\SdnDiagnostics\SdnDiagnostics.psd1"
+    "Importing module from {0}" -f $modulePathFromBuild | Write-Output
+    Import-Module $modulePathFromBuild
+}else {
+    Import-Module $Global:PesterOnlineTests.ConfigData.SdnDiagnosticsModule -Force
+}
 
 # Tests can be arranged in different wave if order matters
 Invoke-Pester "$PSScriptRoot\wave1\*Tests.ps1" -Output Detailed
