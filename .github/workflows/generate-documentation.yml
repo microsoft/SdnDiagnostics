@@ -31,13 +31,13 @@ jobs:
       - name: Generate Documentation
         run: |
           .\.build\utilities\generate-documentation.ps1
-          Get-Item -Path .\
+          Get-Item -Path .\SdnDiagnostics\.documentation\*
         shell: powershell
 
       - name: Checkout SdnDiagnostics.Wiki
         uses: actions/checkout@v2
         with:
-          repository: Microsoft/SdnDiagnostics.Wiki
+          repository: Microsoft/SdnDiagnostics.Wiki.Git
           path: SdnDiagnostics.Wiki
 
       - name: Copy Documentation to SdnDiagnostics.Wiki
