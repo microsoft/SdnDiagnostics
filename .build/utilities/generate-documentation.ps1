@@ -67,6 +67,3 @@ foreach($file in $currentFiles){
 }
 
 $sideBarNavcontent | Out-File -FilePath $sideBarNav -Encoding utf8
-
-
-
