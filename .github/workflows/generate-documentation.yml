@@ -20,23 +20,44 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - name: Checkout SdnDiagnostics
+        uses: actions/checkout@v2
+        with:
+          path: main
 
-      # Runs a single command using the runners shell
-      - name: Build Module
+      - name: Build SdnDiagnostics Module
         run: .\.build\build.ps1
         shell: powershell
     
       - name: Generate Documentation
-        run: .\.build\utilities\generate-documentation.ps1
+        run: $GITHUB_WORKSPACE\main\.build\utilities\generate-documentation.ps1
 
-      - name: Commit
+      - name: Commit to SdnDiagnostics
         run: |
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .documentation
-          git commit -m "Auto-Generated Docs"
-      - name: Push
+          git commit -m "Auto-Generated Documentation"
+
+      - name: Push to SdnDiagnostics
+        run: |
+          git push
+
+      - name: Checkout SdnDiagnostics.Wiki
+        uses: actions/checkout@v2
+        with:
+          repository: Microsoft/SdnDiagnostics.Wiki
+          path: SdnDiagnostics.Wiki
+
+      - name: Copy Documentation to SdnDiagnostics.Wiki
+        shell: powershell
+        run: |
+          Copy-Item -Path "$GITHUB_WORKSPACE\main\.documentation\*" -Include *.md -Destination "$GITHUB_WORKSPACE\SdnDiagnostics.Wiki\" -Force -Verbose
+
+      - name: Commit to SdnDiagnostics.Wiki
+          git config user.name github-actions
+          git config user.email github-actions@github.com
+          git commit -m "Auto-Updated Documentation"
+
+      - name: Push to SdnDiagnostics.Wiki
         run: |
           git push

@@ -21,7 +21,6 @@ else {
 
 $modulePath = "$PSScriptRoot\..\..\src\SdnDiagnostics.psd1"
 $docPath = "$PSScriptRoot\..\..\.documentation"
-$homePage = "$PSScriptRoot\..\..\.documentation\Home.md"
 $sideBarNav = "$PSScriptRoot\..\..\.documentation\_SideBar.md"
 
 if(!(Test-Path -Path $docPath -PathType Container)){
@@ -50,16 +49,7 @@ foreach($function in (Get-Command -Module SdnDiagnostics)){
 }
 
 # generate the side bar navigation
-"Generating side bar navigation and home pages" | Write-Host
-
-$homeInto = @'
-Welcome to the SdnDiagnostics wiki!
-
-## Description
-SdnDiagnostics is a PowerShell module that is designed to simplify the diagnostic troubleshooting and data collection process related to Microsoft Software Defined Network.
-
-## Functions
-'@
+"Generating side bar navigation" | Write-Host
 
 $sideBarInto = @'
 # Documentation
@@ -71,21 +61,12 @@ $sideBarInto = @'
 $sideBarNavcontent = @()
 $sideBarNavcontent += $sideBarInto
 
-$homeContent = @()
-$homeContent += $homeInto
-
 foreach($file in $currentFiles){
-    if($file.BaseName -ieq 'Home'){
-        continue
-    }
-
     $navLink = "- [{0}]({0})" -f $file.BaseName
     $sideBarNavcontent += $navLink
-    $homeContent += $navLink
 }
 
 $sideBarNavcontent | Out-File -FilePath $sideBarNav -Encoding utf8
-$homeContent | Out-File -FilePath $homePage -Encoding utf8
 
 
 
