@@ -1,3 +1,5 @@
+[![Server2019SDN](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg?branch=main)](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml)
+
 # Project
 SdnDiagnostics is a PowerShell module that is designed to simplify the diagnostic troubleshooting and data collection process when troubleshooting issues related to [Microsoft Software Defined Network](https://docs.microsoft.com/en-us/windows-server/networking/sdn/software-defined-networking).
 # Contributing
