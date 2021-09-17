@@ -1,6 +1,20 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+$enum = @(
+    'enum\NcAppServices.ps1'
+    'enum\NcManagedRoles.ps1'
+    'enum\OvsdbTable.ps1'
+    'enum\SdnApiResource.ps1'
+    'enum\SdnRoles.ps1'
+    'enum\TraceLevel.ps1'
+    'enum\VMState.ps1'
+)
+foreach($item in $enum){
+    . ("{0}\{1}" -f "$PSScriptRoot", $item)
+}
+
+
 # dot source the modules scripts
 $modules = @(
     'Common\private\Export-RegistryKeyConfigDetails.ps1'
