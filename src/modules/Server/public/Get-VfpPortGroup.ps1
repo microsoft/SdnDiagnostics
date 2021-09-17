@@ -9,6 +9,8 @@ function Get-VfpPortGroup {
         The Port ID GUID for the network interface.
     .PARAMETER Layer
         Specify the target layer.
+    .PARAMETER Direction
+        Specify the direction
     .PARAMETER Name
         Returns the specific group name. If omitted, will return all groups within the VFP layer.
     .EXAMPLE
@@ -17,14 +19,25 @@ function Get-VfpPortGroup {
         PS> Get-VfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Direction')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [GUID]$PortId,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Direction')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [System.String]$Layer,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Direction')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateSet('IN','OUT')]
+        [System.String]$Direction,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [System.String]$Name
     )
 
@@ -128,11 +141,14 @@ function Get-VfpPortGroup {
         }
         
         if ($Name) {
-            return ($arrayList | Where-Object { $_.GROUP -eq $Name })
+            return ($arrayList | Where-Object { $_.GROUP -ieq $Name })
         }
-        else {
-            return ($arrayList | Sort-Object -Property Priority)
+
+        if ($Direction) {
+            return ($arrayList | Where-Object {$_.Direction -ieq $Direction})
         }
+
+        return ($arrayList | Sort-Object -Property Priority)
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

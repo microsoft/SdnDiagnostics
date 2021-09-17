@@ -19,6 +19,7 @@ function Get-VfpPortRule {
         PS> Get-VfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
     #>
 
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
         [GUID]$PortId,
@@ -126,11 +127,11 @@ function Get-VfpPortRule {
         }
         
         if ($Name) {
-            # return ($arrayList | Where-Object {$_.GROUP -eq $Name})
+            return ($arrayList | Where-Object {$_.'Friendly name' -ieq $Name})
         }
-        else {
-            return ($arrayList | Sort-Object -Property Priority)
-        }
+
+        return ($arrayList | Sort-Object -Property Priority)
+        
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
