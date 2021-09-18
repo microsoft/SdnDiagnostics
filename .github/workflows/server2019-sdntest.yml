@@ -27,7 +27,10 @@ jobs:
 
       # Runs a single command using the runners shell
       - name: Build the SdnDiagnostics Module
-        run: .\.build\build.ps1
+        run: |
+          Get-Location
+          Get-ChildItem
+          .\.build\build.ps1
         shell: powershell
     
       - name: Run Online Test
