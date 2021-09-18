@@ -24,7 +24,7 @@ jobs:
     steps:
       - name: check root
         run: |
-          Remove-Item .\ -Recurse -Force
+          Remove-Item -Path .\* -Recurse -Force
         
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout SdnDiagnostics Repo
