@@ -22,8 +22,16 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
+      - name: check root
+        run: |
+          Get-Location
+          Get-ChildItem
+        
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v2
+      - name: Checkout SdnDiagnostics Repo
+        uses: actions/checkout@v2
+        with: 
+          ref: main
 
       # Runs a single command using the runners shell
       - name: Build the SdnDiagnostics Module
