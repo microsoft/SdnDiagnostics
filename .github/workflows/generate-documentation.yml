@@ -51,10 +51,9 @@ jobs:
           git config user.name github-actions
           git config user.email github-actions@github.com
           git add .
-          git commit -m "Auto-Updated Documentation"
+          git commit -m "Auto-Updated Documentation" --allow-empty
       
       - name: Push to SdnDiagnostics.Wiki
         run: |
           cd ".\wiki"
-          ls
           git push
