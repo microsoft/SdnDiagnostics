@@ -55,4 +55,6 @@ jobs:
       
       - name: Push to SdnDiagnostics.Wiki
         run: |
+          cd ".\wiki"
+          ls
           git push
