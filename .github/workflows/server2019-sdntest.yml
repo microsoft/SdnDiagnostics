@@ -22,23 +22,23 @@ jobs:
 
     # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      - name: check root
+      - name: Cleanup existing files
         run: |
-          Remove-Item -Path .\* -Recurse -Force
-        
+          Remove-Item -Path .\* -Recurse -Force -Verbose
+        shell: powershell
+      
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - name: Checkout SdnDiagnostics Repo
+      - name: Checkout SdnDiagnostics repo
         uses: actions/checkout@v2
         with: 
           ref: main
 
       # Runs a single command using the runners shell
-      - name: Build the SdnDiagnostics Module
+      - name: Build SdnDiagnostics module
         run: |
-          Get-Location
-          Get-ChildItem
           .\.build\build.ps1
         shell: powershell
     
-      - name: Run Online Test
+      - name: Run online validation tests
         run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
+        shell: powershell
