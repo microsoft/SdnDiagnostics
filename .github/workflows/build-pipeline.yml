@@ -29,7 +29,8 @@ jobs:
     
       - name: Publish to PowerShell Gallery
         run: |
-          Import-Module -Name ".\main\out\build\SdnDiagnostics" -Force
+          Copy-Item -Path ".\main\out\build\SdnDiagnostics" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
+          Import-Module -Name SdnDiagnostics
           Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
         shell: powershell
 
