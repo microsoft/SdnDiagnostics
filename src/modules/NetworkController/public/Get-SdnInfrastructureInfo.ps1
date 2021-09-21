@@ -35,32 +35,39 @@ function Get-SdnInfrastructureInfo {
 
     try {
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))
-        {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {Get-NetworkController} -Credential $Credential
+        # get the NC Northbound API endpoint
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
+            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = "https://$($result.RestName)"
         }
         
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NC))
-        {
+        # get the network controllers
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NC)) {
             $Global:SdnDiagnostics.EnvironmentInfo.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.MUX))
-        {
+        # get the load balancer muxes
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.MUX)) {
             $Global:SdnDiagnostics.EnvironmentInfo.MUX = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway))
-        {
+        # get the gateways
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway)) {
             $Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
-        if([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Host))
-        {
-            #The credential for NC REST API could be different from NC Admin credential. Caller need to determine the credential to be used. 
+        # get the hypervisor hosts
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Host)) {
             $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
+
+        # populate the global cache that contains the names of the nodes for the roles defined above
+        $fabricNodes = [System.Collections.ArrayList]::new()
+        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.NC)
+        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.Host)
+        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.Gateway)
+        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.MUX)
+        $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo
     } 
@@ -71,6 +78,7 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
