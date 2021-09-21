@@ -61,7 +61,3 @@ jobs:
         run: |
           cd ".\wiki"
           git push
-
-
-
-    
