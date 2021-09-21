@@ -42,6 +42,7 @@ function Get-SdnVirtualServer {
             # there might be multiple connection endpoints to each node so we will want to only return the unique results
             # this does not handle if some duplicate connections are listed as IPAddress with another record saved as NetBIOS or FQDN
             # further processing may be required by the calling function to handle that
+
             return ($result.properties.connections.managementAddresses | Sort-Object -Unique)
         }
         else {

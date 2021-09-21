@@ -43,7 +43,7 @@ function Get-SdnLoadBalancerMux {
             }
             return $managementAddresses
         }
-        else{
+        else {
             return $result
         }
     } 
