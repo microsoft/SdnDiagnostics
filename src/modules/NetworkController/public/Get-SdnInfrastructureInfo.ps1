@@ -42,7 +42,12 @@ function Get-SdnInfrastructureInfo {
 
         # if force is defined, purge the cache to force a refresh on the objects
         if ($PSBoundParameters.ContainsKey('Force')) {
-            $Global:SdnDiagnostics.EnvironmentInfo = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.NC = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         }
 
         # get the NC Northbound API endpoint
