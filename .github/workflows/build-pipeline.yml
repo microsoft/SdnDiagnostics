@@ -1,4 +1,4 @@
-name: GenerateDocumentation
+name: Build Pipeline
 
 # Controls when the workflow will run
 on:
@@ -24,13 +24,18 @@ jobs:
           path: main
 
       - name: Build SdnDiagnostics Module
-        run: |
-          .\main\.build\build.ps1
+        run: .\main\.build\build.ps1
         shell: powershell
     
-      - name: Generate Documentation
+      - name: Publish to PowerShell Gallery
         run: |
-          .\main\.build\utilities\generate-documentation.ps1
+          Copy-Item -Path ".\main\out\build\SdnDiagnostics" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
+          Import-Module -Name SdnDiagnostics
+          Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
+        shell: powershell
+
+      - name: Generate Documentation
+        run: .\main\.build\utilities\generate-documentation.ps1
         shell: powershell
 
       - name: Checkout SdnDiagnostics.Wiki
@@ -41,10 +46,9 @@ jobs:
           path: wiki
 
       - name: Copy Documentation to SdnDiagnostics.Wiki
+        run: Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\" -Force -Verbose
         shell: powershell
-        run: |
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\" -Force -Verbose
-      
+
       - name: Commit to SdnDiagnostics.Wiki
         run: |
           cd ".\wiki"

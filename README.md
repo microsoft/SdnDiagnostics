@@ -6,7 +6,7 @@ SdnDiagnostics is a PowerShell module that is designed to simplify the diagnosti
 | Actions | Current Status |
 | :-- | :-- |
 | Build Validations | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg) |
-| Document Generation | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/generate-documentation.yml/badge.svg) |
+| Build Pipeline | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/build-pipeline.yml/badge.svg) |
 | Script Analyzer | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell-analysis.yml/badge.svg) |
 
 # Installation
