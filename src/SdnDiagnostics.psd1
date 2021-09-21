@@ -86,7 +86,6 @@
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
-        'Start-SdnDataCollection',
         'Start-EtwTraceCapture',
         'Start-NetshTrace'
         'Stop-EtwTraceCapture',
