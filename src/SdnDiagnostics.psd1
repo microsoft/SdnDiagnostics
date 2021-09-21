@@ -29,14 +29,7 @@
     NestedModules = @()
 
     # Modules that must be imported into the global environment prior to importing this module
-    RequiredModules = @(
-        'CimCmdlets',
-        'DnsClient',
-        'Microsoft.PowerShell.Archive',
-        'NetSecurity',
-        'NetTCPIP',
-        'SmbShare'
-    )
+    RequiredModules = @()
 
     # Cmdlets to export from this module
     CmdletsToExport = @()
@@ -121,4 +114,25 @@
 
     # Aliases to export from this module
     AliasesToExport = @()
+
+    # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
+    PrivateData = @{
+        PSData = @{
+            # Tags applied to this module. These help with module discovery in online galleries.
+            Tags = @(
+                'MSFTNet', 'Networking','Sdn'
+            )
+
+            # A URL to the main website for this project.
+            ProjectUri = 'https://github.com/microsoft/SdnDiagnostics'
+
+            # A URL to the license for this module.
+            LicenseUri = 'https://microsoft.mit-license.org/'
+
+            # External dependent modules of this module
+            ExternalModuleDependencies = @(
+                'CimCmdlets', 'DnsClient', 'Microsoft.PowerShell.Archive', 'NetSecurity', 'NetTCPIP', 'SmbShare'
+            )
+        }
+    }
 }
