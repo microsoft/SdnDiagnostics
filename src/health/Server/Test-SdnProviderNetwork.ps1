@@ -44,30 +44,36 @@ function Test-SdnProviderNetwork {
         $status = 'Success'
 
         $providerAddresses = (Get-SdnProviderAddress -ComputerName $ComputerName -Credential $Credential).ProviderAddress
-        $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses}
-        foreach($computer in $connectivityResults | Group-Object PSComputerName){
-            foreach($destinationAddress in $computer.Group){
-                if($destinationAddress.Status -ine 'Success'){
-                    $status = 'Failure'
+        if ($null -eq $providerAddresses){
+            "No provider addresses were found on the hosts specified. This may be expected if tenant workloads have not yet been deployed." | Trace-Output -Level:Warning
+        }
 
-                    $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
-                    $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
+        if ($providerAddresses) {
+            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses}
+            foreach($computer in $connectivityResults | Group-Object PSComputerName){
+                foreach($destinationAddress in $computer.Group){
+                    if($destinationAddress.Status -ine 'Success'){
+                        $status = 'Failure'
 
-                    # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
-                    if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
-                        "Cannot ping to {0} from {1} using {2}. Investigate the physical connection." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
+                        $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
+                        $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
+
+                        # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
+                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
+                            "Cannot ping to {0} from {1} using {2}. Investigate the physical connection." `
+                                -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
+                        }
+
+                        # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
+                        # either on the physical nic or within the physical switches between the provider addresses
+                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
+                            "Cannot send jumbo packets to {0} from {1} using {2}. Physical switch ports or network interface may not be configured to support jumbo packets." `
+                                -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
+                        }
+
+                        $destinationAddress | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $computer.Name
+                        [void]$arrayList.Add($destinationAddress)
                     }
-
-                    # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
-                    # either on the physical nic or within the physical switches between the provider addresses
-                    if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
-                        "Cannot send jumbo packets to {0} from {1} using {2}. Physical switch ports or network interface may not be configured to support jumbo packets." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
-                    }
-
-                    $destinationAddress | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $computer.Name
-                    [void]$arrayList.Add($destinationAddress)
                 }
             }
         }

@@ -11,6 +11,8 @@ function Get-SdnInfrastructureInfo {
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
 		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Force
+        Switch parameter to force a refresh of the environment cache details
     .EXAMPLE
         PS> Get-SdnInfrastructureInfo
     .EXAMPLE
@@ -30,10 +32,23 @@ function Get-SdnInfrastructureInfo {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$Force
     )
 
     try {
+
+        # if force is defined, purge the cache to force a refresh on the objects
+        if ($PSBoundParameters.ContainsKey('Force')) {
+            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.NC = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
+        }
 
         # get the NC Northbound API endpoint
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
@@ -62,11 +77,12 @@ function Get-SdnInfrastructureInfo {
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above
-        $fabricNodes = [System.Collections.ArrayList]::new()
-        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.NC)
-        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.Host)
-        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.Gateway)
-        [void]$fabricNodes.Add($Global:SdnDiagnostics.EnvironmentInfo.MUX)
+        $fabricNodes = @()
+        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.NC
+        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Host
+        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.MUX
+
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo

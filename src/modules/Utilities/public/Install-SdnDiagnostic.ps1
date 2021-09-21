@@ -33,8 +33,14 @@ function Install-SdnDiagnostic {
         $localModuleInfo = Get-Module SdnDiagnostics
         $moduleDir = Get-Item -Path 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics' -ErrorAction SilentlyContinue
 
+        # in some instances, can get into scenario where multiple SdnDiagnostics module exist side by side
+        # we want to throw an error and advise the user to remove existing modules and re-import the module
+        if ($localModuleInfo.Count -gt 1) {
+            throw New-Object System.ArgumentOutOfRangeException("Detected more than one module version of SdnDiagnostics. Remove existing modules and re-import SdnDiagnostics.")
+        }
+
         if ($null -eq $moduleDir) {
-            "Module not found in PS Module path, fall back to script root" | Trace-Output -Level:Verbose
+            "Module not found in PS Module path, fall back to script root" | Trace-Output -Level:Warning
             $moduleDir = Get-Item -Path "$PSScriptRoot\..\..\..\"
         }
 
