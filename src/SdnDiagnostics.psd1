@@ -92,6 +92,7 @@
         'Stop-NetshTrace',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
         'Test-SdnKINetworkInterfacePlacement',
+        'Test-SdnKIServerHostId',
         'Test-SdnKIServiceFabricPartitionDatabaseSize',
         'Test-SdnKIVfpDuplicatePort',
         'Test-SdnKIVMNetAdapterDuplicateMacAddress',

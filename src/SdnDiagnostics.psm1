@@ -136,6 +136,7 @@ $knownIssues = @(
     'private\Test-NetworkInterfaceLocation.ps1'
     'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress.ps1'
     'Test-SdnKINetworkInterfacePlacement.ps1'
+    'Test-SdnKIServerHostId.ps1'
     'Test-SdnKIServiceFabricPartitionDatabaseSize.ps1'  
     'Test-SdnKIVfpDuplicatePort.ps1'
     'Test-SdnKIVMNetAdapterDuplicateMacAddress.ps1'
