@@ -1,19 +1,18 @@
 # Project
 SdnDiagnostics is a PowerShell module that is designed to simplify the diagnostic troubleshooting and data collection process when troubleshooting issues related to [Microsoft Software Defined Network](https://docs.microsoft.com/en-us/windows-server/networking/sdn/software-defined-networking).
 
-## Action Status
+Please refer to the [wiki](https://github.com/microsoft/SdnDiagnostics/wiki) on how to install and use SdnDiagnostics in your environment.
 
+
+## GitHub Action Status
 | Actions | Current Status |
 | :-- | :-- |
-| Build Validations | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg) |
+| Build Validation | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg) |
 | Build Pipeline | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/build-pipeline.yml/badge.svg) |
 | Script Analyzer | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell-analysis.yml/badge.svg) |
 
-# Installation
-Please refer to the [wiki](https://github.com/microsoft/SdnDiagnostics/wiki) on how to install and use SdnDiagnostics in your environment.
 
 # Contributing
-
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
 Contributor License Agreement (CLA) declaring that you have the right to, and actually do, grant us
 the rights to use your contribution. For details, visit https://cla.opensource.microsoft.com.
@@ -26,95 +25,7 @@ This project has adopted the [Microsoft Open Source Code of Conduct](https://ope
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
 
-When contributing to this project, ensure you:
-1. Review existing functions already available and reuse where possible.
-1. Return native .NET objects whenever possible.
-1. Rarely should you return from a function with format-table, format-list, etc.. If they do, they should use the PowerShell verb `Show`.
-1. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
-1. Leverage `$Global:SdnDiagnostics` for caching when appropriate. 
-
-
-## Creating Core Functions
-When creating core functions:
-
-1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`. 
-    - Function name should match the file name.
-    - Limit one function per file.
-    - Ensure that the file name is added to `src\SDNDiagnostics.psm1` so it is dot sourced on module import.
-    - Use [Approved Verbs for PowerShell Commands](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands).
-1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SdnDiagnostics.psd1` under `FunctionsToExport`.
-
-To help ensure consistency, leverage `.build\utilities\create-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module directory. Example:
-```powershell
-.\create-core-function.ps1 -FunctionName 'Disable-RasGatewayTracing' -Module Gateway -Template basic_template.ps1 -IsPublic
-```
-- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. Specify `-IsPublic` if you are planning for this function to be exported.
-
-## Creating Health Validation Tests
-When creating a health validation test, ensure you:
-1. Create the `ps1` file under `src\health\[role]\` as the name of the validation test. e.g. `Test-SdnServerHealth.ps1`
-1. Function should return a PSCustomObject that contains the following format:
-    ```powershell
-    # $status should contain either 'Success' or 'Failure'
-    # $properties will contain any related information in scenario of 'Failure' status 
-    else {
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
-        }
-    }
-    ```
-1. Health validation tests are executed using `Debug-SdnFabricInfrastructure` or executing the cmdlet directly.
-    - `Debug-SdnFabricInfrastructure` will automatically pick up tests under the `src\health` directory.
-1. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
-
-To help ensure consistency, leverage `.build\utilities\create-health-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module under `src\health`. Example:
-```powershell
-.\create-health-function.ps1 -FunctionName 'Test-SdnLoadBalancerMuxOnline' -Module SoftwareLoadBalancer -Template basic_health_template.ps1
-```
-- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. 
-
-## Creating Known Issue Tests
-1. Create the `ps1` file under `src\knownIssues` as the name of the validation test. e.g. `Test-SdnKIVfpDuplicatePort.ps1`
-    - Ensure that you prefix your function name as `Test-SdnKI`.
-1. Function should return a PSCustomObject that contains the following format:
-    ```powershell
-    # $issueIdentified should either be $true or $false depending on if issue was detected
-    # $properties will contain any related information in scenario of $true status 
-    else {
-        return [PSCustomObject]@{
-            Result = $issueIdentified
-            Properties = $arrayList
-        }
-    }
-    ```
-1. Known Issue tests are executed using `Test-SdnKnownIssues` or executing the cmdlet directly.
-    - `Test-SdnKnownIssues` will automatically pick up tests under the `src\knownIssues` directory.
-1. The infrastructure information can be retrieved from global cache at `$Global:SdnDiagnostics`
-
-To help ensure consistency, leverage `.build\utilities\create-knownissue-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module under `src\knownIssues`. Example:
-```powershell
-.\create-knownissue-function.ps1 -FunctionName 'Test-SdnKIVfpDuplicatePort' -Template basic_knownIssue_template.ps1
-```
-- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
-
-# Build Validation and Testing
-1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`. 
-1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
-1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
-1. Install the modules to the SDN nodes in the dataplane. 
-```powershell
-$uri = 'https://NcURI'
-$netController = 'NC ComputerName'
-
-$nodes = @()
-$nodes += (Get-SdnServer -NcUri $uri -ManagementAddress)
-$nodes += (Get-SdnGateway -NcUri $uri -ManagementAddress)
-$nodes += (Get-SdnLoadBalancerMux -NcUri $uri -ManagementAddress)
-$nodes += (Get-SdnNetworkController -NetworkController $netController -ServerNameOnly)
-
-Install-SdnDiagnostic -ComputerName $nodes -Force
-```
+To get started on contributing to this module, refer to the [contributing](https://github.com/microsoft/SdnDiagnostics/blob/main/.github/contributing.md) guide on this project.
 # Trademarks
 
 This project may contain trademarks or logos for projects, products, or services. Authorized use of Microsoft 
