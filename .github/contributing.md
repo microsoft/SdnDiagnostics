@@ -6,7 +6,7 @@ When contributing to this project, ensure you:
 1. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
 1. Leverage `$Global:SdnDiagnostics` for caching when appropriate.
 1. Use [PowerShell Approved Verbs](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands) when creating functions.
-1. Provide detailed function synopsis, description, parameters and examples. The build pipeline leverages platyPS to auto-generate documentation for the exported functions and publishes to the project wiki. Having these details populated helps ensure quality document generation. 
+1. Provide detailed function synopsis, description, parameters and examples. The build pipeline leverages platyPS to auto-generate documentation for the exported functions and publishes to the project wiki.
 
 # Getting started
 
@@ -18,7 +18,7 @@ When creating core functions:
     - Function name should match the file name.
     - Limit one function per file.
     - Ensure that the file name is added to `src\SDNDiagnostics.psm1` so it is dot sourced on module import.
-    - Use [Approved Verbs for PowerShell Commands](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands).
+
 1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SdnDiagnostics.psd1` under `FunctionsToExport`.
 
 To help ensure consistency, leverage `.build\utilities\create-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module directory. Example:
@@ -78,6 +78,7 @@ To help ensure consistency, leverage `.build\utilities\create-knownissue-functio
 # Build validation and testing
 1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`. 
 1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
+    - Remove any existing modules if they are present.
 1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
 1. Install the modules to the SDN nodes in the dataplane. 
 ```powershell
