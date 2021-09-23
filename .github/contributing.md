@@ -83,5 +83,5 @@ To help ensure consistency, leverage `.build\utilities\create-knownissue-functio
 1. Install the modules to the SDN nodes in the dataplane. 
 ```powershell
 $environmentDetails = Get-SdnInfrastructureInfo -NetworkController 'NC01'
-Install-SdnDiagnostic -ComputerName $environmentDetails.FabricNodes
+Install-SdnDiagnostics -ComputerName $environmentDetails.FabricNodes
 ```
