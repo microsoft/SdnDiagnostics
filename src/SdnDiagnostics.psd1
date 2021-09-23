@@ -82,7 +82,7 @@
         'Get-VfpPortLayer',
         'Get-VfpPortRule',
         'Get-VMNetworkAdapterPortProfile',
-        'Install-SdnDiagnostic',
+        'Install-SdnDiagnostics',
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
