@@ -55,7 +55,8 @@ function Install-SdnDiagnostics {
         }
 
         # copy the module base directory to the remote computers
-        Copy-FileToPSRemoteSession -Path $localModule.ModuleBase -ComputerName $filteredComputerName -Destination $localModule.ModuleBase -Credential $Credential -Recurse -Force
+        # currently hardcoded to machine's module path. Use the discussion at https://github.com/microsoft/SdnDiagnostics/discussions/68 to get requirements and improvement
+        Copy-FileToPSRemoteSession -Path $localModule.ModuleBase -ComputerName $filteredComputerName -Destination "C:\Program Files\WindowsPowerShell\Modules" -Credential $Credential -Recurse -Force
 
         # ensure that we destroy the current pssessions for the computer to prevent any caching issues
         Remove-PSRemotingSession -ComputerName $filteredComputerName
