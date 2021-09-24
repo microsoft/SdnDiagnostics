@@ -4,9 +4,9 @@
 function Get-SdnOvsdbAddressMapping {
     <#
     .SYNOPSIS
-        Gets the OVSDB Address Mappings from the servers within the SDN data plane.
+        Gets the address mappings from OVSDB.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER AsJob
@@ -15,6 +15,8 @@ function Get-SdnOvsdbAddressMapping {
         Switch indicating to wait for background job completes and display results to current session.
     .PARAMETER Timeout
         Specify the timeout duration to wait before job is automatically terminated. If omitted, defaults to 300 seconds.
+    .EXAMPLE
+        PS> Get-SdnOvsdbAddressMapping
     .EXAMPLE
         PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02'
     .EXAMPLE
@@ -27,9 +29,9 @@ function Get-SdnOvsdbAddressMapping {
         PS> Get-SdnOvsdbAddressMapping -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
@@ -48,8 +50,13 @@ function Get-SdnOvsdbAddressMapping {
     )
 
     try {
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-OvsdbAddressMapping } -Credential $Credential `
-            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbAddressMapping } -Credential $Credential `
+                -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        }
+        else {
+            Get-OvsdbAddressMapping
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -4,8 +4,9 @@
 function Get-SdnOvsdbPhysicalPortTable {
     <#
     .SYNOPSIS
+        Gets the physical port table results from OVSDB.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER AsJob
@@ -28,7 +29,7 @@ function Get-SdnOvsdbPhysicalPortTable {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
@@ -47,8 +48,13 @@ function Get-SdnOvsdbPhysicalPortTable {
     )
 
     try {
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-OvsdbPhysicalPortTable } -Credential $Credential `
-            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbPhysicalPortTable } -Credential $Credential `
+                -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        }
+        else {
+            Get-OvsdbPhysicalPortTable
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
