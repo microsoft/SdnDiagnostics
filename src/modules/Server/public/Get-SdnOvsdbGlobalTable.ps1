@@ -4,8 +4,9 @@
 function Get-SdnOvsdbGlobalTable {
     <#
     .SYNOPSIS
+        Gets the global table results from OVSDB.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. 
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER AsJob
@@ -26,9 +27,9 @@ function Get-SdnOvsdbGlobalTable {
         PS> Get-SdnOvsdbGlobalTable -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
@@ -47,8 +48,13 @@ function Get-SdnOvsdbGlobalTable {
     )
 
     try {
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-OvsdbGlobalTable } -Credential $Credential `
-            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbGlobalTable } -Credential $Credential `
+                -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        }
+        else {
+            Get-OvsdbGlobalTable
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

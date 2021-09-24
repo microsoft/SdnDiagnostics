@@ -41,11 +41,6 @@
         'Disable-RasGatewayTracing',
         'Enable-RasGatewayTracing'
         'Get-NetworkInterfaceEncapOverheadSetting',
-        'Get-OvsdbAddressMapping',
-        'Get-OvsdbFirewallRuleTable',
-        'Get-OvsdbGlobalTable',
-        'Get-OvsdbPhysicalPortTable',
-        'Get-OvsdbUcastMacRemoteTable',
         'Get-SdnApiResource',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog'
@@ -77,7 +72,6 @@
         'Get-SdnSlbStateInformation',
         'Get-SdnVfpVmSwitchPort',
         'Get-SdnVMNetworkAdapter',
-        'Get-VfpVMSwitchPort',
         'Get-VfpPortGroup',
         'Get-VfpPortLayer',
         'Get-VfpPortRule',
