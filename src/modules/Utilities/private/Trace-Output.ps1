@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 
 function Trace-Output {
+
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [System.String]$Message,
@@ -33,7 +35,7 @@ function Trace-Output {
     # write the message to the console
     switch($Level){
         'Error' {
-            $traceEvent.Message | Write-Host -ForegroundColor:Red
+            $traceEvent.Message | Write-Error
         }
 
         'Success' {
@@ -47,7 +49,7 @@ function Trace-Output {
         }
 
         'Warning' {
-            $traceEvent.Message | Write-Host -ForegroundColor:Yellow
+            $traceEvent.Message | Write-Warning
         }
         
         default {
