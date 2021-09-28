@@ -11,6 +11,8 @@ function Get-SdnResource {
         The resource ref of the object you want to perform the operation against.
     .PARAMETER ResourceType
         The resource type you want to perform the operation against.
+    .PARAMETER ApiVersion
+        The API version to use when invoking against the NC REST API endpoint.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
@@ -33,7 +35,7 @@ function Get-SdnResource {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'NoResourceRef')]
-        [System.String]$Version = 'v1',
+        [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'NoResourceRef')]
@@ -47,10 +49,10 @@ function Get-SdnResource {
         [System.String]$method = 'GET'
 
         if($PSBoundParameters.ContainsKey('ResourceRef')){
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $Version -ResourceRef $ResourceRef
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
         }
         else {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $Version -ServiceName $ResourceType
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ServiceName $ResourceType
         }
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose

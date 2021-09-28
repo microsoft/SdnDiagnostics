@@ -30,7 +30,7 @@ function Invoke-SdnNetworkControllerStateDump {
 
     try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion 'v1' -ServiceName:NetworkControllerState
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'NetworkControllerState'
 
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
             $null = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
@@ -65,7 +65,7 @@ function Invoke-SdnNetworkControllerStateDump {
         }
 
         $stopWatch.Stop()
-    
+
         if ($result.properties.provisioningState -ine 'Succeeded') {
             $msg = "Unable to get NetworkControllerState. ProvisioningState: {0}" -f $result.properties.provisioningState
             throw New-Object System.Exception($msg)

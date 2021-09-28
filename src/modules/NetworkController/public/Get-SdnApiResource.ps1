@@ -47,6 +47,8 @@ function Get-SdnApiResource {
                 $_.Exception | Trace-Output -Level:Warning
             }
         }
+
+        Get-SdnDiscovery -NcUri $NcUri.AbsoluteUri -Credential $Credential | Export-ObjectToFile -FilePath $outputDir.FullName -Name 'discovery' -FileType json
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
