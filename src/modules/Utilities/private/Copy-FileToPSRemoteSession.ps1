@@ -51,15 +51,24 @@ function Copy-FileToPSRemoteSession {
                 continue
             }
 
-            $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
-            if($session){
-                "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
-                Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-            }
-            else {
-                "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-                continue
-            }
+            # Try SMB Copy first
+            try{
+                $driveName = [System.IO.Path]::GetPathRoot($Destination.FullName)
+                $UNCPath = "\\{0}\{1}\{2}" -f $object, $driveName.Replace(":\", "$"), $Destination.FullName.Substring(3)
+                "Copying files to {0}" -f $UNCPath | Trace-Output
+                Copy-Item -Path $Path -Destination $UNCPath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+            }catch{
+                "SMB Copy failed, fallback to WinRM" | Trace-Output
+                $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
+                if($session){
+                    "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
+                    Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                }
+                else {
+                    "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
+                    continue
+                }
+            }            
         }
     }
     catch {
