@@ -51,10 +51,6 @@ function Copy-FileFromPSRemoteSession {
                 continue
             }
 
-            [System.IO.FileInfo]$outputDirectory = Join-Path -Path $Destination.FullName -ChildPath $object
-            if(!(Test-Path -Path $outputDirectory.FullName -PathType Container)){
-                $null = New-Item -Path $outputDirectory.FullName -ItemType Directory -Force
-            }
             # Try SMB Copy first
             try{
                 $UNCPath = [System.Collections.ArrayList]::new()
@@ -68,13 +64,13 @@ function Copy-FileFromPSRemoteSession {
                     }
                     [void]$UNCPath.Add($remoteUNCPath)
                 }
-                Copy-Item -Path $UNCPath -Destination $outputDirectory.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                Copy-Item -Path $UNCPath -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
             }catch{
                 "SMB Copy failed, fallback to WinRM" | Trace-Output
                 $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
                 if($session){
-                    "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $outputDirectory.FullName, $session.Name | Trace-Output
-                    Copy-Item -Path $Path -Destination $outputDirectory.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                    "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $Destination, $session.Name | Trace-Output
+                    Copy-Item -Path $Path -Destination $Destination -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
                 }
                 else {
                     "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
