@@ -31,13 +31,13 @@ function Get-SdnSlbStateInformation {
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 600,
-    
+
         [Parameter(Mandatory = $false)]
         [int]$PollingInterval = 5
     )
 
     try {
-        [System.String]$uri = "{0}/networking/v1/diagnostics/slbstate" -f $NcUri.AbsoluteUri
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'SlbState'
         "Gathering SLB state information from {0}" -f $uri | Trace-Output -Level:Verbose
 
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
@@ -63,8 +63,7 @@ function Get-SdnSlbStateInformation {
 
         $resultObject = ConvertFrom-Json $putResult.Content
         "Response received $($putResult.Content)" | Trace-Output -Level:Verbose
-        $operationResource = $resultObject.properties.slbStateResult.resourceRef
-        [System.String]$operationURI = "{0}/networking/v1{1}" -f $NcUri.AbsoluteUri, $operationResource
+        [System.String]$operationURI = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'SlbStateResults' -OperationId $resultObject.properties.operationId
 
         while ($true) {
             if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
@@ -74,7 +73,7 @@ function Get-SdnSlbStateInformation {
 
             Start-Sleep -Seconds $PollingInterval
 
-            if ($Credential) {
+            if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
                 $stateResult = Invoke-WebRequest -Uri $operationURI `
                     -Method Get `
                     -UseBasicParsing `
@@ -94,7 +93,7 @@ function Get-SdnSlbStateInformation {
         }
 
         $stopWatch.Stop()
-        
+
         if ($stateResult.properties.provisioningState -ine 'Succeeded') {
             $msg = "Unable to get results for OperationId: {0}. {1}" -f $operationId, $stateResult.properties
             throw New-Object System.Exception($msg)
