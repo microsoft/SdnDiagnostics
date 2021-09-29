@@ -5,10 +5,8 @@ function Get-SdnNetworkControllerState {
     <#
     .SYNOPSIS
         Gathers the Network Controller State dump files (IMOS) from each of the Network Controllers
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER NetworkController
-        The computer name(s) of the Network Controllers that the IMOS dump files need to be collected from
+        The computer name of the Network Controller used to retrieve Infrastructure Info and trigger IMOS generation.
     .PARAMETER OutputDirectory
         Directory location to save results. By default it will create a new sub-folder called NetworkControllerState that the files will be copied to
 	.PARAMETER Credential
@@ -24,10 +22,7 @@ function Get-SdnNetworkControllerState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $true)]
-        [System.String[]]$NetworkController,
+        [System.String]$NetworkController,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
@@ -67,15 +62,16 @@ function Get-SdnNetworkControllerState {
             }
         }
 
+        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         # invoke scriptblock to clean up any stale NetworkControllerState files
-        Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $scriptBlock -Credential $Credential
+        Invoke-PSRemoteCommand -ComputerName $infraInfo.NC -ScriptBlock $scriptBlock -Credential $Credential
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the Network Controllers defined to collect the files
-        $result = Invoke-SdnNetworkControllerStateDump -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
+        $result = Invoke-SdnNetworkControllerStateDump -NcUri $infraInfo.NcUrl -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
         if ($result) {
-            foreach ($obj in $ComputerName) {
-                Copy-FileFromPSRemoteSession -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $obj -Destination $outputDir.FullName
+            foreach ($ncVM in $infraInfo.NC) {
+                Copy-FileFromPSRemoteSession -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $ncVM -Destination $outputDir.FullName
             }
         }        
     }
