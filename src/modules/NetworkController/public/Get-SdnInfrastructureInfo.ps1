@@ -55,7 +55,7 @@ function Get-SdnInfrastructureInfo {
             $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = "https://$($result.RestName)"
         }
-        
+
         # get the network controllers
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NC)) {
             $Global:SdnDiagnostics.EnvironmentInfo.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
@@ -76,6 +76,10 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
+        # get the supported rest API versions from network controller
+        # as we default this to v1 on module import within $Global.SdnDiagnostics, will not check to see if null first
+        $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
+
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
         $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.NC
@@ -86,7 +90,7 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo
-    } 
+    }
     catch {
         # Remove any cached info in case of exception as the cached info might be incorrect
         $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null

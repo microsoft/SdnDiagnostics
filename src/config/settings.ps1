@@ -10,8 +10,10 @@ New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
         SLB = (Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer)
     }
     Credential = $null
+    EnvironmentInfo = @{
+        RestApiVersion = 'V1'
+    }
     NcRestCredential = $null
-    EnvironmentInfo = @{}
     Settings = (Get-Content -Path "$PSScriptRoot\settings.json" | ConvertFrom-Json)
     TraceFilePath = $null
 }
