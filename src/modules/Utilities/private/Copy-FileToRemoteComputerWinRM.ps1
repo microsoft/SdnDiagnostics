@@ -1,14 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Copy-FileToPSRemoteSession {
+function Copy-FileToRemoteComputerWinRM {
     <#
     .SYNOPSIS
         Copies an item from one location to another using ToSession
     .PARAMETER Path
         Specifies, as a string array, the path to the items to copy. Wildcard characters are permitted.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one remote computer.
     .PARAMETER Destination
         Specifies the path to the new location. The default is the current directory.
         To rename the item being copied, specify a new name in the value of the Destination parameter.
@@ -27,7 +27,7 @@ function Copy-FileToPSRemoteSession {
         [System.String[]]$Path,
 
         [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
@@ -45,30 +45,14 @@ function Copy-FileToPSRemoteSession {
     )
 
     try {
-        foreach($object in $ComputerName){
-            if(Test-ComputerNameIsLocal -ComputerName $object){
-                "Detected that {0} is local machine. Skipping copy operation." -f $object | Trace-Output -Level:Warning
-                continue
-            }
-
-            # Try SMB Copy first
-            try{
-                $driveName = [System.IO.Path]::GetPathRoot($Destination.FullName)
-                $UNCPath = "\\{0}\{1}\{2}" -f $object, $driveName.Replace(":\", "$"), $Destination.FullName.Substring(3)
-                "Copying files to {0}" -f $UNCPath | Trace-Output
-                Copy-Item -Path $Path -Destination $UNCPath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-            }catch{
-                "SMB Copy failed, fallback to WinRM" | Trace-Output
-                $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
-                if($session){
-                    "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
-                    Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-                }
-                else {
-                    "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-                    continue
-                }
-            }            
+        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+        if($session){
+            "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
+            Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+        }
+        else {
+            "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
+            continue
         }
     }
     catch {

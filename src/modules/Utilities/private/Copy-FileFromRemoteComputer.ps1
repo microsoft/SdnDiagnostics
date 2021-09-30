@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Copy-FileFromPSRemoteSession {
+function Copy-FileFromRemoteComputer {
     <#
     .SYNOPSIS
         Copies an item from one location to another using FromSession
@@ -53,29 +53,10 @@ function Copy-FileFromPSRemoteSession {
 
             # Try SMB Copy first
             try{
-                $UNCPath = [System.Collections.ArrayList]::new()
-                foreach($remotePath in $Path)
-                {
-                    $driveName = [System.IO.Path]::GetPathRoot($remotePath)
-                    $remoteUNCPath = "\\{0}\{1}\{2}" -f $object, $driveName.Replace(":\", "$"), $remotePath.Substring(3)
-                    "Copying files from {0}" -f $remoteUNCPath | Trace-Output
-                    if(!(Test-Path $remoteUNCPath)){
-                        throw "Failed to access SMB path {0}" -f $remoteUNCPath
-                    }
-                    [void]$UNCPath.Add($remoteUNCPath)
-                }
-                Copy-Item -Path $UNCPath -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+                Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $ComputerName -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
             }catch{
                 "SMB Copy failed, fallback to WinRM" | Trace-Output
-                $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
-                if($session){
-                    "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $Destination, $session.Name | Trace-Output
-                    Copy-Item -Path $Path -Destination $Destination -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-                }
-                else {
-                    "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-                    continue
-                }
+                Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $ComputerName -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
             }
         }
     }
