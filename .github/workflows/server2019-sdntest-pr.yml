@@ -1,11 +1,11 @@
 # This is a basic workflow to help you get started with Actions
 
-name: Server2019SDN
+name: Server2019SDNPullRequest
 
 # Controls when the workflow will run
 on:
-  # Triggers the workflow on push request events but only for the main branch
-  push:
+  # Triggers the workflow on pull request events but only for the main branch
+  pull_request:
     branches: [ main ]
 
   # Allows you to run this workflow manually from the Actions tab
@@ -29,7 +29,7 @@ jobs:
       - name: Checkout SdnDiagnostics repo
         uses: actions/checkout@v2
         with: 
-          ref: main
+          ref: ${{ github.event.pull_request.head.sha }}
 
       # Runs a single command using the runners shell
       - name: Build SdnDiagnostics module
