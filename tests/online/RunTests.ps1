@@ -24,5 +24,17 @@ if($null -eq $Global:PesterOnlineTests.ConfigData.SdnDiagnosticsModule)
 }
 
 # Tests can be arranged in different wave if order matters
-Invoke-Pester "$PSScriptRoot\wave1\*Tests.ps1" -Output Detailed
-Invoke-Pester "$PSScriptRoot\waveAll\*Tests.ps1" -Output Detailed
+$testFailed = 0
+$testResult = Invoke-Pester "$PSScriptRoot\wave1\*Tests.ps1" -Output Detailed -PassThru
+if($testResult.Result -ne "Passed")
+{
+    $testFailed = 1
+}
+$testResult = Invoke-Pester "$PSScriptRoot\waveAll\*Tests.ps1" -Output Detailed -PassThru
+if($testResult.Result -ne "Passed")
+{
+    $testFailed = 1
+}
+
+# Exit code 0 indicate success
+return $testFailed
