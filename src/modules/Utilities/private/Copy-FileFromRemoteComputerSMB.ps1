@@ -41,21 +41,16 @@ function Copy-FileFromRemoteComputerSMB {
         [Switch]$Force 
     )
 
-    try {
-        $UNCPath = [System.Collections.ArrayList]::new()
-        foreach($remotePath in $Path)
-        {
-            $driveName = [System.IO.Path]::GetPathRoot($remotePath)
-            $remoteUNCPath = "\\{0}\{1}\{2}" -f $object, $driveName.Replace(":\", "$"), $remotePath.Substring(3)
-            "Copying files from {0}" -f $remoteUNCPath | Trace-Output
-            if(!(Test-Path $remoteUNCPath)){
-                throw "Failed to access SMB path {0}" -f $remoteUNCPath
-            }
-            [void]$UNCPath.Add($remoteUNCPath)
+    $UNCPath = [System.Collections.ArrayList]::new()
+    foreach($remotePath in $Path)
+    {
+        $driveName = [System.IO.Path]::GetPathRoot($remotePath)
+        $remoteUNCPath = "\\{0}\{1}\{2}" -f $ComputerName, $driveName.Replace(":\", "$"), $remotePath.Substring(3)
+        "Copying files from {0}" -f $remoteUNCPath | Trace-Output
+        if(!(Test-Path $remoteUNCPath)){
+            throw "Failed to access SMB path {0}" -f $remoteUNCPath
         }
-        Copy-Item -Path $UNCPath -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+        [void]$UNCPath.Add($remoteUNCPath)
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
+    Copy-Item -Path $UNCPath -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
 }

@@ -53,10 +53,10 @@ function Copy-FileFromRemoteComputer {
 
             # Try SMB Copy first
             try{
-                Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $ComputerName -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
             }catch{
                 "SMB Copy failed, fallback to WinRM" | Trace-Output
-                Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $ComputerName -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
             }
         }
     }
