@@ -1,10 +1,10 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Copy-FileFromPSRemoteSession {
+function Copy-FileToRemoteComputer {
     <#
     .SYNOPSIS
-        Copies an item from one location to another using FromSession
+        Copies an item from local path to a path at remote server
     .PARAMETER Path
         Specifies, as a string array, the path to the items to copy. Wildcard characters are permitted.
     .PARAMETER ComputerName
@@ -41,30 +41,29 @@ function Copy-FileFromPSRemoteSession {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force 
+        [Switch]$Force
     )
 
     try {
-        foreach($object in $ComputerName){
-            if(Test-ComputerNameIsLocal -ComputerName $object){
-                "Detected that {0} is local machine. Skipping" -f $object | Trace-Output -Level:Warning
+        foreach ($object in $ComputerName) {
+            if (Test-ComputerNameIsLocal -ComputerName $object) {
+                "Detected that {0} is local machine. Skipping copy operation." -f $object | Trace-Output -Level:Warning
                 continue
             }
 
-            $session = New-PSRemotingSession -ComputerName $object -Credential $Credential
-            if($session){
-
-                [System.IO.FileInfo]$outputDirectory = Join-Path -Path $Destination.FullName -ChildPath $object
-                if(!(Test-Path -Path $outputDirectory.FullName -PathType Container)){
-                    $null = New-Item -Path $outputDirectory.FullName -ItemType Directory -Force
+            # Try SMB Copy first and fallback to WinRM
+            try {
+                Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+            }
+            catch {
+                "SMB Copy failed, fallback to WinRM" | Trace-Output
+                try {
+                    Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
                 }
-   
-                "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $outputDirectory.FullName, $session.Name | Trace-Output
-                Copy-Item -Path $Path -Destination $outputDirectory.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-            }
-            else {
-                "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-                continue
+                catch {
+                    # Catch the copy failed exception to not stop the copy for other computers which might success
+                    "WinRM Copy failed" | Trace-Output
+                }
             }
         }
     }
