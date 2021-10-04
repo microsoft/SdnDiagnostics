@@ -41,22 +41,29 @@ function Copy-FileFromRemoteComputer {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force 
+        [Switch]$Force
     )
 
     try {
-        foreach($object in $ComputerName){
-            if(Test-ComputerNameIsLocal -ComputerName $object){
+        foreach ($object in $ComputerName) {
+            if (Test-ComputerNameIsLocal -ComputerName $object) {
                 "Detected that {0} is local machine. Skipping" -f $object | Trace-Output -Level:Warning
                 continue
             }
 
-            # Try SMB Copy first
-            try{
+            # Try SMB Copy first and fallback to WinRM
+            try {
                 Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
-            }catch{
+            }
+            catch {
                 "SMB Copy failed, fallback to WinRM" | Trace-Output
-                Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                try {
+                    Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                }
+                catch {
+                    # Catch the copy failed exception to not stop the copy for other computers which might success
+                    "WinRM Copy failed" | Trace-Output
+                }
             }
         }
     }

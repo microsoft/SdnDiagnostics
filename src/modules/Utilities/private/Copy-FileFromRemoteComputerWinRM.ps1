@@ -41,21 +41,16 @@ function Copy-FileFromRemoteComputerWinRM {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force 
+        [Switch]$Force
     )
 
-    try {
-        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
-        if($session){
-            "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $Destination, $session.Name | Trace-Output
-            Copy-Item -Path $Path -Destination $Destination -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-        }
-        else {
-            "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-            continue
-        }
+    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    if ($session) {
+        "Copying files from {0} to {1} using {2}" -f $session.ComputerName, $Destination, $session.Name | Trace-Output
+        Copy-Item -Path $Path -Destination $Destination -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    else {
+        "Unable to copy files from {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
+        throw "remote session could not be established"
     }
 }

@@ -31,7 +31,7 @@ function Copy-FileToRemoteComputer {
 
         [Parameter(Mandatory = $false)]
         [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
-        
+
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -45,19 +45,26 @@ function Copy-FileToRemoteComputer {
     )
 
     try {
-        foreach($object in $ComputerName){
-            if(Test-ComputerNameIsLocal -ComputerName $object){
+        foreach ($object in $ComputerName) {
+            if (Test-ComputerNameIsLocal -ComputerName $object) {
                 "Detected that {0} is local machine. Skipping copy operation." -f $object | Trace-Output -Level:Warning
                 continue
             }
 
             # Try SMB Copy first and fallback to WinRM
-            try{
+            try {
                 Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
-            }catch{
+            }
+            catch {
                 "SMB Copy failed, fallback to WinRM" | Trace-Output
-                Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
-            }            
+                try {
+                    Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                }
+                catch {
+                    # Catch the copy failed exception to not stop the copy for other computers which might success
+                    "WinRM Copy failed" | Trace-Output
+                }
+            }
         }
     }
     catch {

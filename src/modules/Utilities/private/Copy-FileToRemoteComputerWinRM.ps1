@@ -31,7 +31,7 @@ function Copy-FileToRemoteComputerWinRM {
 
         [Parameter(Mandatory = $false)]
         [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
-        
+
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -44,18 +44,13 @@ function Copy-FileToRemoteComputerWinRM {
         [Switch]$Force
     )
 
-    try {
-        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
-        if($session){
-            "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
-            Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
-        }
-        else {
-            "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
-            continue
-        }
+    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    if ($session) {
+        "Copying files to {0} on {1} using {2}" -f $Destination.FullName, $session.ComputerName, $session.Name | Trace-Output
+        Copy-Item -Path $Path -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    else {
+        "Unable to copy files to {0} as no remote session could be established" -f $object | Trace-Output -Level:Warning
+        throw "remote session could not be established"
     }
 }
