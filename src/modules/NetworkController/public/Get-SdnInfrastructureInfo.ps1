@@ -50,6 +50,10 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         }
 
+        # get the supported rest API versions from network controller
+        # as we default this to v1 on module import within $Global.SdnDiagnostics, will not check to see if null first
+        $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
+
         # get the NC Northbound API endpoint
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
             $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
@@ -75,10 +79,6 @@ function Get-SdnInfrastructureInfo {
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Host)) {
             $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
-
-        # get the supported rest API versions from network controller
-        # as we default this to v1 on module import within $Global.SdnDiagnostics, will not check to see if null first
-        $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
 
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
