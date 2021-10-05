@@ -68,7 +68,7 @@ function Start-SdnDataCollection {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
-        "Results will be saved to {0}" -f $outputDir.FullName | Trace-Output
+        "Results will be saved to {0}" -f $OutputDirectory.FullName | Trace-Output
 
         # generate a mapping of the environment
         $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
