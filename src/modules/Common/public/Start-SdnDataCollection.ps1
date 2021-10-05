@@ -22,20 +22,19 @@ function Start-SdnDataCollection {
         [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
         [System.String]$NetworkController,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
-        [System.IO.FileInfo]$OutputDirectory,
-
         [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
-        [ValidateSet('Configuration', 'Logs', 'None')]
-        [System.String]$DataCollectionType,
+        [SdnRoles[]]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
         [System.String]$ComputerName,
         
-        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
-        [SdnRoles[]]$Role,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
+        [Switch]$IncludeLogs,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
@@ -56,6 +55,7 @@ function Start-SdnDataCollection {
         $serverNodes = [System.Collections.Generic.List[Object]]::new()
         $gatewayNodes = [System.Collections.Generic.List[Object]]::new()
         $dataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
+        $dataCollectionRoles = [System.Collections.Generic.List[Object]]::new()
 
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
@@ -70,7 +70,7 @@ function Start-SdnDataCollection {
 
         "Results will be saved to {0}" -f $outputDir.FullName | Trace-Output
 
-        # generate a mapping of the environment and assign objects to variables for easy reference
+        # generate a mapping of the environment
         $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         switch ($PSBoundParameters.ParameterSetName) {
             'Role' {
@@ -100,6 +100,10 @@ function Start-SdnDataCollection {
             }
         }
 
+        # clean up the data collection nodes using -Unique parameter, which is not case sensitive and will ensure no duplicates
+        # once the duplicate objects have been removed, we want to parse each result to add it to variable assignemtn for easier reference
+        # later in the script
+        $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Unique        
         foreach ($object in $dataCollectionNodes) {
             switch ($object.Role) {
                 'Gateway' { $gatewayNodes.Add($object.Name) }
@@ -107,10 +111,67 @@ function Start-SdnDataCollection {
                 'Server' { $serverNodes.Add($object.Name) }
                 'SoftwareLoadBalancer' { $slbNodes.Add($object.Name) }
             }
+
+            # create a list of roles that need to be targetted, as data collection happens
+            #  using a combination of role and computer names
+            if ($dataCollectionRoles -inotcontains $object.Role) {
+                $dataCollectionRoles.Add($object.Role)
+            }
         }
 
         # generate configuration state files for the environment
-        Get-SdnApiResource -NcUri $NcUri.AbsoluteUri -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+        "Collecting configuration state details for SDN fabric" | Trace-Output
+        Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+        Get-SdnNcImosDumpFiles -NcUri $sdnFabricDetails.NcUrl -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
+            -Credential $Credential -NcRestCredential $NcRestCredential
+
+        Get-SdnProviderAddress -ComputerName $sdnFabricDetails.Servers -AsJob -PassThru -Timeout 600 `
+        | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
+
+        Get-SdnVfpVmSwitchPort -ComputerName $sdnFabricDetails.Servers -AsJob -PassThru -Timeout 600 `
+        | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType csv
+
+        Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 900 `
+        | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapter' -FileType csv
+
+        foreach($result in $dataCollectionRoles){
+            switch ($result) {
+                'Gateway' {
+                    "Collecting configuration state details for {0} nodes: {1}" -f $result, ($gatewayNodes.Name -join ', ') | Trace-Output
+                    Invoke-PSRemoteCommand -ComputerName $gatewayNodes.Name -ScriptBlock {
+                        Get-SdnGatewayConfigurationState -OutputDirectory $using:OutputDirectory.FullName
+                    }
+                }
+
+                'NetworkController' {
+                    "Collecting configuration state details for {0} nodes: {1}" -f $result, ($ncNodes.Name -join ', ') | Trace-Output
+                    Invoke-PSRemoteCommand -ComputerName $ncNodes.Name -ScriptBlock {
+                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:OutputDirectory.FullName
+                    }
+                }
+
+                'Server' {
+                    "Collecting configuration state details for {0} nodes: {1}" -f $result, ($serverNodes.Name -join ', ') | Trace-Output
+                    Invoke-PSRemoteCommand -ComputerName $serverNodes.Name -ScriptBlock {
+                        Get-SdnServerConfigurationState -OutputDirectory $using:OutputDirectory.FullName
+                    }
+                }
+
+                'SoftwareLoadBalancer' {
+                    "Collecting configuration state details for {0} nodes: {1}" -f $result, ($slbNodes.Name -join ', ') | Trace-Output
+                    Invoke-PSRemoteCommand -ComputerName $slbNodes.Name -ScriptBlock {
+                        Get-SdnSlbMuxConfigurationState -OutputDirectory $using:OutputDirectory.FullName
+                    }
+
+                    Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
+                }
+
+                default {
+                    "Unable to determine role mapping for {0}" -f $result | Trace-Output -Level:Error
+                    continue
+                }
+            }
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
