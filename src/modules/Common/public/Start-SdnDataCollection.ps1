@@ -46,7 +46,11 @@ function Start-SdnDataCollection {
         [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
+        [Int]$Limit = 16
     )
 
     try {
@@ -55,6 +59,7 @@ function Start-SdnDataCollection {
         $serverNodes = [System.Collections.Generic.List[Object]]::new()
         $gatewayNodes = [System.Collections.Generic.List[Object]]::new()
         $dataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
+        $filteredDataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
         $dataCollectionRoles = [System.Collections.Generic.List[Object]]::new()
 
         # setup the directory location where files will be saved to
@@ -103,63 +108,80 @@ function Start-SdnDataCollection {
         # clean up the data collection nodes using -Unique parameter, which is not case sensitive and will ensure no duplicates
         # once the duplicate objects have been removed, we want to parse each result to add it to variable assignemtn for easier reference
         # later in the script
-        $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Unique        
-        foreach ($object in $dataCollectionNodes) {
-            switch ($object.Role) {
-                'Gateway' { $gatewayNodes.Add($object.Name) }
-                'NetworkController' { $ncNodes.Add($object.Name) }
-                'Server' { $serverNodes.Add($object.Name) }
-                'SoftwareLoadBalancer' { $slbNodes.Add($object.Name) }
+        $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Unique
+        $groupedNodes = $dataCollectionNodes | Group-Object Role
+
+        foreach ($object in $groupedNodes) {
+            if($object.Count -gt $Limit){
+                "{0} contains more than the defined limit of {1}. Applying filtering rules" -f $object.Name, $Limit | Trace-Output -Level:Warning
+                $filteredNodes = $object.Group | Select-Object -First $Limit
+                $filteredDataCollectionNodes.Add($filteredNodes)
             }
 
-            # create a list of roles that need to be targetted, as data collection happens
-            #  using a combination of role and computer names
-            if ($dataCollectionRoles -inotcontains $object.Role) {
-                $dataCollectionRoles.Add($object.Role)
+            switch ($object.Name) {
+                'Gateway' {
+                    $gatewayNodes.Add($filteredNodes.Name)
+                }
+
+                'NetworkController' {
+                    $ncNodes.Add($filteredNodes.Name)
+                }
+
+                'Server' {
+                    $serverNodes.Add($filteredNodes.Name)
+                }
+
+                'SoftwareLoadBalancer' {
+                    $slbNodes.Add($filteredNodes.Name)
+                }
             }
         }
 
+        # create a list of roles that need to be targetted, as data collection happens
+        # using a combination of role and computer names
+        $dataCollectionRoles.Add($groupedNodes.Name)
+       
         # generate configuration state files for the environment
         "Collecting configuration state details for SDN fabric" | Trace-Output
         Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
         Get-SdnNcImosDumpFiles -NcUri $sdnFabricDetails.NcUrl -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
             -Credential $Credential -NcRestCredential $NcRestCredential
 
-        Get-SdnProviderAddress -ComputerName $sdnFabricDetails.Servers -AsJob -PassThru -Timeout 600 `
+        Get-SdnProviderAddress -ComputerName $serverNodes -AsJob -PassThru -Timeout 600 `
         | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
 
-        Get-SdnVfpVmSwitchPort -ComputerName $sdnFabricDetails.Servers -AsJob -PassThru -Timeout 600 `
+        Get-SdnVfpVmSwitchPort -ComputerName $serverNodes -AsJob -PassThru -Timeout 600 `
         | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType csv
 
-        Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 900 `
+        Get-SdnVMNetworkAdapter -ComputerName $serverNodes -AsJob -PassThru -Timeout 900 `
         | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapter' -FileType csv
 
         foreach($result in $dataCollectionRoles){
             switch ($result) {
                 'Gateway' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($gatewayNodes.Name -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $gatewayNodes.Name -ScriptBlock {
+                    Invoke-PSRemoteCommand -ComputerName $gatewayNodes -ScriptBlock {
                         Get-SdnGatewayConfigurationState -OutputDirectory $using:OutputDirectory.FullName
                     }
                 }
 
                 'NetworkController' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($ncNodes.Name -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $ncNodes.Name -ScriptBlock {
+                    Invoke-PSRemoteCommand -ComputerName $ncNodes -ScriptBlock {
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:OutputDirectory.FullName
                     }
                 }
 
                 'Server' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($serverNodes.Name -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $serverNodes.Name -ScriptBlock {
+                    Invoke-PSRemoteCommand -ComputerName $serverNodes -ScriptBlock {
                         Get-SdnServerConfigurationState -OutputDirectory $using:OutputDirectory.FullName
                     }
                 }
 
                 'SoftwareLoadBalancer' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($slbNodes.Name -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $slbNodes.Name -ScriptBlock {
+                    Invoke-PSRemoteCommand -ComputerName $slbNodes -ScriptBlock {
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $using:OutputDirectory.FullName
                     }
 
