@@ -26,7 +26,7 @@ function Start-SdnDataCollection {
         [SdnRoles[]]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
-        [System.String]$ComputerName,
+        [System.String[]]$ComputerName,
         
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
