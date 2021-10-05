@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 enum SdnRoles {
-    NetworkController
     Gateway
+    NetworkController
     Server
     SoftwareLoadBalancer
 }

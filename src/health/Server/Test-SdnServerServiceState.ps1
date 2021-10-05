@@ -20,7 +20,7 @@ function Test-SdnServerServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $Global:SdnDiagnostics.EnvironmentInfo.Host,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

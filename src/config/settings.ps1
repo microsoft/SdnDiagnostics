@@ -4,10 +4,10 @@
 New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
     Cache = @{}
     Config = @{
-        Host = (Get-SdnRoleConfiguration -Role:Server)
         Gateway = (Get-SdnRoleConfiguration -Role:Gateway)
-        NC = (Get-SdnRoleConfiguration -Role:NetworkController)
-        SLB = (Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer)
+        NetworkController = (Get-SdnRoleConfiguration -Role:NetworkController)
+        Server = (Get-SdnRoleConfiguration -Role:Server)
+        SoftwareLoadBalancer = (Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer)
     }
     Credential = $null
     EnvironmentInfo = @{

@@ -43,10 +43,10 @@ function Get-SdnInfrastructureInfo {
         # if force is defined, purge the cache to force a refresh on the objects
         if ($PSBoundParameters.ContainsKey('Force')) {
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.NC = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
+            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
+            $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         }
 
@@ -61,13 +61,13 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
 
         # get the network controllers
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NC)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.NC = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
+            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
         # get the load balancer muxes
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.MUX)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.MUX = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer)) {
+            $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the gateways
@@ -76,16 +76,16 @@ function Get-SdnInfrastructureInfo {
         }
 
         # get the hypervisor hosts
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Host)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.Host = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Server)) {
+            $Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.NC
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Host
+        $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.NetworkController
+        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
         $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.MUX
+        $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
 
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
@@ -94,10 +94,10 @@ function Get-SdnInfrastructureInfo {
     catch {
         # Remove any cached info in case of exception as the cached info might be incorrect
         $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.NC = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.MUX = $null
+        $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
+        $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.Host = $null
+        $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }

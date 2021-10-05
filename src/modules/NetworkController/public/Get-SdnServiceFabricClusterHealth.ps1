@@ -16,7 +16,7 @@ function Get-SdnServiceFabricClusterHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
+        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
