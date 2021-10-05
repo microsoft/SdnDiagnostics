@@ -50,22 +50,6 @@ function Start-SdnDataCollection {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    "Starting SDN Data Collection" | Trace-Output
-    if ($null -eq $OutputDirectory) {
-        [System.IO.FileInfo]$OutputDirectory = (Get-WorkingDirectory)
-    }
-
-    [System.IO.FileInfo]$outputDir = (Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC))
-    "Results will be saved to {0}" -f $outputDir.FullName | Trace-Output
-
-    "Generating output of the NC API resources" | Trace-Output
-    Get-SdnApiResource -NcUri $NcUri.AbsoluteUri -OutputDirectory $outputDir.FullName -Credential $Credential
-}
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
-    )
-
     try {
         $ncNodes = [System.Collections.Generic.List[Object]]::new()
         $slbNodes = [System.Collections.Generic.List[Object]]::new()
@@ -127,12 +111,8 @@ function Start-SdnDataCollection {
 
         # generate configuration state files for the environment
         Get-SdnApiResource -NcUri $NcUri.AbsoluteUri -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
-
-
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-
-$dataCollectionNodes.Add($value, $Global:SdnDiagnostics.EnvironmentInfo[$value])
