@@ -16,22 +16,38 @@ function Start-SdnDataCollection {
         Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Role')]
     param (
-        [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
+        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
+        [System.String]$NetworkController,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
         [ValidateSet('Configuration', 'Logs', 'None')]
-        [System.String]$DataCollectionType = 'Logs',
+        [System.String]$DataCollectionType,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Node')]
+        [System.String]$ComputerName,
+        
+        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
+        [SdnRoles[]]$Role,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Node')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     "Starting SDN Data Collection" | Trace-Output
