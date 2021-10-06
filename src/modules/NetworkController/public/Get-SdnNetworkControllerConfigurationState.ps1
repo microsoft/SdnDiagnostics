@@ -18,7 +18,7 @@ function Get-SdnNetworkControllerConfigurationState {
     )
 
     $ProgressPreference = 'SilentlyContinue'
-    
+
     try {
         $config = Get-SdnRoleConfiguration -Role:NetworkController
 
@@ -36,6 +36,12 @@ function Get-SdnNetworkControllerConfigurationState {
         # create the OutputDirectory if does not already exist
         if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        }
+
+        # confirm sufficient disk space
+        [System.Char]$driveLetter = (Split-Path -Path $OutputDirectory.FullName -Qualifier).Replace(':','')
+        if (-NOT (Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB 100)) {
+            throw New-Object System.Exception("Insufficient disk space detected")
         }
 
         # dump out the regkey properties

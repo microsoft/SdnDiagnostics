@@ -54,13 +54,14 @@ function Start-SdnDataCollection {
     )
 
     try {
+        [System.IO.FileInfo]$tempDirectory = "C:\Temp\CSS_SDN"
+
         $ncNodes = [System.Collections.Generic.List[Object]]::new()
         $slbNodes = [System.Collections.Generic.List[Object]]::new()
         $serverNodes = [System.Collections.Generic.List[Object]]::new()
         $gatewayNodes = [System.Collections.Generic.List[Object]]::new()
         $dataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
         $filteredDataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
-        $dataCollectionRoles = [System.Collections.Generic.List[Object]]::new()
 
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
@@ -86,7 +87,7 @@ function Start-SdnDataCollection {
                             Name = $node
                         }
 
-                        "Node {0} with Role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
                         $dataCollectionNodes.Add($object)
                     }
                 }
@@ -110,9 +111,9 @@ function Start-SdnDataCollection {
         # once the duplicate objects have been removed, we want to parse each result to add it to variable assignemtn for easier reference
         # later in the script
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
-        $groupedNodes = $dataCollectionNodes | Group-Object Role
+        $groupedObjectsByRole = $dataCollectionNodes | Group-Object Role
 
-        foreach ($object in $groupedNodes) {
+        foreach ($object in $groupedObjectsByRole) {
             $filteredNodes = $object.Group | Select-Object -First $Limit
             if($object.Count -gt $Limit){
                 "{0} contains more than the defined limit of {1}. Applying filtering rules" -f $object.Name, $Limit | Trace-Output -Level:Warning
@@ -135,12 +136,13 @@ function Start-SdnDataCollection {
                 'SoftwareLoadBalancer' {
                     $slbNodes = $filteredNodes.Name
                 }
+
+                default {
+                    "Unable to determine role mapping for {0}" -f $object.Name | Trace-Output -Level:Error
+                    continue
+                }
             }
         }
-
-        # create a list of roles that need to be targetted, as data collection happens
-        # using a combination of role and computer names
-        $dataCollectionRoles = $groupedNodes.Name
 
         # generate configuration state files for the environment
         "Collecting configuration state details for SDN fabric" | Trace-Output
@@ -148,34 +150,37 @@ function Start-SdnDataCollection {
         Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
             -Credential $Credential -NcRestCredential $NcRestCredential
 
-        "Will collect logs for role {0}" -f ($dataCollectionRoles -join ",") | Trace-Output
+        "Will collect logs for role {0}" -f ($groupedObjectsByRole.Name -join ",") | Trace-Output
 
         # The default location to save data on remote nodes.
-        $OutputDirectoryOnNodes = "C:\Temp\CSS_SDN"
-        Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
-            "[{0}] Cleanup existing files under {1}" -f $(HostName), $using:OutputDirectoryOnNodes | Write-Host
-            Get-ChildItem $using:OutputDirectoryOnNodes | Remove-Item -Recurse -Force
+        "Cleaning up {0} for temp staging of files and logs" -f $tempDirectory | Trace-Output
+        $null = Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
+            $files = Get-ChildItem -Path $using:tempDirectory.FullName -Recurse
+            if ($files) {
+                $files | Remove-Item -Force
+            }
         }
-        foreach($result in $dataCollectionRoles){
+
+        foreach($result in $groupedObjectsByRole.Name){
             switch ($result) {
                 'Gateway' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($gatewayNodes -join ', ') | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $gatewayNodes -ScriptBlock {
-                        Get-SdnGatewayConfigurationState -OutputDirectory $using:OutputDirectoryOnNodes
+                        Get-SdnGatewayConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     }
                 }
 
                 'NetworkController' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($ncNodes -join ', ') | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $ncNodes -ScriptBlock {
-                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:OutputDirectoryOnNodes
+                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     }
                 }
 
                 'Server' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($serverNodes -join ', ') | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $serverNodes -ScriptBlock {
-                        Get-SdnServerConfigurationState -OutputDirectory $using:OutputDirectoryOnNodes
+                        Get-SdnServerConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     }
 
                     Get-SdnProviderAddress -ComputerName $serverNodes -AsJob -PassThru -Timeout 600 `
@@ -186,31 +191,24 @@ function Start-SdnDataCollection {
 
                     Get-SdnVMNetworkAdapter -ComputerName $serverNodes -AsJob -PassThru -Timeout 900 `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapter' -FileType csv
-
                 }
 
                 'SoftwareLoadBalancer' {
                     "Collecting configuration state details for {0} nodes: {1}" -f $result, ($slbNodes -join ', ') | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $slbNodes -ScriptBlock {
-                        Get-SdnSlbMuxConfigurationState -OutputDirectory $using:OutputDirectoryOnNodes
+                        Get-SdnSlbMuxConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     }
 
                     $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
                     $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
                 }
-
-                default {
-                    "Unable to determine role mapping for {0}" -f $result | Trace-Output -Level:Error
-                    continue
-                }
             }
         }
 
-        foreach($node in $dataCollectionNodes)
-        {
-            Copy-FileFromRemoteComputer -Path $OutputDirectoryOnNodes -Destination "$OutputDirectory\$($node.name)" -ComputerName $node.name -Recurse -Force
+        foreach ($node in $dataCollectionNodes) {
+            $formattedDirectoryName = Join-Path $OutputDirectory.FullName -ChildPath ($node.Name).ToLower()
+            Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName -ComputerName $node.Name -Recurse -Force
         }
-
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

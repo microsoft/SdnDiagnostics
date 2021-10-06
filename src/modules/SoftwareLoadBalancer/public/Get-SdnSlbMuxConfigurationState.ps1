@@ -38,6 +38,12 @@ function Get-SdnSlbMuxConfigurationState {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
+        # confirm sufficient disk space
+        [System.Char]$driveLetter = (Split-Path -Path $OutputDirectory.FullName -Qualifier).Replace(':','')
+        if (-NOT (Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB 100)) {
+            throw New-Object System.Exception("Insufficient disk space detected")
+        }
+
         # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
 
@@ -49,7 +55,7 @@ function Get-SdnSlbMuxConfigurationState {
         MuxDriverControlConsole.exe /GetMuxVipList | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxVipList' -FileType txt
         MuxDriverControlConsole.exe /GetMuxDripList | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxDripList' -FileType txt
         MuxDriverControlConsole.exe /GetStatelessVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetStatelessVip' -FileType txt
-        MuxDriverControlConsole.exe /GetStatefulVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetStatefulVip' -FileType txt 
+        MuxDriverControlConsole.exe /GetStatefulVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetStatefulVip' -FileType txt
 
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }

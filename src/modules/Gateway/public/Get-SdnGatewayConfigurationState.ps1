@@ -38,6 +38,12 @@ function Get-SdnGatewayConfigurationState {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
+        # confirm sufficient disk space
+        [System.Char]$driveLetter = (Split-Path -Path $OutputDirectory.FullName -Qualifier).Replace(':','')
+        if (-NOT (Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB 100)) {
+            throw New-Object System.Exception("Insufficient disk space detected")
+        }
+
         # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
 
