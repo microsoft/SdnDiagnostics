@@ -81,7 +81,8 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-EtwTraceCapture',
-        'Start-NetshTrace'
+        'Start-SdnDataCollection',
+        'Start-NetshTrace',
         'Stop-EtwTraceCapture',
         'Stop-NetshTrace',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
