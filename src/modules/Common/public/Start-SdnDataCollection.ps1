@@ -62,7 +62,6 @@ function Start-SdnDataCollection {
         $gatewayNodes = [System.Collections.Generic.List[Object]]::new()
         $dataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
         $filteredDataCollectionNodes = [System.Collections.Generic.List[Object]]::new()
-        $dataCollectionRoles = [System.Collections.Generic.List[Object]]::new()
 
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
