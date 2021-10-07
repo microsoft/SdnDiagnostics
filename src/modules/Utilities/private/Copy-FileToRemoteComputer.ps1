@@ -47,8 +47,16 @@ function Copy-FileToRemoteComputer {
     try {
         foreach ($object in $ComputerName) {
             if (Test-ComputerNameIsLocal -ComputerName $object) {
-                "Detected that {0} is local machine. Skipping copy operation." -f $object | Trace-Output -Level:Warning
-                continue
+                "Detected that {0} is local machine" -f $object | Trace-Output
+                foreach ($subPath in $Path) {
+                    if ($subPath -eq $Destination.FullName) {
+                        "Path {0} and Destination {1} are the same. Skipping" -f $subPath, $Destination.FullName | Trace-Output -Level:Warning
+                    }
+                    else {
+                        "Copying {0} to {1}" -f $subPath, $Destination.FullName | Trace-Output
+                        Copy-Item -Path $subPath -Destination $Destination.FullName -Recurse -Force
+                    }
+                }
             }
 
             # Try SMB Copy first and fallback to WinRM
@@ -56,13 +64,14 @@ function Copy-FileToRemoteComputer {
                 Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
             }
             catch {
-                "SMB Copy failed, fallback to WinRM" | Trace-Output
+                "SMB copy operation failed, fallback to WinRM" | Trace-Output -Level:Warning
                 try {
                     Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
                 }
                 catch {
                     # Catch the copy failed exception to not stop the copy for other computers which might success
-                    "WinRM Copy failed" | Trace-Output
+                    "WinRM copy operation failed" | Trace-Output -Level:Error
+                    continue
                 }
             }
         }

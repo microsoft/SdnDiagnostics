@@ -27,8 +27,7 @@ function Install-SdnDiagnostics {
         $filteredComputerName = [System.Collections.ArrayList]::new()
 
         # if we have multiple modules installed on the current workstation, 
-        # abort the operation because side by side modules can cause some interop issues
-        # to the remote nodes
+        # abort the operation because side by side modules can cause some interop issues to the remote nodes
         $localModule = Get-Module -Name 'SdnDiagnostics'
         if ($localModule.Count -gt 1) {
             throw New-Object System.ArgumentOutOfRangeException("Detected more than one module version of SdnDiagnostics. Remove existing modules and restart your PowerShell session.")
@@ -59,7 +58,9 @@ function Install-SdnDiagnostics {
         Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $filteredComputerName -Destination "C:\Program Files\WindowsPowerShell\Modules" -Credential $Credential -Recurse -Force
 
         # ensure that we destroy the current pssessions for the computer to prevent any caching issues
-        Remove-PSRemotingSession -ComputerName $filteredComputerName
+        # we want to target all the original computers, as may be possible that we running on a node within the sdn fabric
+        # and have existing PSSession to itself from previous execution run
+        Remove-PSRemotingSession -ComputerName $ComputerName
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

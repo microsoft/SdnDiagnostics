@@ -17,7 +17,6 @@ foreach($item in $enum){
 
 # dot source the modules scripts
 $modules = @(
-    'Common\private\Confirm-DiskSpace.ps1'
     'Common\private\Export-RegistryKeyConfigDetails.ps1'
     'Common\private\Get-GeneralConfigurationState.ps1'
     'Common\private\Get-SdnApiEndpoint.ps1'
@@ -84,9 +83,11 @@ $modules = @(
     'Tracing\public\Start-NetshTrace.ps1'
     'Tracing\public\Stop-EtwTraceCapture.ps1'
     'Tracing\public\Stop-NetshTrace.ps1'
+    'Utilities\private\Confirm-DiskSpace.ps1'
     'Utilities\private\Confirm-RequiredFeaturesInstalled.ps1'
     'Utilities\private\Confirm-RequiredModulesLoaded.ps1'
     'Utilities\private\Confirm-UserInput.ps1'
+    'Utilities\private\Convert-FileSystemPathToUNC.ps1'
     'Utilities\private\Copy-FileFromRemoteComputer.ps1'
     'Utilities\private\Copy-FileFromRemoteComputerSMB.ps1'
     'Utilities\private\Copy-FileFromRemoteComputerWinRM.ps1'

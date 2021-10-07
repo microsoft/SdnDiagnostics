@@ -144,23 +144,21 @@ function Start-SdnDataCollection {
             }
         }
 
+        # The default location to save data on remote nodes.
+        "Cleaning up {0} for temp staging of files and logs" -f $tempDirectory | Trace-Output
+        $null = Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
+            if (Test-Path -Path $using:tempDirectory.FullName -PathType Container) {
+                Remove-Item -Path "$($using:tempDirectory.FullName)\*" -Recurse -Force 
+            }
+        }
+
         # generate configuration state files for the environment
         "Collecting configuration state details for SDN fabric" | Trace-Output
         Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
         Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
             -Credential $Credential -NcRestCredential $NcRestCredential
 
-        "Will collect logs for role {0}" -f ($groupedObjectsByRole.Name -join ",") | Trace-Output
-
-        # The default location to save data on remote nodes.
-        "Cleaning up {0} for temp staging of files and logs" -f $tempDirectory | Trace-Output
-        $null = Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
-            $files = Get-ChildItem -Path $using:tempDirectory.FullName -Recurse
-            if ($files) {
-                $files | Remove-Item -Force
-            }
-        }
-
+        "Collecting configuration state information for role {0}" -f ($groupedObjectsByRole.Name -join ",") | Trace-Output
         foreach($result in $groupedObjectsByRole.Name){
             switch ($result) {
                 'Gateway' {

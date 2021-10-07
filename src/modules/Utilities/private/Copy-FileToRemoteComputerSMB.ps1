@@ -39,8 +39,9 @@ function Copy-FileToRemoteComputerSMB {
         [Switch]$Force
     )
 
-    $driveName = [System.IO.Path]::GetPathRoot($Destination.FullName)
-    $UNCPath = "\\{0}\{1}\{2}" -f $ComputerName, $driveName.Replace(":\", "$"), $Destination.FullName.Substring(3)
-    "Copying files to {0}" -f $UNCPath | Trace-Output
-    Copy-Item -Path $Path -Destination $UNCPath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+    $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
+    foreach ($subPath in $Path) {
+        "Copying {0} to {1}" -f $subPath, $remotePath | Trace-Output
+        Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+    }
 }
