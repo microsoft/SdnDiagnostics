@@ -41,16 +41,24 @@ function Copy-FileFromRemoteComputerSMB {
         [Switch]$Force 
     )
 
-    $UNCPath = [System.Collections.ArrayList]::new()
-    foreach($remotePath in $Path)
-    {
-        $driveName = [System.IO.Path]::GetPathRoot($remotePath)
-        $remoteUNCPath = "\\{0}\{1}\{2}" -f $ComputerName, $driveName.Replace(":\", "$"), $remotePath.Substring(3)
-        "Copying files from {0}" -f $remoteUNCPath | Trace-Output
-        if(!(Test-Path $remoteUNCPath)){
-            throw "Failed to access SMB path {0}" -f $remoteUNCPath
+    $arrayList = [System.Collections.ArrayList]::new()
+    foreach ($subPath in $Path) {
+        $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $subPath
+        if (-NOT (Test-Path -Path $remotePath)) {
+            "Unable to access {0}" -f $remotePath | Trace-Output -Level:Error
         }
-        [void]$UNCPath.Add($remoteUNCPath)
+        else {
+            [void]$arrayList.Add($remotePath)
+        }
     }
-    Copy-Item -Path $UNCPath -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+
+    if ($null -eq $arrayList) {
+        $msg = "Unable to establish connectivity to remote file paths defined"
+        throw New-Object System.Exception($msg)
+    }
+
+    foreach ($object in $arrayList) {
+        "Copying {0} to {1}" -f $object, $Destination.FullName | Trace-Output
+        Copy-Item -Path $object -Destination $Destination.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+    }
 }
