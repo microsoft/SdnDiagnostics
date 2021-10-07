@@ -208,7 +208,7 @@ function Start-SdnDataCollection {
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName -ComputerName $node.Name -Recurse -Force
         }
 
-        "Data collection completed"
+        "Data collection completed" | Trace-Output
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
