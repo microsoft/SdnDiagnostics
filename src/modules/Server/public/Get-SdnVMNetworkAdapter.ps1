@@ -51,7 +51,7 @@ function Get-SdnVMNetworkAdapter {
 
     try {
         $scriptBlock = {
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq $using:VmState }
+            $virtualMachines = Get-VM | Where-Object { $_.State -eq [String]$using:VmState }
             $virtualMachines | Get-VMNetworkAdapter
         }
 
