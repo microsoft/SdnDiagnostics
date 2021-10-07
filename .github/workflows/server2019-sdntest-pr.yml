@@ -6,7 +6,7 @@ name: Server2019SDNPullRequest
 on:
   # Triggers the workflow on pull request events but only for the main branch
   pull_request:
-    branches: [ main ]
+    branches: [main, feature/data-collection]
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -24,11 +24,11 @@ jobs:
         run: |
           Remove-Item -Path .\* -Recurse -Force -Verbose
         shell: powershell
-      
+
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout SdnDiagnostics repo
         uses: actions/checkout@v2
-        with: 
+        with:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Runs a single command using the runners shell
@@ -36,7 +36,7 @@ jobs:
         run: |
           .\.build\build.ps1
         shell: powershell
-    
+
       - name: Run online validation tests
         run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
         shell: powershell
