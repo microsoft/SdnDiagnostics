@@ -47,7 +47,7 @@ function Copy-FileToRemoteComputerWinRM {
     $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
     if ($session) {
         foreach ($subPath in $Path) {
-            "Copying {0} using {1} to {2}" -f $object, $session.Name, $Destination.FullName | Trace-Output
+            "Copying {0} to {1} using WinRM Session ID {2}" -f $subPath, $Destination.FullName, $session.Id | Trace-Output
             Copy-Item -Path $subPath -Destination $Destination.FullName -ToSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
         }
     }

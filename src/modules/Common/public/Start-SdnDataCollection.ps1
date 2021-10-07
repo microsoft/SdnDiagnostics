@@ -148,7 +148,7 @@ function Start-SdnDataCollection {
         "Cleaning up {0} for temp staging of files and logs" -f $tempDirectory | Trace-Output
         $null = Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
             if (Test-Path -Path $using:tempDirectory.FullName -PathType Container) {
-                Remove-Item -Path "$($using:tempDirectory.FullName)\*" -Recurse -Force 
+                Remove-Item -Path "$($using:tempDirectory.FullName)\*" -Recurse -Force
             }
         }
 
@@ -207,6 +207,8 @@ function Start-SdnDataCollection {
             $formattedDirectoryName = Join-Path $OutputDirectory.FullName -ChildPath ($node.Name).ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName -ComputerName $node.Name -Recurse -Force
         }
+
+        "Data collection completed"
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

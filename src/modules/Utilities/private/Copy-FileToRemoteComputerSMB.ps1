@@ -39,6 +39,12 @@ function Copy-FileToRemoteComputerSMB {
         [Switch]$Force
     )
 
+    $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
+    if (-NOT ($testNetConnection)) {
+        $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
+        throw New-Object System.Exception($msg)
+    }
+
     $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
     foreach ($subPath in $Path) {
         "Copying {0} to {1}" -f $subPath, $remotePath | Trace-Output
