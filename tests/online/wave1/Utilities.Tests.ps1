@@ -1,20 +1,12 @@
 # Pester tests
-Describe 'Install-SdnDiagnostics test' { 
+Describe 'Install-SdnDiagnostics test' {
     It "Install-SdnDiagnostics installed SdnDiagnostic Module successfully" {
         $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential
-        Install-SdnDiagnostics -ComputerName $infraInfo.NC
-        Install-SdnDiagnostics -ComputerName $infraInfo.MUX
-        Install-SdnDiagnostics -ComputerName $infraInfo.Gateway
-        Install-SdnDiagnostics -ComputerName $infraInfo.Host
+        Install-SdnDiagnostics -ComputerName $infraInfo.fabricNodes
 
         $currentModule = Get-Module SdnDiagnostics
 
-        $allInfraMachines = [System.Collections.ArrayList]::new()
-        [void]$allInfraMachines.AddRange(($infraInfo.NC))
-        [void]$allInfraMachines.AddRange(($infraInfo.MUX))
-        [void]$allInfraMachines.AddRange(($infraInfo.Gateway))
-        [void]$allInfraMachines.AddRange(($infraInfo.Host))
-        $remoteModuleInfo = Invoke-Command -ComputerName $allInfraMachines -ScriptBlock{
+        $remoteModuleInfo = Invoke-Command -ComputerName $infraInfo.fabricNodes -ScriptBlock{
             return (Get-Module -ListAvailable -Name SdnDiagnostics)
         }
 
