@@ -52,7 +52,7 @@ function Invoke-SdnGetNetView {
         Import-Module -Name 'Get-NetView' -Force
         "Using Get-NetView version {0}" -f (Get-Module -Name 'Get-NetView' -ErrorAction SilentlyContinue).Version.ToString() | Trace-Output -Level:Verbose
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "Get-NetView"
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "NetView"
         # validate the output directory exists, else create the appropriate path
         if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force

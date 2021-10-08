@@ -54,26 +54,27 @@ function Copy-FileFromRemoteComputer {
                     }
                     else {
                         "Copying {0} to {1}" -f $subPath, $Destination.FullName | Trace-Output
-                        Copy-Item -Path $subPath -Destination $Destination.FullName -Recurse -Force
+                        Copy-Item -Path $subPath -Destination $Destination.FullName -Recurse -Force -ErrorAction:Continue
                     }
                 }
             }
-
-            # Try SMB Copy first and fallback to WinRM
-            try {
-                Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
-            }
-            catch {
-                $_ | Trace-Output -Level:Warning
-                
+            else {
+                # try SMB Copy first and fallback to WinRM
                 try {
-                    "Attempting to copy files using WinRM" | Trace-Output
-                    Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
                 }
                 catch {
-                    # Catch the copy failed exception to not stop the copy for other computers which might success
-                    $_ | Trace-Output -Level:Error
-                    continue
+                    $_ | Trace-Output -Level:Warning
+
+                    try {
+                        "Attempting to copy files using WinRM" | Trace-Output
+                        Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                    }
+                    catch {
+                        # Catch the copy failed exception to not stop the copy for other computers which might success
+                        $_ | Trace-Output -Level:Error
+                        continue
+                    }
                 }
             }
         }

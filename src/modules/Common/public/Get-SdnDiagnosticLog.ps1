@@ -44,6 +44,13 @@ function Get-SdnDiagnosticLog {
         foreach ($sdnDiagLog in $sdnDiagLogs) {
             Copy-Item $sdnDiagLog.FullName -Destination $OutputDirectory.FullName
         }
+
+        # once we have copied the files to the new location we want to compress them to reduce disk space
+        # if confirmed we have a .zip file, then remove the staging folder
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal
+        if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
+            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
