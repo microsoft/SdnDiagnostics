@@ -47,12 +47,12 @@ function Copy-FileFromRemoteComputerWinRM {
     $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
     if ($session) {
         foreach ($subPath in $Path) {
-            "Copying {0} using {1} to {2}" -f $object, $session.Name, $Destination.FullName | Trace-Output
+            "Copying {0} to {1} using WinRM Session ID {2}" -f $subPath, $Destination.FullName, $session.Id | Trace-Output
             Copy-Item -Path $subPath -Destination $Destination.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
         }
     }
     else {
-        $msg = "Unable to copy files from {0} as no remote session could be established" -f $object 
+        $msg = "Unable to copy files from {0} as no remote session could be established" -f $object
         throw New-Object System.Exception($msg)
     }
 }

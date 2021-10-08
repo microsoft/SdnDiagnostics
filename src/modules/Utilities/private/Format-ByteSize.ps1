@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 function Format-ByteSize {
     [CmdletBinding()]
     param (

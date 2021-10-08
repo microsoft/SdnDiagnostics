@@ -20,7 +20,7 @@ function Get-SdnDiagnosticLog {
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false)]
         [DateTime]$FromDate = (Get-Date).AddHours(-4)
     )
 
@@ -35,14 +35,21 @@ function Get-SdnDiagnosticLog {
         "Collect SdnDiagnostics logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
 
         # Create local directory for SdnDiagnostics logs
-        $logOutputDir = "$OutputDirectory\SdnDiagnostics"
-        if (!(Test-Path -Path $logOutputDir -PathType Container)) {
-            $null = New-Item -Path $logOutputDir -ItemType Directory
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnostics"
+        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
+            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
         $sdnDiagLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
         foreach ($sdnDiagLog in $sdnDiagLogs) {
-            Copy-Item $sdnDiagLog.FullName -Destination $logOutputDir
+            Copy-Item $sdnDiagLog.FullName -Destination $OutputDirectory.FullName
+        }
+
+        # once we have copied the files to the new location we want to compress them to reduce disk space
+        # if confirmed we have a .zip file, then remove the staging folder
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal
+        if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
+            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }
     }
     catch {

@@ -38,10 +38,24 @@ function Copy-FileFromRemoteComputerSMB {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force 
+        [Switch]$Force
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
+
+    # set this to suppress the information status bar from being displayed
+    $ProgressPreference = 'SilentlyContinue'
+
+    $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
+
+    # set this back to default now that Test-NetConnection has completed
+    $ProgressPreference = 'Continue'
+
+    if (-NOT ($testNetConnection)) {
+        $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
+        throw New-Object System.Exception($msg)
+    }
+
     foreach ($subPath in $Path) {
         $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $subPath
         if (-NOT (Test-Path -Path $remotePath)) {
@@ -52,13 +66,9 @@ function Copy-FileFromRemoteComputerSMB {
         }
     }
 
-    if ($null -eq $arrayList) {
-        $msg = "Unable to establish connectivity to remote file paths defined"
-        throw New-Object System.Exception($msg)
-    }
-
     foreach ($object in $arrayList) {
         "Copying {0} to {1}" -f $object, $Destination.FullName | Trace-Output
         Copy-Item -Path $object -Destination $Destination.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
     }
 }
+

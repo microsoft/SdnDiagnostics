@@ -58,20 +58,23 @@ function Copy-FileToRemoteComputer {
                     }
                 }
             }
-
-            # Try SMB Copy first and fallback to WinRM
-            try {
-                Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
-            }
-            catch {
-                "SMB copy operation failed, fallback to WinRM" | Trace-Output -Level:Warning
+            else {
+                # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                    Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
                 }
                 catch {
-                    # Catch the copy failed exception to not stop the copy for other computers which might success
-                    "WinRM copy operation failed" | Trace-Output -Level:Error
-                    continue
+                    $_ | Trace-Output -Level:Warning
+
+                    try {
+                        "Attempting to copy files using WinRM" | Trace-Output
+                        Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                    }
+                    catch {
+                        # Catch the copy failed exception to not stop the copy for other computers which might success
+                        $_ | Trace-Output -Level:Error
+                        continue
+                    }
                 }
             }
         }
