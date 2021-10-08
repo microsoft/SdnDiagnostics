@@ -194,7 +194,7 @@ function Start-SdnDataCollection {
         }
 
         if ($IncludeNetView) {
-            "Collecting Get-NetView logs for {0}" -f ($dataNodes -join ', ') | Trace-Output
+            "Collecting Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
             $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
                 Invoke-SdnGetNetView -OutputDirectory $using:tempDirectory.FullName `
                     -SkipAdminCheck `
