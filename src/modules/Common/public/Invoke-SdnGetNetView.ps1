@@ -20,7 +20,7 @@ function Invoke-SdnGetNetView {
     .PARAMETER SkipVM
         If present, skip the Virtual Machine (VM) data gather phases.
     .EXAMPLE
-        PS> Invoke-SdnGetNetView -ComputerName (Get-SdnServer -NcUri $uri -ManagementAddressOnly)
+        PS> Invoke-SdnGetNetView -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
@@ -52,6 +52,7 @@ function Invoke-SdnGetNetView {
         Import-Module -Name 'Get-NetView' -Force
         "Using Get-NetView version {0}" -f (Get-Module -Name 'Get-NetView' -ErrorAction SilentlyContinue).Version.ToString() | Trace-Output -Level:Verbose
 
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "Get-NetView"
         # validate the output directory exists, else create the appropriate path
         if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
