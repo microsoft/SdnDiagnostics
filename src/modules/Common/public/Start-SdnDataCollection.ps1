@@ -30,7 +30,7 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
-        [System.IO.FileInfo]$OutputDirectory,
+        [System.IO.FileInfo]$OutputDirectory = (Get-WorkingDirectory),
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
@@ -61,19 +61,17 @@ function Start-SdnDataCollection {
     )
 
     try {
-        [System.IO.FileInfo]$tempDirectory = "C:\Temp\CSS_SDN"
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC)
+        [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
+
         $dataCollectionNodes = @()
         $filteredDataCollectionNodes = @()
 
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
-        if ($null -eq $OutputDirectory) {
-            [System.IO.FileInfo]$OutputDirectory = (Get-WorkingDirectory)
-        }
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC)
-        if (-NOT (Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 10)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         "Results will be saved to {0}" -f $OutputDirectory.FullName | Trace-Output
@@ -112,16 +110,7 @@ function Start-SdnDataCollection {
         # clean up the data collection nodes using -Unique parameter, which is not case sensitive and will ensure no duplicates
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
-
-        # The default location to save data on remote nodes.
-        "Cleaning up {0} for temp staging of files and logs" -f $tempDirectory | Trace-Output
-        $null = Invoke-PSRemoteCommand -ComputerName $dataCollectionNodes.Name -ScriptBlock {
-            if (Test-Path -Path $using:tempDirectory.FullName -PathType Container) {
-                Remove-Item -Path "$($using:tempDirectory.FullName)\*" -Recurse -Force
-            }
-        }
-
-        foreach ($group in $groupedObjectsByRole) {
+        foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
             if($PSCmdlet.ParameterSetName -eq 'Role'){
                 $dataNodes = $group.Group.Name | Select-Object -First $Limit
             }

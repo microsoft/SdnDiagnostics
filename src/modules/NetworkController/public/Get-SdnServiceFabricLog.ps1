@@ -25,24 +25,26 @@ function Get-SdnServiceFabricLog {
     )
 
     try {
-        $localLogDir = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        [System.IO.FileInfo]$sfLogDir = $config.properties.commonPaths.serviceFabricLogDirectory
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ServiceFabricLogs"
 
-        if (!(Test-Path -Path $localLogDir)) {
-            "No Service Farbci Traces folder found at {0}, this need to run on Network Controller" -f $localLogDir | Trace-Output -Level:Warning
-            return
+        "Collect Service Fabric logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
+
+        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 5)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        "Collect Service Fabric logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
-
-        # Create local directory for ServiceFabricTraces logs
-        $logOutputDir = "$OutputDirectory\ServiceFabricTraces"
-        if (!(Test-Path -Path $logOutputDir -PathType Container)) {
-            $null = New-Item -Path $logOutputDir -ItemType Directory
+        $serviceFabricLogs = Get-ChildItem -Path $sfLogDir.FullName | Where-Object { $_.LastWriteTime -ge $FromDate }
+        foreach ($file in $serviceFabricLogs) {
+            Copy-Item -Path $file.FullName -Destination $OutputDirectory.FullName -Force
         }
 
-        $serviceFabricLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
-        foreach ($serviceFabricLog in $serviceFabricLogs) {
-            Copy-Item $serviceFabricLog.FullName -Destination $logOutputDir
+        # once we have copied the files to the new location we want to compress them to reduce disk space
+        # if confirmed we have a .zip file, then remove the staging folder
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal
+        if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
+            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }
     }
     catch {

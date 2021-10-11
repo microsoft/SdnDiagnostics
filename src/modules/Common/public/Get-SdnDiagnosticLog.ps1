@@ -26,18 +26,12 @@ function Get-SdnDiagnosticLog {
 
     try {
         $localLogDir = "C:\Windows\tracing\SDNDiagnostics\Logs"
-
-        if (!(Test-Path -Path $localLogDir)) {
-            "No SdnDiagnostics folder found, this need to run on SDN Infrastructure Nodes" | Trace-Output -Level:Warning
-            return
-        }
-
-        "Collect SdnDiagnostics logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
-
-        # Create local directory for SdnDiagnostics logs
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnostics"
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+
+        "Collect SdnDiagnostics logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
+
+        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 5)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         $sdnDiagLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }

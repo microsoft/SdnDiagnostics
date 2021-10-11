@@ -103,6 +103,7 @@ $modules = @(
     'Utilities\private\Get-FunctionFromFile.ps1'
     'Utilities\private\Get-TraceOutputFile.ps1'
     'Utilities\private\Get-WorkingDirectory.ps1'
+    'Utilities\private\Initialize-DataCollection.ps1'
     'Utilities\private\Invoke-PSRemoteCommand.ps1'
     'Utilities\private\New-PSRemotingSession.ps1'
     'Utilities\private\New-TraceOutputFile.ps1'

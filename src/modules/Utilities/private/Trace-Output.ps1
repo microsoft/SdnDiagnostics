@@ -14,7 +14,7 @@ function Trace-Output {
 
     if(!$PSBoundParameters.ContainsKey('Level')) {
         $Level = [TraceLevel]::Information
-    }  
+    }
 
     # Verify we've made the working directory and trace file
     if([string]::IsNullOrEmpty((Get-TraceOutputFile))){
@@ -23,9 +23,11 @@ function Trace-Output {
 
     $traceFile = (Get-TraceOutputFile)
     $callingFunction = (Get-PSCallStack)[1].Command
+    $computerName = $env:COMPUTERNAME
 
     # create custom object for formatting purposes
     $traceEvent = [PSCustomObject]@{
+        Computer = $computerName
         TimestampUtc = [DateTime]::UtcNow.ToString()
         FunctionName = $callingFunction
         Level = $Level.ToString()
@@ -35,25 +37,25 @@ function Trace-Output {
     # write the message to the console
     switch($Level){
         'Error' {
-            $traceEvent.Message | Write-Error
+            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Error
         }
 
         'Success' {
-            $traceEvent.Message | Write-Host -ForegroundColor:Green
+            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Host -ForegroundColor:Green
         }
 
         'Verbose' {
             if($VerbosePreference -ne [System.Management.Automation.ActionPreference]::SilentlyContinue) {
-                $traceEvent.Message | Write-Verbose
+                "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Verbose
             }
         }
 
         'Warning' {
-            $traceEvent.Message | Write-Warning
+            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Warning
         }
-        
+
         default {
-            $traceEvent.Message | Write-Host -ForegroundColor:Cyan
+            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Host -ForegroundColor:Cyan
         }
     }
 
