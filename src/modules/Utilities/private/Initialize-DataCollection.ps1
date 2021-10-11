@@ -42,7 +42,7 @@ function Initialize-DataCollection {
         }
         else {
             "{0} already exists. Performing cleanup operation" -f $path | Trace-Output -Level:Warning
-            Remove-Item -Path $path\* -Recurse -Force
+            Remove-Item -Path "$path\*" -Recurse -Force
         }
 
         # confirm sufficient disk space

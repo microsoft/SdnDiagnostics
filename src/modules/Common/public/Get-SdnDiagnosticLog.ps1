@@ -26,7 +26,7 @@ function Get-SdnDiagnosticLog {
 
     try {
         $localLogDir = "C:\Windows\tracing\SDNDiagnostics\Logs"
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnostics"
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnosticLogs"
 
         "Collect SdnDiagnostics logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
 
@@ -41,7 +41,7 @@ function Get-SdnDiagnosticLog {
 
         # once we have copied the files to the new location we want to compress them to reduce disk space
         # if confirmed we have a .zip file, then remove the staging folder
-        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal -Force
         if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
             Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }

@@ -42,7 +42,7 @@ function Get-SdnServiceFabricLog {
 
         # once we have copied the files to the new location we want to compress them to reduce disk space
         # if confirmed we have a .zip file, then remove the staging folder
-        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal -Force
         if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
             Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }

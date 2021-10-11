@@ -133,7 +133,7 @@ function Start-SdnDataCollection {
                 'NetworkController' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    }
+                    } -AsJob -PassThru
 
                     Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
                     Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
