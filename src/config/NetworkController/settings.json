@@ -1,0 +1,54 @@
+{
+    "name": "NetworkController",
+    "windowsFeature": [
+        "NetworkController"
+    ],
+    "requiredModules": [
+        "NetworkController"
+    ],
+    "properties": {
+        "apiResources": [
+            "accessControlLists",
+            "credentials",
+            "gatewayPools",
+            "gateways",
+            "iDNSServer/configuration",
+            "loadBalancerManager/config",
+            "loadBalancerMuxes",
+            "loadBalancers",
+            "logicalNetworks",
+            "macPools",
+            "networkInterfaces",
+            "publicIPAddresses",
+            "servers",
+            "routeTables",
+            "virtualGateways",
+            "virtualNetworkManager/configuration",
+            "virtualNetworks",
+            "virtualServers"
+        ],
+        "commonPaths": {
+            "serviceFabricLogDirectory": "C:\\ProgramData\\Microsoft\\Service Fabric\\log\\Traces"
+        },
+        "eventLogProviders": [
+            "Application",
+            "Microsoft-Windows-NetworkController*",
+            "Microsoft-ServiceFabric*",
+            "System"
+        ],
+        "netControllerStatePath": "C:\\Windows\\Tracing\\SDNDiagnostics\\NetworkControllerState",
+        "regKeyPaths": [
+            "HKLM:\\Software\\Microsoft\\NetworkController",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent",
+            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\Network Controller"
+        ],
+        "services": [
+            {
+                "name": "FabricHostSvc",
+                "properties": {
+                    "displayName": "Service Fabric Host Service"
+                }
+            }
+        ]
+    }
+}
