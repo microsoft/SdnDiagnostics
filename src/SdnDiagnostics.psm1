@@ -99,10 +99,12 @@ $modules = @(
     'Utilities\private\Format-MacAddressNoDashes.ps1'
     'Utilities\private\Format-MacAddressWithDashes.ps1'
     'Utilities\private\Format-NetshTraceProviderAsString.ps1'
+    'Utilities\private\Get-FolderSize.ps1'
     'Utilities\private\Get-FormattedDateTimeUTC.ps1'
     'Utilities\private\Get-FunctionFromFile.ps1'
     'Utilities\private\Get-TraceOutputFile.ps1'
     'Utilities\private\Get-WorkingDirectory.ps1'
+    'Utilities\private\Initialize-DataCollection.ps1'
     'Utilities\private\Invoke-PSRemoteCommand.ps1'
     'Utilities\private\New-PSRemotingSession.ps1'
     'Utilities\private\New-TraceOutputFile.ps1'
@@ -113,6 +115,7 @@ $modules = @(
     'Utilities\private\Test-Ping.ps1'
     'Utilities\private\Trace-Output.ps1'
     'Utilities\private\Wait-PSJob.ps1'
+    'Utilities\public\Clear-SdnWorkingDirectory.ps1'
     'Utilities\public\Install-SdnDiagnostics.ps1'
 )
 

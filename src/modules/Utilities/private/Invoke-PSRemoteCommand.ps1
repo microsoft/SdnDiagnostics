@@ -25,18 +25,26 @@ function Invoke-PSRemoteCommand {
         [Switch]$PassThru,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [System.String]$Activity,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
         [int]$ExecutionTimeout = 600
     )
 
     try {
         $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
-        if($session){
+        if ($session) {
             "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
-            
-            if($AsJob){
+
+            if ($AsJob) {
                 $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
-                if($PassThru){
-                    $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
+                if ($PassThru) {
+                    if ($Activity) {
+                        $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
+                    }
+                    else {
+                        $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
+                    }
                 }
             }
             else {

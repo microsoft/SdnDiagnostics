@@ -36,19 +36,20 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Convert-EtwTraceToTxt'
+        'Clear-SdnWorkingDirectory',
+        'Convert-EtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
         'Disable-RasGatewayTracing',
-        'Enable-RasGatewayTracing'
+        'Enable-RasGatewayTracing',
         'Get-NetworkInterfaceEncapOverheadSetting',
         'Get-SdnApiResource',
         'Get-SdnDiagnosticLog',
-        'Get-SdnEventLog'
+        'Get-SdnEventLog',
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
         'Get-SdnLoadBalancerMux',
-        'Get-SdnNetworkInterfaceOutboundPublicIPAddress'
+        'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
         'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkController',
         'Get-SdnNetworkControllerState',
@@ -65,7 +66,7 @@
         'Get-SdnServiceFabricClusterHealth',
         'Get-SdnServiceFabricClusterManifest',
         'Get-SdnServiceFabricLog',
-        'Get-SdnServiceFabricNode'
+        'Get-SdnServiceFabricNode',
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',
         'Get-SdnSlbMuxConfigurationState',

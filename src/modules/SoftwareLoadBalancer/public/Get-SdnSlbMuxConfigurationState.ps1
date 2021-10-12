@@ -21,31 +21,17 @@ function Get-SdnSlbMuxConfigurationState {
 
     try {
         $config = Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (!$confirmFeatures) {
-            throw New-Object System.Exception("Required feature is missing")
-        }
+        "Collecting configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if (!$confirmModules) {
-            throw New-Object System.Exception("Required module is not loaded")
-        }
-
-        # create the OutputDirectory if does not already exist
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
-        }
-
-        # confirm sufficient disk space
-        [System.Char]$driveLetter = (Split-Path -Path $OutputDirectory.FullName -Qualifier).Replace(':','')
-        if (-NOT (Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB 100)) {
-            throw New-Object System.Exception("Insufficient disk space detected")
+        if (!(Initialize-DataCollection -Role:SoftwareLoadBalancer -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         # dump out the regkey properties
-        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
+        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose

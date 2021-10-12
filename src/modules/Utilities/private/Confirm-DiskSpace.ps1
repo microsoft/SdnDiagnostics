@@ -9,10 +9,10 @@ function Confirm-DiskSpace {
         [System.Char]$DriveLetter,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
-        [System.Int32]$MinimumGB,
+        $MinimumGB,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
-        [System.Int32]$MinimumMB
+        $MinimumMB
     )
 
     try {
@@ -26,13 +26,13 @@ function Confirm-DiskSpace {
 
         switch ($PSCmdlet.ParameterSetName) {
             'GB' {
-                if ([float]$freeSpace.GB -gt $MinimumGB) {
+                if ([float]$freeSpace.GB -gt [float]$MinimumGB) {
                     return $true
                 }
             }
 
             'MB' {
-                if ([float]$freeSpace.MB -gt $MinimumMB) {
+                if ([float]$freeSpace.MB -gt [float]$MinimumMB) {
                     return $true
                 }
             }

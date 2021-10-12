@@ -1,3 +1,9 @@
 {
-    "workingDirectory": "C:\\Windows\\Tracing\\SdnDataCollection"
+    "FilesExcludedFromCleanup": [
+        "SdnDiagnostics_TraceOutput_*.csv"
+    ],
+    "FolderPathsAllowedForCleanup": [
+        "C:\\Windows\\Tracing\\SdnDataCollection"
+    ],
+    "WorkingDirectory": "C:\\Windows\\Tracing\\SdnDataCollection"
 }
