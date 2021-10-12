@@ -98,6 +98,7 @@ $modules = @(
     'Utilities\private\Format-ByteSize.ps1'
     'Utilities\private\Format-MacAddressNoDashes.ps1'
     'Utilities\private\Format-MacAddressWithDashes.ps1'
+    'Utilities\private\Get-FolderSize.ps1'
     'Utilities\private\Format-NetshTraceProviderAsString.ps1'
     'Utilities\private\Get-FormattedDateTimeUTC.ps1'
     'Utilities\private\Get-FunctionFromFile.ps1'

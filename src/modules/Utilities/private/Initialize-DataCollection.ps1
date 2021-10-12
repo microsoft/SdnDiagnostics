@@ -2,7 +2,10 @@
 # Licensed under the MIT License.
 
 function Initialize-DataCollection {
-    <##>
+    <#
+    .SYNOPSIS
+        Prepares the environment for data collection that logs will be saved to.
+    #>
 
     [CmdletBinding()]
     param (
@@ -42,7 +45,7 @@ function Initialize-DataCollection {
         }
         else {
             "{0} already exists. Performing cleanup operation" -f $path | Trace-Output -Level:Warning
-            Remove-Item -Path "$path\*" -Recurse -Force
+            Clear-SdnWorkingDirectory -Path $path -Force -Recurse
         }
 
         # confirm sufficient disk space

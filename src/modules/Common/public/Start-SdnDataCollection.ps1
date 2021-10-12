@@ -118,8 +118,8 @@ function Start-SdnDataCollection {
             }
 
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                Clear-WorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-            } -AsJob -PassThru -Activity 'Clear-WorkingDirectory'
+                Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
+            } -AsJob -PassThru -Activity 'Clear-SdnWorkingDirectory'
 
             # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
             # to account for if filtering was applied
