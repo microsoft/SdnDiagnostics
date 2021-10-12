@@ -34,10 +34,19 @@ function Get-SdnDiagnosticLog {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        $sdnDiagLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
-        foreach ($sdnDiagLog in $sdnDiagLogs) {
-            Copy-Item $sdnDiagLog.FullName -Destination $OutputDirectory.FullName
+        $logFiles = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
+
+        # add a failsafe to ensure that we have enough disk space with some extra overhead
+        [System.Char]$driveLetter = (Split-Path -Path $OutputDirectory.FullName -Qualifier).Replace(':','')
+        $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 1.5
+        "Validating that {0} GB exists for operation" -f $minimumDiskSpace | Trace-Output -Level:Verbose
+        if (-NOT (Confirm-DiskSpace -DriveLetter $driveLetter -MinimumGB $minimumDiskSpace)){
+            throw New-Object System.Exception("Insufficient disk space to perform operation. Reduce the amount of hours to collect logs or free up disk space.")
         }
+
+        # copy the log files from the default log directory to the output directory
+        "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
+        Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
 
         # once we have copied the files to the new location we want to compress them to reduce disk space
         # if confirmed we have a .zip file, then remove the staging folder

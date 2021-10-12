@@ -1,20 +1,22 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-Size {
-    <##>
-
+function Get-FolderSize {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Path')]
-        [System.IO.File]$Path,
+        [System.IO.FileInfo]$Path,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'File')]
-        [System.IO.File[]]$FileName
+        [System.IO.FileInfo[]]$FileName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'File')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Path')]
+        [Switch]$Total
     )
 
     try {
-        $arrayList = [Systems.Collections.ArrayList]::new()
+        $arrayList = [System.Collections.ArrayList]::new()
 
         switch ($PSCmdlet.ParameterSetName) {
             'File' {
@@ -51,6 +53,13 @@ function Get-Size {
                     FullName = $item.FullName
                 })
             }
+        }
+
+        if ($Total) {
+            $totalSize = $arrayList | Measure-Object -Property Size -Sum
+            $totalSizeFormatted = Format-ByteSize -Bytes $totalSize.Sum
+
+            return $totalSizeFormatted
         }
 
         return ($arrayList | Sort-Object Type, Size)

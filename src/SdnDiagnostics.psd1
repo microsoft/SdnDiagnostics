@@ -36,7 +36,6 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Get-FolderSize',
         'Clear-SdnWorkingDirectory',
         'Convert-EtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',

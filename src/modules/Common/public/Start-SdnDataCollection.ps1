@@ -6,14 +6,17 @@ function Start-SdnDataCollection {
     <#
     .SYNOPSIS
         Automated network diagnostics and data collection/tracing script.
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER NetworkController
+    .PARAMETER Role
+    .PARAMETER ComputerName
     .PARAMETER OutputDirectory
-        Specifies a specific path and folder in which to save the files.
-    .PARAMETER DataCollectionType
-        Optional parameter that allows the user to define if they want to collect either Configuration, Logs or None. Default is Logs.
+    .PARAMETER OutputDirectory
+    .PARAMETER IncludeNetView
+    .PARAMETER IncludeLogs
+    .PARAMETER FromDate
     .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCredential
+    .PARAMETER Limit
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
