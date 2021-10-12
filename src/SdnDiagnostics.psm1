@@ -114,6 +114,7 @@ $modules = @(
     'Utilities\private\Test-Ping.ps1'
     'Utilities\private\Trace-Output.ps1'
     'Utilities\private\Wait-PSJob.ps1'
+    'Utilities\public\Clear-SdnWorkingDirectory.ps1'
     'Utilities\public\Install-SdnDiagnostics.ps1'
 )
 
