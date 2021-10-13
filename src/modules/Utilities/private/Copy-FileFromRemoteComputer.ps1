@@ -71,7 +71,7 @@ function Copy-FileFromRemoteComputer {
                     }
                     catch {
                         # Catch the copy failed exception to not stop the copy for other computers which might success
-                        $_ | Trace-Output -Level:Error
+                        "{0}. Unable to copy files" -f $_ | Trace-Output -Level:Error
                         continue
                     }
                 }
