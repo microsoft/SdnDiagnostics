@@ -29,21 +29,29 @@ function Get-SdnEventLog {
         [DateTime]$FromDate = (Get-Date).AddDays(-1)
     )
     try {
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        $eventLogs = [System.Collections.ArrayList]::new()
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs"
 
-        # ensure that the appropriate windows feature is installed and ensure module is imported
+        "Collect event logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
+
+        $config = Get-SdnRoleConfiguration -Role $Role
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (!$confirmFeatures) {
+        if (-NOT $confirmFeatures) {
             throw New-Object System.Exception("Required feature is missing")
         }
 
+        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
+        }
+
+        $eventLogProviders = $config.properties.eventLogProviders
+        "Collect the following events: {0}" -f ($eventLogProviders -join ',') | Trace-Output
+
         # build array of win events based on which role the function is being executed
         # we will build these and dump the results at the end
-        $eventLogs = [System.Collections.ArrayList]::new()
-        $eventLogProviders = $config.properties.eventLogProviders
         foreach ($provider in $eventLogProviders) {
-            "Looking for Event matching {0}" -f $provider | Trace-Output -Level:Verbose
-            $eventLogsToAdd = Get-WinEvent -ListLog "$provider" | Where-Object { $_.RecordCount }
+            "Looking for event matching {0}" -f $provider | Trace-Output -Level:Verbose
+            $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
             if ($eventLogsToAdd.Count -gt 1) {
                 [void]$eventLogs.AddRange($eventLogsToAdd)
             }
@@ -51,23 +59,21 @@ function Get-SdnEventLog {
                 [void]$eventLogs.Add($eventLogsToAdd)
             }
             else {
-                "No Event match {0}" -f $provider | Trace-Output -Level:Warning
+                "No events found for {0}" -f $provider | Trace-Output -Level:Warning
             }
         }
 
-        # export the event logs in csv and evtx formats
-        $eventLogFolder = "$OutputDirectory\EventLogs"
-        if (!(Test-Path -Path $eventLogFolder -PathType Container)) {
-            $null = New-Item -Path $eventLogFolder -ItemType Directory -Force
-        }
-
         foreach ($eventLog in $eventLogs) {
-            "Export Event log {0} to {1}" -f $eventLog.LogName, "$eventLogFolder\$($eventLog.LogName).csv".Replace("/", "_") | Trace-Output -Level:Verbose
-            Get-WinEvent -LogName $eventLog.LogName `
-            | Where-Object { $_.TimeCreated -gt $FromDate } `
-            | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
-            | Export-Csv -Path "$eventLogFolder\$($eventLog.LogName).csv".Replace("/", "_") -NoTypeInformation -Force
-            wevtutil epl $eventLog.LogName "$eventLogFolder\$($eventLog.LogName).evtx".Replace("/", "_") /ow
+            $fileName = ("{0}\{1}" -f $OutputDirectory.FullName, $eventLog.LogName).Replace("/", "_")
+
+            "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
+            $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue | Where-Object { $_.TimeCreated -gt $FromDate }
+            if ($events) {
+                $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
+                | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
+            }
+
+            wevtutil epl $eventLog.LogName $fileName /ow
         }
     }
     catch {

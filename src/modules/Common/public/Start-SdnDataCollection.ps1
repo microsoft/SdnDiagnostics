@@ -26,6 +26,14 @@ function Start-SdnDataCollection {
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .PARAMETER Limit
         Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
+    .EXAMPLE
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,SoftwareLoadBalancer
+    .EXAMPLE
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,SoftwareLoadBalancer -IncludeLogs
+    .EXAMPLE
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,Server,SoftwareLoadBalancer -IncludeLogs -FromDate (Get-Date).AddHours(-1) -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role SoftwareLoadBalancer -IncludeLogs -IncludeNetView
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
@@ -82,7 +90,7 @@ function Start-SdnDataCollection {
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
 
-        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 10)) {
+        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 10)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
@@ -111,7 +119,7 @@ function Start-SdnDataCollection {
                     foreach ($key in $sdnFabricDetails.Keys) {
                         if ($key -iin $keyLookup) {
                             "Scanning {0} for {1}" -f $key, $value | Trace-Output -Level:Verbose
-                            if ($sdnFabricDetails[$key].Contains($value)) {
+                            if ($sdnFabricDetails[$key.ToString()].Contains($value)) {
                                 $object = [PSCustomObject]@{
                                     Role = $key
                                     Name = $value
@@ -126,10 +134,14 @@ function Start-SdnDataCollection {
             }
         }
 
+        if ($null -eq $dataCollectionNodes) {
+            throw New-Object System.NullReferenceException("No data nodes identified")
+        }
+
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
         foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
-            if($PSCmdlet.ParameterSetName -eq 'Role'){
+            if ($PSCmdlet.ParameterSetName -eq 'Role') {
                 if ($group.Group.Name.Count -ge $Limit) {
                     "Exceeded node limit for role {0}. Limiting nodes to the first {1} nodes" -f $group.Name, $Limit | Trace-Output -Level:Warning
                 }
@@ -140,7 +152,7 @@ function Start-SdnDataCollection {
                 $dataNodes = $group.Group.Name
             }
 
-            "Performing cleanup of temp working directory across {0}" -f ($dataNodes -join ', ') | Trace-Output
+            "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                 Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
             } -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
@@ -165,7 +177,6 @@ function Start-SdnDataCollection {
                     Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
                     Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
                         -Credential $Credential -NcRestCredential $NcRestCredential
-
                 }
 
                 'Server' {
@@ -206,6 +217,11 @@ function Start-SdnDataCollection {
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                     Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
                 } -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
+
+                "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
+                    Get-SdnEventLog -Role $using:group.Name -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
+                } -AsJob -PassThru -Activity 'Get-SdnEventLog'
             }
         }
 
@@ -225,8 +241,8 @@ function Start-SdnDataCollection {
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Recurse -Force
         }
 
-        "Performing cleanup of temp working directory across {0}" -f ($dataNodes -join ', ') | Trace-Output
-        Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
+        "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
+        Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
             Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
         } -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
 

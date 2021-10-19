@@ -8,7 +8,7 @@
         "commonPaths": {},
         "eventLogProviders": [
             "Application",
-            "Microsoft-Windows-SlbMux",
+            "Microsoft-Windows-SlbMux*",
             "System"
         ],
         "regKeyPaths": [
