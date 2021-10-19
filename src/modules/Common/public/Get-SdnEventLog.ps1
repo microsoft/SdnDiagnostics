@@ -73,7 +73,7 @@ function Get-SdnEventLog {
                 | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
             }
 
-            wevtutil epl $eventLog.LogName.evtx "$fileName.evtx" /ow
+            wevtutil epl $eventLog.LogName "$fileName.evtx" /ow
         }
     }
     catch {
