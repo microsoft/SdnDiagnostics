@@ -20,7 +20,7 @@ function Test-SdnLoadBalancerMuxServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.MUX,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

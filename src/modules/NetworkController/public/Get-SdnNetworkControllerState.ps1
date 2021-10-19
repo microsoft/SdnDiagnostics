@@ -15,7 +15,7 @@ function Get-SdnNetworkControllerState {
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .PARAMETER ExecutionTimeout
         Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation. If omitted, defaults to 300 seconds.
-    .EXAMPLE 
+    .EXAMPLE
         PS> Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -NetworkController $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
@@ -54,7 +54,7 @@ function Get-SdnNetworkControllerState {
                 if (Test-Path -Path $using:netControllerStatePath.FullName -PathType Container) {
                     Get-Item -Path $using:netControllerStatePath.FullName | Remove-Item -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
                 }
-    
+
                 $null = New-Item -Path $using:netControllerStatePath.FullName -ItemType Container -Force
             }
             catch {
@@ -64,16 +64,16 @@ function Get-SdnNetworkControllerState {
 
         $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         # invoke scriptblock to clean up any stale NetworkControllerState files
-        Invoke-PSRemoteCommand -ComputerName $infraInfo.NC -ScriptBlock $scriptBlock -Credential $Credential
+        Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -ScriptBlock $scriptBlock -Credential $Credential
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the Network Controllers defined to collect the files
         $result = Invoke-SdnNetworkControllerStateDump -NcUri $infraInfo.NcUrl -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
         if ($result) {
-            foreach ($ncVM in $infraInfo.NC) {
+            foreach ($ncVM in $infraInfo.NetworkController) {
                 Copy-FileFromRemoteComputer -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $ncVM -Destination $outputDir.FullName
             }
-        }        
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

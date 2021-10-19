@@ -18,7 +18,7 @@ function Get-SdnServiceFabricApplicationHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $Global:SdnDiagnostics.EnvironmentInfo.NC,
+        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [String]$ApplicationName = 'fabric:/NetworkController',

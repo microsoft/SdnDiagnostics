@@ -21,32 +21,24 @@ function Get-SdnServerConfigurationState {
 
     try {
         $config = Get-SdnRoleConfiguration -Role:Server
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (!$confirmFeatures) {
-            throw New-Object System.Exception("Required feature is missing")
-        }
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if (!$confirmModules) {
-            throw New-Object System.Exception("Required module is not loaded")
-        }
-
-        # create the OutputDirectory if does not already exist
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        if (!(Initialize-DataCollection -Role:Server -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         # dump out the regkey properties
-        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
+        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose
         foreach ($vm in (Get-WmiObject -na root\virtualization\v2 msvm_computersystem)) {
             foreach ($vma in $vm.GetRelated("Msvm_SyntheticEthernetPort")) {
                 foreach ($port in $vma.GetRelated("Msvm_SyntheticEthernetPortSettingData").GetRelated("Msvm_EthernetPortAllocationSettingData").GetRelated("Msvm_EthernetSwitchPort")) {
-                    
+
                     $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
                     vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'NatInfo' -Name $port.Name -FileType txt
                     vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'RuleInfo' -Name $port.Name -FileType txt
@@ -59,6 +51,7 @@ function Get-SdnServerConfigurationState {
         }
 
         vfpctrl /list-vmswitch-port | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'vfpctrl_list-vmswitch-port' -FileType json
+        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType csv
 
         # Gather OVSDB databases
         "Gathering ovsdb database output" | Trace-Output -Level:Verbose
@@ -69,6 +62,12 @@ function Get-SdnServerConfigurationState {
         ovsdb-client.exe dump tcp:127.0.0.1:6641 ms_firewall -f json -pretty | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'ovsdb_firewall' -FileType json
         ovsdb-client.exe dump tcp:127.0.0.1:6641 ms_service_insertion -f json -pretty | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'ovsdb_serviceinsertion' -FileType json
 
+        Get-SdnOvsdbAddressMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbAddressMapping' -FileType csv
+        Get-SdnOvsdbFirewallRuleTable | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbFirewallRuleTable' -FileType csv
+        Get-SdnOvsdbGlobalTable | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbGlobalTable' -FileType csv
+        Get-SdnOvsdbPhysicalPortTable | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbPhysicalPortTable' -FileType csv
+        Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbUcastMacRemoteTable' -FileType csv
+
         # Gather Hyper-V network details
         "Gathering hyper-v configuration details" | Trace-Output -Level:Verbose
         Get-PACAMapping | Sort-Object PSComputerName | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-PACAMapping' -FileType txt -Format Table
@@ -76,7 +75,8 @@ function Get-SdnServerConfigurationState {
         Get-CustomerRoute | Sort-Object PSComputerName | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-CustomerRoute' -FileType txt -Format Table
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVPort' -FileType txt -Format Table
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVmqQueue' -FileType txt -Format Table
-        Get-VMSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType txt -Format List 
+        Get-NetworkInterfaceEncapOverheadSetting | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetworkInterfaceEncapOverheadSetting' -FileType txt -Format Table
+        Get-VMSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType txt -Format List
         Get-VMSwitchTeam | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitchTeam' -FileType txt -Format List
         Get-VMNetworkAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterPortProfile' -FileType txt -Format Table
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format Table

@@ -39,8 +39,22 @@ function Copy-FileToRemoteComputerSMB {
         [Switch]$Force
     )
 
-    $driveName = [System.IO.Path]::GetPathRoot($Destination.FullName)
-    $UNCPath = "\\{0}\{1}\{2}" -f $ComputerName, $driveName.Replace(":\", "$"), $Destination.FullName.Substring(3)
-    "Copying files to {0}" -f $UNCPath | Trace-Output
-    Copy-Item -Path $Path -Destination $UNCPath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+    # set this to suppress the information status bar from being displayed
+    $ProgressPreference = 'SilentlyContinue'
+
+    $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
+
+    # set this back to default now that Test-NetConnection has completed
+    $ProgressPreference = 'Continue'
+    
+    if (-NOT ($testNetConnection)) {
+        $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
+        throw New-Object System.Exception($msg)
+    }
+
+    $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
+    foreach ($subPath in $Path) {
+        "Copying {0} to {1}" -f $subPath, $remotePath | Trace-Output
+        Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+    }
 }

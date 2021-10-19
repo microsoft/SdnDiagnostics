@@ -18,7 +18,7 @@ function Test-SdnProviderNetwork {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Host,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

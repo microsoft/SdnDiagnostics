@@ -25,24 +25,34 @@ function Get-SdnServiceFabricLog {
     )
 
     try {
-        $localLogDir = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        [System.IO.FileInfo]$logDir = $config.properties.commonPaths.serviceFabricLogDirectory
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ServiceFabricLogs"
 
-        if (!(Test-Path -Path $localLogDir)) {
-            "No Service Farbci Traces folder found at {0}, this need to run on Network Controller" -f $localLogDir | Trace-Output -Level:Warning
+        "Collect Service Fabric logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
+
+        $logFiles = Get-ChildItem -Path $logDir.FullName | Where-Object { $_.LastWriteTime -ge $FromDate }
+        if($null -eq $logFiles){
+            "No log files found under {0} between {1} and {2} UTC." -f $logDir.FullName, $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output -Level:Warning
             return
         }
 
-        "Collect Service Fabric logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
-
-        # Create local directory for ServiceFabricTraces logs
-        $logOutputDir = "$OutputDirectory\ServiceFabricTraces"
-        if (!(Test-Path -Path $logOutputDir -PathType Container)) {
-            $null = New-Item -Path $logOutputDir -ItemType Directory
+        $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
+        # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
+        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minimumDiskSpace)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        $serviceFabricLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
-        foreach ($serviceFabricLog in $serviceFabricLogs) {
-            Copy-Item $serviceFabricLog.FullName -Destination $logOutputDir
+        # copy the log files from the default log directory to the output directory
+        "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
+        Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
+
+        # once we have copied the files to the new location we want to compress them to reduce disk space
+        # if confirmed we have a .zip file, then remove the staging folder
+        "Compressing results to {0}" -f "$($OutputDirectory.FullName).zip" | Trace-Output -Level:Verbose
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal -Force
+        if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
+            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }
     }
     catch {

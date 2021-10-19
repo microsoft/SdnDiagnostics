@@ -10,7 +10,6 @@ function Test-ComputerNameIsLocal {
     )
 
     try {
-
         # detect if the ComputerName passed is an IP address
         # if so, need to enumerate the IP addresses on the system to compare with ComputerName to determine if there is a match
         $isIpAddress = ($ComputerName -as [IPAddress]) -as [Bool]

@@ -5,7 +5,7 @@ function New-WorkingDirectory {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Path = $global:SdnDiagnostics.Settings.workingDirectory
+        [System.IO.FileInfo]$Path = $global:SdnDiagnostics.Settings.WorkingDirectory
     )
 
     try {

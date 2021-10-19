@@ -14,7 +14,7 @@
     CompanyName = 'Microsoft Corporation'
 
     # Copyright statement for this module
-    Copyright = '© Microsoft Corporation. All rights reserved.'
+    Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
     # Description of the functionality provided by this module
     Description = 'SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.'
@@ -36,19 +36,20 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Convert-EtwTraceToTxt'
+        'Clear-SdnWorkingDirectory',
+        'Convert-EtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
         'Disable-RasGatewayTracing',
-        'Enable-RasGatewayTracing'
+        'Enable-RasGatewayTracing',
         'Get-NetworkInterfaceEncapOverheadSetting',
         'Get-SdnApiResource',
         'Get-SdnDiagnosticLog',
-        'Get-SdnEventLog'
+        'Get-SdnEventLog',
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
         'Get-SdnLoadBalancerMux',
-        'Get-SdnNetworkInterfaceOutboundPublicIPAddress'
+        'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
         'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkController',
         'Get-SdnNetworkControllerState',
@@ -65,7 +66,7 @@
         'Get-SdnServiceFabricClusterHealth',
         'Get-SdnServiceFabricClusterManifest',
         'Get-SdnServiceFabricLog',
-        'Get-SdnServiceFabricNode'
+        'Get-SdnServiceFabricNode',
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',
         'Get-SdnSlbMuxConfigurationState',
@@ -81,7 +82,8 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-EtwTraceCapture',
-        'Start-NetshTrace'
+        'Start-SdnDataCollection',
+        'Start-NetshTrace',
         'Stop-EtwTraceCapture',
         'Stop-NetshTrace',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',

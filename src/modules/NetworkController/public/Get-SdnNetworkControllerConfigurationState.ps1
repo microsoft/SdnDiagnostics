@@ -18,35 +18,27 @@ function Get-SdnNetworkControllerConfigurationState {
     )
 
     $ProgressPreference = 'SilentlyContinue'
-    
+
     try {
         $config = Get-SdnRoleConfiguration -Role:NetworkController
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [System.IO.FileInfo]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
+        [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
-            throw New-Object System.Exception("Required feature is missing")
-        }
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if(!$confirmModules){
-            throw New-Object System.Exception("Required module is not loaded")
-        }
-
-        # create the OutputDirectory if does not already exist
-        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        if (!(Initialize-DataCollection -Role NetworkController -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         # dump out the regkey properties
-        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory (Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry")
+        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "C:\Windows\NetworkController" -Directory
-        $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "NCApplication") -ItemType Directory -Force
         foreach($directory in $ncAppDirectories){
             [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
-            Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $outputDir.FullName -Name $fileName -FileType txt -Format List
+            Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
         }
 
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName

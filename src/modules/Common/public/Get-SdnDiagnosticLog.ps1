@@ -20,29 +20,39 @@ function Get-SdnDiagnosticLog {
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false)]
         [DateTime]$FromDate = (Get-Date).AddHours(-4)
     )
 
     try {
-        $localLogDir = "C:\Windows\tracing\SDNDiagnostics\Logs"
+        [System.IO.FileInfo]$logDir = $Global:SdnDiagnostics.Settings.DefaultLogDirectory
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnosticLogs"
 
-        if (!(Test-Path -Path $localLogDir)) {
-            "No SdnDiagnostics folder found, this need to run on SDN Infrastructure Nodes" | Trace-Output -Level:Warning
+        "Collect diagnostic logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
+
+        $logFiles = Get-ChildItem -Path $logDir.FullName | Where-Object { $_.LastWriteTime -ge $FromDate }
+        if($null -eq $logFiles){
+            "No log files found under {0} between {1} and {2} UTC." -f $logDir.FullName, $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output -Level:Warning
             return
         }
 
-        "Collect SdnDiagnostics logs between {0} and {1}" -f $FromDate, (Get-Date) | Trace-Output -Verbose
+        $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
 
-        # Create local directory for SdnDiagnostics logs
-        $logOutputDir = "$OutputDirectory\SdnDiagnostics"
-        if (!(Test-Path -Path $logOutputDir -PathType Container)) {
-            $null = New-Item -Path $logOutputDir -ItemType Directory
+        # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
+        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minimumDiskSpace)) {
+            throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        $sdnDiagLogs = Get-ChildItem -Path $localLogDir | Where-Object { $_.LastWriteTime -ge $FromDate }
-        foreach ($sdnDiagLog in $sdnDiagLogs) {
-            Copy-Item $sdnDiagLog.FullName -Destination $logOutputDir
+        # copy the log files from the default log directory to the output directory
+        "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
+        Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
+
+        # once we have copied the files to the new location we want to compress them to reduce disk space
+        # if confirmed we have a .zip file, then remove the staging folder
+        "Compressing results to {0}" -f "$($OutputDirectory.FullName).zip" | Trace-Output -Level:Verbose
+        Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal -Force
+        if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
+            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
         }
     }
     catch {
