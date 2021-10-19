@@ -25,7 +25,7 @@ function Get-SdnNetworkControllerConfigurationState {
         [System.IO.FileInfo]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
-        "Collecting configuration state details for role {0}" -f $config.Name | Trace-Output
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
         if (!(Initialize-DataCollection -Role NetworkController -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")

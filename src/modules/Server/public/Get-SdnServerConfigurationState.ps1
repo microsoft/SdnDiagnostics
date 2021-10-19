@@ -24,7 +24,7 @@ function Get-SdnServerConfigurationState {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
-        "Collecting configuration state details for role {0}" -f $config.Name | Trace-Output
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
         if (!(Initialize-DataCollection -Role:Server -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")

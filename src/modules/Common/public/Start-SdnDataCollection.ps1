@@ -5,18 +5,27 @@ function Start-SdnDataCollection {
 
     <#
     .SYNOPSIS
-        Automated network diagnostics and data collection/tracing script.
+        Automated data collection script to pull the current configuration state in conjuction with diagnostic logs and other data points used for debugging.
     .PARAMETER NetworkController
+        Specifies the name or IP address of the network controller node on which this cmdlet operates.
     .PARAMETER Role
+        The specific SDN role(s) to collect configuration state and logs from.
     .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER OutputDirectory
-    .PARAMETER OutputDirectory
+        Directory the results will be saved to. If ommitted, will default to the current working directory.
     .PARAMETER IncludeNetView
+        If enabled, will execute Get-NetView on the Role(s) or ComputerName(s) defined.
     .PARAMETER IncludeLogs
+        If enabled, will collect the diagnostic logs from the Role(s) or ComputerName(s) defined. Works in conjunction with the FromDate parameter.
     .PARAMETER FromDate
+        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. If ommitted, defaults to 4 hours.
     .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .PARAMETER Limit
+        Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
@@ -59,7 +68,7 @@ function Start-SdnDataCollection {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Int]$Limit = 16
     )
 
@@ -97,15 +106,22 @@ function Start-SdnDataCollection {
             }
 
             'Computer' {
+                $keyLookup= @('Gateway','NetworkController','Server','SoftwareLoadBalancer')
                 foreach ($value in $ComputerName) {
-                    $roleName = $sdnFabricDetails.Name | Where-Object {$_.Value -icontains $value}
+                    foreach ($key in $sdnFabricDetails.Keys) {
+                        if ($key -iin $keyLookup) {
+                            "Scanning {0} for {1}" -f $key, $value | Trace-Output -Level:Verbose
+                            if ($sdnFabricDetails[$key].Contains($value)) {
+                                $object = [PSCustomObject]@{
+                                    Role = $key
+                                    Name = $value
+                                }
 
-                    $object = [PSCustomObject]@{
-                        Role = $roleName
-                        Name = $value
+                                "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                                $dataCollectionNodes += $object
+                            }
+                        }
                     }
-
-                    $dataCollectionNodes += $object
                 }
             }
         }
@@ -114,21 +130,26 @@ function Start-SdnDataCollection {
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
         foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
             if($PSCmdlet.ParameterSetName -eq 'Role'){
+                if ($group.Group.Name.Count -ge $Limit) {
+                    "Exceeded node limit for role {0}. Limiting nodes to the first {1} nodes" -f $group.Name, $Limit | Trace-Output -Level:Warning
+                }
+
                 $dataNodes = $group.Group.Name | Select-Object -First $Limit
             }
             else {
                 $dataNodes = $group.Group.Name
             }
 
+            "Performing cleanup of temp working directory across {0}" -f ($dataNodes -join ', ') | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                 Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-            } -AsJob -PassThru -Activity 'Clear-SdnWorkingDirectory'
+            } -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
 
             # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
             # to account for if filtering was applied
             $filteredDataCollectionNodes += $dataNodes
 
-            "Collecting configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+            "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
             switch ($group.Name) {
                 'Gateway' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
@@ -175,13 +196,13 @@ function Start-SdnDataCollection {
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
                 if ($group.Name -ieq 'NetworkController') {
-                    "Collecting service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                    "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                         Get-SdnServiceFabricLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
                     } -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
                 }
 
-                "Collecting diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                     Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
                 } -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
@@ -189,7 +210,7 @@ function Start-SdnDataCollection {
         }
 
         if ($IncludeNetView) {
-            "Collecting Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
+            "Collect Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
             $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
                 Invoke-SdnGetNetView -OutputDirectory $using:tempDirectory.FullName `
                     -SkipAdminCheck `
@@ -203,6 +224,11 @@ function Start-SdnDataCollection {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Recurse -Force
         }
+
+        "Performing cleanup of temp working directory across {0}" -f ($dataNodes -join ', ') | Trace-Output
+        Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
+            Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
+        } -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
 
         "Data collection completed" | Trace-Output
     }
