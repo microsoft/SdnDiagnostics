@@ -11,7 +11,7 @@
         "commonPaths": {},
         "eventLogProviders": [
             "Application",
-            "Hyper-V",
+            "Microsoft-Windows-Hyper-V*",
             "System"
         ],
         "regKeyPaths": [
