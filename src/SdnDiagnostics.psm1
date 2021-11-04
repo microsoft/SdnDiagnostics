@@ -1,19 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-$enum = @(
-    'enum\NcAppServices.ps1'
-    'enum\NcManagedRoles.ps1'
-    'enum\OvsdbTable.ps1'
-    'enum\SdnApiResource.ps1'
-    'enum\SdnRoles.ps1'
-    'enum\TraceLevel.ps1'
-    'enum\VMState.ps1'
-)
-foreach($item in $enum){
-    . ("{0}\{1}" -f "$PSScriptRoot", $item)
+# dot source the enums
+foreach($item in (Get-ChildItem -Path "$PSScriptRoot\enum")){
+    . $item.FullName
 }
 
+# dot source the classes
+foreach($item in (Get-ChildItem -Path "$PSScriptRoot\classes")){
+    . $item.FullName
+}
 
 # dot source the modules scripts
 $modules = @(
@@ -139,7 +135,7 @@ $healthValidations = @(
 )
 
 foreach($item in $healthValidations){
-    . ("{0}\{1}" -f "$PSScriptRoot\health", $item)
+    . ("{0}\{1}" -f "$PSScriptRoot\insights\health", $item)
 }
 
 # dot source the known issue scripts
@@ -155,7 +151,7 @@ $knownIssues = @(
 )
 
 foreach($item in $knownIssues){
-    . ("{0}\{1}" -f "$PSScriptRoot\knownIssues", $item)
+    . ("{0}\{1}" -f "$PSScriptRoot\insights\issues", $item)
 }
 
 . "$PSScriptRoot\config\settings.ps1"
