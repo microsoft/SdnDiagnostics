@@ -102,7 +102,8 @@
         'Test-SdnProviderAddressConnectivity',
         'Test-SdnProviderNetwork',
         'Test-SdnServerConfigState',
-        'Test-SdnServerServiceState'
+        'Test-SdnServerServiceState',
+        'Invoke-RemediationAction'
     )
 
     # Variables to export from this module

@@ -1,0 +1,76 @@
+{
+    "3c505e5c-d207-414e-b326-81d30cbbcc6f": [
+        {
+            "next_steps": [
+                {
+                    "step": 1,
+                    "action": ""
+                }
+            ],
+            "description":"Configuration of resource is reporting an error. Refer to the documentation to determine appropriate remediation action.",
+            "documentation": {
+                "link": "https://docs.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
+            }
+        }
+    ],
+
+    "0134c21d-fc7a-4b76-b170-7b0c282cc677": [
+        {
+            "next_steps": [
+                {
+                    "step": 1,
+                    "action": ""
+                }
+            ],
+            "description":"Jumbo Packets are unable to traverse the Logical Network. Investigate into dataplane to identify why VXLAN/NVGRE encapsulated packets are being dropped.",
+            "documentation": {
+                "link": "https://docs.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
+            }
+        }
+    ],
+
+    "7d7b3c9b-b670-4d44-b970-4e2a64f7de50": [
+        {
+            "next_steps": [
+                {
+                    "step": 1,
+                    "action": ""
+                }
+            ],
+            "description":"Logical Network requires MTU overhead of 1674 bytes. Validate that EncapOverhead is configured. If EncapOverhead is not supported on the NIC, then JumboPacket needs to be at least 1674.",
+            "documentation": {
+                "link": "https://docs.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
+            }
+        }
+    ],
+
+    "cb6028d4-2911-4142-bfc4-b71b935684a0": [
+        {
+            "next_steps": [
+                {
+                    "step": 1,
+                    "action": ""
+                }
+            ],
+            "description":"",
+            "documentation": {
+                "link": ""
+            }
+        }
+    ],
+
+    "05fd93bd-1662-472a-b430-70a3117bce81": [
+        {
+            "next_steps": [
+                {
+                    "step": 1,
+                    "action": "Start_Service"
+                }
+            ],
+            "description":"Required service(s) are not running which may cause impact to workloads. Validate that the required service(s) are running.",
+            "documentation": {
+                "link": ""
+            }
+        }
+    ]
+}

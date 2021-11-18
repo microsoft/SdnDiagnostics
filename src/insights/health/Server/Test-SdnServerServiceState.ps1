@@ -16,7 +16,7 @@ function Test-SdnServerServiceState {
     .EXAMPLE
         PS> Test-SdnServerServiceState -ComputerName 'Server01','Server02' -Credential (Get-Credential)
     #>
-    
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
@@ -40,10 +40,10 @@ function Test-SdnServerServiceState {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
-        $status = 'Success'
+        $healthInsight = [HealthInsight]::new('05fd93bd-1662-472a-b430-70a3117bce81')
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -62,7 +62,7 @@ function Test-SdnServerServiceState {
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
-                $status = 'Failure'
+                $healthInsight.Status = 'Failure'
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }
@@ -71,10 +71,11 @@ function Test-SdnServerServiceState {
             }
         }
 
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
