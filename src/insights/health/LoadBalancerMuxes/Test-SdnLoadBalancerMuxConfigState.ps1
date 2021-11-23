@@ -23,12 +23,12 @@ function Test-SdnLoadBalancerMuxConfigState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
         "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
-        
+
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -37,23 +37,23 @@ function Test-SdnLoadBalancerMuxConfigState {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
-        $status = 'Success'
+        $healthInsight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
 
         $muxes = Get-SdnLoadBalancerMux -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
         foreach($object in $muxes){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                $status = 'Failure'
+                $healthInsight.SetFailure()
 
                 $details = [PSCustomObject]@{
                     resourceRef = $object.resourceRef
                     provisioningState = $object.properties.provisioningState
                     configurationState = $object.properties.configurationState
                 }
-    
+
                 [void]$arrayList.Add($details)
 
                 "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
@@ -65,10 +65,11 @@ function Test-SdnLoadBalancerMuxConfigState {
             }
         }
 
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -23,7 +23,7 @@ function Test-SdnEncapOverhead {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    [int]$encapOverheadExpectedValue = 160 
+    [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
 
     try {
@@ -37,11 +37,11 @@ function Test-SdnEncapOverhead {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
+        $healthInsight = Get-InsightDetail -Id '7d7b3c9b-b670-4d44-b970-4e2a64f7de50' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
-        $status = 'Success'
 
         $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-NetworkInterfaceEncapOverheadSetting}
         if($null -eq $encapOverheadResults){
@@ -57,7 +57,7 @@ function Test-SdnEncapOverhead {
 
                     if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
                         "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                        $status = 'Failure'
+                        $healthInsight.SetFailure()
 
                         $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
                         [void]$arrayList.Add($interface)
@@ -66,10 +66,11 @@ function Test-SdnEncapOverhead {
             }
         }
 
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

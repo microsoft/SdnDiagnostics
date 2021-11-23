@@ -27,7 +27,7 @@ function Test-NetworkControllerServiceState {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
-    
+
     try {
         $config = Get-SdnRoleConfiguration -Role:NetworkController
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
@@ -40,10 +40,10 @@ function Test-NetworkControllerServiceState {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
-        $status = 'Success'
+        $healthInsight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -62,7 +62,7 @@ function Test-NetworkControllerServiceState {
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
-                $status = 'Failure'
+                $healthInsight.SetFailure()
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }
@@ -71,10 +71,11 @@ function Test-NetworkControllerServiceState {
             }
         }
 
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

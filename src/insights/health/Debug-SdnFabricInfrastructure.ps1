@@ -41,7 +41,7 @@ function Debug-SdnFabricInfrastructure {
     )
 
     try {
-        $arrayList = [System.Collections.ArrayList]::new()
+        $hashTable = [System.Collections.Hashtable]::new()
 
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
@@ -66,29 +66,22 @@ function Debug-SdnFabricInfrastructure {
         if($null -eq $healthValidationScripts){
             throw New-Object System.NullReferenceException("No health validations returned")
         }
-        
-        "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
+
+        "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose
         foreach($script in $healthValidationScripts){
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
             if($functions){
                 foreach($function in $functions){
                     "Executing {0}" -f $function | Trace-Output -Level:Verbose
                     $result = Invoke-Expression -Command $function
-
-                    $object = [PSCustomObject]@{
-                        Name = $function
-                        Status = $result.Status
-                        Properties = $result.Properties
-                    }
-
-                    [void]$arrayList.Add($object)
+                    [void]$hashTable.Add($function, $result)
                 }
             }
         }
 
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
-        $Global:SdnDiagnostics.Cache.FabricHealth = $arrayList
+        $Global:SdnDiagnostics.Cache.FabricHealth = $hashTable
 
         "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
         return $Global:SdnDiagnostics.Cache.FabricHealth
@@ -97,5 +90,5 @@ function Debug-SdnFabricInfrastructure {
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    } 
+    }
 }

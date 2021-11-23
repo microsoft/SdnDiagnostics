@@ -1,9 +1,9 @@
-function Get-InsightDetails {
+function Get-InsightDetail {
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String]$Name,
+        [Guid]$Id,
 
         [Parameter(Mandatory = $true)]
         [ValidateSet('Health','Issues')]
@@ -11,5 +11,14 @@ function Get-InsightDetails {
     )
 
     $content = Get-Content -Path "$PSScriptRoot\resources\$Type.json" | ConvertFrom-Json
-    return $content[$Name]
+    $insight = $content | Where-Object {$_.Id -eq $Id}
+
+    $healthInsight = [HealthInsight]@{
+        Id          = $insight.id
+        Description = $insight.description
+        Reference   = $insight.documentation
+        Remediation = $insight.remediation
+    }
+
+    return $healthInsight
 }

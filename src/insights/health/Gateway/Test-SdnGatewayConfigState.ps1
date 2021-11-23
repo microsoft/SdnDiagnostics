@@ -25,7 +25,7 @@ function Test-SdnGatewayConfigState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -39,10 +39,10 @@ function Test-SdnGatewayConfigState {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
-        $status = 'Success'
+        $healthInsight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
 
         $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
@@ -52,7 +52,7 @@ function Test-SdnGatewayConfigState {
                     # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                 }
                 else {
-                    $status = 'Failure'
+                    $healthInsight.SetFailure()
 
                     $details = [PSCustomObject]@{
                         resourceRef = $object.resourceRef
@@ -71,11 +71,12 @@ function Test-SdnGatewayConfigState {
                     -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Verbose
             }
         }
-        
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

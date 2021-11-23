@@ -25,7 +25,10 @@ function Test-SdnServerServiceState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$Remediate
     )
 
     try {
@@ -43,7 +46,7 @@ function Test-SdnServerServiceState {
             }
         }
 
-        $healthInsight = [HealthInsight]::new('05fd93bd-1662-472a-b430-70a3117bce81')
+        $healthInsight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -58,11 +61,32 @@ function Test-SdnServerServiceState {
             return $serviceArrayList
         }
 
+        # perform the remediation
+        if ($Remediate) {
+            $cachedInsight = Get-SdnDiagCache -Container 'FabricHealth' -Name $MyInvocation.MyCommand
+            if ($cachedInsight -and $cachedInsight.Status -ieq 'Failure') {
+                foreach ($remediationAction in $healthInsight.Remediation) {
+                    switch ($remediationAction.action) {
+                        'Start_Service' {
+                            foreach ($object in $cachedInsight.Property) {
+                                Invoke-PSRemoteCommand -ComputerName $object.PSComputerName -Scriptblock {
+                                    Invoke-SdnRemediationAction -Action $using:remediationAction.action -RuntimeParameters @{Name = $using:object.Name}
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                "No cache identified for {0}. Skipping remediation steps" -f $MyInvocation.MyCommand | Trace-Output
+            }
+        }
+
         $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
-                $healthInsight.Status = 'Failure'
+                $healthInsight.SetFailure()
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }
@@ -75,6 +99,7 @@ function Test-SdnServerServiceState {
             $healthInsight.Property = $arrayList
         }
 
+        Set-SdnDiagCache -Container 'FabricHealth' -Name $MyInvocation.MyCommand -Value $healthInsight
         return $healthInsight
     }
     catch {

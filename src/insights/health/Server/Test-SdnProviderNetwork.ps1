@@ -37,11 +37,11 @@ function Test-SdnProviderNetwork {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
+        $healthInsight = Get-InsightDetail -Id '0134c21d-fc7a-4b76-b170-7b0c282cc677' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
-        $status = 'Success'
 
         $providerAddresses = (Get-SdnProviderAddress -ComputerName $ComputerName -Credential $Credential).ProviderAddress
         if ($null -eq $providerAddresses){
@@ -53,7 +53,7 @@ function Test-SdnProviderNetwork {
             foreach($computer in $connectivityResults | Group-Object PSComputerName){
                 foreach($destinationAddress in $computer.Group){
                     if($destinationAddress.Status -ine 'Success'){
-                        $status = 'Failure'
+                        $healthInsight.SetFailure()
 
                         $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
                         $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
@@ -78,10 +78,11 @@ function Test-SdnProviderNetwork {
             }
         }
 
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -25,12 +25,12 @@ function Test-SdnServerConfigState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
         "Validating configuration and provisioning state of Servers" | Trace-Output
-        
+
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -39,23 +39,23 @@ function Test-SdnServerConfigState {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
-        $status = 'Success'
+        $healthInsight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
         foreach($object in $servers){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                $status = 'Failure'
+                $healthInsight.SetFailure()
 
                 $details = [PSCustomObject]@{
                     resourceRef = $object.resourceRef
                     provisioningState = $object.properties.provisioningState
                     configurationState = $object.properties.configurationState
                 }
-    
+
                 [void]$arrayList.Add($details)
 
                 "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
@@ -66,11 +66,12 @@ function Test-SdnServerConfigState {
                     -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Verbose
             }
         }
-        
-        return [PSCustomObject]@{
-            Status = $status
-            Properties = $arrayList
+
+        if ($arrayList) {
+            $healthInsight.Property = $arrayList
         }
+
+        return $healthInsight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

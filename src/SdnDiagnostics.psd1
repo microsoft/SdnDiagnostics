@@ -79,6 +79,7 @@
         'Get-VMNetworkAdapterPortProfile',
         'Install-SdnDiagnostics',
         'Invoke-SdnGetNetView',
+        'Invoke-SdnRemediationAction',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-EtwTraceCapture',
@@ -102,8 +103,7 @@
         'Test-SdnProviderAddressConnectivity',
         'Test-SdnProviderNetwork',
         'Test-SdnServerConfigState',
-        'Test-SdnServerServiceState',
-        'Invoke-RemediationAction'
+        'Test-SdnServerServiceState'
     )
 
     # Variables to export from this module

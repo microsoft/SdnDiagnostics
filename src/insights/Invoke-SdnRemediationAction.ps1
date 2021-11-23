@@ -8,13 +8,13 @@ function Invoke-SdnRemediationAction {
         [System.String]$Action,
 
         [Parameter(Mandatory = $false)]
-        [System.Collections.Hashtable]
-        $RuntimeParameters
+        [System.Collections.Hashtable]$RuntimeParameters
     )
 
     try {
         $actionPlanPath = "$(Join-Path -Path $Path.FullName -ChildPath $Action).ps1"
         if (Test-Path -Path $actionPlanPath) {
+            "Executing remediation action {0} with runtime parameters: {1}" -f $Action, ($RuntimeParameters | Out-String) | Trace-Output
             $result = & $actionPlanPath @RuntimeParameters
         }
 

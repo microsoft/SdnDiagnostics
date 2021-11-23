@@ -9,8 +9,9 @@ enum Status {
 class Insight {
     [System.Guid]$Id;
     [System.String]$Description;
-    [System.String[]]$Reference;
+    [System.String]$Reference;
     [System.Object]$Property;
+    hidden [System.Object]$Remediation
 }
 
 class IssueInsight : Insight {
