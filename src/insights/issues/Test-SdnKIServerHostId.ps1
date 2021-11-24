@@ -41,8 +41,6 @@ function Test-SdnKIServerHostId {
     )
 
     try {
-        "Validating Server HostID registry matches known InstanceIDs from Network Controller Servers API." | Trace-Output
-
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -55,17 +53,19 @@ function Test-SdnKIServerHostId {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
-        $issueDetected = $false
+        $insight = Get-InsightDetail -Id 'e41fb36d-cc0f-493c-9a59-240dccc7f924' -Type Issues
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -77,14 +77,14 @@ function Test-SdnKIServerHostId {
         $hostId = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach($id in $hostId){
             if($id -inotin $servers.instanceId){
+                $insight.Detected = $true
+
                 "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Warning
-                $issueDetected = $true
 
                 $object = [PSCustomObject]@{
-                    HostID = $id
-                    Computer = $id.PSComputerName
+                    HostID      = $id
+                    Computer    = $id.PSComputerName
                 }
-
                 [void]$arrayList.Add($object)
             }
             else {
@@ -92,10 +92,12 @@ function Test-SdnKIServerHostId {
             }
         }
 
-        return [PSCustomObject]@{
-            Result = $issueDetected
-            Properties = $arrayList
+        if ($arrayList) {
+            $insight.Property = $arrayList
         }
+
+        Set-SdnDiagCache -Container 'Issues' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

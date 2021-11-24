@@ -29,9 +29,6 @@ function Test-SdnGatewayServiceState {
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:Gateway
-        "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
-
         if($null -eq $ComputerName){
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -43,7 +40,10 @@ function Test-SdnGatewayServiceState {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
+        $config = Get-SdnRoleConfiguration -Role:Gateway
+        $insight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
+        $insight.Description -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -62,7 +62,7 @@ function Test-SdnGatewayServiceState {
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
-                $healthInsight.SetFailure()
+                $insight.Detected = $true
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }
@@ -72,10 +72,11 @@ function Test-SdnGatewayServiceState {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

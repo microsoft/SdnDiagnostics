@@ -26,7 +26,7 @@ function Test-SdnKnownIssue {
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
-        
+
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -41,8 +41,6 @@ function Test-SdnKnownIssue {
     )
 
     try {
-        $arrayList = [System.Collections.ArrayList]::new()
-
         if ($PSBoundParameters.ContainsKey('Credential')) {
             $Global:SdnDiagnostics.Credential = $Credential
         }
@@ -50,7 +48,7 @@ function Test-SdnKnownIssue {
         if ($PSBoundParameters.ContainsKey('NcRestCredential')) {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
-       
+
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         if ($null -eq $environmentInfo) {
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
@@ -67,35 +65,26 @@ function Test-SdnKnownIssue {
             throw New-Object System.NullReferenceException("No known issue scripts found")
         }
 
-        "Located {0} known issue scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
+        "Located {0} known issue scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose
         foreach ($script in $knownIssueScripts) {
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
             if ($functions) {
                 foreach ($function in $functions) {
                     "Executing {0}" -f $function | Trace-Output -Level:Verbose
-                    $result = Invoke-Expression -Command $function
-
-                    $object = [PSCustomObject]@{
-                        Name       = $function
-                        Result     = $result.Result
-                        Properties = $result.Properties
-                    }
-
-                    [void]$arrayList.Add($object)
+                    $null = Invoke-Expression -Command $function
                 }
             }
         }
 
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
-        $Global:SdnDiagnostics.Cache.KnownIssues = $arrayList
 
-        "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.KnownIssues' | Trace-Output
-        return $Global:SdnDiagnostics.Cache.KnownIssues
+        "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.Issues' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.Issues
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    } 
+    }
 }

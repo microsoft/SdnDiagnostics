@@ -29,8 +29,6 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
     )
 
     try {
-        "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
-
         if($null -eq $NetworkController){
             throw New-Object System.NullReferenceException("Please specify NetworkController parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -39,10 +37,12 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
-        $issueDetected = $false
+        $insight = Get-InsightDetail -Id '4cf22d50-74c8-426d-a2ad-e0648461be82' -Type Issues
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $ncNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $credential
@@ -54,7 +54,7 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
             if($node.NodeStatus -ine 'Up'){
                 "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
             }
-            
+
             $ncAppWorkDir = (Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential `
                 -ScriptBlock {Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $using:node.NodeName}).WorkDirectory
             if($null -eq $ncAppWorkDir){
@@ -85,9 +85,9 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
                     }
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
                     if([float]$($imosStoreFile.Length/1MB) -gt 4096){
+                        $insight.Detected = $true
+
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Error
-                        
-                        $issueDetected = $true
                         [void]$arrayList.Add($imosInfo)
                     }
                     else {
@@ -100,10 +100,12 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
             }
         }
 
-        return [PSCustomObject]@{
-            Result = $issueDetected
-            Properties = $arrayList
+        if ($arrayList) {
+            $insight.Property = $arrayList
         }
+
+        Set-SdnDiagCache -Container 'Issues' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

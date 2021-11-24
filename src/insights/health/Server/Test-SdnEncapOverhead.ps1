@@ -27,8 +27,6 @@ function Test-SdnEncapOverhead {
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
 
     try {
-        "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
-
         if($null -eq $ComputerName){
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -40,7 +38,9 @@ function Test-SdnEncapOverhead {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '7d7b3c9b-b670-4d44-b970-4e2a64f7de50' -Type Health
+        $insight = Get-InsightDetail -Id '7d7b3c9b-b670-4d44-b970-4e2a64f7de50' -Type Health
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-NetworkInterfaceEncapOverheadSetting}
@@ -57,7 +57,7 @@ function Test-SdnEncapOverhead {
 
                     if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
                         "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                        $healthInsight.SetFailure()
+                        $insight.Detected = $true
 
                         $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
                         [void]$arrayList.Add($interface)
@@ -67,10 +67,11 @@ function Test-SdnEncapOverhead {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -27,22 +27,22 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
-    
-    try {
-        "Validate no duplicate MAC addresses for network interfaces in Network Controller" | Trace-Output
 
+    try {
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
-        
+
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
-        $issueDetected = $false
+        $insight = Get-InsightDetail -Id '9cbac34b-9f30-4c53-a498-2e222316cf13' -Type Issues
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $networkInterfaces = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
@@ -52,7 +52,7 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
 
         $duplicateObjects = $networkInterfaces.properties | Group-Object -Property privateMacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
-            $issueDetected = $true
+            $insight.Detected = $true
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
@@ -67,11 +67,13 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
                 ) | Trace-Output -Level:Warning
             }
         }
-    
-        return [PSCustomObject]@{
-            Result = $issueDetected
-            Properties = $arrayList
+
+        if ($arrayList) {
+            $insight.Property = $arrayList
         }
+
+        Set-SdnDiagCache -Container 'Issues' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

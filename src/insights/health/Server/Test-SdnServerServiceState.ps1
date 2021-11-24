@@ -25,16 +25,10 @@ function Test-SdnServerServiceState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [Switch]$Remediate
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:Server
-        "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
-
         if($null -eq $ComputerName){
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -46,7 +40,10 @@ function Test-SdnServerServiceState {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
+        $config = Get-SdnRoleConfiguration -Role:Server
+        $insight = Get-InsightDetail -Id '05fd93bd-1662-472a-b430-70a3117bce81' -Type Health
+        $insight.Description -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $scriptBlock = {
@@ -61,32 +58,11 @@ function Test-SdnServerServiceState {
             return $serviceArrayList
         }
 
-        # perform the remediation
-        if ($Remediate) {
-            $cachedInsight = Get-SdnDiagCache -Container 'FabricHealth' -Name $MyInvocation.MyCommand
-            if ($cachedInsight -and $cachedInsight.Status -ieq 'Failure') {
-                foreach ($remediationAction in $healthInsight.Remediation) {
-                    switch ($remediationAction.action) {
-                        'Start_Service' {
-                            foreach ($object in $cachedInsight.Property) {
-                                Invoke-PSRemoteCommand -ComputerName $object.PSComputerName -Scriptblock {
-                                    Invoke-SdnRemediationAction -Action $using:remediationAction.action -RuntimeParameters @{Name = $using:object.Name}
-                                }
-                            }
-                        }
-                    }
-                }
-            }
-            else {
-                "No cache identified for {0}. Skipping remediation steps" -f $MyInvocation.MyCommand | Trace-Output
-            }
-        }
-
         $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
-                $healthInsight.SetFailure()
+                $insight.Detected = $true
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }
@@ -96,11 +72,11 @@ function Test-SdnServerServiceState {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        Set-SdnDiagCache -Container 'FabricHealth' -Name $MyInvocation.MyCommand -Value $healthInsight
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

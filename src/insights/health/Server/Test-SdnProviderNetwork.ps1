@@ -27,8 +27,6 @@ function Test-SdnProviderNetwork {
     )
 
     try {
-        "Validating Provider Address network has connectivity across the SDN dataplane" | Trace-Output
-
         if($null -eq $ComputerName){
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -40,7 +38,9 @@ function Test-SdnProviderNetwork {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '0134c21d-fc7a-4b76-b170-7b0c282cc677' -Type Health
+        $insight = Get-InsightDetail -Id '0134c21d-fc7a-4b76-b170-7b0c282cc677' -Type Health
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $providerAddresses = (Get-SdnProviderAddress -ComputerName $ComputerName -Credential $Credential).ProviderAddress
@@ -53,7 +53,7 @@ function Test-SdnProviderNetwork {
             foreach($computer in $connectivityResults | Group-Object PSComputerName){
                 foreach($destinationAddress in $computer.Group){
                     if($destinationAddress.Status -ine 'Success'){
-                        $healthInsight.SetFailure()
+                        $insight.Detected = $true
 
                         $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
                         $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
@@ -79,10 +79,11 @@ function Test-SdnProviderNetwork {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

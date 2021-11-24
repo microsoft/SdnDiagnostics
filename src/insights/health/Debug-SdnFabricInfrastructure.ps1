@@ -41,8 +41,6 @@ function Debug-SdnFabricInfrastructure {
     )
 
     try {
-        $hashTable = [System.Collections.Hashtable]::new()
-
         if($PSBoundParameters.ContainsKey('Credential')){
             $Global:SdnDiagnostics.Credential = $Credential
         }
@@ -73,18 +71,16 @@ function Debug-SdnFabricInfrastructure {
             if($functions){
                 foreach($function in $functions){
                     "Executing {0}" -f $function | Trace-Output -Level:Verbose
-                    $result = Invoke-Expression -Command $function
-                    [void]$hashTable.Add($function, $result)
+                    $null = Invoke-Expression -Command $function
                 }
             }
         }
 
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
-        $Global:SdnDiagnostics.Cache.FabricHealth = $hashTable
 
-        "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
-        return $Global:SdnDiagnostics.Cache.FabricHealth
+        "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.Health' | Trace-Output
+        return $Global:SdnDiagnostics.Cache.Health
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null

@@ -36,8 +36,6 @@ function Test-SdnKINetworkInterfacePlacement {
     )
 
     try {
-        "Validate placement of network interfaces between Network Controller and Hypervisor" | Trace-Output
-
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -55,8 +53,10 @@ function Test-SdnKINetworkInterfacePlacement {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
-        
-        $issueDetected = $false
+
+        $insight = Get-InsightDetail -Id 'f1563e27-d241-4761-8984-887f69a0ae9f' -Type Issues
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
@@ -73,22 +73,25 @@ function Test-SdnKINetworkInterfacePlacement {
                 }
             }
             else {
-                # in this scenario, the serverref and hypervisor server values are mismatched indicating 
+                # in this scenario, the serverref and hypervisor server values are mismatched indicating
                 # we have a hard drift between network controller and dataplane, which would result in stale/outdated policies
                 foreach($result in $driftedNetworkInterfaces){
+                    $insight.Detected = $true
+
                     "{0}: Network Controller believes {1} exists on {2} while hypervisor is reporting it exists on {3}" `
                     -f $result.macAddress, $result.vmName, $result.nc_host, $result.hyperv_host | Trace-Output -Level:Error
 
                     [void]$arrayList.Add($result)
-                    $issueDetected = $true
                 }
             }
         }
 
-        return [PSCustomObject]@{
-            Result = $issueDetected
-            Properties = $arrayList
+        if ($arrayList) {
+            $insight.Property = $arrayList
         }
+
+        Set-SdnDiagCache -Container 'Issues' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -32,37 +32,37 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
-    
-    try {
-        "Validate no duplicate MAC addresses for network adapters within Hyper-V" | Trace-Output
 
+    try {
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
-        
+
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
-        $issueDetected = $false
+        $insight = Get-InsightDetail -Id 'c67b6cea-938b-4828-b083-23a840eefaf0' -Type Issues
+        $insight.Description | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
         $vmNetAdapters = Get-SdnVMNetworkAdapter -ComputerName $servers -AsJob -PassThru -Timeout 900 -Credential $Credential
         $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
+            $insight.Detected = $true
             [void]$arrayList.Add($duplicateObjects)
-            $issueDetected = $true
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
@@ -74,11 +74,13 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
                 ) | Trace-Output -Level:Warning
             }
         }
-    
-        return [PSCustomObject]@{
-            Result = $issueDetected
-            Properties = $arrayList
+
+        if ($arrayList) {
+            $insight.Property = $arrayList
         }
+
+        Set-SdnDiagCache -Container 'Issues' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

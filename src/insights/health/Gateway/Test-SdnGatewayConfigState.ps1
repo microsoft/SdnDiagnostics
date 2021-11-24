@@ -29,8 +29,6 @@ function Test-SdnGatewayConfigState {
     )
 
     try {
-        "Validating configuration and provisioning state of Gateways" | Trace-Output
-
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -42,7 +40,9 @@ function Test-SdnGatewayConfigState {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
+        $insight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
+        $insight.Description -f 'Gateways' | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
@@ -52,14 +52,13 @@ function Test-SdnGatewayConfigState {
                     # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                 }
                 else {
-                    $healthInsight.SetFailure()
+                    $insight.Detected = $true
 
                     $details = [PSCustomObject]@{
-                        resourceRef = $object.resourceRef
-                        provisioningState = $object.properties.provisioningState
-                        configurationState = $object.properties.configurationState
+                        resourceRef         = $object.resourceRef
+                        provisioningState   = $object.properties.provisioningState
+                        configurationState  = $object.properties.configurationState
                     }
-
                     [void]$arrayList.Add($details)
 
                     "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
@@ -73,10 +72,11 @@ function Test-SdnGatewayConfigState {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

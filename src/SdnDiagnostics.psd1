@@ -79,7 +79,6 @@
         'Get-VMNetworkAdapterPortProfile',
         'Install-SdnDiagnostics',
         'Invoke-SdnGetNetView',
-        'Invoke-SdnRemediationAction',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Start-EtwTraceCapture',

@@ -29,8 +29,6 @@ function Test-SdnServerConfigState {
     )
 
     try {
-        "Validating configuration and provisioning state of Servers" | Trace-Output
-
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -42,13 +40,15 @@ function Test-SdnServerConfigState {
             }
         }
 
-        $healthInsight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
+        $insight = Get-InsightDetail -Id '3c505e5c-d207-414e-b326-81d30cbbcc6f' -Type Health
+        $insight.Description -f 'Servers' | Trace-Output
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
         foreach($object in $servers){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                $healthInsight.SetFailure()
+                $insight.Detected = $true
 
                 $details = [PSCustomObject]@{
                     resourceRef = $object.resourceRef
@@ -68,10 +68,11 @@ function Test-SdnServerConfigState {
         }
 
         if ($arrayList) {
-            $healthInsight.Property = $arrayList
+            $insight.Property = $arrayList
         }
 
-        return $healthInsight
+        Set-SdnDiagCache -Container 'Health' -Name $MyInvocation.MyCommand -Value $insight
+        return $insight
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
