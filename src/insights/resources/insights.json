@@ -48,9 +48,11 @@
                 "id": "f1563e27-d241-4761-8984-887f69a0ae9f"
             },
             {
-                "action": "",
+                "action": "HostID values do not align with InstanceIDs of Server resources. Update HostId registry key(s) to match the Instance ID of server resource. Refer to documentation for more information.",
                 "description": "Validating Server HostID registry matches known InstanceIDs from Network Controller Servers API",
-                "documentation": [],
+                "documentation": [
+                    "https://docs.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-for-corresponding-hostids-and-certificates-between-network-controller-and-each-hyper-v-host"
+                ],
                 "id": "e41fb36d-cc0f-493c-9a59-240dccc7f924"
             },
             {

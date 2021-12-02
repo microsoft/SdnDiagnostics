@@ -65,7 +65,6 @@ function Test-SdnKnownIssue {
             throw New-Object System.NullReferenceException("No known issue scripts found")
         }
 
-        "Located {0} known issue scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose
         foreach ($script in $knownIssueScripts) {
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
             if ($functions) {
@@ -80,6 +79,11 @@ function Test-SdnKnownIssue {
         $Global:SdnDiagnostics.NcRestCredential = $null
 
         "Results for known issues have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.Issues' | Trace-Output
+
+        if ($PSBoundParameters.ContainsKey('Test')) {
+            return $Global:SdnDiagnostics.Cache.Issues[$Test]
+        }
+
         return $Global:SdnDiagnostics.Cache.Issues
     }
     catch {
