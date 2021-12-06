@@ -98,6 +98,7 @@
         'Test-SdnKnownIssue',
         'Test-SdnLoadBalancerMuxConfigState',
         'Test-SdnLoadBalancerMuxServiceState',
+        'Test-SdnNetAdapterRdmaConfiguration',
         'Test-SdnNetworkControllerServiceState',
         'Test-SdnProviderAddressConnectivity',
         'Test-SdnProviderNetwork',
