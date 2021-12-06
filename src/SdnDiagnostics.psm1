@@ -1,19 +1,15 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-$enum = @(
-    'enum\NcAppServices.ps1'
-    'enum\NcManagedRoles.ps1'
-    'enum\OvsdbTable.ps1'
-    'enum\SdnApiResource.ps1'
-    'enum\SdnRoles.ps1'
-    'enum\TraceLevel.ps1'
-    'enum\VMState.ps1'
-)
-foreach($item in $enum){
-    . ("{0}\{1}" -f "$PSScriptRoot", $item)
+# dot source the enums
+foreach($item in (Get-ChildItem -Path "$PSScriptRoot\enum" -Recurse -Include "*.ps1")){
+    . $item.FullName
 }
 
+# dot source the classes
+foreach($item in (Get-ChildItem -Path "$PSScriptRoot\classes" -Recurse -Include "*.ps1")){
+    . $item.FullName
+}
 
 # dot source the modules scripts
 $modules = @(
@@ -70,6 +66,7 @@ $modules = @(
     'Server\public\Get-VfpPortLayer.ps1'
     'Server\public\Get-VfpPortRule.ps1'
     'Server\public\Get-VMNetworkAdapterPortProfile.ps1'
+    'Server\public\Test-SdnNetAdapterRdmaConfiguration.ps1'
     'Server\public\Test-SdnProviderAddressConnectivity.ps1'
     'SoftwareLoadBalancer\private\Get-PublicIpReference.ps1'
     'SoftwareLoadBalancer\public\Get-SdnNetworkInterfaceOutboundPublicIPAddress.ps1'

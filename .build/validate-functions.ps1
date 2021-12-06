@@ -1,10 +1,10 @@
 $files = Get-ChildItem -Path "$PSScriptRoot\..\src\*" -Include "*.ps1" -Exclude "settings.ps1" -Recurse
 foreach($file in $files){
-    # skip .ps1 files contained within the enum directory
-    if($file.FullName -ilike "*\src\enum\*.ps1"){
+    # skip .ps1 files contained within the enum and classes directory
+    if($file.FullName -ilike "*\src\enum\*.ps1" -or $file.Fullname -ilike "*\src\classes\*.ps1"){
         continue
     }
-    
+
     $code = Get-Content -Path $file.FullName -Raw
 
     $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast,bool]]{$args[0] -is [Management.Automation.Language.FunctionDefinitionAst]}, $false) `
