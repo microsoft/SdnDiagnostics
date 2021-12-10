@@ -1,7 +1,7 @@
 $files = Get-ChildItem -Path "$PSScriptRoot\..\src\*" -Include "*.ps1" -Exclude "settings.ps1" -Recurse
 foreach($file in $files){
-    # skip .ps1 files contained within the enum and classes directory
-    if($file.FullName -ilike "*\src\enum\*.ps1" -or $file.Fullname -ilike "*\src\classes\*.ps1"){
+    # skip .ps1 files contained within the enum directory
+    if($file.FullName -ilike "*\src\enum\*.ps1"){
         continue
     }
 
