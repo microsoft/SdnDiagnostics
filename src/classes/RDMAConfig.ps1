@@ -7,10 +7,11 @@ class RDMAConfig {
     [System.Boolean]$QoSOperationalFlowControlEnabled;
     [System.Boolean]$RdmaConfigurationIsValid;
     [System.Boolean]$RdmaEnabled;
-    [System.Boolean]$SMBInterfacesDetected;
+    [System.Boolean]$SMBInterfaceDetected;
+    [System.Boolean]$SMBInterfaceRdmaCapable;
 
     isValid() {
-        if ($this.QoSEnabled -and $this.RdmaEnabled -and $this.MaxQueueConfigIsValid -and $this.QoSOperationalFlowControlEnabled -and $this.SMBInterfacesDetected) {
+        if ($this.QoSEnabled -and $this.RdmaEnabled -and $this.MaxQueueConfigIsValid -and $this.QoSOperationalFlowControlEnabled -and $this.SMBInterfaceDetected -and $this.SMBInterfaceRdmaCapable) {
             $this.RdmaConfigurationIsValid = $true
         }
     }

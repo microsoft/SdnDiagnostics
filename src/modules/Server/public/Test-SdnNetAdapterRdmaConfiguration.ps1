@@ -1,12 +1,13 @@
 function Test-SdnNetAdapterRdmaConfiguration {
     <#
     .SYNOPSIS
+        Checks numerous settings within a network adapter to validate RDMA status.
     .PARAMETER IfIndex
-        Interface index of the adapter for which RDMA config is to be verified
+        Interface index of the adapter for which RDMA config is to be verified.
     .PARAMETER IsRoCE
-        True if underlying fabric type is RoCE. False for iWarp or IB
-    .PARAMETER VfIndex
-        Interface ID of VF driver in Guest OS (mandatory for Guest RDMA tests only)
+        True if underlying fabric type is RoCE. False for iWarp or IB. If omitted, defaults to $true.
+    .EXAMPLE
+        PS> Test-SdnNetAdapterRdmaConfiguration -IfIndex 25 -IsRoCE:$true
     #>
 
     [CmdletBinding()]
@@ -14,11 +15,8 @@ function Test-SdnNetAdapterRdmaConfiguration {
         [Parameter(Mandatory = $true, Position = 1)]
         [System.UInt32] $IfIndex,
 
-        [Parameter(Mandatory = $true, Position = 2)]
-        [bool] $IsRoCE,
-
-        [Parameter(Mandatory = $false, Position = 4)]
-        [System.UInt32] $VfIndex
+        [Parameter(Mandatory = $false, Position = 2)]
+        [bool] $IsRoCE = $true
     )
 
     try {
@@ -39,16 +37,6 @@ function Test-SdnNetAdapterRdmaConfiguration {
 
             'Microsoft Hyper-V Network Adapter*' {
                 $rdmaConfiguration.AdapterType = "vmNIC"
-
-                if ($null -ieq $VfIndex) {
-                    "Adapter Type: {0} requires VFIndex to be set" -f $rdmaConfiguration.AdapterType | Trace-Output -Level:Error
-                    throw New-Object System.ArgumentNullException('VfIndex')
-                }
-
-                $vfAdapter = Get-NetAdapter -IfIndex $VfIndex
-                if ($null -eq $vfAdapter) {
-                    throw New-Object System.NullReferenceException("Adapter with interface index $VfIndex was not found")
-                }
             }
 
             default {
@@ -61,15 +49,15 @@ function Test-SdnNetAdapterRdmaConfiguration {
         $rdmaCapabilities = Get-NetAdapterRdma -InterfaceDescription $rdmaAdapter.InterfaceDescription
         if($null -eq $rdmaCapabilities -or $rdmaCapabilities.Enabled -ieq $false) {
             $rdmaConfiguration.RdmaEnabled = $false
-            "The adapter {0} is not enabled for RDMA" -f $rdmaConfiguration.Name | Trace-Output -Level:Error
+            "The adapter {0} is not enabled for RDMA" -f $rdmaConfiguration.Name | Trace-Output -Level:Warning
         }
         else {
             $rdmaConfiguration.RdmaEnabled = $rdmaCapabilities.Enabled
         }
 
-        if( $rdmaCapabilities.MaxQueuePairCount -eq 0 -or $rdmaCapabilities.MaxCompletionQueueCount -eq 0) {
+        if ($rdmaCapabilities.MaxQueuePairCount -eq 0 -or $rdmaCapabilities.MaxCompletionQueueCount -eq 0) {
             $rdmaConfiguration.MaxQueueConfigIsValid = $false
-            "RDMA capabilities for adapter {0} are not valid. MaxQueuePairCount and MaxCompletionQueueCount cannot be set to 0" -f $rdmaConfiguration.Name | Trace-Output -Level:Error
+            "RDMA capabilities for adapter {0} are not valid. MaxQueuePairCount and MaxCompletionQueueCount cannot be set to 0" -f $rdmaConfiguration.Name | Trace-Output -Level:Warning
         }
         else {
             $rdmaConfiguration.MaxQueueConfigIsValid = $true
@@ -77,11 +65,34 @@ function Test-SdnNetAdapterRdmaConfiguration {
 
         $smbClientNetworkInterfaces = Get-SmbClientNetworkInterface
         if ($null -eq $smbClientNetworkInterfaces) {
-            $rdmaConfiguration.SMBInterfacesDetected = $false
-            "No network interfaces detected by SMB (Get-SmbClientNetworkInterface)" | Trace-Output -Level:Error
+            $rdmaConfiguration.SMBInterfaceDetected = $false
+            "No network interfaces detected by SMB" | Trace-Output -Level:Warning
         }
         else {
-            $rdmaConfiguration.SMBInterfacesDetected = $true
+            $rdmaConfiguration.SMBInterfaceDetected = $true
+
+            foreach ($smbClientNetworkInterface in $smbClientNetworkInterfaces) {
+                if ($smbClientNetworkInterface.InterfaceIndex -ieq $IfIndex) {
+                    $rdmaAdapterSmbClientNetworkInterface = $smbClientNetworkInterface
+                    "Found adapter {0} with SMB Client Interfaces" -f $smbClientNetworkInterface.InterfaceDescription | Trace-Output -Level:Verbose
+
+                    break
+                }
+            }
+
+            if ($null -eq $rdmaAdapterSmbClientNetworkInterface) {
+                $rdmaConfiguration.SMBInterfaceDetected = $false
+                "No network interfaces found by SMB for adapter {0}" -f $rdmaConfiguration.Name | Trace-Output -Level:Warning
+            }
+            else {
+                if ($rdmaAdapterSmbClientNetworkInterface.RdmaCapable -eq $false) {
+                    $rdmaConfiguration.SMBInterfaceRdmaCapable= $false
+                    "SMB did not detect adapter {0} as RDMA capable. Make sure the adapter is bound to TCP/IP and not to other protocol like vmSwitch." -f $rdmaConfiguration.Name | Trace-Output -Level:Warning
+                }
+                else {
+                    $rdmaConfiguration.SMBInterfaceRdmaCapable = $true
+                }
+            }
         }
 
         if ($rdmaConfiguration.AdapterType -eq "vNIC") {
@@ -117,15 +128,17 @@ function Test-SdnNetAdapterRdmaConfiguration {
                 $qos = Get-NetAdapterQos -Name $qosAdapter.Name
                 if ($qos.Enabled -eq $false) {
                     $rdmaConfiguration.QoSEnabled = $false
-                    "QoS is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Error
+                    "QoS is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
                 }
 
                 if ($qos.OperationalFlowControl -eq "All Priorities Disabled") {
                     $rdmaConfiguration.QoSOperationalFlowControlEnabled = $false
-                    "Flow control is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Error
+                    "Flow control is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
                 }
             }
         }
+
+        $rdmaConfiguration.IsValid()
 
         return $rdmaConfiguration
     }
