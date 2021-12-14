@@ -1,12 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-NetworkInterfaceEncapOverheadSetting {
+function Get-SdnNetAdapterEncapOverheadConfig {
     <#
     .SYNOPSIS
         Retrieves the EncapOverhead and JumboPacket properties of each network interface attached to vmswitch
     .EXAMPLE
-        PS> Get-NetworkInterfaceEncapOverheadSetting
+        PS> Get-SdnNetAdapterEncapOverheadConfig
     #>
 
     try {
@@ -18,10 +18,10 @@ function Get-NetworkInterfaceEncapOverheadSetting {
             $encapOverheadValue = $null
             $supportsJumboPacket = $false
             $jumboPacketValue = $null
-    
+
             # enumerate each of the physical network adapters that are bound to the vmswitch
             foreach ($physicalNicIfDesc in $switch.NetAdapterInterfaceDescriptions) {
-    
+
                 # get the encap overhead settings for each of the network interfaces within the vm switch team
                 $encapOverhead = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*Encapoverhead" -ErrorAction SilentlyContinue
                 if ($null -eq $encapoverhead) {
@@ -31,7 +31,7 @@ function Get-NetworkInterfaceEncapOverheadSetting {
                     $supportsEncapOverhead = $true
                     [int]$encapOverheadValue = $encapoverhead.DisplayValue
                 }
-                
+
                 # get the jumbo packet settings for each of the network interfaces within the vm switch team
                 $jumboPacket = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*JumboPacket" -ErrorAction SilentlyContinue
                 if ($null -eq $jumboPacket) {
@@ -50,15 +50,15 @@ function Get-NetworkInterfaceEncapOverheadSetting {
                     JumboPacketEnabled   = $supportsJumboPacket
                     JumboPacketValue     = $jumboPacketValue
                 }
-    
+
                 # add each network interface to the interface arraylist
                 [void]$interfaceArrayList.Add($object)
             }
-    
+
             # add each of the switches to the switch hash table
             [void]$switchArrayList.Add($interfaceArrayList)
         }
-    
+
         return $switchArrayList
     }
     catch {

@@ -23,7 +23,7 @@ function Test-SdnEncapOverhead {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    [int]$encapOverheadExpectedValue = 160 
+    [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
 
     try {
@@ -37,13 +37,13 @@ function Test-SdnEncapOverhead {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $arrayList = [System.Collections.ArrayList]::new()
         $status = 'Success'
 
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-NetworkInterfaceEncapOverheadSetting}
+        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
         if($null -eq $encapOverheadResults){
             throw New-Object System.NullReferenceException("No encap overhead results found")
         }
