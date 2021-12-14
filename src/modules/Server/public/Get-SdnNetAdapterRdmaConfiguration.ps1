@@ -13,27 +13,23 @@ function Get-SdnNetAdapterRdmaConfiguration {
     [CmdletBinding()]
     Param(
         [Parameter(Mandatory = $true)]
-        [uint32]$InterfaceIndex,
-
-        [Parameter(Mandatory = $false)]
-        [bool]$IsRoCE = $true
+        [uint32]$InterfaceIndex
     )
 
     try {
         [System.String]$adapterType = $null
         [bool]$rdmaEnabled = $false
         [bool]$maxQueueConfigIsValid = $false
-        [bool]$smbInterfaceDetected = $false
         [bool]$smbInterfaceRdmaCapable = $false
         [bool]$qosEnabled = $false
         [bool]$qosOperationalFlowControlEnabled = $false
-        [bool]$rdmaConfigurationIsValid = $false
 
         $rdmaAdapter = Get-NetAdapter -InterfaceIndex $InterfaceIndex
         if ($null -eq $rdmaAdapter) {
             throw New-Object System.NullReferenceException("Adapter with interface index $InterfaceIndex was not found")
         }
 
+        "Determining adapter type based on interface description '{0}'" -f $rdmaAdapter.InterfaceDescription | Trace-Output -Level:Verbose
         switch -Wildcard ($rdmaAdapter.InterfaceDescription) {
             'Hyper-V Virtual Ethernet Adapter*' {
                 $adapterType = "vNIC"
@@ -48,12 +44,12 @@ function Get-SdnNetAdapterRdmaConfiguration {
             }
         }
 
-        "The adapter {0} is a {1}" -f $rdmaAdapter.Name, $adapterType | Trace-Output -Level:Verbose
+        "Network adapter {0} (Name: {1}) is a {2}" -f $rdmaAdapter.InterfaceIndex, $rdmaAdapter.Name, $adapterType | Trace-Output -Level:Verbose
 
         $rdmaCapabilities = Get-NetAdapterRdma -InterfaceDescription $rdmaAdapter.InterfaceDescription
         if($null -eq $rdmaCapabilities -or $rdmaCapabilities.Enabled -ieq $false) {
             $rdmaEnabled = $false
-            "The adapter {0} is not enabled for RDMA" -f $rdmaAdapter.Name | Trace-Output -Level:Warning
+            "Network adapter {0} is not enabled for RDMA" -f $rdmaAdapter.InterfaceIndex | Trace-Output -Level:Warning
         }
         else {
             $rdmaEnabled = $rdmaCapabilities.Enabled
@@ -61,41 +57,23 @@ function Get-SdnNetAdapterRdmaConfiguration {
 
         if ($rdmaCapabilities.MaxQueuePairCount -eq 0 -or $rdmaCapabilities.MaxCompletionQueueCount -eq 0) {
             $maxQueueConfigIsValid = $false
-            "RDMA capabilities for adapter {0} are not valid. MaxQueuePairCount and MaxCompletionQueueCount cannot be set to 0" -f $rdmaAdapter.Name | Trace-Output -Level:Warning
+            "RDMA capabilities for adapter {0} are not valid. MaxQueuePairCount and MaxCompletionQueueCount cannot be set to 0" -f $rdmaAdapter.InterfaceIndex | Trace-Output -Level:Warning
         }
         else {
             $maxQueueConfigIsValid = $true
         }
 
-        $smbClientNetworkInterfaces = Get-SmbClientNetworkInterface
-        if ($null -eq $smbClientNetworkInterfaces) {
-            $smbInterfaceDetected = $false
-            "No network interfaces detected by SMB" | Trace-Output -Level:Warning
+        $rdmaAdapterSmbClientNetworkInterface = Get-SmbClientNetworkInterface | Where-Object {$_.InterfaceIndex -ieq $InterfaceIndex}
+        if ($null -eq $rdmaAdapterSmbClientNetworkInterface) {
+            "No interfaces found within SMB Client Network Interfaces that match interface index {0}" -f $InterfaceIndex | Trace-Output -Level:Warning
         }
         else {
-            $smbInterfaceDetected = $true
-
-            foreach ($smbClientNetworkInterface in $smbClientNetworkInterfaces) {
-                if ($smbClientNetworkInterface.InterfaceIndex -ieq $InterfaceIndex) {
-                    $rdmaAdapterSmbClientNetworkInterface = $smbClientNetworkInterface
-                    "Found adapter {0} with SMB Client Interfaces" -f $smbClientNetworkInterface.InterfaceDescription | Trace-Output -Level:Verbose
-
-                    break
-                }
-            }
-
-            if ($null -eq $rdmaAdapterSmbClientNetworkInterface) {
-                $smbInterfaceDetected = $false
-                "No network interfaces found by SMB for adapter {0}" -f $rdmaAdapter.Name | Trace-Output -Level:Warning
+            if ($rdmaAdapterSmbClientNetworkInterface.RdmaCapable -eq $false) {
+                $smbInterfaceRdmaCapable = $false
+                "SMB did not detect network adapter {0} as RDMA capable. Make sure the adapter is bound to TCP/IP and not to other protocol like vmSwitch." -f $rdmaAdapter.InterfaceIndex | Trace-Output -Level:Warning
             }
             else {
-                if ($rdmaAdapterSmbClientNetworkInterface.RdmaCapable -eq $false) {
-                    $smbInterfaceRdmaCapable = $false
-                    "SMB did not detect adapter {0} as RDMA capable. Make sure the adapter is bound to TCP/IP and not to other protocol like vmSwitch." -f $rdmaAdapter.Name | Trace-Output -Level:Warning
-                }
-                else {
-                    $smbInterfaceRdmaCapable = $true
-                }
+                $smbInterfaceRdmaCapable = $true
             }
         }
 
@@ -117,8 +95,8 @@ function Get-SdnNetAdapterRdmaConfiguration {
             }
         }
 
-        if ($IsRoCE -and $adapterType -ne "vmNIC") {
-            "Checking if QoS/DCB/PFC is configured on each physical adapter(s)" | Trace-Output -Level:Verbose
+        if ($null -ne $rdmaAdapters -and $adapterType -ne "vmNIC") {
+            "Checking if QoS/DCB/PFC are configured on each physical adapter(s)" | Trace-Output -Level:Verbose
 
             # set these values to $true as we are looping multiple interfaces
             # we want to ensure if one interface is false for either value, that the object is reset back to $false
@@ -130,42 +108,30 @@ function Get-SdnNetAdapterRdmaConfiguration {
             foreach ($qosAdapter in $rdmaAdapters) {
                 "Checking {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Verbose
                 $qos = Get-NetAdapterQos -Name $qosAdapter.Name
+
+                "NetAdapterQos is currently set to {0}" -f $qos.Enabled | Trace-Output -Level:Verbose
                 if ($qos.Enabled -eq $false) {
                     $qosEnabled = $false
-                    "QoS is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
+                    "QoS is not enabled for adapter {0}. This is required for RDMA over Converged Ethernet (RoCE)." -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
                 }
 
+                "OperationalFlowControl is currently set to {0}" -f $qos.OperationalFlowControl | Trace-Output -Level:Verbose
                 if ($qos.OperationalFlowControl -eq "All Priorities Disabled") {
                     $qosOperationalFlowControlEnabled = $false
-                    "Flow control is not enabled for adapter {0}" -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
+                    "Flow control priorities are disabled for adapter {0}. This is required for RDMA over Converged Ethernet (RoCE)." -f $qosAdapter.InterfaceDescription | Trace-Output -Level:Warning
                 }
-            }
-        }
-
-        # if IsRoCE:$True then we need to ensure that qosEnabled and qosOperationalFlowControlEnabled have been set to $true in order
-        # for the RDMA configuration to be valid. If IsRoCE:$false then we can skip these values.
-        if ($IsRoCE) {
-            if ($qosEnabled -and $qosOperationalFlowControlEnabled -and $rdmaEnabled -and $maxQueueConfigIsValid -and $smbInterfaceDetected -and $smbInterfaceRdmaCapable) {
-                $rdmaConfigurationIsValid = $true
-            }
-        }
-        else {
-            if ($rdmaEnabled -and $maxQueueConfigIsValid -and $smbInterfaceDetected -and $smbInterfaceRdmaCapable) {
-                $rdmaConfigurationIsValid = $true
             }
         }
 
         $object = [PSCustomObject]@{
             Name                                = $rdmaAdapter.Name
             InterfaceDescription                = $rdmaAdapter.InterfaceDescription
+            InterfaceIndex                      = $InterfaceIndex
             AdapterType                         = $adapterType
             MaxQueueConfigIsValid               = $maxQueueConfigIsValid
             QoSEnabled                          = $qosEnabled
             QoSOperationalFlowControlEnabled    = $qosOperationalFlowControlEnabled
-            RdmaConfigurationIsValid            = $rdmaConfigurationIsValid
             RdmaEnabled                         = $rdmaEnabled
-            RdmaOverConvergedEthernet           = $IsRoCE
-            SMBInterfaceDetected                = $smbInterfaceDetected
             SMBInterfaceRdmaCapable             = $smbInterfaceRdmaCapable
         }
 
