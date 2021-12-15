@@ -47,12 +47,15 @@ function Get-SdnServerConfigurationState {
                     vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortFlowStats' -Name $port.Name -FileType txt
                     vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'FlowStats' -Name $port.Name -FileType txt
                     vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortState' -Name $port.Name -FileType txt
+
+                    Get-VfpPortState -PortId $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortState' -Name $port.Name -FileType json
                 }
             }
         }
 
         vfpctrl /list-vmswitch-port | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'vfpctrl_list-vmswitch-port' -FileType json
         Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType csv
+        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType json
 
         # Gather OVSDB databases
         "Gathering ovsdb database output" | Trace-Output -Level:Verbose
