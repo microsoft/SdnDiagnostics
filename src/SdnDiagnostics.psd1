@@ -76,6 +76,7 @@
         'Get-VfpPortGroup',
         'Get-VfpPortLayer',
         'Get-VfpPortRule',
+        'Get-VfpPortState',
         'Get-VMNetworkAdapterPortProfile',
         'Install-SdnDiagnostics',
         'Invoke-SdnGetNetView',
