@@ -78,6 +78,7 @@
         'Get-VfpPortGroup',
         'Get-VfpPortLayer',
         'Get-VfpPortRule',
+        'Get-VfpPortState',
         'Install-SdnDiagnostics',
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
