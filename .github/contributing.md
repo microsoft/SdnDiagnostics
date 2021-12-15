@@ -14,10 +14,9 @@ When contributing to this project, ensure you:
 ## Creating core functions
 When creating core functions:
 
-1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`. 
+1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`.
     - Function name should match the file name.
     - Limit one function per file.
-    - Ensure that the file name is added to `src\SDNDiagnostics.psm1` so it is dot sourced on module import.
 
 1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SdnDiagnostics.psd1` under `FunctionsToExport`.
 
@@ -33,7 +32,7 @@ When creating a health validation test, ensure you:
 1. Function should return a PSCustomObject that contains the following format:
     ```powershell
     # $status should contain either 'Success' or 'Failure'
-    # $properties will contain any related information in scenario of 'Failure' status 
+    # $properties will contain any related information in scenario of 'Failure' status
     else {
         return [PSCustomObject]@{
             Status = $status
@@ -49,7 +48,7 @@ To help ensure consistency, leverage `.build\utilities\create-health-function.ps
 ```powershell
 .\create-health-function.ps1 -FunctionName 'Test-SdnLoadBalancerMuxOnline' -Module SoftwareLoadBalancer -Template basic_health_template.ps1
 ```
-- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. 
+- You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
 
 # Creating known issue tests
 1. Create the `ps1` file under `src\knownIssues` as the name of the validation test. e.g. `Test-SdnKIVfpDuplicatePort.ps1`
@@ -57,7 +56,7 @@ To help ensure consistency, leverage `.build\utilities\create-health-function.ps
 1. Function should return a PSCustomObject that contains the following format:
     ```powershell
     # $issueIdentified should either be $true or $false depending on if issue was detected
-    # $properties will contain any related information in scenario of $true status 
+    # $properties will contain any related information in scenario of $true status
     else {
         return [PSCustomObject]@{
             Result = $issueIdentified
@@ -76,11 +75,12 @@ To help ensure consistency, leverage `.build\utilities\create-knownissue-functio
 - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
 
 # Build validation and testing
-1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`. 
+1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`.
+    - Recommend to leverage elevated PowerShell or Cmd console and not use the terminal included in VSCode due to odd issues with the PSM1 generation.
 1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
     - Remove any existing modules if they are present.
 1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
-1. Install the modules to the SDN nodes in the dataplane. 
+1. Install the modules to the SDN nodes in the dataplane.
 ```powershell
 $environmentDetails = Get-SdnInfrastructureInfo -NetworkController 'NC01'
 Install-SdnDiagnostics -ComputerName $environmentDetails.FabricNodes
