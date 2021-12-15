@@ -6,7 +6,7 @@ $ErrorActionPreference = 'Stop'
 & "$PSScriptRoot\clean.ps1"
 
 function Get-ModuleVersion {
-    # this is set in a prior step from generateVersion-ps.ps1    
+    # this is set in a prior step from generateVersion-ps.ps1
     return $env:SdnDiagCustomBuildNumber
 }
 
@@ -15,7 +15,7 @@ if(!(Test-Path -Path $outDir)) {
     $null = New-Item -ItemType:Directory -Path $outDir -Force
 }
 
-Copy-Item "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Exclude "*.md" -Recurse -Force
+Copy-Item -Path "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Exclude "*.md" -Recurse -Force
 & $PSScriptRoot\restore.ps1 -DestinationFolder "$outDir\SdnDiagnostics"
 
 # setting the version of the module manifest
@@ -28,9 +28,8 @@ if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).
         if($manifest.Version.ToString() -ne $modVersion) {
             "`r`nUpdating {0} version: {1} --> {2}" -f $modManifest.BaseName, $manifest.Version.ToString(), $modVersion | Write-Host
             Update-ModuleManifest -ModuleVersion $modVersion -Path $modManifest.FullName
-            continue
         }
-        
+
         "`r`n{0} version does not need to be updated." -f $modVersion | Write-Host
     }
     catch {
@@ -40,8 +39,9 @@ if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).
 }
 
 # lets try to import the module before proceeding. If there is a missing comma or syntax error in the psd1 we will fail
-$moduleManifest = Join-Path -Path $outDir -ChildPath "SDNDiagnostics\SDNDiagnostics.psd1"
-Import-Module $moduleManifest -ArgumentList @($true,$true) -ErrorAction:SilentlyContinue
+$moduleManifest = Get-Item -Path (Join-Path -Path $outDir -ChildPath "SDNDiagnostics\SDNDiagnostics.psd1")
+"Importing module {0} to ensure no failures detected on module import" -f $moduleManifest.FullName | Write-Host
+Import-Module $moduleManifest.FullName -Global -Force
 
 if(!$?){
     $Error | Out-String | Write-Error
