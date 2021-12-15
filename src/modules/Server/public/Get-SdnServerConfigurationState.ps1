@@ -46,6 +46,7 @@ function Get-SdnServerConfigurationState {
                     vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortFlowSettings' -Name $port.Name -FileType txt
                     vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortFlowStats' -Name $port.Name -FileType txt
                     vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'FlowStats' -Name $port.Name -FileType txt
+                    vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'PortState' -Name $port.Name -FileType txt
                 }
             }
         }
