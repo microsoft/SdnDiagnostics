@@ -1,11 +1,11 @@
-function Get-SdnNetAdapterRdmaConfiguration {
+function Get-SdnNetAdapterRdmaConfig {
     <#
     .SYNOPSIS
         Checks numerous settings within a network adapter to validate RDMA status.
     .PARAMETER InterfaceIndex
         Interface index of the adapter for which RDMA config is to be verified.
     .EXAMPLE
-        PS> Get-SdnNetAdapterRdmaConfiguration -InterfaceIndex 25
+        PS> Get-SdnNetAdapterRdmaConfig -InterfaceIndex 25
     #>
 
     [CmdletBinding()]

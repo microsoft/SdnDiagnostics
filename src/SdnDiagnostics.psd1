@@ -49,7 +49,7 @@
         'Get-SdnInfrastructureInfo',
         'Get-SdnLoadBalancerMux',
         'Get-SdnNetAdapterEncapOverheadConfig',
-        'Get-SdnNetAdapterRdmaConfiguration',
+        'Get-SdnNetAdapterRdmaConfig',
         'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
         'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkController',
