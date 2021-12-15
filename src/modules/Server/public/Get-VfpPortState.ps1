@@ -16,7 +16,7 @@ function Get-VfpPortState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortId
     )
 
     try {
