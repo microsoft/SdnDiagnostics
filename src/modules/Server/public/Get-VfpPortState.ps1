@@ -31,7 +31,8 @@ function Get-VfpPortState {
         foreach ($line in $vfpPortState) {
             $trimmedLine = $line.Replace(':','').Trim()
 
-            # since we are explicitly looking for true/false in this statement, we will convert the value to boolean when adding to the object
+            # look for true/false and then seperate out the key/value pairs
+            # we will convert the true/false values to boolean when adding to the object
             if ($trimmedLine -match '(.*)\s+(True|False)') {
                 $object | Add-Member -MemberType NoteProperty -Name $Matches.1 -Value ([System.Convert]::ToBoolean($Matches.2))
                 continue
