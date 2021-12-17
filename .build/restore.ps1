@@ -5,9 +5,9 @@ param(
 $outDir = Join-Path -Path $DestinationFolder -ChildPath 'tools'
 "Restoring github tools" | Write-Host
 
-if(Test-Path -Path $outDir){
+if (Test-Path -Path $outDir) {
     Remove-Item -Path $outDir -Recurse -Force
-    New-Item -ItemType:Directory -Path $outDir -Force | Out-Null
+    $null = New-Item -ItemType:Directory -Path $outDir -Force
 }
 
 # Put all redistributed and github repos into this directory.

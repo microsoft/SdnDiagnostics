@@ -11,7 +11,7 @@ function Get-ModuleVersion {
 }
 
 $outDir = "$PSScriptRoot\..\out\build"
-if(!(Test-Path -Path $outDir)) {
+if (-NOT (Test-Path -Path $outDir -PathType Container)) {
     $null = New-Item -ItemType:Directory -Path $outDir -Force
 }
 
@@ -20,17 +20,18 @@ Copy-Item -Path "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Ex
 
 # setting the version of the module manifest
 $modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"
-if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
+if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
     try {
         $modVersion = Get-ModuleVersion
         $manifest = Test-ModuleManifest -Path $modManifest.FullName
 
-        if($manifest.Version.ToString() -ne $modVersion) {
+        if ($manifest.Version.ToString() -ne $modVersion) {
             "`r`nUpdating {0} version: {1} --> {2}" -f $modManifest.BaseName, $manifest.Version.ToString(), $modVersion | Write-Host
             Update-ModuleManifest -ModuleVersion $modVersion -Path $modManifest.FullName
         }
-
-        "`r`n{0} version does not need to be updated." -f $modVersion | Write-Host
+        else {
+            "`r`n{0} version does not need to be updated." -f $modVersion | Write-Host
+        }
     }
     catch {
         "Failed to update the module manifest for $($modManifest.BaseName)" | Write-Error
@@ -40,7 +41,7 @@ if(($null -ne (Get-Item "$($modManifest.DirectoryName)\$($modManifest.BaseName).
 
 # lets try to import the module before proceeding. If there is a missing comma or syntax error in the psd1 we will fail
 $moduleManifest = Get-Item -Path (Join-Path -Path $outDir -ChildPath "SDNDiagnostics\SDNDiagnostics.psd1")
-"Importing module {0} to ensure no failures detected on module import" -f $moduleManifest.FullName | Write-Host
+"Importing module {0}" -f $moduleManifest.FullName | Write-Host
 Import-Module $moduleManifest.FullName -Global -Force
 
 if(!$?){
