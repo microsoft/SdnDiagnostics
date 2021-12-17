@@ -1,5 +1,5 @@
-$outDir = "$PSScriptRoot\..\out"
-if (Test-Path -Path $outDir -PathType Any) {
-    "Removing all items under {0}" -f $outDir | Write-Host
-    Remove-Item -Path "$outDir\*" -Recurse -Force
+$outDir = Get-Item -Path "$PSScriptRoot\..\out" -ErrorAction SilentlyContinue
+if ($outDir) {
+    "Removing all items under {0}" -f $outDir.FullName | Write-Host
+    Remove-Item -Path "$($outDir.FullName)\*" -Recurse -Force
 }
