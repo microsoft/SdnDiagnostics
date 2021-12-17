@@ -31,7 +31,7 @@ function Install-SdnDiagnostics {
         $filteredComputerName = [System.Collections.ArrayList]::new()
         $installNodes = [System.Collections.ArrayList]::new()
 
-        # if we have multiple modules installed on the current workstation, 
+        # if we have multiple modules installed on the current workstation,
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
         $localModule = Get-Module -Name 'SdnDiagnostics'
         if ($localModule.Count -gt 1) {
@@ -48,15 +48,15 @@ function Install-SdnDiagnostics {
         }
 
         "Current version of SdnDiagnostics is {0}" -f $localModule.Version.ToString() | Trace-Output
-        
-        # make sure that in instances where we might be on a node within the sdn dataplane, 
+
+        # make sure that in instances where we might be on a node within the sdn dataplane,
         # that we do not remove the module locally
         foreach ($computer in $ComputerName) {
             if (Test-ComputerNameIsLocal -ComputerName $computer) {
                 "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Warning
                 continue
             }
-            
+
             [void]$filteredComputerName.Add($computer)
         }
 
@@ -76,23 +76,26 @@ function Install-SdnDiagnostics {
                     # a string back to the remote call command which we can do proper comparison against
                     $version = '0.0.0.0'
                 }
-                
+
                 return $version
             }
 
             # enumerate the versions returned for each computer and compare with current module version to determine if we should perform an update
             foreach ($computer in ($remoteModuleVersion.PSComputerName | Sort-Object -Unique)) {
-                "Checking module version on {0}" -f $computer | Trace-Output -Level:Verbose
-                $updateRequired = $false
-                
-                foreach ($version in ($remoteModuleVersion | Where-Object {$_.PSComputerName -ieq $computer})) {
-                    if ([version]$version -lt [version]$localModule.Version) {
-                        "{0} is currently using version {1}" -f $computer, $version.ToString() | Trace-Output -Level:Verbose 
-                        $updateRequired = $true
-                    }
-                    elseif ([version]$version -ge [version]$localModule.Version) {
-                        "{0} is currently using version {1}. Update is not required" -f $computer, $version.ToString() | Trace-Output -Level:Verbose
+                $remoteComputerModuleVersions = $remoteModuleVersion | Where-Object {$_.PSComputerName -ieq $computer}
+                "{0} is currently using version(s): {1}" -f $computer, ($remoteComputerModuleVersions.ToString() -join ' | ') | Trace-Output -Level:Verbose
+                $updateRequired = $true
+
+                foreach ($version in $remoteComputerModuleVersions) {
+                    if ([version]$version -ge [version]$localModule.Version) {
                         $updateRequired = $false
+
+                        # if we found a version that is greater or equal to current version, break out of current foreach loop for the versions
+                        # and move to the next computer as update is not required
+                        break
+                    }
+                    else {
+                        $updateRequired = $true
                     }
                 }
 
@@ -101,6 +104,11 @@ function Install-SdnDiagnostics {
                     [void]$installNodes.Add($computer)
                 }
             }
+        }
+
+        if (-NOT $installNodes) {
+            "All computers are up to date with version {0}. No update required" -f $localModule.Version.ToString() | Trace-Output
+            return
         }
 
         # clean up the module directory on remote computers
