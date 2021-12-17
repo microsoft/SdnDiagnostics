@@ -24,6 +24,7 @@ function Install-SdnDiagnostics {
     )
 
     try {
+        [System.IO.FileInfo]$moduleRootDir = "C:\Program Files\WindowsPowerShell\Modules"
         $filteredComputerName = [System.Collections.ArrayList]::new()
 
         # if we have multiple modules installed on the current workstation, 
@@ -33,6 +34,15 @@ function Install-SdnDiagnostics {
             throw New-Object System.ArgumentOutOfRangeException("Detected more than one module version of SdnDiagnostics. Remove existing modules and restart your PowerShell session.")
         }
 
+        # since we may not know where the module was imported from we cannot accurately assume the $localModule.ModuleBase is correct
+        # manually generate the destination path we want the module to be installed on remote nodes
+        if ($localModule.ModuleBase -ilike "*$($localModule.Version)") {
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $moduleRootDir.FullName, 'SdnDiagnostics', $localModule.Version.ToString()
+        }
+        else {
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}" -f $moduleRootDir.FullName, 'SdnDiagnostics'
+        }
+        
         # make sure that in instances where we might be on a node within the sdn dataplane, 
         # that we do not remove the module locally
         foreach ($computer in $ComputerName) {
@@ -40,9 +50,8 @@ function Install-SdnDiagnostics {
                 "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Warning
                 continue
             }
-            else {
-                [void]$filteredComputerName.Add($computer)
-            }
+            
+            [void]$filteredComputerName.Add($computer)
         }
 
         # clean up the module directory on remote computers
@@ -55,7 +64,7 @@ function Install-SdnDiagnostics {
 
         # copy the module base directory to the remote computers
         # currently hardcoded to machine's module path. Use the discussion at https://github.com/microsoft/SdnDiagnostics/discussions/68 to get requirements and improvement
-        Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $filteredComputerName -Destination "C:\Program Files\WindowsPowerShell\Modules" -Credential $Credential -Recurse -Force
+        Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $filteredComputerName -Destination $destinationPathDir.FullName -Credential $Credential -Recurse -Force
 
         # ensure that we destroy the current pssessions for the computer to prevent any caching issues
         # we want to target all the original computers, as may be possible that we running on a node within the sdn fabric
