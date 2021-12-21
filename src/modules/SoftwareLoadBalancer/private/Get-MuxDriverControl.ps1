@@ -1,4 +1,4 @@
-function Get-SlbDriverControl {
+function Get-MuxDriverControl {
     if (-NOT (Get-Module -Name 'Microsoft.Cloudnet.Slb.Mux.MuxDriverControl')) {
         Import-Module 'C:\windows\System32\Microsoft.Cloudnet.Slb.Mux.MuxDriverControl.dll' -Force
     }
