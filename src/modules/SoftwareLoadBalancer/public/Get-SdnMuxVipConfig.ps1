@@ -8,7 +8,7 @@ function Get-SdnMuxVipConfig {
 
     try {
         $control = Get-MuxDriverControl
-        $arrayList = [System.Collections.ArrayList]::new()
+        $list = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointConfig]]::new()
 
         if ($VirtualIP) {
             $statefulVips = Get-SdnMuxStatefulVip -VirtualIp $VirtualIP
@@ -19,26 +19,12 @@ function Get-SdnMuxVipConfig {
 
         foreach ($vip in $statefulVips) {
             $vipConfig = New-Object -Type Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointConfig
-            $vipinfo = @{};
-            $dips = @{};
-
             $control.GetVipConfig($vip, [ref]$vipConfig)
-            $vipinfo["Protocol"] = $vip.Protocol;
-            $vipinfo["Port"] = $vip.Port;
-        
-            foreach ($dipMapEntry in $vipConfig.DipMap.DipEntries) {						
-                $dipInfo = @{};
-                $dipInfo["EncapType"]= $dipMapEntry.ReachabilityInfo.EncapType;
-                $dipInfo["EncapData"]= $dipMapEntry.ReachabilityInfo.EncapData;
-                $dips[$dipMapEntry.DipAddress.IPAddressToString] = $dipInfo;
-            }      
-           
-            $vipInfo["Dips"] = $dips;
+
+            [void]$list.Add($vipConfig)
         }
 
-        # TO DO
-        # build pscustomobject to add to array list and then return results
-    
+        return $list
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

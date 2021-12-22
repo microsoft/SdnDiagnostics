@@ -7,16 +7,16 @@ function Get-SdnMuxVip {
     )
 
     try {
-        $vips = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointKey]]::new()
+        $vipEndpointKey = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointKey]]::new()
 
         $control = Get-MuxDriverControl
-        $control.GetVips($null, [ref] $vips)
+        $control.GetVips($null, [ref]$vipEndpointKey)
 
         if ($VirtualIP) {
-            return ($vips | Where-Object {$_.AddressStr -ieq $VirtualIP})
+            return ($vipEndpointKey | Where-Object {$_.AddressStr -ieq $VirtualIP})
         }
         else {
-            return $vips
+            return $vipEndpointKey
         }
     }
     catch {

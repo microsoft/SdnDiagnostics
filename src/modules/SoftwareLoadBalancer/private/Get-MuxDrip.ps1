@@ -7,16 +7,16 @@ function Get-MuxDrip {
     )
 
     try {
-        $drips = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipConfig]]::new()
+        $vipConfig = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipConfig]]::new()
 
         $control = Get-MuxDriverControl
-        $control.GetDrips($null , [ref]$drips)
+        $control.GetDrips($null , [ref]$vipConfig)
 
         if ($VirtualIP) {
-            return ($drips | Where-Object {$_.AddressStr -ieq $VirtualIP})
+            return ($vipConfig | Where-Object {$_.AddressStr -ieq $VirtualIP})
         }
         else {
-            return $drips
+            return $vipConfig
         }
     }
     catch {
