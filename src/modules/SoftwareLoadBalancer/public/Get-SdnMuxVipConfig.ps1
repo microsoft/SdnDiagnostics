@@ -1,4 +1,13 @@
 function Get-SdnMuxVipConfig {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+        .PARAMETER VirtualIP
+        .EXAMPLE
+            PS> Get-SdnMuxVipConfig
+        .EXAMPLE
+            PS> Get-SdnMuxVipConfig -VirtualIP 100.90.95.42
+    #>
 
     [CmdletBinding()]
     param (

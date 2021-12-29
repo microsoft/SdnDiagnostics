@@ -1,4 +1,14 @@
 function Get-SdnMuxStats {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+        .PARAMETER VirtualIP
+        .PARAMETER SkipReset
+        .EXAMPLE
+            PS> Get-SdnMuxStats
+        .EXAMPLE
+            PS> Get-SdnMuxStats -VirtualIP 100.90.95.42
+    #>
 
     [CmdletBinding()]
     param (

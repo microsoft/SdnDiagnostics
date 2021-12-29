@@ -1,4 +1,13 @@
-function Get-MuxDrip {
+function Get-SdnMuxDistributedRouterIP {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+        .PARAMETER VirtualIP
+        .EXAMPLE
+            PS> Get-SdnMuxDistributedRouterIP
+        .EXAMPLE
+            PS> Get-SdnMuxDistributedRouterIP -VirtualIP 100.90.95.42
+    #>
 
     [CmdletBinding()]
     param (
@@ -7,9 +16,9 @@ function Get-MuxDrip {
     )
 
     try {
-        $vipConfig = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipConfig]]::new()
-
         $control = Get-MuxDriverControl
+
+        $vipConfig = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipConfig]]::new()
         $control.GetDrips($null , [ref]$vipConfig)
 
         if ($VirtualIP) {

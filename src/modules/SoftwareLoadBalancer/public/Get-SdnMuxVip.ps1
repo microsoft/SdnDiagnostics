@@ -1,4 +1,13 @@
 function Get-SdnMuxVip {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+        .PARAMETER VirtualIP
+        .EXAMPLE
+            PS> Get-SdnMuxVip
+        .EXAMPLE
+            PS> Get-SdnMuxVip -VirtualIP 100.90.95.42
+    #>
 
     [CmdletBinding()]
     param (
@@ -7,9 +16,9 @@ function Get-SdnMuxVip {
     )
 
     try {
+        $control = Get-MuxDriverControl
         $vipEndpointKey = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointKey]]::new()
 
-        $control = Get-MuxDriverControl
         $control.GetVips($null, [ref]$vipEndpointKey)
 
         if ($VirtualIP) {

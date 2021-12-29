@@ -1,4 +1,13 @@
 function Get-SdnMuxStatefulVip {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+        .PARAMETER VirtualIP
+        .EXAMPLE
+            PS> Get-SdnMuxStatefulVip
+        .EXAMPLE
+            PS> Get-SdnMuxStatefulVip -VirtualIP 100.90.95.42
+    #>
 
     [CmdletBinding()]
     param (
@@ -7,9 +16,9 @@ function Get-SdnMuxStatefulVip {
     )
 
     try {
+        $control = Get-MuxDriverControl
         $statefulVips = [System.Collections.Generic.List[Microsoft.Cloudnet.Slb.Mux.Driver.VipEndpointKey]]::new()
 
-        $control = Get-MuxDriverControl
         $control.GetStatefulVips($null, [ref]$statefulVips)
 
         if ($VirtualIP) {

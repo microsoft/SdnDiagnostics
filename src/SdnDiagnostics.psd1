@@ -47,6 +47,7 @@
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
+        'Get-SdnMuxDistributedRouterIP',
         'Get-SdnMuxState',
         'Get-SdnMuxStatefulVip',
         'Get-SdnMuxStatelessVip',

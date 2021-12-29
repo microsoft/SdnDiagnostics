@@ -1,4 +1,9 @@
 function Get-SdnMuxState {
+    <#
+        .SYNOPSIS
+        .DESCRIPTION
+    #>
+
     try {
         return (Get-MuxDriverControl)
     }
