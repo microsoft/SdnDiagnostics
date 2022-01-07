@@ -1,8 +1,10 @@
 function Get-SdnMuxStatelessVip {
     <#
         .SYNOPSIS
+            Gets details related to the stateless VIPs.
         .DESCRIPTION
         .PARAMETER VirtualIP
+            The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
             PS> Get-SdnMuxStatelessVip
         .EXAMPLE

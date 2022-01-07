@@ -1,8 +1,10 @@
 function Get-SdnMuxStats {
     <#
         .SYNOPSIS
+            Get the statistics related to the Virtual IPs.
         .DESCRIPTION
         .PARAMETER VirtualIP
+            The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .PARAMETER SkipReset
         .EXAMPLE
             PS> Get-SdnMuxStats

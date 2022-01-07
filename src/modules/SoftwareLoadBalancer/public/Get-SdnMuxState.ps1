@@ -1,6 +1,7 @@
 function Get-SdnMuxState {
     <#
         .SYNOPSIS
+            This cmdlet retrieves the current state of the load balancer MUX.
         .DESCRIPTION
     #>
 

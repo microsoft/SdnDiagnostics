@@ -1,8 +1,9 @@
 function Get-SdnMuxVipConfig {
     <#
         .SYNOPSIS
-        .DESCRIPTION
+            Get configuration details such as the DIPs of the backend resources related to Virtual IP
         .PARAMETER VirtualIP
+            The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
             PS> Get-SdnMuxVipConfig
         .EXAMPLE

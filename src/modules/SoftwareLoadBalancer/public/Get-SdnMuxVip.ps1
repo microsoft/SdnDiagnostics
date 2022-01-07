@@ -1,8 +1,10 @@
 function Get-SdnMuxVip {
     <#
         .SYNOPSIS
+            This cmdlet returns the VIP endpoint(s).
         .DESCRIPTION
         .PARAMETER VirtualIP
+            The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
             PS> Get-SdnMuxVip
         .EXAMPLE

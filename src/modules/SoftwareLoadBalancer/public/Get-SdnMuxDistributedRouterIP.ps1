@@ -1,8 +1,10 @@
 function Get-SdnMuxDistributedRouterIP {
     <#
         .SYNOPSIS
+            This cmdlet returns the Distributed Router IPs that are advertised on the MUX.
         .DESCRIPTION
         .PARAMETER VirtualIP
+            The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
             PS> Get-SdnMuxDistributedRouterIP
         .EXAMPLE
