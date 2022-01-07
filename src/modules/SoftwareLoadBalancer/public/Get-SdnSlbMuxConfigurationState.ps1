@@ -35,13 +35,13 @@ function Get-SdnSlbMuxConfigurationState {
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose
-        MuxDriverControlConsole.exe /GetMuxState | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxState' -FileType txt
-        MuxDriverControlConsole.exe /GetMuxConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxConfig' -FileType txt
-        MuxDriverControlConsole.exe /GetMuxStats | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxStats' -FileType txt
-        MuxDriverControlConsole.exe /GetMuxVipList | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxVipList' -FileType txt
-        MuxDriverControlConsole.exe /GetMuxDripList | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetMuxDripList' -FileType txt
-        MuxDriverControlConsole.exe /GetStatelessVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetStatelessVip' -FileType txt
-        MuxDriverControlConsole.exe /GetStatefulVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'GetStatefulVip' -FileType txt
+        Get-SdnMuxState | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxState' -FileType txt
+        Get-SdnMuxDistributedRouterIP | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxDistributedRouterIP' -FileType txt
+        Get-SdnMuxStatefulVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxStatefulVip' -FileType txt
+        Get-SdnMuxStatelessVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxStatelessVip' -FileType txt
+        Get-SdnMuxStats | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxStats' -FileType txt
+        Get-SdnMuxVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVip' -FileType txt
+        Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVipConfig' -FileType json
 
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
