@@ -59,6 +59,7 @@
         'Get-SdnNetAdapterRdmaConfig',
         'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
         'Get-SdnNetworkControllerConfigurationState',
+        'Get-SdnNetworkControllerClusterInfo',
         'Get-SdnNetworkController',
         'Get-SdnNetworkControllerState',
         'Get-SdnOvsdbAddressMapping',
