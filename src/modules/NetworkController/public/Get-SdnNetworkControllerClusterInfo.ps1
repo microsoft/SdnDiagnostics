@@ -7,7 +7,7 @@ function Get-SdnNetworkControllerClusterInfo {
         Gather the Network Controller cluster wide info from one of the Network Controller
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates.
-	.PARAMETER Credential
+    .PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER OutputDirectory
         Directory location to save results. It will create a new sub-folder called NetworkControllerClusterInfo that the files will be saved to
@@ -39,19 +39,19 @@ function Get-SdnNetworkControllerClusterInfo {
         }
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "GetNetworkController" -FileType txt
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkController" -FileType txt
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode } -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "GetNetworkControllerNode" -FileType txt
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerNode" -FileType txt
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerReplica } -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "GetNetworkControllerReplica" -FileType txt
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerReplica" -FileType txt
 
         Get-SdnServiceFabricClusterHealth -NetworkController $NetworkController -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "ServiceFabricClusterHealth" -FileType txt
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricClusterHealth" -FileType txt
 
         Get-SdnServiceFabricApplicationHealth -NetworkController $NetworkController -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "ServiceFabricApplicationHealth" -FileType txt
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricApplicationHealth" -FileType txt
 
     }
     catch {
