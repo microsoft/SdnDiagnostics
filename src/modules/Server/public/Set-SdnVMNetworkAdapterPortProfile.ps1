@@ -12,7 +12,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
     .PARAMETER ProfileData
         1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux)
     .EXAMPLE
-        Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -VMNetworkAdapterName ;
+        Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E
     #>
 
     [CmdletBinding()]
