@@ -49,6 +49,10 @@ function Set-SdnVMNetworkAdapterPortProfile {
         $portProfileDefaultSetting.SettingData.ProfileData = $ProfileData
 
         $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
+        if ($null -eq $vmNic) {
+            throw New-Object -TypeName System.NullReferenceException("Unable to locate VMNetworkAdapter") -Property $vmNic
+        }
+
         $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $vmNic
         if ($null -eq $currentProfile) {
             "Port profile not previously configured" | Trace-Output
