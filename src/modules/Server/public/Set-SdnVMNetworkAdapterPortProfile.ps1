@@ -27,11 +27,11 @@ function Set-SdnVMNetworkAdapterPortProfile {
         [System.Guid]$ProfileId,
 
         [Parameter(Mandatory = $false)]
-        [int]$ProfileData = 1
+        [System.Int16]$ProfileData = 1
     )
 
-    [Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
-    [System.String]$vendorId  = "{1FA41B39-B444-4E43-B35A-E1F7985FD548}"
+    [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
+    [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
 
     try {
         if ($null -eq (Get-Module -Name Hyper-V)) {
@@ -44,7 +44,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
         $portProfileDefaultSetting.SettingData.CdnLabelString = "TestCdn"
         $portProfileDefaultSetting.SettingData.CdnLabelId = 1111
         $portProfileDefaultSetting.SettingData.ProfileName = "Testprofile"
-        $portProfileDefaultSetting.SettingData.VendorId = $vendorId
+        $portProfileDefaultSetting.SettingData.VendorId = $vendorId.ToString("B")
         $portProfileDefaultSetting.SettingData.VendorName = "NetworkController"
         $portProfileDefaultSetting.SettingData.ProfileData = $ProfileData
 
