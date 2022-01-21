@@ -7,10 +7,9 @@ function Set-SdnVMNetworkAdapterPortProfile {
     .PARAMETER MacAddress
         Specifies the MAC address of the VM network adapter.
     .PARAMETER ProfileId
-        Empty Guid: Infrastructure Nic, default allow firewall policy is generated if ProfileData is 1 (VfpEnabled).
-        Valid Guid: Tenant Nic, applies firewall policy if ProfileData is 1 (VfpEnabled).
+        The InstanceID of the Network Interface taken from Network Controller.
     .PARAMETER ProfileData
-        1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux)
+        1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux). If ommited, defaults to 1.
     .EXAMPLE
         Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E
     #>
