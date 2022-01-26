@@ -53,6 +53,9 @@ function Get-SdnNetworkControllerClusterInfo {
         Get-SdnServiceFabricApplicationHealth -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricApplicationHealth" -FileType txt
 
+        Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential `
+        | Out-File -FilePath "$($outputDir.FullName)\Get-SdnServiceFabricClusterManifest.xml"
+
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
