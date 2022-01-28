@@ -22,5 +22,6 @@ foreach($item in Get-ChildItem -Path "$PSScriptRoot\knownIssues" -Recurse -Inclu
 }
 
 . "$PSScriptRoot\config\settings.ps1"
+. "$PSScriptRoot\config\ArgumentCompleters.ps1"
 
 $ErrorActionPreference = 'Continue'
