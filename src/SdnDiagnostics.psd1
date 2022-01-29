@@ -42,6 +42,7 @@
         'Disable-RasGatewayTracing',
         'Enable-RasGatewayTracing',
         'Get-SdnApiResource',
+        'Get-SdnCertificate',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog',
         'Get-SdnGateway',

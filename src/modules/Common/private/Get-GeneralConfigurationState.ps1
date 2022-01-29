@@ -3,6 +3,8 @@
 
 function Get-GeneralConfigurationState {
     <#
+        .SYNOPSIS
+            Retrieves a common set of configuration details that is collected on any role, regardless of the role.
     #>
 
     [CmdletBinding()]
@@ -49,6 +51,14 @@ function Get-GeneralConfigurationState {
         foreach($cmd in $dnsCommands.Name){
             Invoke-Expression -Command $cmd -ErrorAction SilentlyContinue | Export-ObjectToFile -FilePath $outputDir.FullName -Name $cmd.ToString() -FileType txt -Format List
         }
+
+        # gather the certificates configured on the system
+        $certificatePaths = @('Cert:\LocalMachine\My','Cert:\LocalMachine\Root')
+        foreach ($path in $certificatePaths) {
+            $fileName = $path.Replace(':','').Replace('\','_')
+            Get-SdnCertificate -Path $path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name "Get-SdnCertificate_$($fileName)" -FileType csv
+        }
+
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
