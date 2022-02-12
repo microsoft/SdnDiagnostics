@@ -62,7 +62,7 @@ function New-PSRemotingSession {
                         # if we need to create a new remote session, need to check to ensure that if using an IP Address that credentials are specified
                         # which is a requirement from a WinRM perspective. Will throw a warning and skip session creation for this computer.
                         if ($isIpAddress -and $Credential -eq [System.Management.Automation.PSCredential]::Empty) {
-                            "Unable to create PSSession to {0}. Credential parameter is required when using an IP Address" -f $obj | Trace-Output -Level:Warning
+                            "Unable to create PSSession to {0}. The Credential parameter is required when using an IP Address." -f $obj | Trace-Output -Level:Warning
                             continue
                         }
 
