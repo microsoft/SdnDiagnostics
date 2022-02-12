@@ -30,6 +30,15 @@ function Get-SdnInfrastructureInfo {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [ValidateScript({
+            if ($_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
@@ -51,9 +60,17 @@ function Get-SdnInfrastructureInfo {
         }
 
         # get the NC Northbound API endpoint
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
-            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = "https://$($result.RestName)"
+        if ($NcUri) {
+            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $NcUri.AbsoluteUri
+        }
+        elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
+            $result = Get-SdnNetworkControllerRestURL -NetworkController $NetworkController -Credential $Credential
+
+            if ($null -eq $result) {
+                throw New-Object System.NullReferenceException("Unable to locate REST API endpoint for Network Controller. Please specify REST API with -RestUri parameter.")
+            }
+
+            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $result
         }
 
         # get the supported rest API versions from network controller
