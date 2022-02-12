@@ -31,8 +31,8 @@ function Get-SdnInfrastructureInfo {
 
         [Parameter(Mandatory = $false)]
         [ValidateScript({
-            if ($_.Scheme -ne "https") {
-                throw New-Object System.FormatException("Parameter is expected to be in https:// format.")
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
             }
             return $true
         })]

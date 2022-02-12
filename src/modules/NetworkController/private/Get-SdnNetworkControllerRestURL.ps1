@@ -28,7 +28,11 @@ function Get-SdnNetworkControllerRestURL {
 
         # check to see if RestName is populated and return back to the caller
         if ($result.RestName) {
-            return ("https://$($result.RestName)")
+            if ($result.ServerCertificate) {
+                return ("https://$($result.RestName)")
+            }
+
+            return ("http://$($result.RestName)")
         }
 
         return $null
