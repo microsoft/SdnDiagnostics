@@ -53,9 +53,33 @@ $scriptBlocks = @{
 
         return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
     }
+
+    FabricHealthTests = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $testName = ($Global:SdnDiagnostics.Cache.FabricHealth).Name
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($testName | Sort-Object)
+        }
+
+        return $testName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+
+    KnownIssueTests = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $testName = ($Global:SdnDiagnostics.Cache.KnownIssues).Name
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($testName | Sort-Object)
+        }
+
+        return $testName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
 }
 
 Register-ArgumentCompleter -CommandName Invoke-Command -ParameterName 'ComputerName' -ScriptBlock $scriptBlocks.AllFabricNodes
+Register-ArgumentCompleter -CommandName 'Get-SdnKnownIssueResult' -ParameterName 'Name' -ScriptBlock $scriptBlocks.KnownIssueTests
+Register-ArgumentCompleter -CommandName 'Get-SdnFabricInfrastructureResult' -ParameterName 'Name' -ScriptBlock $scriptBlocks.FabricHealthTests
 
 $networkControllerParamCommands = (
     'Debug-SdnFabricInfrastructure',
@@ -88,3 +112,4 @@ $serverParamCommands = (
 )
 
 Register-ArgumentCompleter -CommandName $serverParamCommands -ParameterName 'ComputerName' -ScriptBlock $scriptBlocks.ServerNodes
+
