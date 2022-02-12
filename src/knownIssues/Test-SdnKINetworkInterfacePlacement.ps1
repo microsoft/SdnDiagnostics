@@ -55,7 +55,7 @@ function Test-SdnKINetworkInterfacePlacement {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
-        
+
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
@@ -73,11 +73,11 @@ function Test-SdnKINetworkInterfacePlacement {
                 }
             }
             else {
-                # in this scenario, the serverref and hypervisor server values are mismatched indicating 
+                # in this scenario, the serverref and hypervisor server values are mismatched indicating
                 # we have a hard drift between network controller and dataplane, which would result in stale/outdated policies
                 foreach($result in $driftedNetworkInterfaces){
                     "{0}: Network Controller believes {1} exists on {2} while hypervisor is reporting it exists on {3}" `
-                    -f $result.macAddress, $result.vmName, $result.nc_host, $result.hyperv_host | Trace-Output -Level:Error
+                    -f $result.macAddress, $result.vmName, $result.nc_host, $result.hyperv_host | Trace-Output -Level:Warning
 
                     [void]$arrayList.Add($result)
                     $issueDetected = $true
