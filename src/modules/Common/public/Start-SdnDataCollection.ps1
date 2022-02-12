@@ -241,6 +241,7 @@ function Start-SdnDataCollection {
         foreach ($node in $filteredDataCollectionNodes) {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Recurse -Force
+            Copy-FileFromRemoteComputer -Path (Get-TraceOutputFile) -Destination $formattedDirectoryName.FullName -ComputerName $node -Force
         }
 
         "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
