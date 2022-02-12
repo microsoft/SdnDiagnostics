@@ -3,18 +3,25 @@
 
 function Test-NetworkInterfaceLocation {
     param (
+        [Parameter(Mandatory = $true)]
         [System.Object]$NetworkControllerNetworkInterfaces,
+
+        [Parameter(Mandatory = $true)]
         [System.Object]$VMNetworkAdapters
     )
     try {
         $networkInterfaces = [System.Collections.ArrayList]::new()
-        foreach($netAdapter in $VMNetworkAdapters){
+
+        foreach ($netAdapter in $VMNetworkAdapters) {
             $netInterface = $NetworkControllerNetworkInterfaces | Where-Object {$_.properties.privateMacAddress -eq $netAdapter.MacAddress}
-            
-            # write error to user if we detect duplicate MAC addresses within the NC Network Interfaces API
-            # however do not include in the drift detection results as there is a different KI function to check for this
-            if($netInterface.resourceRef.Count -ge 2){
-                "Detected duplicate MacAddress {0} within Network Controller. Skipping placement validation." -f $netInterface.properties.privateMacAddress[0] | Trace-Output -Level:Error
+
+            # if we do not find the MAC address within NC Network Interfaces, skip the placement validation
+            if ($null -eq $netInterface) {
+                continue
+            }
+
+            # if we detect duplicate MAC addresses within the NC Network Interfaces API, skip placement validation
+            if ($netInterface.resourceRef.Count -ge 2){
                 continue
             }
 
