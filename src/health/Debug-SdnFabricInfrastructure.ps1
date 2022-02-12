@@ -66,8 +66,8 @@ function Debug-SdnFabricInfrastructure {
         if($null -eq $healthValidationScripts){
             throw New-Object System.NullReferenceException("No health validations returned")
         }
-        
-        "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose 
+
+        "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose
         foreach($script in $healthValidationScripts){
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
             if($functions){
@@ -90,12 +90,12 @@ function Debug-SdnFabricInfrastructure {
         $Global:SdnDiagnostics.NcRestCredential = $null
         $Global:SdnDiagnostics.Cache.FabricHealth = $arrayList
 
-        "Results for fabric health have been saved to {0} for further analysis" -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
+        "Results for fabric health have been saved to {0} for further analysis. Use Get-SdnFabricInfrastructureHealth to examine the results." -f '$Global:SdnDiagnostics.Cache.FabricHealth' | Trace-Output
         return $Global:SdnDiagnostics.Cache.FabricHealth
     }
     catch {
         $Global:SdnDiagnostics.Credential = $null
         $Global:SdnDiagnostics.NcRestCredential = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    } 
+    }
 }

@@ -1,7 +1,19 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-SdnKnownIssueResult {
+function Get-SdnFabricInfrastructureHealth {
+    <#
+        .SYNOPSIS
+            Returns the results that have been saved to cache as part of running Debug-SdnFabricInfrastructure.
+        .PARAMETER Name
+            The name of the known issue test.
+        .EXAMPLE
+            PS> Get-SdnFabricInfrastructureHealth
+        .EXAMPLE
+            PS> Get-SdnFabricInfrastructureHealth -Name 'Test-NetworkControllerServiceState'
+    #>
+
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
@@ -9,7 +21,7 @@ function Get-SdnKnownIssueResult {
     )
 
     try {
-        $cacheResults = Get-SdnCache -Name 'KnownIssues'
+        $cacheResults = Get-SdnCache -Name 'FabricHealth'
 
         if ($PSBoundParameters.ContainsKey('Name')) {
             if ($cacheResults) {
