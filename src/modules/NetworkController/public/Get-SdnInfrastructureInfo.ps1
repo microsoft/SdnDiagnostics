@@ -7,6 +7,8 @@ function Get-SdnInfrastructureInfo {
         Get the SDN infrastructure information from network controller. The function will update the $Global:SdnDiagnostics.EnvironmentInfo variable.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential

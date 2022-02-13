@@ -68,7 +68,13 @@ function Copy-FileFromRemoteComputerSMB {
 
     foreach ($object in $arrayList) {
         "Copying {0} to {1}" -f $object, $Destination.FullName | Trace-Output
-        Copy-Item -Path $object -Destination $Destination.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+
+        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+            Copy-Item -Path $object -Destination $Destination.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential -ErrorAction:Continue
+        }
+        else {
+            Copy-Item -Path $object -Destination $Destination.FullName -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+        }
     }
 }
 
