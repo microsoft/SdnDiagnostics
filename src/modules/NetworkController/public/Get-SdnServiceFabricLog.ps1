@@ -31,7 +31,7 @@ function Get-SdnServiceFabricLog {
 
         "Collect Service Fabric logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
 
-        $logFiles = Get-ChildItem -Path $logDir.FullName | Where-Object { $_.LastWriteTime -ge $FromDate }
+        $logFiles = Get-ChildItem -Path $logDir.FullName -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $FromDate }
         if($null -eq $logFiles){
             "No log files found under {0} between {1} and {2} UTC." -f $logDir.FullName, $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output -Level:Warning
             return

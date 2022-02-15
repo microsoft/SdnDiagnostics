@@ -44,14 +44,14 @@ function Test-SdnKIVfpDuplicatePort {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -71,7 +71,7 @@ function Test-SdnKIVfpDuplicatePort {
                     | Select-Object @{n="Portname";e={"`t$($_.Portname)"}} `
                     | Select-Object -ExpandProperty Portname `
                     | Out-String `
-                ) | Trace-Output -Level:Error
+                ) | Trace-Output -Level:Warning
             }
         }
 
