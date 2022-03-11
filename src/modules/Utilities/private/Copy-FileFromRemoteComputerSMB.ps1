@@ -44,12 +44,12 @@ function Copy-FileFromRemoteComputerSMB {
     $arrayList = [System.Collections.ArrayList]::new()
 
     # set this to suppress the information status bar from being displayed
-    $ProgressPreference = 'SilentlyContinue'
+    $Global:ProgressPreference = 'SilentlyContinue'
 
     $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
 
     # set this back to default now that Test-NetConnection has completed
-    $ProgressPreference = 'Continue'
+    $Global:ProgressPreference = 'Continue'
 
     if (-NOT ($testNetConnection)) {
         $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
