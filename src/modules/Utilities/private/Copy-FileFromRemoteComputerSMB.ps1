@@ -59,7 +59,7 @@ function Copy-FileFromRemoteComputerSMB {
     foreach ($subPath in $Path) {
         $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $subPath
         if (-NOT (Test-Path -Path $remotePath)) {
-            "Unable to locate {0}" -f $remotePath | Trace-Output -Level:Error
+            "Unable to find {0}" -f $remotePath | Trace-Output -Level:Error
         }
         else {
             [void]$arrayList.Add($remotePath)
