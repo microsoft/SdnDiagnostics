@@ -68,7 +68,7 @@ function Get-SdnResource {
             }
         }
         catch [System.Net.WebException] {
-            $_.Exception.Message | Write-Warning
+            "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
         }
         catch {
             throw $_
