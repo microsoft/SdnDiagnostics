@@ -39,14 +39,9 @@ function Get-SdnApiResource {
 
         $config = Get-SdnRoleConfiguration -Role:NetworkController
         foreach ($resource in $config.properties.apiResources) {
-            try {
-                $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource -Credential $Credential
-                if ($sdnResource) {
-                    $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/', '_') -FileType json
-                }
-            }
-            catch {
-                $_.Exception | Trace-Output -Level:Warning
+            $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource -Credential $Credential
+            if ($sdnResource) {
+                $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/', '_') -FileType json
             }
         }
 
