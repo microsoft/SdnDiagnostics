@@ -44,12 +44,12 @@ function Copy-FileFromRemoteComputerSMB {
     $arrayList = [System.Collections.ArrayList]::new()
 
     # set this to suppress the information status bar from being displayed
-    $ProgressPreference = 'SilentlyContinue'
+    $Global:ProgressPreference = 'SilentlyContinue'
 
     $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
 
     # set this back to default now that Test-NetConnection has completed
-    $ProgressPreference = 'Continue'
+    $Global:ProgressPreference = 'Continue'
 
     if (-NOT ($testNetConnection)) {
         $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
@@ -59,7 +59,7 @@ function Copy-FileFromRemoteComputerSMB {
     foreach ($subPath in $Path) {
         $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $subPath
         if (-NOT (Test-Path -Path $remotePath)) {
-            "Unable to access {0}" -f $remotePath | Trace-Output -Level:Error
+            "Unable to find {0}" -f $remotePath | Trace-Output -Level:Error
         }
         else {
             [void]$arrayList.Add($remotePath)
