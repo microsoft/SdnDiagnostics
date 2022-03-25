@@ -99,6 +99,7 @@
         'Start-NetshTrace',
         'Stop-EtwTraceCapture',
         'Stop-NetshTrace',
+        'Test-SdnKINetworkControllerCertCredential',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
         'Test-SdnKINetworkInterfacePlacement',
         'Test-SdnKIServerHostId',
