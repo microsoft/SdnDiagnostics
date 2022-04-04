@@ -262,6 +262,11 @@ function Start-SdnDataCollection {
             Copy-FileFromRemoteComputer -Path (Get-TraceOutputFile) -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
         }
 
+        # check for any failed PS remoting jobs and copy them to data collection
+        if (Test-Path -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures") {
+            Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
+        }
+
         "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
         Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
             Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
