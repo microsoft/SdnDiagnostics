@@ -65,21 +65,25 @@ function Wait-PSJob {
 
         # Output results of the job status to the operator
         if ($job.State -ne "Completed") {
-            "JobName: {0} Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Warning
-            
+            [System.String]$outputFolder = "{0}\PSRemoteJob_Failures\{1}" -f (Get-WorkingDirectory), $Name
+
+            "[{0}] Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Warning
+
             # Identify all failed child jobs and present to the operator
             $failedChildJobs = $job.ChildJobs | Where-Object { $_.State -ine 'Completed' }
             foreach ($failedChildJob in $failedChildJobs) {
-                "JobName {0}: Job for {1} failed with State: {2} | Status: {3}" -f $Name, $failedChildJob.Location, $failedChildJob.State, $failedChildJob.StatusMessage | Trace-Output -Level:Warning
-            }
+                "[{0}] {1} for {2} is reporting state: {3}." -f $Name, $failedChildJob.Name, $failedChildJob.Location, $failedChildJob.State | Trace-Output -Level:Warning
 
-            "JobName {0}: State: {1} StatusMessage: {2}" -f $Name, $job.State, $job.StatusMessage | Trace-Output -Level:Error
+                # do our best to capture the failing exception that was returned from the remote job invocation
+                # due to ps remoting bug as outlined in https://github.com/PowerShell/PowerShell/issues/9585 we may not capture everything and may add additional details to screen
+                $failedChildJob | Receive-Job -Keep -ErrorAction Continue *>&1 | Export-ObjectToFile -FilePath $outputFolder -Name $failedChildJob.Name -FileType 'txt'
+            }
         }
         else {
-            "JobName: {0} Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Verbose
+            "[{0}] Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Verbose
         }
 
-        return (Get-Job -Name $Name | Receive-Job) 
+        return (Get-Job -Name $Name | Receive-Job)
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
