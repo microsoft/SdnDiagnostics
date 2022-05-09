@@ -39,7 +39,7 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -54,7 +54,7 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
             if($node.NodeStatus -ine 'Up'){
                 "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
             }
-            
+
             $ncAppWorkDir = (Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential `
                 -ScriptBlock {Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $using:node.NodeName}).WorkDirectory
             if($null -eq $ncAppWorkDir){
@@ -85,8 +85,8 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
                     }
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
                     if([float]$($imosStoreFile.Length/1MB) -gt 4096){
-                        "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Error
-                        
+                        "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Warning
+
                         $issueDetected = $true
                         [void]$arrayList.Add($imosInfo)
                     }

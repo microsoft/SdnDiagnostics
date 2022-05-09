@@ -3,6 +3,8 @@
 
 function Get-GeneralConfigurationState {
     <#
+        .SYNOPSIS
+            Retrieves a common set of configuration details that is collected on any role, regardless of the role.
     #>
 
     [CmdletBinding()]
@@ -16,13 +18,13 @@ function Get-GeneralConfigurationState {
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "General"
 
-        if (!(Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
         # Gather general configuration details from all nodes
         "Gathering network and system properties" | Trace-Output -Level:Verbose
-        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess).ProcessName}} `
+        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName}} `
             | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetTCPConnection' -FileType csv
         Get-Service | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Service' -FileType txt -Format List
         Get-Process | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Process' -FileType txt -Format List
@@ -49,6 +51,14 @@ function Get-GeneralConfigurationState {
         foreach($cmd in $dnsCommands.Name){
             Invoke-Expression -Command $cmd -ErrorAction SilentlyContinue | Export-ObjectToFile -FilePath $outputDir.FullName -Name $cmd.ToString() -FileType txt -Format List
         }
+
+        # gather the certificates configured on the system
+        $certificatePaths = @('Cert:\LocalMachine\My','Cert:\LocalMachine\Root')
+        foreach ($path in $certificatePaths) {
+            $fileName = $path.Replace(':','').Replace('\','_')
+            Get-SdnCertificate -Path $path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name "Get-SdnCertificate_$($fileName)" -FileType csv
+        }
+
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

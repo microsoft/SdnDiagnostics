@@ -57,11 +57,21 @@ function Get-SdnResource {
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
 
-        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
-            $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
+        # gracefully handle System.Net.WebException responses such as 404 to throw warning
+        # anything else we want to throw terminating exception and capture for debugging purposes
+        try {
+            if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+                $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
+            }
+            else {
+                $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -UseDefaultCredentials -ErrorAction Stop
+            }
         }
-        else {
-            $result = Invoke-RestMethod -Uri $uri -Method $method -UseBasicParsing -UseDefaultCredentials -ErrorAction Stop
+        catch [System.Net.WebException] {
+            "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
+        }
+        catch {
+            throw $_
         }
 
         # if multiple objects are returned, they will be nested under a property called value

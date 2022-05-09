@@ -41,13 +41,9 @@ function Initialize-DataCollection {
     }
 
     # create the directories if does not already exist
-
     if (-NOT (Test-Path -Path $FilePath.FullName -PathType Container)) {
+        "Creating {0}" -f $FilePath.FullName | Trace-Output -Level:Verbose
         $null = New-Item -Path $FilePath.FullName -ItemType Directory -Force
-    }
-    else {
-        "{0} already exists. Performing cleanup operation" -f $FilePath.FullName | Trace-Output
-        Clear-SdnWorkingDirectory -Path $FilePath.FullName -Force -Recurse
     }
 
     # confirm sufficient disk space

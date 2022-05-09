@@ -29,24 +29,26 @@ function Get-SdnLoadBalancerMux {
 
     try {
         $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:LoadBalancerMuxes -Credential $Credential
-        foreach($obj in $result){
-            if($obj.properties.provisioningState -ne 'Succeeded'){
-                "{0} is reporting provisioningState: {1}" -f $obj.resourceId, $obj.properties.provisioningState | Trace-Output -Level:Warning
+        if ($result) {
+            foreach($obj in $result){
+                if($obj.properties.provisioningState -ne 'Succeeded'){
+                    "{0} is reporting provisioningState: {1}" -f $obj.resourceId, $obj.properties.provisioningState | Trace-Output -Level:Warning
+                }
             }
-        }
 
-        if($ManagementAddressOnly){
-            $managementAddresses = [System.Collections.ArrayList]::new()
-            foreach ($resource in $result) {
-                $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
-                [void]$managementAddresses.Add($virtualServerMgmtAddress)
+            if($ManagementAddressOnly){
+                $managementAddresses = [System.Collections.ArrayList]::new()
+                foreach ($resource in $result) {
+                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
+                    [void]$managementAddresses.Add($virtualServerMgmtAddress)
+                }
+                return $managementAddresses
             }
-            return $managementAddresses
+            else {
+                return $result
+            }
         }
-        else {
-            return $result
-        }
-    } 
+    }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }

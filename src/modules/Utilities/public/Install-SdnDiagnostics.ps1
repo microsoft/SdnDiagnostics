@@ -67,6 +67,7 @@ function Install-SdnDiagnostics {
             $installNodes = $filteredComputerName
         }
         else {
+            "Getting current installed version of SdnDiagnostics on remote nodes" | Trace-Output
             $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -ScriptBlock {
                 try {
                     $version = (Get-Module -Name SdnDiagnostics -ListAvailable -ErrorAction SilentlyContinue).Version.ToString()

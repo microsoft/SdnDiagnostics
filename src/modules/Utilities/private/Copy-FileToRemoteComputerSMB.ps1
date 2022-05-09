@@ -32,6 +32,11 @@ function Copy-FileToRemoteComputerSMB {
         [Parameter(Mandatory = $false)]
         [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
 
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
         [Parameter(Mandatory = $false)]
         [Switch]$Recurse,
 
@@ -40,13 +45,13 @@ function Copy-FileToRemoteComputerSMB {
     )
 
     # set this to suppress the information status bar from being displayed
-    $ProgressPreference = 'SilentlyContinue'
+    $Global:ProgressPreference = 'SilentlyContinue'
 
     $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
 
     # set this back to default now that Test-NetConnection has completed
-    $ProgressPreference = 'Continue'
-    
+    $Global:ProgressPreference = 'Continue'
+
     if (-NOT ($testNetConnection)) {
         $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
         throw New-Object System.Exception($msg)
@@ -55,6 +60,12 @@ function Copy-FileToRemoteComputerSMB {
     $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
     foreach ($subPath in $Path) {
         "Copying {0} to {1}" -f $subPath, $remotePath | Trace-Output
-        Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+
+        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+            Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential -ErrorAction:Continue
+        }
+        else {
+            Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+        }
     }
 }
