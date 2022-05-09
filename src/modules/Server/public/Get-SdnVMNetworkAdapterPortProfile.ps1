@@ -30,7 +30,7 @@ function Get-SdnVMNetworkAdapterPortProfile {
         [switch]$HostVmNic
     )
 
-    $portProfileFeatureId = '9940cd46-8b06-43bb-b9d5-93d50381fd56'
+    [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
 
     try {
         if ($null -eq (Get-Module -Name Hyper-V)) {
