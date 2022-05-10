@@ -14,7 +14,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, Position = 0)]
+        [Parameter(Mandatory = $true)]
         [System.String]$VMName,
 
         [Parameter(Mandatory = $true)]
