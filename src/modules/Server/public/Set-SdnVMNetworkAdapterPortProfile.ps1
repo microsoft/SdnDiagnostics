@@ -10,36 +10,51 @@ function Set-SdnVMNetworkAdapterPortProfile {
         The InstanceID of the Network Interface taken from Network Controller.
     .PARAMETER ProfileData
         1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux). If ommited, defaults to 1.
+    .PARAMETER HyperVHost
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of the computer that is hosting the virtual machine.
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
-        [Parameter(Mandatory = $true, Position = 0)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [System.String]$MacAddress,
 
-        [Parameter(Mandatory = $false)]
-        [System.String]$HyperVHost,
-
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [System.Guid]$ProfileId,
 
-        [Parameter(Mandatory = $false)]
-        [System.Int16]$ProfileData = 1
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.Int16]$ProfileData = 1,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.String]$HyperVHost,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        if ($PSBoundParameters.ContainsKey('HyperVHost')) {
-            Invoke-PSRemoteCommand -ComputerName $HyperVHost -ScriptBlock {
-                Set-VMNetworkAdapterPortProfile -VMName $using:VMName -MacAddress $using:MacAddress -ProfileId $using:ProfileId -ProfileData $using:ProfileData
+        switch ($PSCmdlet.ParameterSetName) {
+            'Remote' {
+                Invoke-PSRemoteCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
+                    Set-VMNetworkAdapterPortProfile -VMName $using:VMName -MacAddress $using:MacAddress -ProfileId $using:ProfileId -ProfileData $using:ProfileData
+                }
             }
-        }
-        else {
-            Set-VMNetworkAdapterPortProfile -VMName $VMName -MacAddress $MacAddress -ProfileId $ProfileId -ProfileData $ProfileData
+            'Local' {
+                Set-VMNetworkAdapterPortProfile -VMName $VMName -MacAddress $MacAddress -ProfileId $ProfileId -ProfileData $ProfileData
+            }
         }
     }
     catch {
