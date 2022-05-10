@@ -12,8 +12,8 @@ function Set-SdnVMNetworkAdapterPortProfile {
         1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux). If ommited, defaults to 1.
     .PARAMETER HyperVHost
         Type the NetBIOS name, an IP address, or a fully qualified domain name of the computer that is hosting the virtual machine.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E
     #>
