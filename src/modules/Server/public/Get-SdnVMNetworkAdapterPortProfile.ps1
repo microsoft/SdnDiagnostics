@@ -9,8 +9,8 @@ function Get-SdnVMNetworkAdapterPortProfile {
         Specifies the name of the virtual machine to be retrieved.
     .PARAMETER AllVMs
         Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
-    .PARAMETER PortProfileFeatureId
-        Specifies the unique identifier of the feature supported by the virtual switch extension. If omitted, defaults to 9940cd46-8b06-43bb-b9d5-93d50381fd56.
+    .PARAMETER HostVmNic
+        When true, displays Port Profiles of Host VNics. Otherwise displays Port Profiles of Vm VNics.
     .EXAMPLE
         Get-SdnVMNetworkAdapterPortProfile -VMName 'VM01'
     .EXAMPLE
@@ -25,13 +25,14 @@ function Get-SdnVMNetworkAdapterPortProfile {
         [Parameter(Mandatory = $true, ParameterSetName = 'AllVMs')]
         [Switch]$AllVMs,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'SingleVM')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'AllVMs')]
-        [System.Guid]$PortProfileFeatureId = '9940cd46-8b06-43bb-b9d5-93d50381fd56'
+        [Parameter(ParameterSetName = 'SingleVM', Mandatory = $false)]
+        [Parameter(ParameterSetName = 'AllVMs', Mandatory = $false)]
+        [switch]$HostVmNic
     )
 
-    try {
+    [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
 
+    try {
         if ($null -eq (Get-Module -Name Hyper-V)) {
             Import-Module -Name Hyper-V -Force
         }
@@ -39,15 +40,15 @@ function Get-SdnVMNetworkAdapterPortProfile {
         $arrayList = [System.Collections.ArrayList]::new()
 
         if ($AllVMs) {
-            $netAdapters = Get-VMNetworkAdapter -All
+            $netAdapters = Get-VMNetworkAdapter -All | Where-Object { $_.IsManagementOs -eq $HostVmNic }
         }
         else {
-            $netAdapters = Get-VMNetworkAdapter -VMName $VMName
+            $netAdapters = Get-VMNetworkAdapter -VMName $VMName | Where-Object { $_.IsManagementOs -eq $HostVmNic }
         }
 
         foreach ($adapter in $netAdapters | Where-Object { $_.IsManagementOs -eq $false }) {
             "Enumerating port features and data for adapter {0}" -f $adapter.MacAddress | Trace-Output -Level:Verbose
-            $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $PortProfileFeatureId -VMNetworkAdapter $adapter
+            $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
             if ($null -eq $currentProfile) {
                 "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
                 continue

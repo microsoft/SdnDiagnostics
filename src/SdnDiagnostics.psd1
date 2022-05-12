@@ -94,6 +94,7 @@
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
+        'Set-SdnVMNetworkAdapterPortProfile',
         'Start-EtwTraceCapture',
         'Start-SdnDataCollection',
         'Start-NetshTrace',
