@@ -56,6 +56,19 @@ function Get-SdnNetworkControllerClusterInfo {
         Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential `
         | Out-File -FilePath "$($outputDir.FullName)\Get-SdnServiceFabricClusterManifest.xml"
 
+        $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricService" -FileType txt
+        foreach ($service in $ncServices) {
+            Get-SdnServiceFabricReplica -NetworkController $NetworkController -Credential $Credential -ServiceName $service.ServiceName `
+            | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricReplica_$($service.ServiceTypeName)" -FileType txt
+        }
+
+        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {Get-ServiceFabricApplication} `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-ServiceFabricApplication" -FileType json
+
+        Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricNode" -FileType txt
+
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
