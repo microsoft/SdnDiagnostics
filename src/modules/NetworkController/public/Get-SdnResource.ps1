@@ -75,9 +75,13 @@ function Get-SdnResource {
         }
 
         # if multiple objects are returned, they will be nested under a property called value
+        # in some instances if null, will return a nextLink object
         # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
-        if($result.value){
+        if ($result.value) {
             return $result.value
+        }
+        elseif ($result.nextLink) {
+            return $result.nextLink
         }
         else {
             return $result
