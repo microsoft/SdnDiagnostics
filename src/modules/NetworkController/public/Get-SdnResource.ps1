@@ -74,14 +74,16 @@ function Get-SdnResource {
             throw $_
         }
 
+        # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
+        # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
+        if ($result.PSObject.Properties.Name -ieq "nextLink") {
+            return $null
+        }
+
         # if multiple objects are returned, they will be nested under a property called value
-        # in some instances if null, will return a nextLink object
         # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
         if ($result.value) {
             return $result.value
-        }
-        elseif ($result.nextLink) {
-            return $result.nextLink
         }
         else {
             return $result
