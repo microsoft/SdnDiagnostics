@@ -56,8 +56,8 @@ function Get-SdnNetworkControllerClusterInfo {
         Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential `
         | Out-File -FilePath "$($outputDir.FullName)\Get-SdnServiceFabricClusterManifest.xml"
 
-        $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricService" -FileType txt
+        $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController -Credential $Credential
+        $ncServices | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricService" -FileType txt
         foreach ($service in $ncServices) {
             Get-SdnServiceFabricReplica -NetworkController $NetworkController -Credential $Credential -ServiceName $service.ServiceName `
             | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricReplica_$($service.ServiceTypeName)" -FileType txt
