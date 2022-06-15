@@ -23,12 +23,11 @@ function Trace-Output {
 
     $traceFile = (Get-TraceOutputFile)
     $callingFunction = (Get-PSCallStack)[1].Command
-    $computerName = $env:COMPUTERNAME
 
     # create custom object for formatting purposes
     $traceEvent = [PSCustomObject]@{
-        Computer = $computerName
-        TimestampUtc = [DateTime]::UtcNow.ToString()
+        Computer = $env:COMPUTERNAME.ToUpper()
+        TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
         FunctionName = $callingFunction
         Level = $Level.ToString()
         Message = $Message
