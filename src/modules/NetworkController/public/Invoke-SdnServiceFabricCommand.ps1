@@ -48,10 +48,10 @@ function Invoke-SdnServiceFabricCommand {
 
                 $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
                 if (!$session) {
-                    "No session could be established to {0}" -f $controller | Trace-Output -Level:Error
+                    "No session could be established to {0}" -f $controller | Trace-Output -Level:Exception
                     break
                 }
-    
+
                 try {
                     $connection = Invoke-Command -Session $session -ScriptBlock {
                         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
@@ -59,14 +59,14 @@ function Invoke-SdnServiceFabricCommand {
                     } -ErrorAction Stop
                 }
                 catch {
-                    "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Error
+                    "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Exception
                     "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
                     Get-PSSession -Id $session.Id | Remove-PSSession
                 }
             }
 
             if (!$connection) {
-                "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Error
+                "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Exception
                 continue
             }
 
@@ -80,9 +80,9 @@ function Invoke-SdnServiceFabricCommand {
         }
 
         if (!$sfResults) {
-            throw New-Object System.NullReferenceException("Unable to return results from service fabric") 
+            throw New-Object System.NullReferenceException("Unable to return results from service fabric")
         }
-        
+
         if ($sfResults.GetType().IsPrimitive -or ($sfResults -is [String])) {
             return $sfResults
         }

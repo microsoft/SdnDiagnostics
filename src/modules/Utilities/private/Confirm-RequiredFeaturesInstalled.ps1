@@ -16,11 +16,10 @@ function Confirm-RequiredFeaturesInstalled {
         else {
             foreach($obj in $Name){
                 if(!(Get-WindowsFeature -Name $obj).Installed){
-                    "Required feature {0} is not installed on {1}" -f $obj, $env:COMPUTERNAME | Trace-Output -Level:Error
                     return $false
                 }
             }
-    
+
             return $true
         }
     }
