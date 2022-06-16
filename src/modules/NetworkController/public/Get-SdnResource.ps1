@@ -69,15 +69,10 @@ function Get-SdnResource {
         }
         catch [System.Net.WebException] {
             "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
+            return $null
         }
         catch {
             throw $_
-        }
-
-        # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
-        # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
-        if ($result.PSObject.Properties.Name -ieq "nextLink") {
-            return $null
         }
 
         # if multiple objects are returned, they will be nested under a property called value
@@ -85,9 +80,14 @@ function Get-SdnResource {
         if ($result.value) {
             return $result.value
         }
-        else {
-            return $result
+
+        # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
+        # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
+        elseif ($result.PSObject.Properties.Name -ieq "nextLink" -and $result.PSObject.Properties.Count -eq 1) {
+            return $null
         }
+
+        return $result
     }
     catch {
         "{0}`nAbsoluteUri:{1}`n{2}" -f $_.Exception, $_.TargetObject.Address.AbsoluteUri, $_.ScriptStackTrace | Trace-Output -Level:Error
