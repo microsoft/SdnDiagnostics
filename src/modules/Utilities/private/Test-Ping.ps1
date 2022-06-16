@@ -46,14 +46,14 @@ function Test-Ping {
             else {
                 $ping = ping $DestinationAddress.IPAddressToString -c $CompartmentId -l $size -S $SourceAddress.IPAddressToString -n 2
             }
-    
+
             if($LASTEXITCODE -ieq 0){
                 $status = 'Success'
             }
             else {
                 $status = 'Failure'
             }
-    
+
             $result = [PSCustomObject]@{
                 SourceAddress = $SourceAddress.IPAddressToString
                 DestinationAddress = $DestinationAddress.IPAddressToString
@@ -69,6 +69,6 @@ function Test-Ping {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

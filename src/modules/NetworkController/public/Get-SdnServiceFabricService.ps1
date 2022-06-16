@@ -16,7 +16,7 @@ function Get-SdnServiceFabricService {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential) 
+        PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential)
     .EXAMPLE
         PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential) -ServiceTypeName 'ApiService'
     #>
@@ -43,7 +43,7 @@ function Get-SdnServiceFabricService {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
-    
+
     try {
         switch ($PSCmdlet.ParameterSetName) {
             'NamedService' {
@@ -87,6 +87,6 @@ function Get-SdnServiceFabricService {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

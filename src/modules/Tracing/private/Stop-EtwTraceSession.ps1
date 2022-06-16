@@ -6,7 +6,7 @@ function Stop-EtwTraceSession {
     .SYNOPSIS
         Stop ETW Trace Session
     .PARAMETER TraceName
-        The trace name to identify the ETW trace session   
+        The trace name to identify the ETW trace session
     #>
 
     [CmdletBinding()]
@@ -29,6 +29,6 @@ function Stop-EtwTraceSession {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }   
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
+    }
 }

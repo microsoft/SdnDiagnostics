@@ -56,7 +56,7 @@ function Test-SdnKINetworkControllerCertCredential {
         if (!$PSBoundParameters.ContainsKey('NcRestCredential')) {
             if ($Global:SdnDiagnostics.NcRestCredential) {
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -77,7 +77,7 @@ function Test-SdnKINetworkControllerCertCredential {
                         $serverCredentialRefs.Add($credRef, $serverList)
                     }
                     [void]$serverCredentialRefs[$credRef].Add($server)
-                }     
+                }
             }
         }
 
@@ -95,7 +95,7 @@ function Test-SdnKINetworkControllerCertCredential {
                         return $true
                     }
                 }
-                
+
                 # invoke command on each NC seperately so to record which NC missing certificate
                 foreach ($nc in $NetworkController) {
                     "Validating certificate [{0}] on NC {1}" -f $thumbPrint, $nc | Trace-Output -Level:Verbose
@@ -108,11 +108,11 @@ function Test-SdnKINetworkControllerCertCredential {
                             CertificateMissing = $thumbPrint
                             AffectedServers    = $serverCredentialRefs[$credRef]
                         }
-        
+
                         [void]$arrayList.Add($object)
-                    }    
+                    }
                 }
-                
+
             }
         }
 
@@ -122,6 +122,6 @@ function Test-SdnKINetworkControllerCertCredential {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

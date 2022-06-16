@@ -9,7 +9,7 @@ function Get-OvsdbGlobalTable {
         PS> Get-OvsdbGlobalTable
     #>
 
-    try {      
+    try {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
@@ -34,6 +34,6 @@ function Get-OvsdbGlobalTable {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

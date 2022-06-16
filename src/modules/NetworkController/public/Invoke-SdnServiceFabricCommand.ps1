@@ -51,7 +51,7 @@ function Invoke-SdnServiceFabricCommand {
                     "No session could be established to {0}" -f $controller | Trace-Output -Level:Error
                     break
                 }
-    
+
                 try {
                     $connection = Invoke-Command -Session $session -ScriptBlock {
                         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
@@ -80,9 +80,9 @@ function Invoke-SdnServiceFabricCommand {
         }
 
         if (!$sfResults) {
-            throw New-Object System.NullReferenceException("Unable to return results from service fabric") 
+            throw New-Object System.NullReferenceException("Unable to return results from service fabric")
         }
-        
+
         if ($sfResults.GetType().IsPrimitive -or ($sfResults -is [String])) {
             return $sfResults
         }
@@ -91,6 +91,6 @@ function Invoke-SdnServiceFabricCommand {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

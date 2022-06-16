@@ -6,7 +6,7 @@ function Convert-EtwTraceToTxt {
     .SYNOPSIS
         Used to convert existing etw (.etl) provider traces into text readable format
     .PARAMETER FileName
-        ETL trace file path and name to convert 
+        ETL trace file path and name to convert
     .PARAMETER Destination
         Output file name and directory. If omitted, will use the FileName path and base name.
     .PARAMETER Overwrite
@@ -52,8 +52,8 @@ function Convert-EtwTraceToTxt {
         [System.String]$outputFile = "{0}.txt" -f (Join-Path -Path $Destination.FullName -ChildPath $FileName.BaseName)
         [System.String]$cmd = "netsh trace convert input={0} output={1} overwrite={2} report={3}" `
             -f $FileName.FullName, $outputFile, $Overwrite, $Report
-        
-        "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose    
+
+        "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
         $expression = Invoke-Expression -Command $cmd
 
         # output returned is string objects, so need to manually do some mapping to correlate the properties
@@ -74,6 +74,6 @@ function Convert-EtwTraceToTxt {
         return $object
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

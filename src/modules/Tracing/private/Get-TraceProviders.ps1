@@ -6,7 +6,7 @@ function Get-TraceProviders {
     .SYNOPSIS
         Get ETW Trace Providers based on Role
     .PARAMETER Role
-        The SDN Roles 
+        The SDN Roles
     .PARAMETER Providers
         Allowed values are Default,Optional And All to control what are the providers needed
     #>
@@ -61,6 +61,6 @@ function Get-TraceProviders {
         return $traceProvidersArray
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

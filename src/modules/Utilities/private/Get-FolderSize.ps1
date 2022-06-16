@@ -65,6 +65,6 @@ function Get-FolderSize {
         return ($arrayList | Sort-Object Type, Size)
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

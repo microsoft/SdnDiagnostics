@@ -18,7 +18,7 @@ function Get-OvsdbUcastMacRemoteTable {
         if ($null -eq $ucastMacsRemoteTable) {
             return $null
         }
-        
+
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $ucastMacsRemoteTable.data) {
             $result = New-Object PSObject -Property @{
@@ -36,6 +36,6 @@ function Get-OvsdbUcastMacRemoteTable {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

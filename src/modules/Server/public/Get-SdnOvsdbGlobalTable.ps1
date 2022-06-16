@@ -6,7 +6,7 @@ function Get-SdnOvsdbGlobalTable {
     .SYNOPSIS
         Gets the global table results from OVSDB.
     .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. 
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER AsJob
@@ -57,6 +57,6 @@ function Get-SdnOvsdbGlobalTable {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

@@ -53,7 +53,7 @@ function Test-SdnProviderAddressConnectivity {
                     continue
                 }
 
-                $results = Test-Ping -DestinationAddress $dstAddress -SourceAddress $srcAddress -CompartmentId $compartmentId -BufferSize $jumboPacket, $standardPacket -DontFragment   
+                $results = Test-Ping -DestinationAddress $dstAddress -SourceAddress $srcAddress -CompartmentId $compartmentId -BufferSize $jumboPacket, $standardPacket -DontFragment
                 [void]$arrayList.Add($results)
             }
         }
@@ -61,6 +61,6 @@ function Test-SdnProviderAddressConnectivity {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

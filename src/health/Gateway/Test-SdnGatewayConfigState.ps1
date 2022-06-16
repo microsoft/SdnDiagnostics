@@ -25,7 +25,7 @@ function Test-SdnGatewayConfigState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -39,7 +39,7 @@ function Test-SdnGatewayConfigState {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $status = 'Success'
@@ -71,13 +71,13 @@ function Test-SdnGatewayConfigState {
                     -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Verbose
             }
         }
-        
+
         return [PSCustomObject]@{
             Status = $status
             Properties = $arrayList
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

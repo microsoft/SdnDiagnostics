@@ -38,7 +38,7 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
             throw New-Object System.NullReferenceException("Unable to locate network interface within Network Controller")
         }
 
-        foreach ($ipConfig in $networkInterface.properties.ipConfigurations) { 
+        foreach ($ipConfig in $networkInterface.properties.ipConfigurations) {
             $publicIpRef = Get-PublicIpReference -NcUri $NcUri.AbsoluteUri -IpConfiguration $ipConfig -Credential $Credential
             if ($publicIpRef) {
                 $publicIpAddress = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Credential $Credential -ResourceRef $publicIpRef
@@ -58,6 +58,6 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

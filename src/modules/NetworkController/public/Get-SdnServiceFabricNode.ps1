@@ -21,7 +21,7 @@ function Get-SdnServiceFabricNode {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty        
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -33,6 +33,6 @@ function Get-SdnServiceFabricNode {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

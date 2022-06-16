@@ -23,7 +23,7 @@ function Get-FunctionFromFile {
         # list all the functions in ps1 using language namespace parser
         $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast,bool]]{$args[0] -is [Management.Automation.Language.FunctionDefinitionAst]}, $false) `
             | Select-Object -ExpandProperty Name
-        
+
         if($functionName){
             return ($functionName | Where-Object {$_ -like "$Verb-*"})
         }
@@ -32,6 +32,6 @@ function Get-FunctionFromFile {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

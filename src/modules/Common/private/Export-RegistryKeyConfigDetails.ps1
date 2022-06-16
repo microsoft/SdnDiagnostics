@@ -24,7 +24,7 @@ function Export-RegistryKeyConfigDetails {
             $regKeyDirectories += Get-ChildItem -Path $regKeyPath -ErrorAction SilentlyContinue
             $regKeyDirectories += Get-ChildItem -Path $regKeyPath -Recurse -ErrorAction SilentlyContinue
             $regKeyDirectories = $regKeyDirectories | Sort-Object -Unique
-    
+
             [System.String]$filePath = "{0}\Registry_{1}.txt" -f $OutputDirectory.FullName, $($regKeyPath.Replace(':','').Replace('\','_'))
             foreach($obj in $RegKeyDirectories){
                 "Scanning {0}" -f $obj.PsPath | Trace-Output -Level:Verbose
@@ -48,6 +48,6 @@ function Export-RegistryKeyConfigDetails {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

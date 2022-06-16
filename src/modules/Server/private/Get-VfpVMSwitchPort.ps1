@@ -9,7 +9,7 @@ function Get-VfpVMSwitchPort {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
-    
+
         $vfpResults = vfpctrl /list-vmswitch-port
         if ($null -eq $vfpResults) {
             $msg = "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_
@@ -23,11 +23,11 @@ function Get-VfpVMSwitchPort {
                 $results = $line.Split(":").Trim().Replace(" ", "")
                 if ($results.Count -eq 3) {
                     $key = "$($results[0])-$($results[1])"
-                    $value = $results[2]        
+                    $value = $results[2]
                 }
                 elseif ($results.Count -eq 2) {
                     $key = $results[0]
-                    $value = $results[1] 
+                    $value = $results[1]
                 }
 
                 # all ports begin with this property and value so need to create a new psobject when we see these keys
@@ -51,6 +51,6 @@ function Get-VfpVMSwitchPort {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

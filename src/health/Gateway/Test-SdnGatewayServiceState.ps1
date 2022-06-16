@@ -16,7 +16,7 @@ function Test-SdnGatewayServiceState {
     .EXAMPLE
         PS> Test-SdnGatewayServiceState -ComputerName 'Gateway01','Gateway02' -Credential (Get-Credential)
     #>
-   
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
@@ -40,7 +40,7 @@ function Test-SdnGatewayServiceState {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $status = 'Success'
@@ -77,6 +77,6 @@ function Test-SdnGatewayServiceState {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

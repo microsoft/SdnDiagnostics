@@ -41,10 +41,10 @@ function Get-OvsdbFirewallRuleTable {
             # add the psobject to array list
             [void]$arrayList.Add($result)
         }
-        
+
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

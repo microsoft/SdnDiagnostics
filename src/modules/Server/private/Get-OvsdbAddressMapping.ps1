@@ -59,8 +59,8 @@ function Get-OvsdbAddressMapping {
             # create the psobject now that we have all the mappings identified
             $result = New-Object PSObject -Property @{
                 UUID            = $uuid
-                CustomerAddress = $ca 
-                ProviderAddress = $pa 
+                CustomerAddress = $ca
+                ProviderAddress = $pa
                 MAC             = $mac
                 RoutingDomainID = $rdid
                 VirtualSwitchID = $vsid
@@ -75,6 +75,6 @@ function Get-OvsdbAddressMapping {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }

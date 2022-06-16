@@ -23,12 +23,12 @@ function Test-SdnLoadBalancerMuxConfigState {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty 
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
         "Validating configuration and provisioning state of Load Balancer Muxes" | Trace-Output
-        
+
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -37,7 +37,7 @@ function Test-SdnLoadBalancerMuxConfigState {
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $status = 'Success'
@@ -53,7 +53,7 @@ function Test-SdnLoadBalancerMuxConfigState {
                     provisioningState = $object.properties.provisioningState
                     configurationState = $object.properties.configurationState
                 }
-    
+
                 [void]$arrayList.Add($details)
 
                 "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
@@ -71,6 +71,6 @@ function Test-SdnLoadBalancerMuxConfigState {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
     }
 }
