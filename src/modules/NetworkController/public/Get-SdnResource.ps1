@@ -83,7 +83,7 @@ function Get-SdnResource {
 
         # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
         # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
-        elseif ($result.PSObject.Properties.Name -ieq "nextLink" -and $result.PSObject.Properties.Count -eq 1) {
+        elseif ($result.PSObject.Properties.Name -ieq "nextLink" -and $result.PSObject.Properties.Name.Count -eq 1) {
             return $null
         }
 
