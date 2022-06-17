@@ -1,8 +1,6 @@
 {
     "DefaultLogDirectory": "C:\\Windows\\tracing\\SDNDiagnostics\\Logs",
-    "FilesExcludedFromCleanup": [
-        "SdnDiagnostics_TraceOutput_*.csv"
-    ],
+    "FilesExcludedFromCleanup": [],
     "FolderPathsAllowedForCleanup": [
         "C:\\Windows\\Tracing\\SdnDataCollection"
     ],
