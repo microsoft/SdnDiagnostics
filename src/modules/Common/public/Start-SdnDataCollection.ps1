@@ -226,7 +226,7 @@ function Start-SdnDataCollection {
             }
 
             # check to see if any network traces were captured on the data nodes previously
-            "Checking for any previous network traces and moving them into temp directory" | Trace-Output
+            "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                 [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
