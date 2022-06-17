@@ -59,7 +59,7 @@ function Clear-SdnWorkingDirectory {
         }
         else {
             foreach ($object in $Path) {
-                if ($object -inotlike "$($Global:SdnDiagnostics.Settings.FolderPathsAllowedForCleanup)") {
+                if ($object -inotlike "$($Global:SdnDiagnostics.Settings.FolderPathsAllowedForCleanup)\*") {
                     "{0} is not defined as an allowed path for cleanup. Skipping" -f $object | Trace-Output -Level:Warning
                     continue
                 }
