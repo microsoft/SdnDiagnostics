@@ -78,7 +78,7 @@
                 "isOptional": "true",
                 "providers": [
                     "{9F2660EA-CFE7-428F-9850-AECA612619B0}",
-                    "Microsoft-Windows-Hyper-V-Vmswitch"
+                    "{67DC0D66-3695-47C0-9642-33F76F7BD7AD}"
                 ],
                 "level": "4",
                 "keywords": "0xFFFFFFFFFFFFFFFF"

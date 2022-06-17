@@ -27,7 +27,7 @@ function Start-NetshTrace {
         PS> Start-NetshTrace -OutputDirectory "C:\Temp\CSS_SDN" -Capture Yes -MaxTraceSize 2048 -Report Disabled
     .EXAMPLE
     #>
-    
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
@@ -55,8 +55,8 @@ function Start-NetshTrace {
     try {
         # ensure that we at least are attempting to configure NDIS tracing or ETW provider tracing, else the netsh
         # command will return a generic exception that is not useful to the operator
-        if ($Capture -ieq 'No' -and !$TraceProvider) {
-            throw New-Object System.Exception("You must at least specify Capture or TraceProvider parameter")
+        if ($Capture -ieq 'No' -and !$TraceProviderString) {
+            throw New-Object System.Exception("You must at least specify Capture or TraceProviderString parameter")
         }
 
         # ensure that the directory exists and specify the trace file name
@@ -66,9 +66,9 @@ function Start-NetshTrace {
         $traceFile = "{0}\{1}_{2}.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
 
         # enable the network trace
-        if ($TraceProvider) {
+        if ($TraceProviderString) {
             $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5}" `
-                -f $Capture, $traceFile, $TraceProviderString, $MaxTraceSize, $Overwrite, $Report
+                -f $Capture, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report
         }
         else {
             $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}" `
