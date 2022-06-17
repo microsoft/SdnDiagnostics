@@ -94,6 +94,7 @@ function Start-SdnDataCollection {
 
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC)
+        [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
 
         $dataCollectionNodes = @()
@@ -221,6 +222,20 @@ function Start-SdnDataCollection {
 
                     $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
                     $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
+                }
+            }
+
+            # check to see if any network traces were captured on the data nodes previously
+            "Checking for any previous network traces and moving them into temp directory" | Trace-Output
+            Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
+                [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
+                if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
+                    try {
+                        Move-Item -Path "$($using:workingDirectory.FullName)\NetworkTraces" -Destination $using:tempDirectory.FullName -ErrorAction Stop
+                    }
+                    catch {
+                        "Unable to move {0} to {1}`n`t{2}" -f $networkTraceDir.FullName, $using:tempDirectory.FullName, $_.Exception | Write-Warning
+                    }
                 }
             }
 
