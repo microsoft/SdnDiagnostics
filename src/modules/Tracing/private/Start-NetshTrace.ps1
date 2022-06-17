@@ -63,7 +63,7 @@ function Start-NetshTrace {
         if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
-        $traceFile = "{0}\{1}_{2}.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
+        $traceFile = "{0}\{1}_{2}_netshTrace.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
 
         # enable the network trace
         if ($TraceProviderString) {
@@ -75,6 +75,7 @@ function Start-NetshTrace {
                 -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report
         }
 
+        "Starting netsh trace" | Trace-Output
         "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
 
         $expression = Invoke-Expression -Command $cmd

@@ -6,12 +6,14 @@ function Stop-NetshTrace {
     .SYNOPSIS
         Disables netsh tracing.
     #>
-    
+
     try {
+        "Stopping trace" | Trace-Output
+
         $expression = Invoke-Expression -Command "netsh trace stop"
         if ($expression -ilike "*Tracing session was successfully stopped.*") {
             "Tracing was successfully stopped" | Trace-Output -Level:Verbose
-            
+
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Stopped'
@@ -23,7 +25,7 @@ function Stop-NetshTrace {
 
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
-                    Status = 'Stopped'
+                    Status = 'Not Running'
                 }
             )
         }

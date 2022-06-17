@@ -18,9 +18,9 @@ function Start-SdnNetshTrace {
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [SdnRoles]$Role,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
-        [System.IO.FileInfo]$OutputDirectory,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.IO.FileInfo]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
