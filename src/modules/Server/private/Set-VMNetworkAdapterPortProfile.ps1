@@ -40,7 +40,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
         $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
         if ($null -eq $vmNic) {
-            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Error
+            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Exception
             return
         }
 

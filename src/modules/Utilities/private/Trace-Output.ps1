@@ -26,7 +26,7 @@ function Trace-Output {
 
     # create custom object for formatting purposes
     $traceEvent = [PSCustomObject]@{
-        Computer = $env:COMPUTERNAME.ToUpper()
+        Computer = $env:COMPUTERNAME.ToUpper().ToString()
         TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
         FunctionName = $callingFunction
         Level = $Level.ToString()
@@ -36,25 +36,29 @@ function Trace-Output {
     # write the message to the console
     switch($Level){
         'Error' {
-            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Error
+            "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Error
+        }
+
+        'Exception' {
+            "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Red
         }
 
         'Success' {
-            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Host -ForegroundColor:Green
+            "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Green
         }
 
         'Verbose' {
             if($VerbosePreference -ne [System.Management.Automation.ActionPreference]::SilentlyContinue) {
-                "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Verbose
+                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Verbose
             }
         }
 
         'Warning' {
-            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Warning
+            "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Warning
         }
 
         default {
-            "[{0}] {1}" -f $computerName, $traceEvent.Message | Write-Host -ForegroundColor:Cyan
+            "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Cyan
         }
     }
 
