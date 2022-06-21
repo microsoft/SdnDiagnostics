@@ -231,7 +231,7 @@ function Start-SdnDataCollection {
                 [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
                     try {
-                        Move-Item -Path "$($using:workingDirectory.FullName)\NetworkTraces" -Destination $using:tempDirectory.FullName -ErrorAction Stop
+                        Move-Item -Path "$($using:workingDirectory.FullName)\NetworkTraces" -Destination $using:tempDirectory.FullName -Force -ErrorAction Stop
                     }
                     catch {
                         "Unable to move {0} to {1}`n`t{2}" -f $networkTraceDir.FullName, $using:tempDirectory.FullName, $_.Exception | Write-Warning
