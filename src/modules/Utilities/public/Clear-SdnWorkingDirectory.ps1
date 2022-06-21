@@ -59,14 +59,23 @@ function Clear-SdnWorkingDirectory {
         }
         else {
             foreach ($object in $Path) {
-                if ($object -inotlike "$($Global:SdnDiagnostics.Settings.FolderPathsAllowedForCleanup)") {
-                    "{0} is not defined as an allowed path for cleanup. Skipping" -f $object | Trace-Output -Level:Warning
-                    continue
+                # enumerate through the allowed folder paths for cleanup to make sure the paths specified can be cleaned up
+                $pathAllowed = $false
+                foreach ($allowedFolderPath in $Global:SdnDiagnostics.Settings.FolderPathsAllowedForCleanup) {
+                    if ($object -ilike $allowedFolderPath) {
+                        $pathAllowed = $true
+                    }
                 }
 
-                if (Test-Path -Path $object) {
-                    "Remove {0}" -f $object | Trace-Output -Level:Verbose
-                    Remove-Item -Path $object -Exclude $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Continue
+                # once validated that the path can be removed then perform test to make sure path exists before attempting to remove
+                if ($pathAllowed) {
+                    if (Test-Path -Path $object) {
+                        "Remove {0}" -f $object | Trace-Output -Level:Verbose
+                        Remove-Item -Path $object -Exclude $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Continue
+                    }
+                }
+                else {
+                    "{0} is not defined as an allowed path for cleanup. Skipping" -f $object | Trace-Output -Level:Warning
                 }
             }
         }
