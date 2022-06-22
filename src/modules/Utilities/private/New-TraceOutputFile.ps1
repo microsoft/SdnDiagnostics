@@ -15,6 +15,9 @@ function New-TraceOutputFile {
         [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir.FullName -ChildPath $fileName
         Set-TraceOutputFile -Path $filePath.FullName
 
+        # configure the cache to not cleanup the trace file
+        $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup = $filePath.Name
+
         "TraceFile: {0}" -f $filePath.FullName | Trace-Output -Level:Verbose
     }
     catch {
