@@ -7,8 +7,6 @@ function Test-SdnKIHostRootStoreNonRootCert {
         Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
     .DESCRIPTION
         Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist. Non Root Cert is the cert that Issuer not equal to Subject
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER Credential
@@ -16,9 +14,11 @@ function Test-SdnKIHostRootStoreNonRootCert {
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .EXAMPLE
-        PS> <sample 1>
+        PS> Test-SdnKIHostRootStoreNonRootCert
     .EXAMPLE
-        PS> <sample 2>
+        PS> Test-SdnKIHostRootStoreNonRootCert -ComputerName 'Server01','Server02'
+    .EXAMPLE
+        PS> Test-SdnKIHostRootStoreNonRootCert -ComputerName 'Server01','Server02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -29,12 +29,7 @@ function Test-SdnKIHostRootStoreNonRootCert {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -48,13 +43,6 @@ function Test-SdnKIHostRootStoreNonRootCert {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
-        }
-
-        # if NcRestCredential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
-            if($Global:SdnDiagnostics.NcRestCredential){
-                $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
             }    
         }
 
@@ -78,7 +66,7 @@ function Test-SdnKIHostRootStoreNonRootCert {
         }
 
         foreach($node in $ComputerName){
-            $nonRootCerts = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -PassThru
+            $nonRootCerts = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock $scriptBlock -PassThru
             # If any node have Non Root Certs in Trusted Root Store. Issue detected.
             if($nonRootCerts.Count -gt 0){
                 $object = [PSCustomObject]@{
