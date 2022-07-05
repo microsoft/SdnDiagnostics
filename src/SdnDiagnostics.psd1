@@ -100,6 +100,7 @@
         'Start-SdnNetshTrace',
         'Stop-EtwTraceCapture',
         'Stop-SdnNetshTrace',
+        'Test-SdnKIHostRootStoreNonRootCert',
         'Test-SdnKINetworkControllerCertCredential',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
         'Test-SdnKINetworkInterfacePlacement',
