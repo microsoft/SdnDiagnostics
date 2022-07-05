@@ -88,7 +88,6 @@ function Test-SdnKINetworkControllerCertCredential {
                 $thumbPrint = $credObj.properties.value
                 $scriptBlock = {
                     if (-NOT (Test-Path -Path Cert:\LocalMachine\My\$using:thumbPrint)) {
-                        "Certificate with thumbprint $using:thumbPrint not found" | Trace-Output -Level:Warning
                         return $false
                     }
                     else {
