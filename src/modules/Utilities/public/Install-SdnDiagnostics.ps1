@@ -70,7 +70,8 @@ function Install-SdnDiagnostics {
             "Getting current installed version of SdnDiagnostics on remote nodes" | Trace-Output
             $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -ScriptBlock {
                 try {
-                    $version = (Get-Module -Name SdnDiagnostics -ListAvailable -ErrorAction SilentlyContinue).Version.ToString()
+                    # Get the latest version of SdnDiagnostics Module installed
+                    $version = (Get-Module -Name SdnDiagnostics -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
                 }
                 catch {
                     # in some instances, the module will not be available and as such we want to skip the noise and return
