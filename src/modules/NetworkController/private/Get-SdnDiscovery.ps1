@@ -25,13 +25,7 @@ function Get-SdnDiscovery {
     try {
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'Discovery'
 
-        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
-            $result = Invoke-RestMethod -Uri $uri -Method GET -UseBasicParsing -Credential $Credential -ErrorAction Stop
-        }
-        else {
-            $result = Invoke-RestMethod -Uri $uri -Method GET -UseBasicParsing -UseDefaultCredentials -ErrorAction Stop
-        }
-
+        $result = Invoke-RestMethodWithRetry -Uri $uri -Method GET -UseBasicParsing -Credential $Credential -ErrorAction Stop
         return $result
     }
     catch {
