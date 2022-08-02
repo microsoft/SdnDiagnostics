@@ -18,7 +18,13 @@ function Get-SdnCertificate {
 
             return $true
         })]
-        [System.String]$Path
+        [System.String]$Path,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'SubjectName')]
+        [System.String]$SubjectName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [System.String]$Thumbprint
     )
 
     try {
@@ -38,6 +44,14 @@ function Get-SdnCertificate {
             }
 
             $certificates += $result
+        }
+
+        if ($SubjectName) {
+            return ($certificates | Where-Object {$_.SubjectName -ieq $SubjectName})
+        }
+
+        if ($Thumbprint) {
+            return ($certificates | Where-Object {$_.Thumbprint -ieq $Thumbprint})
         }
 
         return $certificates
