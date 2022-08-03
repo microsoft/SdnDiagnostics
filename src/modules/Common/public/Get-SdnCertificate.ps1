@@ -8,9 +8,9 @@ function Get-SdnCertificate {
             PS> Get-SdnCertificate -Path "Cert:\LocalMachine\My"
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [ValidateScript({
             if ($_ -notlike "cert:\*") {
                 throw New-Object System.FormatException("Invalid path")
@@ -20,10 +20,12 @@ function Get-SdnCertificate {
         })]
         [System.String]$Path,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'SubjectName')]
-        [System.String]$SubjectName,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [System.String]$Subject,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [System.String]$Thumbprint
     )
 
@@ -46,8 +48,8 @@ function Get-SdnCertificate {
             $certificates += $result
         }
 
-        if ($SubjectName) {
-            return ($certificates | Where-Object {$_.SubjectName -ieq $SubjectName})
+        if ($Subject) {
+            return ($certificates | Where-Object {$_.Subject -ieq $Subject})
         }
 
         if ($Thumbprint) {

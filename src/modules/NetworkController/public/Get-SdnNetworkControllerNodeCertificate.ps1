@@ -9,16 +9,16 @@ function Get-SdnNetworkControllerNodeCertificate {
 
     try {
         $networkControllerNode = Get-NetworkControllerNode -Name $env:COMPUTERNAME
-        "Network Controller is currently configured for FindCertificateBy: {0}" -f $networkControllerNode.FindCertificateBy
+        "Network Controller is currently configured for FindCertificateBy: {0}" -f $networkControllerNode.FindCertificateBy | Trace-Output
         switch ($networkControllerNode.FindCertificateBy) {
             'FindBySubjectName' {
-                "`tFindBySubjectName: {0}" -f $networkControllerNode.FindBySubjectName | Trace-Output
-                $certificate = Get-SdnCertificate -Path 'Cert:\\LocalMachine\My' -SubjectName $networkControllerNode.NodeCertSubjectName
+                "`tFindBySubjectName: {0}" -f $networkControllerNode.NodeCertSubjectName | Trace-Output
+                $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $networkControllerNode.NodeCertSubjectName
             }
 
             'FindByThumbprint' {
-                "`FindByThumbprint: {0}" -f $networkControllerNode.FindByThumbprint | Trace-Output
-                $certificate = Get-SdnCertificate -Path 'Cert:\\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint
+                "`FindByThumbprint: {0}" -f $networkControllerNode.NodeCertificateThumbprint | Trace-Output
+                $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint
             }
         }
 

@@ -61,9 +61,11 @@
         'Get-SdnNetAdapterEncapOverheadConfig',
         'Get-SdnNetAdapterRdmaConfig',
         'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
-        'Get-SdnNetworkControllerConfigurationState',
-        'Get-SdnNetworkControllerClusterInfo',
         'Get-SdnNetworkController',
+        'Get-SdnNetworkControllerClusterInfo',
+        'Get-SdnNetworkControllerConfigurationState',
+        'Get-SdnNetworkControllerNodeCertificate'
+        'Get-SdnNetworkControllerRestCertificate',
         'Get-SdnNetworkControllerState',
         'Get-SdnOvsdbAddressMapping',
         'Get-SdnOvsdbFirewallRuleTable',

@@ -9,7 +9,7 @@ function Get-SdnNetworkControllerRestCertificate {
 
     try {
         $networkController = Get-NetworkController
-        $certificate = Get-SdnCertificate -Path 'Cert:\\LocalMachine\My' -SubjectName $networkController.ServerCertificate.Thumbprint
+        $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkController.ServerCertificate.Thumbprint
 
         if ($null -eq $certificate) {
             throw New-Object System.NullReferenceException("Unable to locate Network Controller Rest Certificate")

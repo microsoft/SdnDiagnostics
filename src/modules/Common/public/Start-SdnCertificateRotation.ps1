@@ -24,16 +24,12 @@ function Start-SdnCertificateRotation {
         $ncSettings = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
             return [PSCustomObject]@{
                 NetworkControllerVersion        = (Get-NetworkController).Version
-                ApplicationTypeVersion          = [xml](Get-Content -Path "$($env:windir)\networkcontroller\TemplateApplicationManifest.xml").ApplicationManifest.ApplicationTypeVersion
                 NetworkControllerClusterVersion = (Get-NetworkControllerCluster).Version
-                ClusterManifestVersion          = [xml](Get-Content -Path "$($env:windir)\networkcontroller\TemplateClusterManifest.xml").ClusterManifest.Version
             }
         }
 
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
-        "Network Controller application template version: {0}" -f $ncSettings.ApplicationTypeVersion | Trace-Output
         "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
-        "Network Controller cluster template version: {0}" -f $ncSettings.ClusterManifestVersion | Trace-Output
 
         # return back a list of the current certificates used on the system
         $currentCertificates = @()
@@ -103,6 +99,8 @@ function Start-SdnCertificateRotation {
                 }
             }
         }
+
+
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
