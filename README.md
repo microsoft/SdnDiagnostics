@@ -3,6 +3,11 @@ SdnDiagnostics is a PowerShell module that is designed to simplify the diagnosti
 
 Please refer to the [wiki](https://github.com/microsoft/SdnDiagnostics/wiki) on how to install and use SdnDiagnostics in your environment.
 
+## Package Statistics
+| Package Gallery | Total Downloads | Current Version |
+| :-- | :-- | :-- |
+| PowerShell Gallery | [![downloads](https://img.shields.io/powershellgallery/dt/SdnDiagnostics.svg?label=Downloads)](https://www.powershellgallery.com/packages/SdnDiagnostics) | [![downloads](https://img.shields.io/powershellgallery/v/SdnDiagnostics.svg?label=Version)](https://www.powershellgallery.com/packages/SdnDiagnostics) |
+| NuGet | [![downloads](https://img.shields.io/nuget/dt/SdnDiagnostics.svg?label=Downloads)](https://www.nuget.org/packages/SdnDiagnostics) |[![downloads](https://img.shields.io/nuget/v/SdnDiagnostics.svg?label=Version)](https://www.nuget.org/packages/SdnDiagnostics)
 
 ## GitHub Action Status
 | Actions | Current Status |
