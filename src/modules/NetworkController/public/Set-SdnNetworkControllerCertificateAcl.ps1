@@ -1,4 +1,9 @@
 function Set-SdnNetworkControllerCertificateAcl {
+    <#
+        .SYNOPSIS
+        Configures NT AUTHORITY/NETWORK SERVICE to have appropriate permissions to the private key of the Network Controller certificates.
+    #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
@@ -42,13 +47,17 @@ function Set-SdnNetworkControllerCertificateAcl {
 
         if ($certificate.HasPrivateKey) {
             $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
-            $privateKeyCertFile = Get-Item -Path "$($ENV:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\$($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)"
+            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\$($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)"
 
-            "Configuring {0} on {1}" -f $networkServicePermission, $privateKeyCertFile.FullName | Trace-Output
-            $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
-            $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($networkServicePermission)
-            [void]$privateKeyAcl.AddAccessRule($accessRule)
-            $null = Set-Acl -Path $privateKeyCertFile.FullName -AclObject $privateKeyAcl
+            if ($privateKeyCertFile.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
+                $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
+
+                "Configuring {0} on {1}" -f $networkServicePermission, $privateKeyCertFile.FullName | Trace-Output
+                $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($networkServicePermission)
+                [void]$privateKeyAcl.AddAccessRule($accessRule)
+                $null = Set-Acl -Path $privateKeyCertFile.FullName -AclObject $privateKeyAcl
+            }
         }
     }
     catch {
