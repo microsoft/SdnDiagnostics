@@ -6,7 +6,7 @@ function Debug-SdnFabricInfrastructure {
     .SYNOPSIS
         Executes a series of fabric validation tests to validate the state and health of the underlying components within the SDN fabric.
     .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
@@ -19,8 +19,8 @@ function Debug-SdnFabricInfrastructure {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [System.String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

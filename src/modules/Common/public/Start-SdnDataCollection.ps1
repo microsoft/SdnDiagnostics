@@ -7,7 +7,7 @@ function Start-SdnDataCollection {
     .SYNOPSIS
         Automated data collection script to pull the current configuration state in conjuction with diagnostic logs and other data points used for debugging.
     .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER Role
@@ -40,9 +40,9 @@ function Start-SdnDataCollection {
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Computer')]
-        [System.String]$NetworkController,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [System.String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]

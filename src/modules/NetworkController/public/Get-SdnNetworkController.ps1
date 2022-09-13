@@ -6,7 +6,7 @@ function Get-SdnNetworkController {
     .SYNOPSIS
         Returns a list of servers from network controller.
     .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
@@ -17,8 +17,8 @@ function Get-SdnNetworkController {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [System.String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

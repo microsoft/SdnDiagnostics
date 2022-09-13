@@ -6,21 +6,21 @@ function Test-SdnKnownIssue {
     .SYNOPSIS
         Executes a series of detection scripts to isolate well known issues that may cause impact to workloads running on the SDN fabric.
     .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .EXAMPLE
-        PS> Debug-SdnFabricInfrastructure
+        PS> Test-SdnKnownIssue
     .EXAMPLE
-        PS> Debug-SdnFabricInfrastructure -NetworkController 'NC01' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
+        PS> Test-SdnKnownIssue -NetworkController 'NC01' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [System.String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
