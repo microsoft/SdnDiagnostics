@@ -50,6 +50,14 @@ function Get-SdnInfrastructureInfo {
     )
 
     try {
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
 
         # if force is defined, purge the cache to force a refresh on the objects
         if ($PSBoundParameters.ContainsKey('Force')) {

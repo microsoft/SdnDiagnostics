@@ -51,6 +51,15 @@ function Test-SdnKnownIssue {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
 
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
+
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         if ($null -eq $environmentInfo) {
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
