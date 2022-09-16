@@ -96,8 +96,10 @@
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
+        'Set-SdnNetworkControllerCertificateAcl',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Start-EtwTraceCapture',
+        'Start-SdnCertificateRotation'
         'Start-SdnDataCollection',
         'Start-SdnNetshTrace',
         'Stop-EtwTraceCapture',
