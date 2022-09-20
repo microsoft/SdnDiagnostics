@@ -233,7 +233,6 @@ function Start-SdnCertificateRotation {
             }
         }
 
-        <#
         #####################################
         #
         # Rotate NC Northbound Certificate (REST)
@@ -246,9 +245,12 @@ function Start-SdnCertificateRotation {
         "Rotating the NC REST certificate" | Trace-Output
         try {
             Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {
-                $cert = Get-SdnCertificate -Thumbprint $using:updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint
+                $cert = Get-SdnCertificate -Thumbprint $using:updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint -ErrorAction Stop
                 if ($cert) {
-                    Set-Networkcontroller -ServerCertificate $cert
+                    Set-Networkcontroller -ServerCertificate $cert -ErrorAction Stop
+                }
+                else {
+                    throw New-Object System.NullReferenceException("Unable to locate rest certificate")
                 }
             } -Credential $Credential
         }
@@ -300,6 +302,9 @@ function Start-SdnCertificateRotation {
                 if ($cert){
                     Set-NetworkControllerCluster -CredentialEncryptionCertificate $cert
                 }
+                else {
+                    throw New-Object System.NullReferenceException("Unable to locate rest certificate")
+                }
             }
         }
         catch [InvalidOperationException] {
@@ -347,7 +352,13 @@ function Start-SdnCertificateRotation {
             try {
                 Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
                     $cert = Get-SdnCertificate -Thumbprint $using:nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint
-                    Set-NetworkControllerNode -Name $env:COMPUTERNAME -NodeCertificate $cert
+
+                    if ($cert) {
+                        Set-NetworkControllerNode -Name $env:COMPUTERNAME -NodeCertificate $cert
+                    }
+                    else {
+                        throw New-Object System.NullReferenceException("Unable to locate node certificate")
+                    }
                 }
             }
             catch [InvalidOperationException] {
@@ -428,7 +439,6 @@ function Start-SdnCertificateRotation {
         }
 
         "Certificate rotation completed successfully" | Trace-Output
-        #>
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
