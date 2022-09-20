@@ -57,6 +57,9 @@ function Set-SdnNetworkControllerCertificateAcl {
                 [void]$privateKeyAcl.AddAccessRule($accessRule)
                 $null = Set-Acl -Path $privateKeyCertFile.FullName -AclObject $privateKeyAcl
             }
+            else {
+                "Permissions already defined for NT AUTHORITY\NETWORK SERVICE for {0}. No ACL changes required." -f $certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName | Trace-Output
+            }
         }
     }
     catch {
