@@ -40,9 +40,8 @@ function Get-SdnCertificate {
                     $result | Add-Member -MemberType NoteProperty -Name "AccesstoString" -Value $acl.AccessToString
                     $result | Add-Member -MemberType NoteProperty -Name "Sddl" -Value $acl.Sddl
                 }
-                else {
-                    $result | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.value
-                }
+
+                $result | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.value
             }
 
             $certificates += $result

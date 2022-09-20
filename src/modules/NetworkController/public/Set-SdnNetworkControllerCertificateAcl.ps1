@@ -29,7 +29,7 @@ function Set-SdnNetworkControllerCertificateAcl {
             'Subject' {
                 $certificate = Get-SdnCertificate -Path $Path -Subject $Subject
             }
-            'Thumprint' {
+            'Thumbprint' {
                 $certificate = Get-SdnCertificate -Path $Path -Thumbprint $Thumbprint
             }
         }
@@ -46,13 +46,12 @@ function Set-SdnNetworkControllerCertificateAcl {
         }
 
         if ($certificate.HasPrivateKey) {
-            $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
-            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\$($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)"
+            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\*" | Where-Object {$_.Name -ieq $($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)}
 
             if ($privateKeyCertFile.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
                 $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
 
-                "Configuring {0} on {1}" -f $networkServicePermission, $privateKeyCertFile.FullName | Trace-Output
+                "Configuring {0} on {1}" -f ($networkServicePermission -join ', ').ToString(), $privateKeyCertFile.FullName | Trace-Output
                 $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
                 $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($networkServicePermission)
                 [void]$privateKeyAcl.AddAccessRule($accessRule)
