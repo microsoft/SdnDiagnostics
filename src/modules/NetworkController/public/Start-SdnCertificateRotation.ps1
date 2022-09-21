@@ -5,8 +5,6 @@ function Start-SdnCertificateRotation {
     <#
     .SYNOPSIS
         Performs a controller certificate rotate operation for Network Controller Northbound API, Southbound communications and Network Controller nodes.
-    .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operate
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
@@ -15,9 +13,6 @@ function Start-SdnCertificateRotation {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.String]$NetworkController,
-
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -38,21 +33,31 @@ function Start-SdnCertificateRotation {
         [Switch]$SelfSigned
     )
 
+    $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+    if (-NOT ($confirmFeatures)) {
+        throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
+    }
+
     try {
         "Starting certificate rotation" | Trace-Output
         "Retrieving current SDN environment details" | Trace-Output
 
         # determine fabric information and current version settings for network controller
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        $ncSettings = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-            return [PSCustomObject]@{
-                NetworkControllerVersion        = (Get-NetworkController).Version
-                NetworkControllerClusterVersion = (Get-NetworkControllerCluster).Version
-            }
+        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential -NcRestCredential $NcRestCredential
+        $ncSettings = @{
+            NetworkControllerVersion        = (Get-NetworkController).Version
+            NetworkControllerClusterVersion = (Get-NetworkControllerCluster).Version
         }
 
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
         "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
+
+        $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME
+        if ($healthState.AggregatedHealthState -ine 'Healthy') {
+            "Service Fabric AggregatedHealthState is currently reporting {0}" -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
+            return
+        }
 
         #####################################
         #
@@ -94,7 +99,7 @@ function Start-SdnCertificateRotation {
 
         # enumerate the NC REST certificates
         "Retrieving Rest Certificate" | Trace-Output
-        $currentRestCertificate = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock { Get-SdnNetworkControllerRestCertificate } -ErrorAction Stop
+        $currentRestCertificate = Get-SdnNetworkControllerRestCertificate
         if ($currentRestCertificate.NotAfter -le (Get-Date)) {
             $certIsExpired = $true
             "[Thumbprint: {0}] NC REST certificate is expired" -f $currentRestCertificate.Thumbprint | Trace-Output -Level:Warning
@@ -142,7 +147,8 @@ function Start-SdnCertificateRotation {
         # there is more advanced remediation steps required to unblock
         # this scenario that this function does not handle currently
         if ($certIsExpired) {
-            throw New-Object System.NotSupportedException("Network Controller certificates are expired")
+            "Network Controller certificates are expired" | Trace-Output -Level:Exception
+            return
         }
 
         #####################################
@@ -230,11 +236,18 @@ function Start-SdnCertificateRotation {
             if ($SelfSigned) {
                 "[{0}]: Importing the public key of the certificate to root store" -f $node | Trace-Output
 
-                Copy-FileFromRemoteComputer -ComputerName $node -Credential $Credential -Path "$certDir\*.cer" -Destination $certDir
-                foreach ($controller in ($sdnFabricDetails.NetworkController | Where-Object {$_ -ne $node})) {
-                    Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path "$certDir\$node.cer" -Destination "$certDir\$node.cer"
+                # if we are not currently seeding the certificate to current node
+                # then we will want to copy the *.cer file from the remote node and bring to the local workstation
+                if (-NOT (Test-ComputerNameIsLocal -ComputerName $node)) {
+                    Copy-FileFromRemoteComputer -ComputerName $node -Credential $Credential -Path "$certDir\*.cer" -Destination $certDir
+                }
 
-                    "[{0}]: Importing certificate {1}" -f $node, $("$certDir\$node.cer") | Trace-Output
+                foreach ($controller in ($sdnFabricDetails.NetworkController)) {
+                    if (-NOT (Test-ComputerNameIsLocal -ComputerName $controller)) {
+                        Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path "$certDir\$node.cer" -Destination "$certDir\$node.cer"
+                    }
+
+                    "[{0}]: Importing certificate {1}" -f $controller, "$node.cer" | Trace-Output
                     Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                         $null = Import-Certificate -FilePath "$($using:certDir)\$($using:node).cer" -CertStoreLocation "Cert:\LocalMachine\Root"
                     } -ErrorAction Stop
@@ -248,20 +261,20 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        $timeoutInMinutes = 10
+        $timeoutInMinutes = 30
         $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
         "== STAGE: ROTATE NC REST CERTIFICATE ==" | Trace-Output
+        "Updating NC REST API to use certificate thumbprint {0}" -f $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
+
         try {
-            Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint}
-                if ($cert) {
-                    Set-Networkcontroller -ServerCertificate $cert -ErrorAction Stop
-                }
-                else {
-                    throw New-Object System.NullReferenceException("Unable to locate rest certificate")
-                }
-            } -ErrorAction Stop
+            $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint}
+            if ($cert) {
+                Set-Networkcontroller -ServerCertificate $cert
+            }
+            else {
+                throw New-Object System.NullReferenceException("Unable to locate rest certificate")
+            }
         }
         catch [InvalidOperationException] {
             if ($_.FullyQualifiedErrorId -ilike "*UpdateInProgress*") {
@@ -278,17 +291,15 @@ function Start-SdnCertificateRotation {
                 throw New-Object System.TimeoutException("Rotate of NC rest certificate did not complete within the alloted time")
             }
 
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                Get-Networkcontroller
-            } -ErrorAction Stop
-
-            if ($result.ServerCertificate.Thumbprint -ieq $updatedRestCertificate.Thumbprint) {
+            $result = Get-Networkcontroller
+            if ($result.ServerCertificate.Thumbprint -ieq $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint) {
                 "Successfully rotated the NC rest certificate" | Trace-Output
                 break
             }
             else {
-                "Waiting... {0} seconds" -f $stopWatch.Elapsed.TotalSeconds | Trace-Output
-                Start-Sleep -Seconds 10
+                "Thumbprint for NC currently set to {0}. Expected {1}. Waiting... {2} seconds" -f `
+                $result.ServerCertificate.Thumbprint, $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint, $stopWatch.Elapsed.TotalSeconds | Trace-Output
+                Start-Sleep -Seconds 15
             }
         }
 
@@ -300,21 +311,20 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        $timeoutInMinutes = 10
+        $timeoutInMinutes = 30
         $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
         "== STAGE: ROTATE NC CLUSTER CERTIFICATE ==" | Trace-Output
 
+        "Updating NC cluster to use certificate thumbprint {0}" -f $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
         try {
-            Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint}
-                if ($cert){
-                    Set-NetworkControllerCluster -CredentialEncryptionCertificate $cert
-                }
-                else {
-                    throw New-Object System.NullReferenceException("Unable to locate rest certificate")
-                }
-            } -ErrorAction Stop
+            $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint}
+            if ($cert){
+                Set-NetworkControllerCluster -CredentialEncryptionCertificate $cert
+            }
+            else {
+                throw New-Object System.NullReferenceException("Unable to locate rest certificate")
+            }
         }
         catch [InvalidOperationException] {
             if ($_.FullyQualifiedErrorId -ilike "*UpdateInProgress*") {
@@ -331,16 +341,15 @@ function Start-SdnCertificateRotation {
                 throw New-Object System.TimeoutException("Rotate of NC cluster certificate did not complete within the alloted time")
             }
 
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                Get-NetworkControllerCluster
-            }
-
+            $result = Get-NetworkControllerCluster
             if ($result.CredentialEncryptionCertificate.Thumbprint -ieq $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint) {
+                "Successfully rotated the NC cluster certificate" | Trace-Output
                 break
             }
             else {
-                "Waiting... {0} seconds" -f $stopWatch.Elapsed.TotalSeconds | Trace-Output
-                Start-Sleep -Seconds 10
+                "Thumbprint for NC Cluster currently set to {0}. Expected {1}. Waiting... {2} seconds" -f `
+                $result.CredentialEncryptionCertificate.Thumbprint, $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint, $stopWatch.Elapsed.TotalSeconds | Trace-Output
+                Start-Sleep -Seconds 15
             }
         }
 
@@ -352,25 +361,26 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
+        $timeoutInMinutes = 30
+
         "== STAGE: ROTATE NC NODE CERTIFICATE ==" | Trace-Output
 
         foreach ($node in $sdnFabricDetails.NetworkController){
-            "Rotating the NC Node certificate for {0}" -f $node | Trace-Output
-            $timeoutInMinutes = 10
+            "Updating {0} to use node certificate thumbprint {1}" -f $node, $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
             $nodeCertConfig = $certificateConfig.NetworkController[$node]
 
             try {
-                Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
-                    $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
-
-                    if ($cert) {
-                        Set-NetworkControllerNode -Name $env:COMPUTERNAME -NodeCertificate $cert
+                if (Test-ComputerNameIsLocal -ComputerName $node) {
+                    $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
+                    Set-NetworkControllerNode -Name $node -NodeCertificate $cert
+                }
+                else {
+                    $remoteCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
+                        Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
                     }
-                    else {
-                        throw New-Object System.NullReferenceException("Unable to locate node certificate")
-                    }
-                } -ErrorAction Stop
+                    Set-NetworkControllerNode -Name $node -ComputerName $node -NodeCertificate $remoteCert
+                }
             }
             catch [InvalidOperationException] {
                 $stopWatch.Stop()
@@ -390,8 +400,9 @@ function Start-SdnCertificateRotation {
                     break
                 }
                 else {
-                    "Expected and actual certificate thumbprint do not match. Waiting and will retry..." | Trace-Output
-                    Start-Sleep -Seconds 10
+                    "Thumbprint for {0} currently set to {1}. Expected {2}. Waiting... {3} seconds" -f `
+                    $node, $result.NodeCertificate.Thumbprint, $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $stopWatch.Elapsed.TotalSeconds | Trace-Output
+                    Start-Sleep -Seconds 15
                 }
             }
 
