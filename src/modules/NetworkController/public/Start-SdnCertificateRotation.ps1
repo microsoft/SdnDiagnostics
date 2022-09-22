@@ -108,7 +108,8 @@ function Start-SdnCertificateRotation {
         foreach ($cert in $certificateCache) {
             if ($cert.PfxData.EndEntityCertificates.Subject -ieq $currentRestCertificate.Subject) {
                 $updatedRestCertificate = $cert
-                "Matched {0} to NC Rest Certificate" -f $cert.FileInfo.FullName | Trace-Output
+                "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
+                $cert.FileInfo.FullName,  $cert.PfxData.EndEntityCertificates.Subject, $cert.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
                 break
             }
         }
@@ -126,7 +127,8 @@ function Start-SdnCertificateRotation {
                 $updatedNodeCert = $null
                 if ($cert.PfxData.EndEntityCertificates.Subject -ieq $currentNodeCert.Subject) {
                     $updatedNodeCert = $cert
-                    "Matched {0} to {1}" -f $updatedNodeCert.FileInfo.Name, $node | Trace-Output
+                    "Matched {0} [Subject: {1}; Thumbprint: {2}] to {3}" -f `
+                    $updatedNodeCert.FileInfo.Name, $cert.PfxData.EndEntityCertificates.Subject, $cert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
 
                     break
                 }
