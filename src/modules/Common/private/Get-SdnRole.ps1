@@ -1,5 +1,7 @@
-function Get-SdnRole {
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
 
+function Get-SdnRole {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]

@@ -30,7 +30,10 @@ function Start-SdnCertificateRotation {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$SelfSigned
+        [Switch]$SelfSigned,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$GenerateCertificate
     )
 
     $config = Get-SdnRoleConfiguration -Role 'NetworkController'
@@ -61,6 +64,27 @@ function Start-SdnCertificateRotation {
 
         #####################################
         #
+        # Create Certificate (Optional)
+        #
+        #####################################
+
+        if ($GenerateCertificate) {
+            "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
+
+            # generate the NC REST Certificate
+            $restCertSubject = (Get-SdnNetworkControllerRestCertificate).Subject
+            $null = New-SdnCertificate -Subject $restCertSubject -NotAfter (Get-Date).AddDays(365)
+
+            foreach ($controller in $sdnFabricDetails.NetworkController) {
+                Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                    $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
+                    $null = New-SdnCertificate -Subject $nodeCertSubject -NotAfter (Get-Date).AddDays(365)
+                }
+            }
+        }
+
+        #####################################
+        #
         # Certificate Configuration
         #
         #####################################
@@ -84,9 +108,11 @@ function Start-SdnCertificateRotation {
             $pfxData = Get-PfxData -FilePath $pfxFile.FullName -Password $CertPassword -ErrorAction Stop
 
             # add a failsafe to detect is the certificate is self signed if was not declared when function was executed
-            if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
-                "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output
-                $SelfSigned = $true
+            if (-NOT $SelfSigned) {
+                if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
+                    "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output
+                    $SelfSigned = $true
+                }
             }
 
             $object = [PSCustomObject]@{
@@ -146,8 +172,7 @@ function Start-SdnCertificateRotation {
         }
 
         # make sure that none of the current certificates are expired
-        # there is more advanced remediation steps required to unblock
-        # this scenario that this function does not handle currently
+        # there is more advanced remediation steps required to unblock this scenario that this function does not handle currently
         if ($certIsExpired) {
             "Network Controller certificates are expired" | Trace-Output -Level:Exception
             return
@@ -187,7 +212,7 @@ function Start-SdnCertificateRotation {
                 $pfxCertToInstall = Get-ChildItem -Path $using:certDir | Where-Object {$_.Name -ieq $using:updatedRestCertificate.FileInfo.Name}
                 $pfxCertificate = Import-PfxCertificate -FilePath $pfxCertToInstall.FullName -CertStoreLocation 'Cert:\LocalMachine\My' -Password $using:CertPassword -Exportable -ErrorAction Stop
 
-                Set-SdnNetworkControllerCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $($pfxCertificate.Thumbprint).ToString()
+                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $($pfxCertificate.Thumbprint).ToString()
 
                 # if self signed was defined, then we need to export the public key from the certificate and import into Cert:\LocalMachine\Root
                 if ($using:SelfSigned) {
@@ -223,7 +248,7 @@ function Start-SdnCertificateRotation {
                 $pfxCertToInstall = Get-ChildItem -Path $using:certDir | Where-Object {$_.Name -ieq $using:nodeCertConfig.UpdatedCert.FileInfo.Name}
                 $pfxCertificate = Import-PfxCertificate -FilePath $pfxCertToInstall.FullName -CertStoreLocation 'Cert:\LocalMachine\My' -Password $using:CertPassword -Exportable -ErrorAction Stop
 
-                Set-SdnNetworkControllerCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $pfxCertificate.Thumbprint
+                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $pfxCertificate.Thumbprint
 
                 # if self signed was defined, then we need to export the public key from the certificate and import into Cert:\LocalMachine\Root
                 if ($using:SelfSigned) {

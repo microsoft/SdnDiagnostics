@@ -1,4 +1,4 @@
-function Set-SdnNetworkControllerCertificateAcl {
+function Set-SdnCertificateAcl {
     <#
         .SYNOPSIS
         Configures NT AUTHORITY/NETWORK SERVICE to have appropriate permissions to the private key of the Network Controller certificates.
