@@ -96,7 +96,7 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Set-SdnVMNetworkAdapterPortProfile',
-        'Show-SdnVfpPortRule',
+        'Show-SdnVfpPortConfig',
         'Start-EtwTraceCapture',
         'Start-SdnDataCollection',
         'Start-SdnNetshTrace',

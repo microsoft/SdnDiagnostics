@@ -1,4 +1,4 @@
-function Show-SdnVfpPortRule {
+function Show-SdnVfpPortConfig {
     <#
     .SYNOPSIS
         Enumerates the VFP layers, groups and rules contained within Virtual Filtering Platform (VFP) for the specified port.
@@ -19,7 +19,7 @@ function Show-SdnVfpPortRule {
     )
 
     try {
-        $vfpLayers = Get-VfpPortLayer -PortId $PortId
+        $vfpLayers = Get-SdnVfpPortLayer -PortId $PortId
         if ($null -eq $vfpLayers) {
             "Unable to locate PortId {0}" -f $PortId | Trace-Output -Level:Exception
             return $null
@@ -27,10 +27,10 @@ function Show-SdnVfpPortRule {
 
         foreach ($layer in $vfpLayers) {
             "== Layer: {0} ==" -f $layer.LAYER | Write-Host -ForegroundColor:Magenta
-            $vfpGroups = Get-VfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
+            $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
             foreach ($group in $vfpGroups) {
                 "== Group: {0} ==" -f $group.GROUP | Write-Host -ForegroundColor:Yellow
-                Get-VfpPortRule -PortId $PortId -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
+                Get-SdnVfpPortRule -PortId $PortId -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
             }
         }
     }
