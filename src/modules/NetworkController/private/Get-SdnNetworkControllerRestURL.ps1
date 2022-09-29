@@ -24,7 +24,7 @@ function Get-SdnNetworkControllerRestURL {
             return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
         }
 
-        $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
+        $result = Get-SdnNetworkController -NetworkController $NetworkController -Credential $Credential
 
         # check to see if RestName is populated and return back to the caller
         if ($result.RestName) {
