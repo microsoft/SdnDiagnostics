@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Set-SdnVMNetworkAdapterPortProfile {
+function Set-VMNetworkAdapterPortProfile {
     <#
     .SYNOPSIS
         Configures the port profile applied to the virtual machine network interfaces.
