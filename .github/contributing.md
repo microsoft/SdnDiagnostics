@@ -22,7 +22,7 @@ When creating core functions:
 
 To help ensure consistency, leverage `.build\utilities\create-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module directory. Example:
 ```powershell
-.\create-core-function.ps1 -FunctionName 'Disable-RasGatewayTracing' -Module Gateway -Template basic_template.ps1 -IsPublic
+.\create-core-function.ps1 -FunctionName 'Disable-SdnRasGatewayTracing' -Module Gateway -Template basic_template.ps1 -IsPublic
 ```
 - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice. Specify `-IsPublic` if you are planning for this function to be exported.
 

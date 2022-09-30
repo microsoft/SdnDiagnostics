@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Enable-RasGatewayTracing {
+function Enable-SdnRasGatewayTracing {
     <#
     .SYNOPSIS
         Enables netsh tracing for the RAS components. Files will be saved to C:\Windows\Tracing by default
