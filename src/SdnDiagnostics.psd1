@@ -92,6 +92,7 @@
         'Get-SdnVfpPortRule',
         'Get-SdnVfpPortState',
         'Install-SdnDiagnostics',
+        'Invoke-SdnCommand',
         'Invoke-SdnGetNetView',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
