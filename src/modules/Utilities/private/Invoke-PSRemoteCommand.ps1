@@ -42,11 +42,11 @@ function Invoke-PSRemoteCommand {
                     $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
                 }
             }
+
+            return $result
         }
         else {
-            $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
+            return (Invoke-Command -Session $session -ScriptBlock $ScriptBlock)
         }
-
-        return $result
     }
 }
