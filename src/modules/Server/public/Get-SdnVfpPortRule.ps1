@@ -59,6 +59,8 @@ function Get-SdnVfpPortRule {
                 continue
             }
 
+            # in situations where the value might be nested in another line we need to do some additional data processing
+            # subkey is declared below if the value is null after the split
             if ($subKey) {
                 if($null -eq $subObject){
                     $subObject = New-Object -TypeName PSObject
@@ -124,7 +126,7 @@ function Get-SdnVfpPortRule {
                         }
 
                         $object = New-Object -TypeName PSObject
-                        $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                        $object | Add-Member -MemberType NoteProperty -Name 'Rule' -Value $value
 
                         continue
                     }
@@ -135,18 +137,18 @@ function Get-SdnVfpPortRule {
                     }
 
                     # if the key is priority, we want to declare the value as an int value so we can properly sort the results
-                    elseif ($key -ieq 'Priority') {
+                    if ($key -ieq 'Priority') {
                         [int]$value = $value
                     }
-                }
 
-                # add the line values to the object
-                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                    # add the line values to the object
+                    $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                }
             }
         }
 
         if ($Name) {
-            return ($arrayList | Where-Object {$_.'RULE' -ieq $Name})
+            return ($arrayList | Where-Object {$_.Rule -ieq $Name -or $_.'Friendly name' -ieq $Name})
         }
 
         return ($arrayList | Sort-Object -Property Priority)

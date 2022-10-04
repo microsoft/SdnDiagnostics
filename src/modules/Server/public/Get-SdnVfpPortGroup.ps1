@@ -56,50 +56,49 @@ function Get-SdnVfpPortGroup {
         }
 
         foreach ($line in $vfpGroups) {
+            $line = $line.Trim()
+
+            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+                continue
+            }
+
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
 
             # in situations where the value might be nested in another line we need to do some additional data processing
-            # subvalues is declared below if the value is null after the split
-            if ($subValues) {
-                if (!$subArrayList) {
+            # subkey is declared below if the value is null after the split
+            if ($subKey) {
+                if($null -eq $subObject){
+                    $subObject = New-Object -TypeName PSObject
+                }
+                if ($null -eq $subArrayList) {
                     $subArrayList = [System.Collections.ArrayList]::new()
                 }
 
-                # if we hit here, we have captured all of the conditions within the group that need processing
-                # and we can now add the arraylist to the object and null out the values
-                if ($line.Contains('Match type')) {
-                    $object | Add-Member -NotePropertyMembers $subArrayList -TypeName $key
+                switch ($subKey) {
+                    'Conditions' {
+                        # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
+                        # we also see common pattern that Match type is the next property after Conditions, so we can use that to determine when
+                        # no further processing is needed for this sub value
+                        if ($line.Contains('Match type')) {
+                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject}
 
-                    $subValues = $false
-                    $subArrayList = $null
-                }
-                else {
-                    if ($line.Contains(':')) {
-                        [System.String[]]$results = $line.Split(':').Trim()
-                        if ($results.Count -eq 2) {
-                            $subObject = @{
-                                $results[0] = $results[1]
-                            }
-
-                            [void]$subArrayList.Add($subObject)
-
-                            continue
+                            $subObject = $null
+                            $subKey = $null
                         }
-                    }
-                    elseif ($line.Contains('<none>')) {
-                        $object | Add-Member -MemberType NoteProperty -Name $key -Value $null
 
-                        $subValues = $false
-                        $subArrayList = $null
+                        # if <none> is defined for conditions, we can also assume there is nothing to define and will just add
+                        elseif ($line.Contains('<none>')) {
+                            $object | Add-Member -MemberType NoteProperty -Name $subKey -Value 'None'
 
-                        continue
-                    }
-                    else {
-                        $object | Add-Member -MemberType NoteProperty -Name $key -Value $line.Trim()
-
-                        $subValues = $false
-                        $subArrayList = $null
-
-                        continue
+                            $subObject = $null
+                            $subKey = $null
+                        }
+                        elseif ($line.Contains(':')) {
+                            [System.String[]]$subResults = $line.Split(':').Trim()
+                            $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
+                        }
                     }
                 }
             }
@@ -109,46 +108,39 @@ function Get-SdnVfpPortGroup {
             if ($line.Contains(':')) {
                 [System.String[]]$results = $line.Split(':').Trim()
                 if ($results.Count -eq 2) {
-                    $key = $results[0]
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    # all groups begin with this property and value so need to create a new psobject when we see these keys
+                    if ($key -ieq 'Group') {
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+
+                        $object = New-Object -TypeName PSObject
+                        $object | Add-Member -MemberType NoteProperty -Name 'Group' -Value $value
+
+                        continue
+                    }
+
+                    if ($key -ieq 'Conditions') {
+                        $subKey = $key
+                        continue
+                    }
 
                     # if the key is priority, we want to declare the value as an int value so we can properly sort the results
                     if ($key -ieq 'Priority') {
                         [int]$value = $results[1]
                     }
-                    else {
 
-                        # if we split the object and the second object is null or white space
-                        # we can assume that the lines below it have additional data we need to capture and as such
-                        # need to do further processing
-                        if ([string]::IsNullOrWhiteSpace($results[1])) {
-                            $subValues = $true
-                            continue
-                        }
-
-                        [System.String]$value = $results[1]
-                    }
-                }
-
-                # all groups begin with this property and value so need to create a new psobject when we see these keys
-                if ($key -ieq 'Group') {
-                    $object = New-Object -TypeName PSObject
-                }
-
-                # add the line values to the object
-                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-            }
-
-            # all the groups are seperated with a blank line
-            # use this as our end of properties to add the current obj to the array list
-            if ([string]::IsNullOrEmpty($line)) {
-                if ($object) {
-                    [void]$arrayList.Add($object)
+                    # add the line values to the object
+                    $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                 }
             }
         }
 
         if ($Name) {
-            return ($arrayList | Where-Object { $_.GROUP -ieq $Name })
+            return ($arrayList | Where-Object { $_.Group -ieq $Name })
         }
 
         if ($Direction) {

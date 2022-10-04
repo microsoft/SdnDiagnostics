@@ -38,42 +38,52 @@ function Get-SdnVfpPortLayer {
         }
 
         foreach ($line in $vfpLayers) {
+            $line = $line.Trim()
+
+            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+                continue
+            }
+
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
             # lines in the VFP output that contain : contain properties and values
             # need to split these based on count of ":" to build key and values
             if ($line.Contains(':')) {
                 [System.String[]]$results = $line.Split(':').Trim()
                 if ($results.Count -eq 2) {
-                    $key = $results[0]
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    # all layers begin with this property and value so need to create a new psobject when we see these keys
+                    if ($key -ieq 'Layer') {
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+
+                        $object = New-Object -TypeName PSObject
+                        $object | Add-Member -MemberType NoteProperty -Name 'Layer' -Value $value
+
+                        continue
+                    }
 
                     # if the key is priority, we want to declare the value as an int value so we can properly sort the results
                     if ($key -ieq 'Priority') {
-                        [int]$value = $results[1]
+                        [int]$value = $value
                     }
                     else {
-                        [System.String]$value = $results[1]
+                        [System.String]$value = $value
                     }
-                }
-
-                # all layers begin with this property and value so need to create a new psobject when we see these keys
-                if ($key -ieq 'Layer') {
-                    $object = New-Object -TypeName PSObject
                 }
 
                 # add the line values to the object
                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
             }
-
-            # all the layers are seperated with a blank line
-            # use this as our end of properties to add the current obj to the array list
-            if ([string]::IsNullOrEmpty($line)) {
-                if ($object) {
-                    [void]$arrayList.Add($object)
-                }
-            }
         }
 
         if ($Name) {
-            return ($arrayList | Where-Object { $_.LAYER -eq $Name })
+            return ($arrayList | Where-Object { $_.Layer -eq $Name })
         }
         else {
             return ($arrayList | Sort-Object -Property Priority)
