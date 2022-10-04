@@ -214,10 +214,10 @@ function Start-SdnDataCollection {
                         Get-SdnServerConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
 
-                    Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential -AsJob -PassThru -Timeout 600 `
+                    Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
 
-                    Get-SdnVfpVmSwitchPort -ComputerName $dataNodes -Credential $Credential -AsJob -PassThru -Timeout 600 `
+                    Get-SdnVfpVmSwitchPort -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType csv
 
                     Get-SdnVMNetworkAdapter -ComputerName $dataNodes -Credential $Credential -AsJob -PassThru -Timeout 900 `
