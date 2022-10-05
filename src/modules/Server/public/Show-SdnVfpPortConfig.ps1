@@ -27,7 +27,14 @@ function Show-SdnVfpPortConfig {
 
         foreach ($layer in $vfpLayers) {
             "== Layer: {0} ==" -f $layer.LAYER | Write-Host -ForegroundColor:Magenta
-            $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
+
+            if ($Direction) {
+                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
+            }
+            else {
+                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER
+            }
+
             foreach ($group in $vfpGroups) {
                 "== Group: {0} ==" -f $group.GROUP | Write-Host -ForegroundColor:Yellow
                 Get-SdnVfpPortRule -PortId $PortId -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
