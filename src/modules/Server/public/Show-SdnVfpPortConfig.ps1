@@ -6,12 +6,24 @@ function Show-SdnVfpPortConfig {
         The Port ID GUID for the network interface.
     .PARAMETER Direction
         Specify the direction
+    .PARAMETER Type
+        Specifies an array of IP address families. The cmdlet gets the configuration that matches the address families
+    .EXAMPLE
+        PS Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931
+    .EXAMPLE
+        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN
+    .EXAMPLE
+        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN -Type IPv4
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [GUID]$PortId,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateSet('IPv4','IPv6')]
+        [System.String]$Type,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateSet('IN','OUT')]
@@ -33,6 +45,10 @@ function Show-SdnVfpPortConfig {
             }
             else {
                 $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER
+            }
+
+            if ($Type) {
+                $vfpGroups = $vfpGroups | Where-Object {$_.Type -ieq $Type}
             }
 
             foreach ($group in $vfpGroups) {

@@ -11,6 +11,8 @@ function Get-SdnVfpPortGroup {
         Specify the target layer.
     .PARAMETER Direction
         Specify the direction
+    .PARAMETER Type
+        Specifies an array of IP address families. The cmdlet gets the configuration that matches the address families
     .PARAMETER Name
         Returns the specific group name. If omitted, will return all groups within the VFP layer.
     .EXAMPLE
@@ -22,22 +24,22 @@ function Get-SdnVfpPortGroup {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Direction')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [GUID]$PortId,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Direction')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [System.String]$Layer,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Direction')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateSet('IN','OUT')]
         [System.String]$Direction,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateSet('IPv4','IPv6')]
+        [System.String]$Type,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [System.String]$Name
     )
 
@@ -150,7 +152,11 @@ function Get-SdnVfpPortGroup {
         }
 
         if ($Direction) {
-            return ($arrayList | Where-Object {$_.Direction -ieq $Direction})
+            $arrayList = $arrayList | Where-Object {$_.Direction -ieq $Direction}
+        }
+
+        if ($Type) {
+            $arrayList = $arrayList | Where-Object {$_.Type -ieq $Type}
         }
 
         return ($arrayList | Sort-Object -Property Priority)
