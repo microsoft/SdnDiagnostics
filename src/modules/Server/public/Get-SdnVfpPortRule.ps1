@@ -80,6 +80,15 @@ function Get-SdnVfpPortRule {
                             $subObject = $null
                             $subKey = $null
                         }
+
+                        # if <none> is defined for conditions, we can also assume there is nothing to define and will just add
+                        elseif ($line.Contains('<none>')) {
+                            $object | Add-Member -MemberType NoteProperty -Name $subKey -Value 'None'
+
+                            $subObject = $null
+                            $subKey = $null
+                        }
+
                         else {
                             [System.String[]]$subResults = $line.Split(':').Trim()
                             $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
@@ -131,6 +140,14 @@ function Get-SdnVfpPortRule {
                         continue
                     }
 
+                    # because some rules defined within groups do not have a rule name defined such as NAT layers,
+                    # grab the friendly name and update the ps object
+                    if ($key -ieq 'Friendly name') {
+                        if([String]::IsNullOrEmpty($object.Rule)) {
+                            $object.Rule = $key
+                        }
+                    }
+
                     if ($key -ieq 'Conditions' -or $key -ieq 'Encap Destination(s)') {
                         $subKey = $key
                         continue
@@ -143,6 +160,11 @@ function Get-SdnVfpPortRule {
 
                     # add the line values to the object
                     $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                }
+            }
+            elseif ($line.Contains('Command list-rule succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
                 }
             }
         }

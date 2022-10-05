@@ -95,6 +95,7 @@ function Get-SdnVfpPortGroup {
                             $subObject = $null
                             $subKey = $null
                         }
+
                         elseif ($line.Contains(':')) {
                             [System.String[]]$subResults = $line.Split(':').Trim()
                             $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
@@ -135,6 +136,11 @@ function Get-SdnVfpPortGroup {
 
                     # add the line values to the object
                     $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                }
+            }
+            elseif ($line.Contains('Command list-group succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
                 }
             }
         }

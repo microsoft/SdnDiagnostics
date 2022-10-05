@@ -55,6 +55,11 @@ function Get-VfpVMSwitchPort {
                 # add the line values to the object
                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
             }
+            elseif ($line.Contains('Command list-vmswitch-port succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
+                }
+            }
             else {
                 if ($line.Contains('Port is')) {
                     $object | Add-Member -MemberType NoteProperty -Name 'PortState' -Value $line.Split(' ')[2].Replace('.','').Trim()

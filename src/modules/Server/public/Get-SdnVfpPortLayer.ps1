@@ -80,6 +80,11 @@ function Get-SdnVfpPortLayer {
                 # add the line values to the object
                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
             }
+            elseif ($line.Contains('Command list-layer succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
+                }
+            }
         }
 
         if ($Name) {
