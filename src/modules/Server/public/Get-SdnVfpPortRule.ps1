@@ -144,7 +144,7 @@ function Get-SdnVfpPortRule {
                     # grab the friendly name and update the ps object
                     if ($key -ieq 'Friendly name') {
                         if([String]::IsNullOrEmpty($object.Rule)) {
-                            $object.Rule = $key
+                            $object.Rule = $value
                         }
                     }
 
