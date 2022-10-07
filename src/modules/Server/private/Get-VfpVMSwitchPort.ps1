@@ -9,7 +9,7 @@ function Get-VfpVMSwitchPort {
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
-    
+
         $vfpResults = vfpctrl /list-vmswitch-port
         if ($null -eq $vfpResults) {
             $msg = "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_
@@ -17,33 +17,58 @@ function Get-VfpVMSwitchPort {
         }
 
         foreach ($line in $vfpResults) {
+            $line = $line.Trim()
+
+            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+                continue
+            }
+
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
             # lines in the VFP output that contain : contain properties and values
             # need to split these based on count of ":" to build key and values
             if ($line.Contains(":")) {
-                $results = $line.Split(":").Trim().Replace(" ", "")
+                [System.String[]]$results = $line.Split(':').Replace(" ", "").Trim()
                 if ($results.Count -eq 3) {
                     $key = "$($results[0])-$($results[1])"
-                    $value = $results[2]        
+                    $value = $results[2]
                 }
                 elseif ($results.Count -eq 2) {
                     $key = $results[0]
-                    $value = $results[1] 
+                    $value = $results[1]
                 }
 
-                # all ports begin with this property and value so need to create a new psobject when we see these keys
-                if ($key -eq "Portname") {
-                    $port = New-Object -TypeName PSObject
+                # all groups begin with this property and value so need to create a new psobject when we see these keys
+                if ($key -ieq 'Portname') {
+                    if ($object) {
+                        [void]$arrayList.Add($object)
+                    }
+
+                    $object = New-Object -TypeName PSObject
+                    $object | Add-Member -MemberType NoteProperty -Name 'PortName' -Value $value
+
+                    continue
                 }
 
                 # add the line values to the object
-                $port | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
             }
-
-            # all the ports are seperated with a blank line
-            # use this as our end of properties to add the current obj to the array list
-            if ([string]::IsNullOrEmpty($line)) {
-                if ($port) {
-                    [void]$arrayList.Add($port)
+            elseif ($line.Contains('Command list-vmswitch-port succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
+                }
+            }
+            else {
+                if ($line.Contains('Port is')) {
+                    $object | Add-Member -MemberType NoteProperty -Name 'PortState' -Value $line.Split(' ')[2].Replace('.','').Trim()
+                }
+                elseif ($line.Contains('MAC Learning is')) {
+                    $object | Add-Member -MemberType NoteProperty -Name 'MACLearning' -Value $line.Split(' ')[3].Replace('.','').Trim()
+                }
+                elseif ($line.Contains('NIC is')) {
+                    $object | Add-Member -MemberType NoteProperty -Name 'NICState' -Value $line.Split(' ')[2].Replace('.','').Trim()
                 }
             }
         }

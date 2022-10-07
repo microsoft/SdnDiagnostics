@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-VfpPortLayer {
+function Get-SdnVfpPortLayer {
     <#
     .SYNOPSIS
         Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
@@ -10,9 +10,9 @@ function Get-VfpPortLayer {
     .PARAMETER Name
         Returns the specific layer name. If omitted, will return all layers within VFP.
     .EXAMPLE
-        PS> Get-VfpPortLayer
+        PS> Get-SdnVfpPortLayer
     .EXAMPLE
-        PS> Get-VfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
+        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
     #>
 
     param (
@@ -26,47 +26,69 @@ function Get-VfpPortLayer {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpLayers = vfpctrl /list-layer /port $PortId
-        if ($null -eq $vfpLayers) {
+        if ($null -eq $vfpLayers){
+            return $null
+        }
+
+        # due to how vfp handles not throwing a terminating error if port ID does not exist,
+        # need to manually examine the response to see if it contains a failure
+        if ($vfpLayers[0] -ilike "ERROR*") {
+            "{0}" -f $vfpLayers[0] | Trace-Output -Level:Exception
             return $null
         }
 
         foreach ($line in $vfpLayers) {
+            $line = $line.Trim()
+
+            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+                continue
+            }
+
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
             # lines in the VFP output that contain : contain properties and values
             # need to split these based on count of ":" to build key and values
             if ($line.Contains(':')) {
                 [System.String[]]$results = $line.Split(':').Trim()
                 if ($results.Count -eq 2) {
-                    $key = $results[0]
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    # all layers begin with this property and value so need to create a new psobject when we see these keys
+                    if ($key -ieq 'Layer') {
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+
+                        $object = New-Object -TypeName PSObject
+                        $object | Add-Member -MemberType NoteProperty -Name 'Layer' -Value $value
+
+                        continue
+                    }
 
                     # if the key is priority, we want to declare the value as an int value so we can properly sort the results
                     if ($key -ieq 'Priority') {
-                        [int]$value = $results[1] 
+                        [int]$value = $value
                     }
                     else {
-                        [System.String]$value = $results[1]
+                        [System.String]$value = $value
                     }
                 }
-        
-                # all layers begin with this property and value so need to create a new psobject when we see these keys
-                if ($key -ieq 'Layer') {
-                    $object = New-Object -TypeName PSObject
-                }
-        
+
                 # add the line values to the object
                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
             }
-        
-            # all the layers are seperated with a blank line
-            # use this as our end of properties to add the current obj to the array list
-            if ([string]::IsNullOrEmpty($line)) {
+            elseif ($line.Contains('Command list-layer succeeded!')) {
                 if ($object) {
                     [void]$arrayList.Add($object)
                 }
             }
         }
-        
+
         if ($Name) {
-            return ($arrayList | Where-Object { $_.LAYER -eq $Name })
+            return ($arrayList | Where-Object { $_.Layer -eq $Name })
         }
         else {
             return ($arrayList | Sort-Object -Property Priority)

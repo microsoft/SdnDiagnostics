@@ -29,13 +29,13 @@ function Initialize-DataCollection {
         $config = Get-SdnRoleConfiguration -Role $Role
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if (-NOT ($confirmFeatures)) {
-            "Required feature is missing: {0}" -f ($config.windowsFeature -join ', ') | Trace-Output -Level:Warning
+            "Required feature is missing: {0}" -f ($config.windowsFeature -join ', ') | Trace-Output -Level:Exception
             return $false
         }
 
         $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
         if (-NOT ($confirmModules)) {
-            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ')| Trace-Output -Level:Warning
+            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ')| Trace-Output -Level:Exception
             return $false
         }
     }
@@ -58,7 +58,7 @@ function Initialize-DataCollection {
     }
 
     if (-NOT ($diskSpace)) {
-        "Insufficient disk space detected" | Trace-Output -Level:Warning
+        "Insufficient disk space detected." | Trace-Output -Level:Exception
         return $false
     }
 

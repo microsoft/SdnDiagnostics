@@ -22,16 +22,16 @@ function Confirm-DiskSpace {
         }
 
         $freeSpace = Format-ByteSize -Bytes $drive.Free
-        "Reporting {0}" -f $freeSpace | Trace-Output -Level:Verbose
-
         switch ($PSCmdlet.ParameterSetName) {
             'GB' {
+                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output
                 if ([float]$freeSpace.GB -gt [float]$MinimumGB) {
                     return $true
                 }
             }
 
             'MB' {
+                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output
                 if ([float]$freeSpace.MB -gt [float]$MinimumMB) {
                     return $true
                 }
