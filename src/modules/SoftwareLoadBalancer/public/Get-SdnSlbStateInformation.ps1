@@ -42,24 +42,8 @@ function Get-SdnSlbStateInformation {
 
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
 
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-            $putResult = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
-                -Content "application/json; charset=UTF-8" `
-                -Uri $uri `
-                -Body "{}" `
-                -Method PUT `
-                -UseBasicParsing `
-                -Credential $Credential
-        }
-        else {
-            $putResult = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
-                -Content "application/json; charset=UTF-8" `
-                -Uri $uri `
-                -Body "{}" `
-                -Method PUT `
-                -UseBasicParsing `
-                -UseDefaultCredentials
-        }
+        $putResult = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
+        -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json"}
 
         $resultObject = ConvertFrom-Json $putResult.Content
         "Response received $($putResult.Content)" | Trace-Output -Level:Verbose
@@ -73,19 +57,7 @@ function Get-SdnSlbStateInformation {
 
             Start-Sleep -Seconds $PollingInterval
 
-            if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-                $stateResult = Invoke-WebRequest -Uri $operationURI `
-                    -Method Get `
-                    -UseBasicParsing `
-                    -Credential $Credential
-            }
-            else {
-                $stateResult = Invoke-WebRequest -Uri $operationURI `
-                    -Method Get `
-                    -UseBasicParsing `
-                    -UseDefaultCredentials
-            }
-
+            $stateResult = Invoke-WebRequestWithRetry -Uri $operationURI -UseBasicParsing -Credential $Credential
             $stateResult = $stateResult.Content | ConvertFrom-Json
             if ($stateResult.properties.provisioningState -ine 'Updating') {
                 break
