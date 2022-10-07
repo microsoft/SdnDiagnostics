@@ -6,7 +6,7 @@ function Get-SdnInfrastructureInfo {
     .SYNOPSIS
         Get the SDN infrastructure information from network controller. The function will update the $Global:SdnDiagnostics.EnvironmentInfo variable.
     .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER Credential
@@ -23,8 +23,8 @@ function Get-SdnInfrastructureInfo {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -50,6 +50,14 @@ function Get-SdnInfrastructureInfo {
     )
 
     try {
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
 
         # if force is defined, purge the cache to force a refresh on the objects
         if ($PSBoundParameters.ContainsKey('Force')) {
@@ -81,7 +89,7 @@ function Get-SdnInfrastructureInfo {
 
         # get the network controllers
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
-            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkController -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
         # get the load balancer muxes

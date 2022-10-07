@@ -67,6 +67,8 @@ function Get-SdnGatewayConfigurationState {
                 Get-BgpCustomRoute -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpCustomRoute' -FileType txt -Format List
             }
         }
+
+        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

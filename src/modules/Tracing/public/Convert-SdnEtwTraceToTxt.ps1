@@ -1,12 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Convert-EtwTraceToTxt {
+function Convert-SdnEtwTraceToTxt {
     <#
     .SYNOPSIS
         Used to convert existing etw (.etl) provider traces into text readable format
     .PARAMETER FileName
-        ETL trace file path and name to convert 
+        ETL trace file path and name to convert
     .PARAMETER Destination
         Output file name and directory. If omitted, will use the FileName path and base name.
     .PARAMETER Overwrite
@@ -14,13 +14,13 @@ function Convert-EtwTraceToTxt {
     .PARAMETER Report
         Generates an HTML report. If omitted, defaults to no.
     .EXAMPLE
-        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl"
+        PS> Convert-SdnEtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl"
     .EXAMPLE
-        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Destination "C:\Temp\CSS_SDN_NEW\trace.txt"
+        PS> Convert-SdnEtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Destination "C:\Temp\CSS_SDN_NEW\trace.txt"
     .EXAMPLE
-        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Overwrite Yes
+        PS> Convert-SdnEtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Overwrite Yes
     .EXAMPLE
-        PS> Convert-EtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Report Yes
+        PS> Convert-SdnEtwTraceToTxt -FileName "C:\Temp\CSS_SDN\Trace.etl" -Report Yes
     #>
 
     [CmdletBinding()]
@@ -52,8 +52,8 @@ function Convert-EtwTraceToTxt {
         [System.String]$outputFile = "{0}.txt" -f (Join-Path -Path $Destination.FullName -ChildPath $FileName.BaseName)
         [System.String]$cmd = "netsh trace convert input={0} output={1} overwrite={2} report={3}" `
             -f $FileName.FullName, $outputFile, $Overwrite, $Report
-        
-        "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose    
+
+        "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
         $expression = Invoke-Expression -Command $cmd
 
         # output returned is string objects, so need to manually do some mapping to correlate the properties

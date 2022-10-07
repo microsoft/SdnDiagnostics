@@ -77,15 +77,25 @@ $scriptBlocks = @{
     }
 }
 
-Register-ArgumentCompleter -CommandName Invoke-Command -ParameterName 'ComputerName' -ScriptBlock $scriptBlocks.AllFabricNodes
 Register-ArgumentCompleter -CommandName 'Get-SdnKnownIssue' -ParameterName 'Name' -ScriptBlock $scriptBlocks.KnownIssueTests
 Register-ArgumentCompleter -CommandName 'Get-SdnFabricInfrastructureHealth' -ParameterName 'Name' -ScriptBlock $scriptBlocks.FabricHealthTests
+
+$fabricNodeParamCommands = (
+    'Invoke-Command',
+    'Invoke-SdnCommand',
+    'Start-SdnDataCollection',
+    'Start-SdnNetshTrace',
+    'Stop-SdnNetshTrace'
+)
+
+Register-ArgumentCompleter -CommandName $fabricNodeParamCommands -ParameterName 'ComputerName' -ScriptBlock $scriptBlocks.AllFabricNodes
 
 $networkControllerParamCommands = (
     'Debug-SdnFabricInfrastructure',
     'Test-SdnKnownIssue',
     'Start-SdnDataCollection',
     'Get-SdnNetworkController',
+    'Get-SdnNetworkControllerNode',
     'Get-SdnNetworkControllerClusterInfo',
     'Get-SdnNetworkControllerState',
     'Get-SdnServiceFabricApplicationHealth',

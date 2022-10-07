@@ -1,12 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Stop-EtwTraceCapture {
+function Stop-SdnEtwTraceCapture {
     <#
     .SYNOPSIS
         Start ETW Trace capture based on Role
     .PARAMETER Role
-        The SDN Roles 
+        The SDN Roles
     .PARAMETER Providers
         Allowed values are Default,Optional And All to control what are the providers needed
     #>
@@ -24,7 +24,7 @@ function Stop-EtwTraceCapture {
 
     try {
         $traceProvidersArray = Get-TraceProviders -Role $Role -Providers $Providers
-    
+
         foreach ($traceProviders in $traceProvidersArray) {
             Stop-EtwTraceSession -TraceName $traceProviders.name
         }

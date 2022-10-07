@@ -2,9 +2,6 @@
 # Licensed under the MIT License.
 
 function Invoke-PSRemoteCommand {
-    <#
-    #>
-
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
@@ -31,30 +28,25 @@ function Invoke-PSRemoteCommand {
         [int]$ExecutionTimeout = 600
     )
 
-    try {
-        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
-        if ($session) {
-            "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    if ($session) {
+        "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
 
-            if ($AsJob) {
-                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
-                if ($PassThru) {
-                    if ($Activity) {
-                        $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
-                    }
-                    else {
-                        $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
-                    }
+        if ($AsJob) {
+            $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
+            if ($PassThru) {
+                if ($Activity) {
+                    $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
                 }
-            }
-            else {
-                $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
+                else {
+                    $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
+                }
             }
 
             return $result
         }
-    }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        else {
+            return (Invoke-Command -Session $session -ScriptBlock $ScriptBlock)
+        }
     }
 }

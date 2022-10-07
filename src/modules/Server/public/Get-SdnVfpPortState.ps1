@@ -1,7 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-VfpPortState {
+function Get-SdnVfpPortState {
     <#
     .SYNOPSIS
         Returns the current VFP port state for a particular port Id.
@@ -10,7 +10,7 @@ function Get-VfpPortState {
     .PARAMETER PortId
         The Port ID GUID for the network interface.
     .EXAMPLE
-        PS> Get-VfpPortState -PortId 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
+        PS> Get-SdnVfpPortState -PortId 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
     #>
 
     [CmdletBinding()]
