@@ -30,9 +30,6 @@ function Start-SdnCertificateRotation {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$SelfSigned,
-
-        [Parameter(Mandatory = $false)]
         [Switch]$GenerateCertificate
     )
 
@@ -107,17 +104,20 @@ function Start-SdnCertificateRotation {
             "Retrieving PfxData for {0}" -f $pfxFile.FullName | Trace-Output
             $pfxData = Get-PfxData -FilePath $pfxFile.FullName -Password $CertPassword -ErrorAction Stop
 
-            # add a failsafe to detect is the certificate is self signed if was not declared when function was executed
-            if (-NOT $SelfSigned) {
-                if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
-                    "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output
-                    $SelfSigned = $true
-                }
+            # determine if the certificates being used are self signed
+            if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
+                "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output
+                $SelfSigned = $true
+            }
+            else {
+                "Detected the certificate has been issued by a CA" | Trace-Output
+                $SelfSigned = $false
             }
 
             $object = [PSCustomObject]@{
                 FileInfo = $pfxFile
                 PfxData = $pfxData
+                SelfSigned = $SelfSigned
             }
 
             $certificateCache += $object
@@ -136,6 +136,12 @@ function Start-SdnCertificateRotation {
                 $updatedRestCertificate = $cert
                 "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
                 $cert.FileInfo.FullName,  $cert.PfxData.EndEntityCertificates.Subject, $cert.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
+
+                if ($cert.PfxData.EndEntityCertificates.Subject -ieq $currentRestCertificate.Issuer) {
+                    "Detected the REST certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output
+                    $restCertificateSelfSigned = $true
+                }
+
                 break
             }
         }
@@ -174,7 +180,7 @@ function Start-SdnCertificateRotation {
         # make sure that none of the current certificates are expired
         # there is more advanced remediation steps required to unblock this scenario that this function does not handle currently
         if ($certIsExpired) {
-            "Network Controller certificates are expired" | Trace-Output -Level:Exception
+            "Network Controller certificates are expired" | Trace-Output -Level:Error
             return
         }
 
@@ -225,7 +231,7 @@ function Start-SdnCertificateRotation {
 
         # if $SelfSigned, we need to take a copy of the REST certificate .cer file we exported
         # in previous steps, and install a copy on the servers and muxes for southbound communication
-        if ($SelfSigned) {
+        if ($restCertificateSelfSigned) {
             "[{0}]: Importing the public key of the certificate to root store" -f $node | Trace-Output
             Copy-FileFromRemoteComputer -ComputerName $sdnFabricDetails.NetworkController[0] -Credential $Credential -Path "$certDir\NC_Rest.cer" -Destination $certDir
             foreach ($node in $southBoundNodes) {
@@ -260,7 +266,7 @@ function Start-SdnCertificateRotation {
 
             # if self signed was defined, we need to take a copy of the .cer file we exported
             # to copy to the other network controller VMs
-            if ($SelfSigned) {
+            if ($nodeCertConfig.UpdatedCert.SelfSigned) {
                 "[{0}]: Importing the public key of the certificate to root store" -f $node | Trace-Output
 
                 # if we are not currently seeding the certificate to current node
