@@ -31,8 +31,14 @@ function Invoke-WebRequestWithRetry {
         [Parameter(Mandatory = $false)]
         [int]$TimeoutInSec = 600,
 
-        [Parameter(Mandatory = $false)]
-        [Switch]$Retry
+        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Switch]$Retry,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Int]$MaxRetry = 3,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Int]$RetryIntervalInSeconds = 30
     )
 
     $params = @{
@@ -62,10 +68,7 @@ function Invoke-WebRequestWithRetry {
         $params.Add('UseDefaultCredentials', $true)
     }
 
-    $retryIntervalInSeconds = 10
-    $maxRetry = 3
     $counter = 0
-
     while ($true) {
         $counter++
 
@@ -88,9 +91,9 @@ function Invoke-WebRequestWithRetry {
                 $_ | Trace-Output -Level:Exception
             }
 
-            if (($counter -le $maxRetry) -and $Retry) {
-                "Retrying operation in {0} seconds. Retry count: {1}." - $retryIntervalInSeconds, $counter | Trace-Output
-                Start-Sleep -Seconds $retryIntervalInSeconds
+            if (($counter -le $MaxRetry) -and $Retry) {
+                "Retrying operation in {0} seconds. Retry count: {1}." - $RetryIntervalInSeconds, $counter | Trace-Output
+                Start-Sleep -Seconds $RetryIntervalInSeconds
             }
             else {
                 throw $_
