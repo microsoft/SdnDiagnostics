@@ -65,6 +65,7 @@
         'Get-SdnNetworkControllerClusterInfo',
         'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkControllerClusterInfo',
+        'Get-SdnNetworkControllerInfoOffline',
         'Get-SdnNetworkControllerNode',
         'Get-SdnNetworkControllerNodeCertificate'
         'Get-SdnNetworkControllerRestCertificate',
@@ -100,6 +101,7 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'New-SdnCertificate',
+        'New-SdnNetworkControllerCertificate',
         'Set-SdnCertificateAcl',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Show-SdnVfpPortConfig',
@@ -107,6 +109,7 @@
         'Start-SdnDataCollection',
         'Start-SdnEtwTraceCapture',
         'Start-SdnNetshTrace',
+        'Start-SdnNetworkControllerCertificateUpdate',
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnKIHostRootStoreNonRootCert',
