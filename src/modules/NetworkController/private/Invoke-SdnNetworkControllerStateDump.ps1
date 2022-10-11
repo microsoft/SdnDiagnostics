@@ -32,24 +32,8 @@ function Invoke-SdnNetworkControllerStateDump {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'NetworkControllerState'
 
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-            $null = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
-                -Content "application/json; charset=UTF-8" `
-                -Uri $uri `
-                -Body "{}" `
-                -Method PUT `
-                -Credential $Credential `
-                -UseBasicParsing
-        }
-        else {
-            $null = Invoke-WebRequest -Headers @{"Accept" = "application/json" } `
-                -Content "application/json; charset=UTF-8" `
-                -Uri $uri `
-                -Body "{}" `
-                -Method PUT `
-                -UseDefaultCredentials `
-                -UseBasicParsing
-        }
+        $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
+        -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
 
         # monitor until the provisionState for the object is not in 'Updating' state
         while ($true) {

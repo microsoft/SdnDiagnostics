@@ -1,6 +1,12 @@
-$files = Get-ChildItem -Path "$PSScriptRoot\..\src\*" -Include "*.ps1" -Recurse
+$files = Get-ChildItem -Path "$PSScriptRoot\..\src\modules\*" -Include "*.ps1" -Recurse
 foreach ($file in $files) {
     $code = Get-Content -Path $file.FullName -Raw
+
+    $code = Get-Content -Path $file.FullName -Raw -Encoding UTF8
+    if ($null -eq $code) {
+        continue
+    }
+
     $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast,bool]]{$args[0] `
         -is [Management.Automation.Language.FunctionDefinitionAst]}, $false) | Select-Object -ExpandProperty Name
 
