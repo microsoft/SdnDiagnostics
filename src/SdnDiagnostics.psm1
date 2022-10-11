@@ -1,6 +1,12 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+# ensure that the module is running as local administrator
+$elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+if (-NOT $elevated) {
+  throw New-Object System.Exception("This module requires elevated permissions. Run PowerShell as Administrator and import the module again.")
+}
+
 # dot source the enums
 foreach($item in (Get-ChildItem -Path "$PSScriptRoot\enum" -Recurse -Include "*.ps1")){
     . $item.FullName

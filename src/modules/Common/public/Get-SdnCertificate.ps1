@@ -8,9 +8,9 @@ function Get-SdnCertificate {
             PS> Get-SdnCertificate -Path "Cert:\LocalMachine\My"
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
         [ValidateScript({
             if ($_ -notlike "cert:\*") {
                 throw New-Object System.FormatException("Invalid path")
@@ -18,7 +18,15 @@ function Get-SdnCertificate {
 
             return $true
         })]
-        [System.String]$Path
+        [System.String]$Path,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [System.String]$Subject,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [System.String]$Thumbprint
     )
 
     try {
@@ -32,12 +40,19 @@ function Get-SdnCertificate {
                     $result | Add-Member -MemberType NoteProperty -Name "AccesstoString" -Value $acl.AccessToString
                     $result | Add-Member -MemberType NoteProperty -Name "Sddl" -Value $acl.Sddl
                 }
-                else {
-                    $result | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.value
-                }
+
+                $result | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.value
             }
 
             $certificates += $result
+        }
+
+        if ($Subject) {
+            return ($certificates | Where-Object {$_.Subject -ieq $Subject})
+        }
+
+        if ($Thumbprint) {
+            return ($certificates | Where-Object {$_.Thumbprint -ieq $Thumbprint})
         }
 
         return $certificates
