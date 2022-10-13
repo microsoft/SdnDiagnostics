@@ -339,6 +339,9 @@ function Start-SdnCertificateRotation {
 
         $stopWatch.Stop()
 
+        "Waiting for 5 minutes before proceeding with next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+        Start-Sleep -Seconds 300
+
         #####################################
         #
         # Rotate Cluster Certificate
@@ -388,6 +391,8 @@ function Start-SdnCertificateRotation {
         }
 
         $stopWatch.Stop()
+        "Waiting for 5 minutes before proceeding with next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+        Start-Sleep -Seconds 300
 
         #####################################
         #
@@ -400,28 +405,72 @@ function Start-SdnCertificateRotation {
         "== STAGE: ROTATE NC NODE CERTIFICATE ==" | Trace-Output
 
         foreach ($node in $sdnFabricDetails.NetworkController){
+            $retryAttempt = 0
+            $maxRetry = 2
+
             "Updating {0} to use node certificate thumbprint {1}" -f $node, $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
             $nodeCertConfig = $certificateConfig.NetworkController[$node]
+            $ncNode = Get-SdnNetworkControllerNode -NetworkController $node -Credential $Credential
 
             try {
+                $setNCNodeParams = @{
+                    'Name'      = $ncNode.Name
+                    'PassThru'  = $true
+                }
+
                 if (Test-ComputerNameIsLocal -ComputerName $node) {
                     $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
-                    Set-NetworkControllerNode -Name $node -NodeCertificate $cert
                 }
                 else {
-                    $remoteCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
+                    $setNCNodeParams.Add('ComputerName', $node)
+                    $cert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
                         Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
                     }
-                    if ($remoteCert) {
-                        Set-NetworkControllerNode -Name $node -ComputerName $node -NodeCertificate $remoteCert
+                }
+
+                if ($cert) {
+                    $setNCNodeParams.Add('NodeCertificate', $cert)
+
+                    Set-NetworkControllerNode @setNCNodeParams
+                }
+                else {
+                    "Unable to locate certificate {0} on {1}" -f $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output -Level:Exception
+                }
+            }
+            catch [Microsoft.Management.Infrastructure.CimException] {
+                $_ | Trace-Output -Level:Exception
+
+                switch -Wildcard ($_.Exception) {
+                    '*One or more errors occurred*' {
+                        if ($retryAttempt -ge $maxRetry) {
+                            $stopWatch.Stop()
+                            throw $_
+                        }
+
+                        $retryAttempt++
+                        $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+                        "Attempting to retry. {0} of {1}" -f $retryAttempt, $maxRetry | Trace-Output
+
+                        Set-NetworkControllerNode @setNCNodeParams
                     }
-                    else {
-                        "Unable to locate certificate {0} on {1}" -f $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output -Level:Exception
+
+                    default {
+                        $stopWatch.Stop()
+                        throw $_
                     }
                 }
             }
             catch [InvalidOperationException] {
+                if ($_.FullyQualifiedErrorId -ilike "*UpdateInProgress*") {
+                    "Networkcontroller is being updated by another operation.`n`t{0}" -f $fullyQualifiedErrorId | Trace-Output -Level:Warning
+                }
+                else {
+                    $stopWatch.Stop()
+                    throw $_
+                }
+            }
+            catch {
                 $stopWatch.Stop()
                 throw $_
             }
@@ -446,6 +495,9 @@ function Start-SdnCertificateRotation {
             }
 
             $stopWatch.Stop()
+
+            "Waiting for 2 minutes before proceeding with next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+            Start-Sleep -Seconds 120
         }
 
         #####################################
@@ -460,11 +512,18 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE SOUTHBOUND CERTIFICATE CREDENTIALS ==" | Trace-Output
 
-        $allCredentials = Get-SdnResource -ResourceType Credentials -Credential $NcRestCredential
+        $allCredentials = Get-SdnResource -ResourceType Credentials -Credential $NcRestCredential -NcUri $sdnFabricDetails.NcUrl
         foreach ($cred in $allCredentials) {
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
             if ($cred.properties.type -eq "X509Certificate") {
+
+                # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
+                if ($cred.properties.value -ieq $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint) {
+                    "{0} has already been configured to {1}" -f $cred.resourceRef, $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
+                    continue
+                }
+
                 "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint | Trace-Output
                 $cred.properties.value = $updatedRestCertificate.PfxData.EndEntityCertificates.Thumbprint
                 $credBody = $cred | ConvertTo-Json -Depth 100
