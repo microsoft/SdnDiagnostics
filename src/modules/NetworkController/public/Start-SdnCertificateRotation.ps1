@@ -54,7 +54,7 @@ function Start-SdnCertificateRotation {
         "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
 
         $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME
-        if ($healthState.AggregatedHealthState -ine 'Healthy') {
+        if ($healthState.AggregatedHealthState -ine 'Ok') {
             "Service Fabric AggregatedHealthState is currently reporting {0}" -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
             return
         }
@@ -72,6 +72,7 @@ function Start-SdnCertificateRotation {
             $restCertSubject = (Get-SdnNetworkControllerRestCertificate).Subject
             $null = New-SdnCertificate -Subject $restCertSubject -NotAfter (Get-Date).AddDays(365)
 
+            # generate NC node certificates
             foreach ($controller in $sdnFabricDetails.NetworkController) {
                 Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                     $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
@@ -412,7 +413,12 @@ function Start-SdnCertificateRotation {
                     $remoteCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
                         Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint}
                     }
-                    Set-NetworkControllerNode -Name $node -ComputerName $node -NodeCertificate $remoteCert
+                    if ($remoteCert) {
+                        Set-NetworkControllerNode -Name $node -ComputerName $node -NodeCertificate $remoteCert
+                    }
+                    else {
+                        "Unable to locate certificate {0} on {1}" -f $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output -Level:Exception
+                    }
                 }
             }
             catch [InvalidOperationException] {
