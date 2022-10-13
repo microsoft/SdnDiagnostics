@@ -22,10 +22,12 @@ function Get-SdnCertificate {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateNotNullorEmpty()]
         [System.String]$Subject,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [ValidateNotNullorEmpty()]
         [System.String]$Thumbprint
     )
 
