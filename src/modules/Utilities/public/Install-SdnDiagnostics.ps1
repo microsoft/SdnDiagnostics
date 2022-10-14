@@ -60,6 +60,11 @@ function Install-SdnDiagnostics {
             [void]$filteredComputerName.Add($computer)
         }
 
+        # due to how arrayLists are interpreted, need to check if count is 0 rather than look for $null
+        if ($filteredComputerName.Count -eq 0){
+            return
+        }
+
         # check to see if the current version is already present on the remote computers
         # else if we -Force defined, we can just move forward
         if ($Force) {
