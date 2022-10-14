@@ -11,26 +11,31 @@ function Start-SdnCertificateRotation {
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
         [System.IO.DirectoryInfo]$CertPath,
 
-        [Parameter(Mandatory = $true)]
-        [System.Security.SecureString]$CertPassword,
+        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
+        [Switch]$GenerateCertificate,
 
-        [Parameter(Mandatory = $false)]
-        [Switch]$GenerateCertificate
+        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'SelfSigned')]
+        [System.Security.SecureString]$CertPassword
     )
 
     $config = Get-SdnRoleConfiguration -Role 'NetworkController'
@@ -49,6 +54,9 @@ function Start-SdnCertificateRotation {
             NetworkControllerVersion        = (Get-NetworkController).Version
             NetworkControllerClusterVersion = (Get-NetworkControllerCluster).Version
         }
+
+        # before we proceed with anything else, we want to make sure that all the Network Controllers within the SDN fabric are running the current version
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
 
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
         "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
@@ -69,15 +77,29 @@ function Start-SdnCertificateRotation {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
             # generate the NC REST Certificate
+            [System.String]$path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC)
+            "Creating directory {0}" -f $path | Trace-Output
+            [System.IO.DirectoryInfo]$CertPath = New-Item -Path $path -ItemType Directory -Force
+
             $restCertSubject = (Get-SdnNetworkControllerRestCertificate).Subject
             $null = New-SdnCertificate -Subject $restCertSubject -NotAfter (Get-Date).AddDays(365)
 
             # generate NC node certificates
             foreach ($controller in $sdnFabricDetails.NetworkController) {
-                Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                if (Test-ComputerNameIsLocal -ComputerName $controller) {
                     $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
-                    $null = New-SdnCertificate -Subject $nodeCertSubject -NotAfter (Get-Date).AddDays(365)
                 }
+                else {
+                    $nodeCertSubject = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { (Get-SdnNetworkControllerNodeCertificate).Subject }
+                }
+
+                $selfSignedCert = New-SdnCertificate -Subject $nodeCertSubject -NotAfter (Get-Date).AddDays(365)
+
+                # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
+                # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
+                [System.String]$filePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $controller.ToString().ToLower().Replace('.','_').Trim()).pfx"
+                "Exporting pfx certificate to {0}" -f $filePath | Trace-Output
+                $null = Export-PfxCertificate -Cert $selfSignedCert -FilePath $filePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
             }
         }
 
