@@ -35,19 +35,10 @@ function Update-NetworkControllerCredentialResource {
                 $certCredResource = Get-SdnResource -NcUri $NcUri -Credential $Credential -ResourceRef $con.credential.resourceRef
                 if ($null -eq $certCredResource) {
                     $certCredResource.value = $NewRestCertThumbprint
-            
-                    $headers = @{"Accept" = "application/json" }
-                    $content = "application/json; charset=UTF-8"
-                    $method = "Put"
-            
                     $body = $certCredResource | ConvertTo-Json -Depth 10
             
-                    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
-                        Invoke-RestMethod -Headers $headers -ContentType $content -Method $method -Uri $uri -Body $body -DisableKeepAlive -UseBasicParsing -Credential $Credential | Out-Null
-                    }
-                    else {
-                        Invoke-RestMethod -Headers $headers -ContentType $content -Method $method -Uri $uri -Body $body -DisableKeepAlive -UseBasicParsing -USeDefaultCredentials | Out-Null
-                    }
+                    Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body $body -UseBasicParsing `
+                    -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json"}
                 }
             }else{
                 Trace-Output "No Credential Resources of type X509Certificate Found."
