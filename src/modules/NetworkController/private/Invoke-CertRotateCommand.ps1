@@ -71,14 +71,6 @@ function Invoke-CertRotateCommand {
 
     while ($true) {
         $retryAttempt++
-        if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
-            throw New-Object System.TimeoutException("Rotate of certificate did not complete within the alloted time.")
-        }
-
-        if ($retryAttempt -ge $MaxRetry) {
-            throw New-Object System.Exception("Rotate of certificate exceeded maximum number of retries.")
-        }
-
         switch ($Command) {
             'Set-NetworkController' {
                 $currentCertThumbprint = (Get-SdnNetworkControllerRestCertificate).Thumbprint
@@ -98,6 +90,14 @@ function Invoke-CertRotateCommand {
         }
         else {
             "Certificate is currently configured for {0}" -f $currentCertThumbprint | Trace-Output
+        }
+
+        if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
+            throw New-Object System.TimeoutException("Rotate of certificate did not complete within the alloted time.")
+        }
+
+        if ($retryAttempt -ge $MaxRetry) {
+            throw New-Object System.Exception("Rotate of certificate exceeded maximum number of retries.")
         }
 
         # if we have not started operation, or we hit a retryable error

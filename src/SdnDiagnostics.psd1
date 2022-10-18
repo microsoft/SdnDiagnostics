@@ -95,6 +95,7 @@
         'Get-SdnVfpPortLayer',
         'Get-SdnVfpPortRule',
         'Get-SdnVfpPortState',
+        'Import-SdnCertificate',
         'Install-SdnDiagnostics',
         'Invoke-SdnCommand',
         'Invoke-SdnGetNetView',
