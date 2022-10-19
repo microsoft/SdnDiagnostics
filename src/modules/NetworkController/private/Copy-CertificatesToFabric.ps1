@@ -112,8 +112,11 @@ function Copy-CertificatesToFabric {
             foreach ($node in $sdnFabricDetails.NetworkController) {
 
                 $nodeCertConfig = $certificateConfig.NetworkController[$node]
-                Copy-FileToRemoteComputer -ComputerName $node -Credential $Credential -Path $nodeCertConfig.UpdatedCert.FileInfo.FullName -Destination $certDir
-                "Importing {0} to {1}" -f $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
+
+                return $nodeCertConfig
+
+                Copy-FileToRemoteComputer -ComputerName $node -Credential $Credential -Path $nodeCertConfig.FileInfo.FullName -Destination $certDir
+                "Importing {0} to {1}" -f $nodeCertConfig.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
                 [System.String]$remoteFilePath = Join-Path -Path $certDir -ChildPath $restCertificate.FileInfo.BaseName
 
                 $certImport = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
@@ -126,7 +129,7 @@ function Copy-CertificatesToFabric {
                     [System.String]$nodeCerFile = Join-Path -Path $certDir -ChildPath $certImport.CerFile.FileInfo.BaseName
                     Copy-FileFromRemoteComputer -ComputerName $node -Credential $Credential -Path $certImport.CerFile.FileInfo.FullName -Destination $nodeCerFile
                     foreach ($controller in $sdnFabricDetails.NetworkController) {
-                        "Importing certificate {0} to {1}" -f $nodeCertConfig.UpdatedCert.PfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                        "Importing certificate {0} to {1}" -f $nodeCertConfig.PfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
                         Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $nodeCerFile -Destination $nodeCerFile
                         Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                             $cert = Get-ChildItem -Path $using:nodeCerFile

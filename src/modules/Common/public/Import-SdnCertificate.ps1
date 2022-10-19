@@ -40,11 +40,11 @@ function Import-SdnCertificate {
         $certObject.SelfSigned = $selfSigned
         [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=','_')
 
-        $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256 -ErrorAction Stop
+        $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
 
         $selfSignedCerExists = Get-ChildItem -Path $trustedRootStore | Where-Object {$_.Thumbprint -ieq $certObject.CertInfo.Thumbprint}
         if (-NOT ($selfSignedCerExists)) {
-            "Importing {0} to {1}" -f $pfxCertificate.FullName, $trustedRootStore | Trace-Output
+            "Importing {0} to {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output
             $cert = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
             if ($cert) {
                 "Successfully imported {0}" -f $cert.Thumbprint | Trace-Output
@@ -52,7 +52,7 @@ function Import-SdnCertificate {
             }
         }
         else {
-            "{0} already exists under {1}" -f $certObject.Thumbprint, $trustedRootStore | Trace-Output
+            "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output
             $certObject | Add-Member -MemberType NoteProperty -Name 'CerFile' -Value $selfSignedCerExists
         }
     }
