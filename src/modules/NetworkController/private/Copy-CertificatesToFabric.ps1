@@ -80,7 +80,7 @@ function Copy-CertificatesToFabric {
                 Copy-FileToRemoteComputer -ComputerName $node -Credential $Credential -Path $restCertificate.FileInfo.FullName -Destination $remoteFilePath
 
                 $null = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
-                    Import-SdnCertificate -FilePath $using:remoteFilePath -Password $using:Password
+                    Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword
                 }
             }
         }
@@ -117,7 +117,7 @@ function Copy-CertificatesToFabric {
                 [System.String]$remoteFilePath = Join-Path -Path $certDir -ChildPath $restCertificate.FileInfo.BaseName
 
                 $certImport = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
-                    Import-SdnCertificate -FilePath $using:remoteFilePath -Password $using:Password
+                    Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword
                 } -ErrorAction Stop
 
                 # if self signed was defined, we need to take a copy of the .cer file we exported
