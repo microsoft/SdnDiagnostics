@@ -10,9 +10,9 @@ function Get-SdnNetworkControllerInfoOffline {
     .PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnInfrastructureInfo
+        PS> Get-SdnNetworkControllerInfoOffline
     .EXAMPLE
-        PS> Get-SdnInfrastructureInfo -NetworkController 'NC01' -Credential (Get-Credential)
+        PS> Get-SdnNetworkControllerInfoOffline -NetworkController 'NC01' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

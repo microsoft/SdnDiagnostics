@@ -102,6 +102,7 @@
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'New-SdnCertificate',
+        'New-SdnCertificateRotationConfig',
         'New-SdnNetworkControllerCertificate',
         'Set-SdnCertificateAcl',
         'Set-SdnVMNetworkAdapterPortProfile',
