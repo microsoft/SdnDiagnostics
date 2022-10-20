@@ -67,7 +67,7 @@ function Update-NetworkControllerCertificateInManifest {
         {
             foreach ($node in $clusterManifestXml.ClusterManifest.NodeTypes.NodeType) {
                 $ncNode = $node.Name
-                $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
+                $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.ToLower()]
                 Write-Verbose "Updating node $ncNode with new thumbprint $ncNodeCertThumbprint"
                 $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
                 $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
@@ -77,8 +77,7 @@ function Update-NetworkControllerCertificateInManifest {
             # Update certificates InfrastructureManifest.xml
             
             foreach ($node in $infrastructureManifestXml.InfrastructureInformation.NodeList.Node) {
-                $ncNode = $node.NodeName
-                $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
+                $ncNodeCertThumbprint = $CertRotateConfig[$node.NodeName.ToLower()]
                 $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
                 $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
                 $node.Certificates.ClientCertificate.X509FindValue = "$ncNodeCertThumbprint"

@@ -37,7 +37,7 @@ function Update-NetworkControllerCertificateAcl {
                 Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:ncNodeCertThumbprint
             } -Credential $Credential
 
-            if ($CertRotateConfig["ClusterCredentialType"] = = "X509") {
+            if ($CertRotateConfig["ClusterCredentialType"] -eq "X509") {
                 Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                     Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:NcRestCertThumbprint
                 } -Credential $Credential

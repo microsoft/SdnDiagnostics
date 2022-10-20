@@ -129,11 +129,11 @@ function Start-SdnNetworkControllerCertificateUpdate {
         
         # Step 2 Update certificate thumbprint
         Trace-Output "Step 2 Update certificate thumbprint"
-        Update-NetworkControllerCertificateInManifest -NcVMs $NcVMs -NcRestName $NcRestName -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -CertRotateConfig $CertRotateConfig -Credential $Credential
+        Update-NetworkControllerCertificateInManifest -NcNodeList $NcNodeList -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -CertRotateConfig $CertRotateConfig -Credential $Credential
         
         # Step 3 Generate New Secrets
         Trace-Output "Step 3 Generate New Secrets"
-        $SecretUpdated = New-NetworkControllerClusterSecret -NcVMs $NcVms -NcRestName $NcRestName -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -NcRestCertThumbprint $NcRestCertThumbprint -Credential $Credential
+        $SecretUpdated = New-NetworkControllerClusterSecret -NcVMs $NcVms -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -NcRestCertThumbprint $NcRestCertThumbprint -Credential $Credential
         if (!$SecretUpdated) {
             # If secret failed to be generated or updated. We stop here to not modify cluster manifest.
             Trace-Output "Failed to get new secret." -Level:Error
