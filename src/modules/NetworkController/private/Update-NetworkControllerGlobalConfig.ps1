@@ -33,6 +33,7 @@ function Update-NetworkControllerGlobalConfig {
             return
         }
 
+        $ncNodeCertInfo = @{}
         $ncNodeCertInfo["RestCert"] = $CertRotateConfig["NcRestCert"]
 
         foreach ($ncNode in $NcNodeList) {

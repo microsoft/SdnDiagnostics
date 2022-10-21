@@ -34,7 +34,7 @@ function Wait-NetworkControllerAppHealthy {
                 $Interval = 0
             )
             $isApplicationHealth = $false;
-            Trace-Output "[$(HostName)] Query Network Controller App Health"
+            Write-Host "[$(HostName)] Query Network Controller App Health"
             while($isApplicationHealth -ne $true){
                 #Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
                 #Cluster should have been back to normal when reach here use default parameters to connect

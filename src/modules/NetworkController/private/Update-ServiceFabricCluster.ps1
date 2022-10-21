@@ -111,7 +111,7 @@ function Update-ServiceFabricCluster {
         }
         
         Trace-Output "Ensure Service Fabric Healthy"
-        Wait-ServiceFabricHealthy -NcVMs $NcVms -ClusterCredentialType $ClusterCredentialType -Credential $Credential
+        Wait-ServiceFabricClusterHealthy -NcVMs $NcVms -ClusterCredentialType $ClusterCredentialType -Credential $Credential
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
