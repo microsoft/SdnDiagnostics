@@ -78,6 +78,12 @@ function Start-SdnNetworkControllerCertificateUpdate {
         }
     
         Trace-Output "NcNodeList: $($NcNodeList.IpAddressOrFQDN)"
+
+        Trace-Output "Validate CertRotateConfig"
+        if(!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)){
+            Trace-Output "Invalid CertRotateConfig, please correct the configuration and try again" -Level:Error
+            return 
+        }
     
         if ([String]::IsNullOrEmpty($NcInfraInfo.NcRestName)) {
             Trace-Output "Failed to get NcRestName using current secret certificate thumbprint. This might indicate the certificate not found on $NetworkController. We won't be able to recover." -Level:Error

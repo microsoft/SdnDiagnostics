@@ -114,6 +114,7 @@
         'Start-SdnNetworkControllerCertificateUpdate',
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
+        'Test-SdnCertificateRotationConfig',
         'Test-SdnKIHostRootStoreNonRootCert',
         'Test-SdnKINetworkControllerCertCredential',
         'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
