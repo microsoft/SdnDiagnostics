@@ -53,9 +53,9 @@ function Get-SdnNetworkControllerNode {
         }
 
         if($ServerNameOnly){
-            return $result.Name
+            return [System.Array]$result.Name
         }
-        else{
+        else {
             return $result
         }
 
