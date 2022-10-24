@@ -151,13 +151,14 @@ function New-SdnNetworkControllerCertificate {
                 }
                 
                 write-verbose "Setting permissions on REST cert."
-                $targetCertPrivKey = $Cert.PrivateKey 
+                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $RESTCertThumbprint
+                <# $targetCertPrivKey = $Cert.PrivateKey 
                 $privKeyCertFile = Get-Item -path "$ENV:ProgramData\Microsoft\Crypto\RSA\MachineKeys\*"  | where-object { $_.Name -eq $targetCertPrivKey.CspKeyContainerInfo.UniqueKeyContainerName } 
                 $privKeyAcl = Get-Acl $privKeyCertFile
                 $permission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow" 
                 $accessRule = new-object System.Security.AccessControl.FileSystemAccessRule $permission 
                 $privKeyAcl.AddAccessRule($accessRule) 
-                Set-Acl $privKeyCertFile.FullName $privKeyAcl
+                Set-Acl $privKeyCertFile.FullName $privKeyAcl #>
     
                 $Cert = get-childitem "Cert:\localmachine\root\$RestCertThumbprint" -erroraction Ignore
                 if ($null -eq $Cert) {
@@ -193,13 +194,15 @@ function New-SdnNetworkControllerCertificate {
                     -NotAfter $NotAfter
                 write-verbose "Setting permissions on node cert."
                 
-                $targetCertPrivKey = $Cert.PrivateKey 
+                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $cert.Thumbprint
+                
+                <# $targetCertPrivKey = $Cert.PrivateKey 
                 $privKeyCertFile = Get-Item -path "$ENV:ProgramData\Microsoft\Crypto\RSA\MachineKeys\*"  | where-object { $_.Name -eq $targetCertPrivKey.CspKeyContainerInfo.UniqueKeyContainerName } 
                 $privKeyAcl = Get-Acl $privKeyCertFile
                 $permission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow" 
                 $accessRule = new-object System.Security.AccessControl.FileSystemAccessRule $permission 
                 $privKeyAcl.AddAccessRule($accessRule) | out-null
-                Set-Acl $privKeyCertFile.FullName $privKeyAcl | out-null
+                Set-Acl $privKeyCertFile.FullName $privKeyAcl | out-null #>
         
                 write-verbose "Exporting node cert."
                 $TempFile = New-TemporaryFile

@@ -22,13 +22,13 @@ function New-NetworkControllerClusterSecret {
         $NcVMs,
         [Parameter(Mandatory = $true)]
         [String]
-        $NcRestName,
-        [Parameter(Mandatory = $true)]
-        [String]
         $ManifestFolder,
         [Parameter(Mandatory = $true)]
         [String]
         $ManifestFolderNew,
+        [Parameter(Mandatory = $true)]
+        [String]
+        $NcRestCertThumbprint,
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -44,7 +44,7 @@ function New-NetworkControllerClusterSecret {
         $clusterManifestXml = [xml](Get-Content "$ManifestFolderNew\ClusterManifest.current.xml")
         $fileStoreServiceSection = ($clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object name -eq FileStoreService)
         $primaryEncryptedSecret = ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value
-        $ncRestCertThumprint = Get-NcNodeCertificateThumbprint -NetworkController $NcVMs[0] -NcRestName $NcRestName
+        #$ncRestCertThumprint = Get-NcNodeCertificateThumbprint -NetworkController $NcVMs[0] -NcRestName $NcRestName
         $newEncryptedSecret = Invoke-Command -ComputerName $NcVMs[0] -ScriptBlock {
             $primaryText = Invoke-ServiceFabricDecryptText -CipherText $using:primaryEncryptedSecret
     
@@ -54,7 +54,7 @@ function New-NetworkControllerClusterSecret {
                 return $null
             }
     
-            $newKey = Invoke-ServiceFabricEncryptText -CertThumbPrint $using:ncRestCertThumprint -Text $primaryText -StoreName MY -StoreLocation LocalMachine -CertStore
+            $newKey = Invoke-ServiceFabricEncryptText -CertThumbPrint $using:NcRestCertThumbprint -Text $primaryText -StoreName MY -StoreLocation LocalMachine -CertStore
             
             $newKeyText = Invoke-ServiceFabricDecryptText -CipherText $newKey
         
