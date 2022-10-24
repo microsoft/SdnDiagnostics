@@ -57,6 +57,8 @@ function Start-SdnCertificateRotation {
             ClusterAuthentication = $ncClusterSettings.ClusterAuthentication
         }
 
+        $currentRestCert = Get-SdnNetworkControllerRestCertificate
+
         if ($ncSettings.ClusterAuthentication -ieq 'X509') {
             $rotateNCNodeCerts = $true
         }
@@ -71,7 +73,9 @@ function Start-SdnCertificateRotation {
 
         $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME
         if ($healthState.AggregatedHealthState -ine 'Ok') {
-            "Service Fabric AggregatedHealthState is currently reporting {0}" -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
+            "Service Fabric AggregatedHealthState is currently reporting {0}. Please address underlying health before proceeding with certificate rotation" `
+            -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
+
             return
         }
 
@@ -89,12 +93,11 @@ function Start-SdnCertificateRotation {
             "Creating directory {0}" -f $path | Trace-Output
             [System.IO.DirectoryInfo]$CertPath = New-Item -Path $path -ItemType Directory -Force
 
-            $restCertSubject = (Get-SdnNetworkControllerRestCertificate).Subject
-            $restCert = New-SdnCertificate -Subject $restCertSubject -NotAfter (Get-Date).AddDays(365)
+            $restCert = New-SdnCertificate -Subject $currentRestCert.Subject -NotAfter (Get-Date).AddDays(365)
 
             # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
             # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
-            [System.String]$filePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $restCertSubject.ToString().ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
+            [System.String]$filePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $currentRestCert.Subject.ToString().ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
             "Exporting pfx certificate to {0}" -f $filePath | Trace-Output
             $null = Export-PfxCertificate -Cert $restCert -FilePath $filePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
 
@@ -137,29 +140,55 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
+        "== STAGE: DETERMINE CERTIFICATE CONFIG ==" | Trace-Output
+
         $certificateConfig = @{
             RestCert = $null
             NetworkController = @{}
         }
 
-        $updatedRestCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $restCertSubject} `
+        $updatedRestCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $currentRestCert.Subject} `
         | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
         if ($updatedRestCertificate) {
             $certificateConfig.RestCert = $updatedRestCertificate
         }
 
         if ($rotateNCNodeCerts) {
-            foreach ($controller in $sdnFabric.NetworkController) {
+            foreach ($controller in $sdnFabricDetails.NetworkController) {
+
+                $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                    Get-SdnNetworkControllerNodeCertificate
+                }
+
                 $updatedNodeCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                    $subject = (Get-SdnNetworkControllerNodeCertificate).Subject
-                    Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $subject} `
+                    Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $using:currentNodeCert.Subject} `
                     | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
                 }
 
-                if ($updatedNodeCert) {
-                    $certificateConfig.NetworkController[$controller] = $updatedNodeCert
+                $certificateConfig.NetworkController[$controller] = [PSCustomObject]@{
+                    New = $updatedNodeCert
+                    Current =  $currentNodeCert
                 }
             }
+        }
+
+        $certificateConfig | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Name 'Rotate_Certificate_Config' -FileType 'json'
+
+        "Network Controller Rest Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+        -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $currentRestCert.NotAfter, $certificateConfig.RestCert.Thumbprint, $certificateConfig.RestCert.NotAfter `
+        | Trace-Output -Level:Warning
+
+        foreach ($node in $sdnFabricDetails.NetworkController) {
+            $nodeCertConfig = $certificateConfig.NetworkController[$node]
+            "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+            -f $nodeCertConfig.Current.Subject, $nodeCertConfig.Current.Thumbprint, $nodeCertConfig.Current.NotAfter, `
+            $nodeCertConfig.New.Thumbprint, $nodeCertConfig.New.NotAfter | Trace-Output -Level:Warning
+        }
+
+        $confirm = Confirm-UserInput
+        if (-NOT $confirm){
+            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+            return
         }
 
         #####################################
@@ -199,7 +228,7 @@ function Start-SdnCertificateRotation {
 
             foreach ($node in $sdnFabricDetails.NetworkController){
                 $nodeCertConfig = $certificateConfig.NetworkController[$node]
-                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node -Credential $Credential -Thumbprint ($nodeCertConfig.Thumbprint).ToString()
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node -Credential $Credential -Thumbprint ($nodeCertConfig.New.Thumbprint).ToString()
 
                 "Waiting for 2 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
                 Start-Sleep -Seconds 120
@@ -235,8 +264,8 @@ function Start-SdnCertificateRotation {
                 $credBody = $cred | ConvertTo-Json -Depth 100
 
                 [System.String]$uri = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $cred.resourceRef
-                $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $NcRestCredential `
-                -Headers $headers -ContentType $content -Body $credBody -UseBasicParsing
+                $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $NcRestCredential -UseBasicParsing `
+                -Headers $headers -ContentType $content -Body $credBody
 
                 while ($true) {
                     if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
@@ -244,11 +273,11 @@ function Start-SdnCertificateRotation {
                         throw New-Object System.TimeoutException("Update of $($cred.resourceRef) did not complete within the alloted time")
                     }
 
-                    $result = Invoke-WebRequestWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential
+                    $result = Invoke-WebRequestWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential -UseBasicParsing
                     switch ($result.Status) {
                         'Updating' {
                             "Status: {0}" -f $result.Status | Trace-Output
-                            Start-Sleep -Seconds 5
+                            Start-Sleep -Seconds 15
                         }
                         'Failed' {
                             $stopWatch.Stop()
