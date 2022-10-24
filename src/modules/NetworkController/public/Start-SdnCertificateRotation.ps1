@@ -172,8 +172,6 @@ function Start-SdnCertificateRotation {
             }
         }
 
-        $certificateConfig | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Name 'Rotate_Certificate_Config' -FileType 'json'
-
         "Network Controller Rest Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
         -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $currentRestCert.NotAfter, $certificateConfig.RestCert.Thumbprint, $certificateConfig.RestCert.NotAfter `
         | Trace-Output -Level:Warning
@@ -274,7 +272,7 @@ function Start-SdnCertificateRotation {
                     }
 
                     $result = Invoke-WebRequestWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential -UseBasicParsing
-                    switch ($result.Status) {
+                    switch ($result.Content.Status) {
                         'Updating' {
                             "Status: {0}" -f $result.Status | Trace-Output
                             Start-Sleep -Seconds 15
