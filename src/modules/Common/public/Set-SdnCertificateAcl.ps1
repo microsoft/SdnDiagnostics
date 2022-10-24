@@ -38,7 +38,7 @@ function Set-SdnCertificateAcl {
             throw New-Object System.NullReferenceException("Unable to locate the certificate based on $($PSCmdlet.ParameterSetName)")
         }
         else {
-            "Located certificate with Thumbprint: {0} and Subject: {1}" -f $certificate.Thumbprint, $certificate.Subject | Trace-Output
+            "Located certificate with Thumbprint: {0} and Subject: {1}" -f $certificate.Thumbprint, $certificate.Subject | Trace-Output -Level:Verbose
         }
 
         if ($certificate.Count -ge 2) {
@@ -47,18 +47,17 @@ function Set-SdnCertificateAcl {
 
         if ($certificate.HasPrivateKey) {
             $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\*" | Where-Object {$_.Name -ieq $($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)}
-
-            if ($privateKeyCertFile.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
+            $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
+            if ($privateKeyAcl.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
                 $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
-
                 "Configuring {0} on {1}" -f ($networkServicePermission -join ', ').ToString(), $privateKeyCertFile.FullName | Trace-Output
-                $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
+
                 $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($networkServicePermission)
                 [void]$privateKeyAcl.AddAccessRule($accessRule)
                 $null = Set-Acl -Path $privateKeyCertFile.FullName -AclObject $privateKeyAcl
             }
             else {
-                "Permissions already defined for NT AUTHORITY\NETWORK SERVICE for {0}. No ACL changes required." -f $certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName | Trace-Output
+                "Permissions already defined for NT AUTHORITY\NETWORK SERVICE for {0}. No ACL changes required." -f $certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName | Trace-Output -Level:Verbose
             }
         }
     }

@@ -143,7 +143,7 @@ function Start-SdnCertificateRotation {
         }
 
         $updatedRestCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $restCertSubject} `
-        | Sort-Object -Property NotBefore -Descending | Select-Object -First
+        | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
         if ($updatedRestCertificate) {
             $certificateConfig.RestCert = $updatedRestCertificate
         }
@@ -153,11 +153,11 @@ function Start-SdnCertificateRotation {
                 $updatedNodeCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                     $subject = (Get-SdnNetworkControllerNodeCertificate).Subject
                     Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object {$_.Subject -ieq $subject} `
-                    | Sort-Object -Property NotBefore -Descending | Select-Object -First
+                    | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
                 }
 
                 if ($updatedNodeCert) {
-                    $certificateConfig.NetworkController[$controller] = $updatedRestCertificate
+                    $certificateConfig.NetworkController[$controller] = $updatedNodeCert
                 }
             }
         }
@@ -170,7 +170,7 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE NC REST CERTIFICATE ==" | Trace-Output
 
-        $null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $certificateConfig.RestCert.Thumbprint
+        $null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint ($certificateConfig.RestCert.Thumbprint).ToString()
 
         "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
         Start-Sleep -Seconds 300
@@ -183,7 +183,7 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE NC CLUSTER CERTIFICATE ==" | Trace-Output
 
-        $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerCluster' -Credential $Credential -Thumbprint $certificateConfig.RestCert.Thumbprint
+        $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerCluster' -Credential $Credential -Thumbprint ($certificateConfig.RestCert.Thumbprint).ToString()
 
         "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
         Start-Sleep -Seconds 300
@@ -199,7 +199,7 @@ function Start-SdnCertificateRotation {
 
             foreach ($node in $sdnFabricDetails.NetworkController){
                 $nodeCertConfig = $certificateConfig.NetworkController[$node]
-                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node -Credential $Credential -Thumbprint $nodeCertConfig.Thumbprint
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node -Credential $Credential -Thumbprint ($nodeCertConfig.Thumbprint).ToString()
 
                 "Waiting for 2 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
                 Start-Sleep -Seconds 120

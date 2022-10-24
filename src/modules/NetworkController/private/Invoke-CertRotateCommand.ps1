@@ -85,11 +85,8 @@ function Invoke-CertRotateCommand {
 
         # if the certificate already matches what has been configured, then break out of the loop
         if ($currentCertThumbprint -ieq $Thumbprint) {
-            "Successfully updated to certificate thumbprint {0}" -f $currentCertThumbprint | Trace-Output
+            "{0} has been updated to use certificate thumbprint {0}" -f $Command.Split('-')[1], $currentCertThumbprint | Trace-Output
             break
-        }
-        else {
-            "Certificate is currently configured for {0}" -f $currentCertThumbprint | Trace-Output
         }
 
         if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {

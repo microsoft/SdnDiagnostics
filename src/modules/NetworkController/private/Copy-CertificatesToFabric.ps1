@@ -90,7 +90,7 @@ function Copy-CertificatesToFabric {
         if ($RotateNodeCertificates) {
 
             # enumerate the certificates for network controller nodes
-            foreach($node in $sdnFabricDetails.NetworkController) {
+            foreach($node in $FabricDetails.NetworkController) {
                 "Retrieving current node certificate for {0}" -f $node | Trace-Output
                 $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock { Get-SdnNetworkControllerNodeCertificate } -ErrorAction Stop
                 foreach ($cert in $certificateCache) {
@@ -109,15 +109,11 @@ function Copy-CertificatesToFabric {
                 }
             }
 
-            foreach ($node in $sdnFabricDetails.NetworkController) {
-
+            foreach ($node in $FabricDetails.NetworkController) {
                 $nodeCertConfig = $certificateConfig.NetworkController[$node]
-
-                return $nodeCertConfig
-
-                Copy-FileToRemoteComputer -ComputerName $node -Credential $Credential -Path $nodeCertConfig.FileInfo.FullName -Destination $certDir
-                "Importing {0} to {1}" -f $nodeCertConfig.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
-                [System.String]$remoteFilePath = Join-Path -Path $certDir -ChildPath $restCertificate.FileInfo.BaseName
+                [System.String]$remoteFilePath = Join-Path -Path $certDir -ChildPath $nodeCertConfig.Cert.FileInfo.BaseName
+                Copy-FileToRemoteComputer -ComputerName $node -Credential $Credential -Path $nodeCertConfig.Cert.FileInfo.FullName -Destination $remoteFilePath
+                "Importing {0} to {1}" -f $nodeCertConfig.Cert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
 
                 $certImport = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock {
                     Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword
@@ -129,7 +125,7 @@ function Copy-CertificatesToFabric {
                     [System.String]$nodeCerFile = Join-Path -Path $certDir -ChildPath $certImport.CerFile.FileInfo.BaseName
                     Copy-FileFromRemoteComputer -ComputerName $node -Credential $Credential -Path $certImport.CerFile.FileInfo.FullName -Destination $nodeCerFile
                     foreach ($controller in $sdnFabricDetails.NetworkController) {
-                        "Importing certificate {0} to {1}" -f $nodeCertConfig.PfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                        "Importing certificate {0} to {1}" -f $nodeCertConfig.Cert.PfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
                         Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $nodeCerFile -Destination $nodeCerFile
                         Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                             $cert = Get-ChildItem -Path $using:nodeCerFile

@@ -17,6 +17,7 @@ function Import-SdnCertificate {
     $certObject = @{
         SelfSigned = $false
         CertInfo = $null
+        CerFile = $null
     }
 
     # if the cert already exists within the cert store, we want to skip the installation process
@@ -48,12 +49,12 @@ function Import-SdnCertificate {
             $cert = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
             if ($cert) {
                 "Successfully imported {0}" -f $cert.Thumbprint | Trace-Output
-                $certObject | Add-Member -MemberType NoteProperty -Name 'CerFile' -Value $cert
+                $certObject.CerFile = $cert
             }
         }
         else {
             "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output
-            $certObject | Add-Member -MemberType NoteProperty -Name 'CerFile' -Value $selfSignedCerExists
+            $certObject.CerFile = $selfSignedCerExists
         }
     }
 
