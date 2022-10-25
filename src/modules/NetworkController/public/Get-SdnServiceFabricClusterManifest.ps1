@@ -47,7 +47,7 @@ function Get-SdnServiceFabricClusterManifest {
             # we want to loop through if multiple NetworkController objects were passed into the cmdlet
             foreach ($obj in $NetworkController) {
                 $xmlClusterManifest = Invoke-PSRemoteCommand -ComputerName $obj -Credential $Credential -ScriptBlock {
-                    $clusterManifestFile = Get-ChildItem "C:\ProgramData\Microsoft\Service Fabric" -Recurse -Depth 2 -Filter "ClusterManifest.current.xml" -ErrorAction SilentlyContinue
+                    $clusterManifestFile = Get-ChildItem -Path "C:\ProgramData\Microsoft\Service Fabric" -Recurse -Depth 2 -Filter "ClusterManifest.current.xml" -ErrorAction SilentlyContinue
                     if ($clusterManifestFile) {
                         $clusterManifest = Get-Content -Path $clusterManifestFile.FullName -ErrorAction SilentlyContinue
                         return $clusterManifest
