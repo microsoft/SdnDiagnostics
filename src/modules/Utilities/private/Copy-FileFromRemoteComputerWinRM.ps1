@@ -52,7 +52,7 @@ function Copy-FileFromRemoteComputerWinRM {
         }
     }
     else {
-        $msg = "Unable to copy files from {0} as remote session could be established" -f $object
+        $msg = "Unable to copy files from {0} as remote session could not be established" -f $object
         throw New-Object System.Exception($msg)
     }
 }
