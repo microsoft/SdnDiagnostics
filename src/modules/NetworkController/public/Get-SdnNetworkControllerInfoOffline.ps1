@@ -36,41 +36,29 @@ function Get-SdnNetworkControllerInfoOffline {
             }
         }
 
-        Invoke-Command -ComputerName $NetworkController -ScriptBlock{
-            $serviceFabricPath = "c:\Programdata\Microsoft\Service Fabric"
-            $clusterManifestFile = Get-ChildItem $serviceFabricPath -Recurse -Depth 2 -Filter "ClusterManifest.current.xml"
-            if($null -eq $clusterManifestFile)
-            {
-                Trace-Output "[$(HostName)] ClusterManifest XML not found" -Level:Error
-                return $null
-            }
-            else
-            {
-                $clusterManifestXml = [xml](Get-Content $clusterManifestFile.FullName)
-                $NodeList = $clusterManifestXml.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node
-                $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
-                $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
-                $secretCertThumbprint = $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue
-                $secretCert = Get-Item "Cert:LocalMachine\My\$secretCertThumbprint"
-    
-                $infraInfo = [PSCustomObject]@{
-                    ClusterCredentialType = $ClusterCredentialType.Value
-                    NodeList = $NodeList
-                    NcRestName = ""
-                }
-    
-                if($null -eq $secretCert)
-                {
-                    Trace-Output "[$(HostName)] NetworkController secret certificate with thumbprint $secretCertThumbprint not found" -Level:Error
-                }
-                else
-                {
-                    $infraInfo.NcRestName = $secretCert.Subject.Replace("CN=","")
-                }
-    
-                return $infraInfo
-            }
-        } -Credential $Credential
+        $clusterManifestXml = [xml](Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential)
+        $NodeList = $clusterManifestXml.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node
+        $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
+        $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
+        $secretCertThumbprint = $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue
+        $secretCert = Get-Item "Cert:LocalMachine\My\$secretCertThumbprint"
+
+        $infraInfo = [PSCustomObject]@{
+            ClusterCredentialType = $ClusterCredentialType.Value
+            NodeList = $NodeList
+            NcRestName = ""
+        }
+
+        if($null -eq $secretCert)
+        {
+            Trace-Output "[$(HostName)] NetworkController secret certificate with thumbprint $secretCertThumbprint not found" -Level:Error
+        }
+        else
+        {
+            $infraInfo.NcRestName = $secretCert.Subject.Replace("CN=","")
+        }
+
+        return $infraInfo
 
     }
     catch {

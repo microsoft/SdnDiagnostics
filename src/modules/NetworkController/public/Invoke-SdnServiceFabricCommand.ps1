@@ -29,68 +29,63 @@ function Invoke-SdnServiceFabricCommand {
         [ScriptBlock]$ScriptBlock
     )
 
-    try {
-        if (!$NetworkController) {
-            "NetworkController is null. Please specify -NetworkController parameter or run Get-SdnInfrastructureInfo to populate the infrastructure cache" | Trace-Output -Level:Warning
-            return
-        }
+    if (!$NetworkController) {
+        "NetworkController is null. Please specify -NetworkController parameter or run Get-SdnInfrastructureInfo to populate the infrastructure cache" | Trace-Output -Level:Warning
+        return
+    }
 
-        foreach ($controller in $NetworkController) {
+    foreach ($controller in $NetworkController) {
 
-            $i = 0
-            $maxRetry = 3
+        $i = 0
+        $maxRetry = 3
 
-            # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
-            # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
-            "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output -Level Verbose
-            while ($i -lt $maxRetry) {
-                $i++
+        # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
+        # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
+        "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output -Level Verbose
+        while ($i -lt $maxRetry) {
+            $i++
 
-                $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
-                if (!$session) {
-                    "No session could be established to {0}" -f $controller | Trace-Output -Level:Exception
-                    break
-                }
-
-                try {
-                    $connection = Invoke-Command -Session $session -ScriptBlock {
-                        # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
-                        Connect-ServiceFabricCluster 3>$null 4>$null
-                    } -ErrorAction Stop
-                }
-                catch {
-                    "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Exception
-                    "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
-                    Get-PSSession -Id $session.Id | Remove-PSSession
-                }
-            }
-
-            if (!$connection) {
-                "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Exception
-                continue
-            }
-
-            "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
-            $sfResults = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
-
-            # if we get results from service fabric, then we want to break out of the loop
-            if ($sfResults) {
+            $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
+            if (!$session) {
+                "No session could be established to {0}" -f $controller | Trace-Output -Level:Exception
                 break
             }
+
+            try {
+                $connection = Invoke-Command -Session $session -ScriptBlock {
+                    # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+                    Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
+                } -ErrorAction Stop
+            }
+            catch {
+                "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Exception
+                "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
+                Get-PSSession -Id $session.Id | Remove-PSSession
+            }
         }
 
-        if (!$sfResults) {
-            throw New-Object System.NullReferenceException("Unable to return results from service fabric")
+        if (!$connection) {
+            "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Exception
+            continue
         }
 
-        if ($sfResults.GetType().IsPrimitive -or ($sfResults -is [String])) {
-            return $sfResults
-        }
-        else {
-            return ($sfResults | Select-Object -Property * -ExcludeProperty PSComputerName, RunspaceId)
+        "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+        $sfResults = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
+
+        # if we get results from service fabric, then we want to break out of the loop
+        if ($sfResults) {
+            break
         }
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+
+    if (!$sfResults) {
+        throw New-Object System.NullReferenceException("Unable to return results from service fabric")
+    }
+
+    if ($sfResults.GetType().IsPrimitive -or ($sfResults -is [String])) {
+        return $sfResults
+    }
+    else {
+        return ($sfResults | Select-Object -Property * -ExcludeProperty PSComputerName, RunspaceId)
     }
 }
