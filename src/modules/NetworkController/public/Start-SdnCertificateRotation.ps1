@@ -38,6 +38,12 @@ function Start-SdnCertificateRotation {
         [System.Security.SecureString]$CertPassword
     )
 
+    # ensure that the module is running as local administrator
+    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+    if (-NOT $elevated) {
+        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
+    }
+
     $config = Get-SdnRoleConfiguration -Role 'NetworkController'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
@@ -221,7 +227,7 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        if ($ncSettings.ClusterAuthentication -ieq 'X509') {
+        if ($rotateNCNodeCerts) {
             "== STAGE: ROTATE NC NODE CERTIFICATE ==" | Trace-Output
 
             foreach ($node in $sdnFabricDetails.NetworkController){
@@ -271,8 +277,8 @@ function Start-SdnCertificateRotation {
                         throw New-Object System.TimeoutException("Update of $($cred.resourceRef) did not complete within the alloted time")
                     }
 
-                    $result = Invoke-WebRequestWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential -UseBasicParsing
-                    switch ($result.Content.Status) {
+                    $result = Invoke-RestMethodWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential -UseBasicParsing
+                    switch ($result.properties.provisioningState) {
                         'Updating' {
                             "Status: {0}" -f $result.Status | Trace-Output
                             Start-Sleep -Seconds 15
