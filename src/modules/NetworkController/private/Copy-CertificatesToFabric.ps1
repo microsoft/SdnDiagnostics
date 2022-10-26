@@ -67,9 +67,9 @@ function Copy-CertificatesToFabric {
 
         # enumerate the current certificates within the cache to isolate the rest certificate
         foreach ($cert in $certificateCache) {
-            if ($cert.pfxdata.Subject -ieq $currentRestCertificate.Subject) {
+            if ($cert.pfxdata.EndEntityCertificates.Subject -ieq $currentRestCertificate.Subject) {
                 "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
-                $cert.pfxFile.FileInfo.FullName,  $cert.pfxData.Subject, $cert.pfxData.Thumbprint | Trace-Output -Level:Verbose
+                $cert.pfxFile.FileInfo.FullName,  $cert.pfxData.EndEntityCertificates.Subject, $cert.pfxData.EndEntityCertificates.Thumbprint | Trace-Output -Level:Verbose
 
                 $restCertificate = $cert
                 break

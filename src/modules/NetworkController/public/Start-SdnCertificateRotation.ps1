@@ -74,6 +74,8 @@ function Start-SdnCertificateRotation {
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.SoftwareLoadBalancer -ErrorAction Stop
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
 
+        Remove-PSRemotingSession -ComputerName $sdnFabricDetails.FabricNodes
+
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
         "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
 

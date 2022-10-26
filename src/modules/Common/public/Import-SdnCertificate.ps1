@@ -35,14 +35,14 @@ function Import-SdnCertificate {
     else {
         "Importing certificate file {0} with Thumbprint: {1} to {2}" -f $fileInfo.FullName, $pfxData.Thumbprint, $CertStore | Trace-Output
         if ($pfxData.HasPrivateKey) {
-            $pfxCertificate = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
-            Set-SdnCertificateAcl -Path $CertStore -Thumbprint $pfxCertificate.Thumbprint
+            $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
+            Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
         }
         else {
-            $pfxCertificate = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -ErrorAction Stop
+            $importCert = Import-Certificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -ErrorAction Stop
         }
 
-        $certObject.CertInfo = $pfxCertificate
+        $certObject.CertInfo = $importCert
     }
 
     # determine if the certificates being used are self signed
@@ -62,7 +62,7 @@ function Import-SdnCertificate {
             if (-NOT ($selfSignedCerExists)) {
                 # import the certificate to the trusted root store
                 "Importing certificate file {0} to {1}" -f $selfSignedCer.FullName, $trustedRootStore | Trace-Output
-                $null = Import-PfxCertificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
+                $null = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
             }
             else {
                 "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output
