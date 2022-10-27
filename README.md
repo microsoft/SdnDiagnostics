@@ -14,7 +14,7 @@ Please refer to the [wiki](https://github.com/microsoft/SdnDiagnostics/wiki) on 
 | :-- | :-- |
 | Build Validation | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg) |
 | Build Pipeline | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/build-pipeline.yml/badge.svg) |
-| Script Analyzer | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell-analysis.yml/badge.svg) |
+| Script Analyzer | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell.yml/badge.svg) |
 
 
 # Contributing
