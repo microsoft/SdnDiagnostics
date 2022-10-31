@@ -23,7 +23,7 @@ function New-SdnNetworkControllerCertificate {
         [Parameter(Mandatory = $false)]
         [datetime]
         $NotAfter = (Get-Date).AddYears(1),
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true)]
         [System.Security.SecureString]$CertPassword,
         [Parameter(Mandatory = $false)]
         [String]
@@ -38,11 +38,6 @@ function New-SdnNetworkControllerCertificate {
 
 
     try {
-        if(!$PSBoundParameters.ContainsKey('CertPassword')){
-            $certpwdstring = -join ((48..122) | Get-Random -Count 30 | ForEach-Object { [char]$_ })
-            $CertPassword = ConvertTo-SecureString $certpwdstring -AsPlainText -Force
-        }
-
         [System.String]$path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC)
         "Creating directory {0}" -f $path | Trace-Output
         [System.IO.DirectoryInfo]$CertPath = New-Item -Path $path -ItemType Directory -Force

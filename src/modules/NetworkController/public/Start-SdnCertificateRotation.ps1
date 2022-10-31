@@ -35,7 +35,11 @@ function Start-SdnCertificateRotation {
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $true, ParameterSetName = 'SelfSigned')]
-        [System.Security.SecureString]$CertPassword
+        [System.Security.SecureString]$CertPassword,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
+        [datetime]
+        $NotAfter = (Get-Date).AddYears(1)
     )
 
     # ensure that the module is running as local administrator
@@ -101,7 +105,7 @@ function Start-SdnCertificateRotation {
             "Creating directory {0}" -f $path | Trace-Output
             [System.IO.DirectoryInfo]$CertPath = New-Item -Path $path -ItemType Directory -Force
 
-            $restCert = New-SdnCertificate -Subject $currentRestCert.Subject -NotAfter (Get-Date).AddDays(365)
+            $restCert = New-SdnCertificate -Subject $currentRestCert.Subject -NotAfter $NotAfter
 
             # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
             # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
@@ -120,7 +124,7 @@ function Start-SdnCertificateRotation {
                         $nodeCertSubject = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { (Get-SdnNetworkControllerNodeCertificate).Subject }
                     }
 
-                    $selfSignedCert = New-SdnCertificate -Subject $nodeCertSubject -NotAfter (Get-Date).AddDays(365)
+                    $selfSignedCert = New-SdnCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
 
                     # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
                     # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
