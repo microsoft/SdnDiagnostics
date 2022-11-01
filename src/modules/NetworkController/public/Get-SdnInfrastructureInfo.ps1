@@ -110,10 +110,19 @@ function Get-SdnInfrastructureInfo {
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
         $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.NetworkController
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
-        $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
 
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Server){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
+        }
+
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Gateway){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        }
+
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
+        }
+        
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo

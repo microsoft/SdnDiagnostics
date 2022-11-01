@@ -4,7 +4,7 @@
 function Confirm-UserInput {
     param(
         [Parameter(Position = 0, ValueFromPipeline = $true)]
-        [System.String]$Message = "Do you want to continue with this operation? [Y/N]: ",
+        [System.String]$Message = "Do you want to continue with this operation? [Y/N]] ",
         [System.String]$BackgroundColor = "Black",
         [System.String]$ForegroundColor = "Yellow"
     )
