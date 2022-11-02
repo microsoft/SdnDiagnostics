@@ -75,9 +75,15 @@ function Start-SdnCertificateRotation {
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers within the SDN fabric are running the current version
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.SoftwareLoadBalancer -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
 
+        if($null -ne $sdnFabricDetails.SoftwareLoadBalancer){
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.SoftwareLoadBalancer -ErrorAction Stop
+        }
+
+        if($null -ne $sdnFabricDetails.Server){
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
+        }
+        
         Remove-PSRemotingSession -ComputerName $sdnFabricDetails.FabricNodes
 
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output

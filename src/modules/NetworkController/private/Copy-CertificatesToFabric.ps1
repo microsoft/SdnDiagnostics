@@ -29,11 +29,16 @@ function Copy-CertificatesToFabric {
         $southBoundNodes = @()
 
         $nodesToRotateRestCert += $FabricDetails.NetworkController
-        $nodesToRotateRestCert += $FabricDetails.SoftwareLoadBalancer
-        $nodesToRotateRestCert += $FabricDetails.Server
 
-        $southBoundNodes += $FabricDetails.SoftwareLoadBalancer
-        $southBoundNodes += $FabricDetails.Server
+        if($null -ne $FabricDetails.SoftwareLoadBalancer){
+            $nodesToRotateRestCert += $FabricDetails.SoftwareLoadBalancer
+            $southBoundNodes += $FabricDetails.SoftwareLoadBalancer
+        }
+        
+        if($null -ne $FabricDetails.Server){
+            $nodesToRotateRestCert += $FabricDetails.Server
+            $southBoundNodes += $FabricDetails.Server
+        }
 
         [System.String]$certDir = "$(Get-WorkingDirectory)\RotateCert"
 
