@@ -59,6 +59,7 @@ function Get-SdnNetworkControllerInfoOffline {
             ClusterCredentialType = $ClusterCredentialType.Value
             NodeList = $NodeList
             NcRestName = $ncRestName
+            NcRestCertThumbprint = $secretCertThumbprint
         }
 
         return $infraInfo

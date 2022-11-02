@@ -8,8 +8,16 @@ function Get-SdnNetworkControllerRestCertificate {
     #>
 
     try {
-        $networkController = Get-NetworkController
-        $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $($networkController.ServerCertificate.Thumbprint).ToString()
+
+        $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+        if (-NOT ($confirmFeatures)) {
+            "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+            return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+        }
+
+        $ncInfo = Get-SdnNetworkControllerInfoOffline
+        $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncInfo.NcRestCertThumbprint
 
         if ($null -eq $certificate) {
             throw New-Object System.NullReferenceException("Unable to locate Network Controller Rest Certificate")

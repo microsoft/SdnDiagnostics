@@ -33,7 +33,9 @@ function New-SdnNetworkControllerCertificate {
         $NcRestName,
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        [Switch]
+        $InstallCertificate
     )
 
 
@@ -70,6 +72,17 @@ function New-SdnNetworkControllerCertificate {
             }
         }
 
+        if($InstallCertificate){
+            $rotateNCNodeCerts = $false
+            if ($ClusterAuthentication -ieq "X509"){
+                $rotateNCNodeCerts = $true
+            }
+            $sdnFabricDetails = [PSCustomObject]@{
+                NetworkController = $NetworkControllers
+            }
+
+            Copy-CertificatesToFabric -CertPath $CertPath.FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
+        }
         # return the cert password
         return [PSCustomObject]@{
             CertPath = $CertPath

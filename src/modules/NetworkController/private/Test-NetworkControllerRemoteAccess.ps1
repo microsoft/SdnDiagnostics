@@ -19,9 +19,9 @@ function Test-NetworkControllerRemoteAccess {
     
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [String]
-        $NetworkController,
+        $NetworkController = $(HostName),
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -37,22 +37,6 @@ function Test-NetworkControllerRemoteAccess {
         }
 
         Trace-Output "The Network Controller: [$NetworkController] can be accessed remotely via PowerShell" -Level:Verbose
-
-        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -NetworkController $NetworkController -Credential $Credential
-
-        $NcNodeFQDN = $NcInfraInfo.NodeList.IpAddressOrFQDN
-
-        if($($NcInfraInfo.ClusterCredentialType) -eq "Windows")
-        {
-            # If auth type is Windows/Kerberos, the script need to run on Network Controller VM
-            $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-            if($NcNodeFQDN -contains $NodeFQDN){
-                Trace-Output "The ClusterCredentialType is Windows and currently running on Network Controller" -Level:Verbose
-            }else{
-                Trace-Output "The ClusterCredentialType is Windows. The script need to run on Network Controller directly" -Level:Error
-                return $false
-            }
-        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
