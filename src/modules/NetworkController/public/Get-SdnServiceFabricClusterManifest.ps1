@@ -59,6 +59,7 @@ function Get-SdnServiceFabricClusterManifest {
                 # once the cluster manifest has been retrieved from the file system break out of the loop
                 if ($xmlClusterManifest) {
                     "Successfully retrieved ClusterManifest from {0}" -f $obj | Trace-Output
+                    $clusterManifest = $xmlClusterManifest
                     break
                 }
             }
