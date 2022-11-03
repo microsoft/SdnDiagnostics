@@ -13,6 +13,10 @@ function Get-SdnServiceFabricNode {
         Specifies the name of the Service Fabric node whose information is being returned. If not specified, the cmdlet will return information for all the nodes in the cluster.
     .EXAMPLE
         PS> Get-SdnServiceFabricNode -NetworkController 'Prefix-NC01' -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnServiceFabricNode -NetworkController 'Prefix-NC01' -Credential (Get-Credential) -NodeName 'Prefix-NC02'
+    .EXAMPLE
+        PS> Get-SdnServiceFabricNode -NodeName 'Prefix-NC01'
     #>
 
     [CmdletBinding()]
@@ -31,6 +35,15 @@ function Get-SdnServiceFabricNode {
     )
 
     try {
+
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
 
         if ($NodeName) {
             $sb = {

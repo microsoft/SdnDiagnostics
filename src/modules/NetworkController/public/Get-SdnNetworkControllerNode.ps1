@@ -41,10 +41,12 @@ function Get-SdnNetworkControllerNode {
 
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                $result = Get-NetworkControllerNode -Name $NetworkController
+                $result = Get-NetworkControllerNode -Name $NetworkController -ErrorAction Stop
             }
             else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode -Name $using:NetworkController } -Credential $Credential
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
+                    Get-NetworkControllerNode -Name $using:NetworkController
+                } -ErrorAction Stop
             }
         }
         catch {
@@ -59,7 +61,7 @@ function Get-SdnNetworkControllerNode {
         }
 
         if($ServerNameOnly){
-            return [System.Array]$result.Name
+            return [System.Array]$result.IPAddressOrFQDN
         }
         else {
             return $result

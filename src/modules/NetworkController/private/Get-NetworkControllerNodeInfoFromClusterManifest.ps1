@@ -21,10 +21,9 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
             Name = $_.NodeName
             Server = $_.IPAddressOrFQDN
             FaultDomain = $_.FaultDomain
+            RestInterface = $null
+            Status = $null
         }
-
-        $object | Add-Member -MemberType NoteProperty -Name RestInterface -Value 'test'
-        $object | Add-Member -MemberType NoteProperty -Name Status -Value (Get-SdnServiceFabricNode -Node $_.NodeName).NodeStatus
 
 	    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $_.NodeName).Certificates.ServerCertificate.X509FindValue.ToString()
         $cert = Invoke-PSRemoteCommand -ComputerName $_.IPAddressOrFQDN -Credential $Credential -ScriptBlock {
