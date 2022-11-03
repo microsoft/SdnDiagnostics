@@ -32,10 +32,10 @@ function Get-SdnServiceFabricPartition {
         [Parameter(Mandatory = $true, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [System.String]$ServiceName,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
         [System.String]$ServiceTypeName,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'PartitionID')]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $false, ParameterSetName = 'PartitionID')]
         [System.Guid]$PartitionId,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
