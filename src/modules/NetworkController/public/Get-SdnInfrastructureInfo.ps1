@@ -89,31 +89,40 @@ function Get-SdnInfrastructureInfo {
 
         # get the network controllers
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
-            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
         # get the load balancer muxes
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer)) {
-            $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the gateways
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the hypervisor hosts
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Server)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
         $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.NetworkController
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
-        $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
-        $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
 
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Server){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
+        }
+
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Gateway){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        }
+
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
+        }
+        
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo
