@@ -39,11 +39,17 @@ function Get-SdnNetworkControllerNode {
             }
         }
 
-        if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-            $result = Get-NetworkControllerNode
+        try {
+            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+                $result = Get-NetworkControllerNode -Name $NetworkController
+            }
+            else {
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode -Name $using:NetworkController } -Credential $Credential
+            }
         }
-        else {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode } -Credential $Credential
+        catch {
+            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
+            $result = Get-NetworkControllerNodeInfoFromClusterManifest -Credential $Credential
         }
 
         foreach($obj in $result){
