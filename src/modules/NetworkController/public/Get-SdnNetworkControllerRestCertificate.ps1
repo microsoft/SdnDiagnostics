@@ -16,8 +16,17 @@ function Get-SdnNetworkControllerRestCertificate {
             return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
         }
 
-        $ncInfo = Get-SdnNetworkControllerInfoOffline
-        $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncInfo.NcRestCertThumbprint
+        try {
+            $networkController = Get-NetworkController
+            $ncRestCertThumprint = $($networkController.ServerCertificate.Thumbprint).ToString()
+        }
+        catch {
+            "Unable to retrieve NetworkController Certificate Info directly from Get-NetworkController. Attempting to retrieve info from ClusterManifest" | Trace-Output -Level:Warning
+            $ncInfo = Get-SdnNetworkControllerInfoOffline
+            $ncRestCertThumprint = $ncInfo.NcRestCertThumbprint
+        }
+
+        $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncRestCertThumprint
 
         if ($null -eq $certificate) {
             throw New-Object System.NullReferenceException("Unable to locate Network Controller Rest Certificate")
