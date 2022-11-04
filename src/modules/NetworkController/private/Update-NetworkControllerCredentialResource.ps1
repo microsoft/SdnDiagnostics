@@ -15,39 +15,71 @@ function Update-NetworkControllerCredentialResource {
 
     param (
         [Parameter(Mandatory = $true)]
-        [String]
+        [System.String]
         $NcUri,
+
         [Parameter(Mandatory = $true)]
-        [String]
+        [System.String]
         $NewRestCertThumbprint,
+
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty   
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        $uri = "$NcUri/networking/v1/servers"
+    $headers = @{"Accept"="application/json"}
+    $content = "application/json; charset=UTF-8"
+    $timeoutInMinutes = 10
+    $array = @()
 
-        $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
-        if ($null -ne $server) {
-            $certConn = $servers[0].properties.connections | Where-Object { $_.credentialType -match "X509Certificate" }
-            if ($null -ne $certConn) {
-                $certCredResource = Get-SdnResource -NcUri $NcUri -Credential $Credential -ResourceRef $con.credential.resourceRef
-                if ($null -eq $certCredResource) {
-                    $certCredResource.value = $NewRestCertThumbprint
-                    $body = $certCredResource | ConvertTo-Json -Depth 10
-            
-                    Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body $body -UseBasicParsing `
-                    -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json"}
-                }
-            }else{
-                Trace-Output "No Credential Resources of type X509Certificate Found."
+    $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
+    foreach ($object in $servers) {
+        "Processing X509 connections for {0}" -f $object | Trace-Output
+        foreach ($connection in $servers.properties.connections | Where-Object {$_.credentialType -ieq 'X509Certificate'}) {
+            $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+            $cred = Get-SdnResource -NcUri $NcUri -ResourceRef $connection.credential.resourceRef -Credential $Credential
+
+            # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
+            if ($cred.properties.value -ieq $NewRestCertThumbprint) {
+                "{0} has already been configured to {1}" -f $cred.resourceRef, $NewRestCertThumbprint | Trace-Output -Level:Verbose
+                continue
             }
-        }else{
-            Trace-Output "No Server Resources Found."
+
+            "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $NewRestCertThumbprint | Trace-Output
+            $cred.properties.value = $NewRestCertThumbprint
+            $credBody = $cred | ConvertTo-Json -Depth 100
+
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef $cred.resourceRef
+            $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -UseBasicParsing `
+            -Headers $headers -ContentType $content -Body $credBody
+
+            while ($true) {
+                if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
+                    $stopWatch.Stop()
+                    throw New-Object System.TimeoutException("Update of $($cred.resourceRef) did not complete within the alloted time")
+                }
+
+                $result = Invoke-RestMethodWithRetry -Method 'Get' -Uri $uri -Credential $Credential -UseBasicParsing
+                switch ($result.properties.provisioningState) {
+                    'Updating' {
+                        "Status: {0}" -f $result.properties.provisioningState | Trace-Output
+                        Start-Sleep -Seconds 15
+                    }
+                    'Failed' {
+                        $stopWatch.Stop()
+                        throw New-Object System.Exception("Failed to update $($cred.resourceRef)")
+                    }
+                    'Succeeded' {
+                        "Successfully updated {0}" -f $cred.resourceRef | Trace-Output
+                        break
+                    }
+                }
+            }
+
+            $array += $result
         }
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
+
+    return $array
 }

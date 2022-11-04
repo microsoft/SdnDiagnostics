@@ -83,7 +83,7 @@ function Start-SdnCertificateRotation {
         if($null -ne $sdnFabricDetails.Server){
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
         }
-        
+
         Remove-PSRemotingSession -ComputerName $sdnFabricDetails.FabricNodes
 
         "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
@@ -257,58 +257,10 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        $headers = @{"Accept"="application/json"}
-        $content = "application/json; charset=UTF-8"
-        $timeoutInMinutes = 5
-
         "== STAGE: ROTATE SOUTHBOUND CERTIFICATE CREDENTIALS ==" | Trace-Output
 
-        $allCredentials = Get-SdnResource -ResourceType Credentials -Credential $NcRestCredential -NcUri $sdnFabricDetails.NcUrl
-        foreach ($cred in $allCredentials) {
-            $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-            if ($cred.properties.type -eq "X509Certificate") {
-
-                # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
-                if ($cred.properties.value -ieq $certificateConfig.RestCert.Thumbprint) {
-                    "{0} has already been configured to {1}" -f $cred.resourceRef, $certificateConfig.RestCert.Thumbprint | Trace-Output
-                    continue
-                }
-
-                "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $certificateConfig.RestCert.Thumbprint | Trace-Output
-                $cred.properties.value = $certificateConfig.RestCert.Thumbprint
-                $credBody = $cred | ConvertTo-Json -Depth 100
-
-                [System.String]$uri = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $cred.resourceRef
-                $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $NcRestCredential -UseBasicParsing `
-                -Headers $headers -ContentType $content -Body $credBody
-
-                while ($true) {
-                    if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
-                        $stopWatch.Stop()
-                        throw New-Object System.TimeoutException("Update of $($cred.resourceRef) did not complete within the alloted time")
-                    }
-
-                    $result = Invoke-RestMethodWithRetry -Method 'Get' -Uri $uri -Credential $NcRestCredential -UseBasicParsing
-                    switch ($result.properties.provisioningState) {
-                        'Updating' {
-                            "Status: {0}" -f $result.Status | Trace-Output
-                            Start-Sleep -Seconds 15
-                        }
-                        'Failed' {
-                            $stopWatch.Stop()
-                            throw New-Object System.Exception("Failed to update $($cred.resourceRef)")
-                        }
-                        'Succeeded' {
-                            "Successfully updated {0}" -f $cred.resourceRef | Trace-Output
-                            break
-                        }
-                    }
-                }
-            }
-
-            $stopWatch.Stop()
-        }
+        $null = Update-NetworkControllerCredentialResource -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential `
+        -NewRestCertThumbprint ($certificateConfig.RestCert.Thumbprint).ToString() -ErrorAction Stop
 
         "Certificate rotation completed successfully" | Trace-Output
     }
