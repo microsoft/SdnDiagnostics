@@ -5,35 +5,29 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
     #>
 
     [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
+    param ()
 
     "Attempting to retrieve NetworkControllerNode information via ClusterManifest and other methods" | Trace-Output
-    $array = @()
 
     $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest)
-    $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node | ForEach-Object {
-        $object = [PSCustomObject]@{
-            Name = $_.NodeName
-            Server = $_.IPAddressOrFQDN
-            FaultDomain = $_.FaultDomain
-            RestInterface = $null
-            Status = $null
-        }
+    $currentNodeName = $env:COMPUTERNAME
+    $currentIPAddresses = (Get-NetIPAddress).IPAddress
 
-	    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $_.NodeName).Certificates.ServerCertificate.X509FindValue.ToString()
-        $cert = Invoke-PSRemoteCommand -ComputerName $_.IPAddressOrFQDN -Credential $Credential -ScriptBlock {
-            Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:certificate
-        }
+    $currentNode = $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node `
+    | Where-Object {$_.NodeName -ilike "$($currentNodeName).*" -or $_.IPAddressOrFQDN -iin $currentIPAddresses -or $_.IPAddressOrFQDN -ilike "$($currentNodeName).*"}
 
-        $object | Add-Member -MemberType NoteProperty -Name NodeCertificate -Value $cert
-
-        $array += $object
+    $object = [PSCustomObject]@{
+        Name = $currentNode.NodeName
+        Server = $currentNode.IPAddressOrFQDN
+        FaultDomain = $currentNode.FaultDomain
+        RestInterface = $null
+        Status = $null
     }
 
-    return $array
+    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $object.Name).Certificates.ServerCertificate.X509FindValue.ToString()
+    $cert = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $certificate
+
+    $object | Add-Member -MemberType NoteProperty -Name NodeCertificate -Value $cert
+
+    return $object
 }

@@ -5,6 +5,8 @@ function Get-SdnNetworkControllerNode {
     <#
     .SYNOPSIS
         Returns a list of servers from network controller.
+    .PARAMETER Name
+        Specifies the friendly name of the node for the network controller. If not provided, settings are retrieved for all nodes in the deployment.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
@@ -18,7 +20,10 @@ function Get-SdnNetworkControllerNode {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String]$NetworkController = $(HostName),
+        [System.String]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$NetworkController,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -30,6 +35,7 @@ function Get-SdnNetworkControllerNode {
     )
 
     try {
+
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
             $config = Get-SdnRoleConfiguration -Role 'NetworkController'
             $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
@@ -39,19 +45,15 @@ function Get-SdnNetworkControllerNode {
             }
         }
 
-        try {
-            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                $result = Get-NetworkControllerNode -Name $NetworkController -ErrorAction Stop
-            }
-            else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                    Get-NetworkControllerNode -Name $using:NetworkController
-                } -ErrorAction Stop
-            }
+        if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+            $result = Get-NetworkControllerNode
         }
-        catch {
-            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
-            $result = Get-NetworkControllerNodeInfoFromClusterManifest -Credential $Credential
+        else {
+            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode } -Credential $Credential
+        }
+
+        if ($Name) {
+            $result = $result | Where-Object {$_.Name -ieq $Name -or $_.IPAddressOrFQDN -ieq $Name}
         }
 
         foreach($obj in $result){
