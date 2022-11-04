@@ -23,7 +23,7 @@ function Get-SdnNetworkControllerNode {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$NetworkController,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
