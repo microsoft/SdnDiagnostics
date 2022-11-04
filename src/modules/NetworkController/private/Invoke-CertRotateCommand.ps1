@@ -58,7 +58,7 @@ function Invoke-CertRotateCommand {
             $params.Add('CredentialEncryptionCertificate', $cert)
         }
         'Set-NetworkControllerNode' {
-            $ncNode = Get-SdnNetworkControllerNode -NetworkController $NetworkController -Credential $Credential
+            $ncNode = Get-SdnNetworkControllerNode -Name $NetworkController -Credential $Credential
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)
@@ -79,7 +79,10 @@ function Invoke-CertRotateCommand {
                 $currentCertThumbprint = (Get-NetworkControllerCluster).CredentialEncryptionCertificate.Thumbprint
             }
             'Set-NetworkControllerNode' {
-                $currentCertThumbprint = (Get-SdnNetworkControllerNodeCertificate -NetworkController $NetworkController -Credential $Credential).Thumbprint
+                $currentCert = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
+                    Get-SdnNetworkControllerNodeCertificate
+                } -ErrorAction Stop
+                $currentCertThumbprint = $currentCert.Thumbprint
             }
         }
 

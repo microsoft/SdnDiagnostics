@@ -45,25 +45,43 @@ function Get-SdnNetworkControllerNode {
             }
         }
 
-        if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-            $result = Get-NetworkControllerNode
+        try {
+            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+                $result = Get-NetworkControllerNode -ErrorAction Stop
+            }
+            else {
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
+                    Get-NetworkControllerNode -ErrorAction Stop
+                } -ErrorAction Stop
+            }
+
+            # in this scenario if the results returned we will parse the objects returned and generate warning to user if node is not up
+            # this property is only going to exist though if service fabric is healthy and underlying NC cmdlet can query node status
+            foreach($obj in $result){
+                if($obj.Status -ine 'Up'){
+                    "{0} is reporting status {1}" -f $obj.Name, $obj.Status | Trace-Output -Level:Warning
+                }
+
+                # if we returned the object, we want to add a new property called NodeCertificateThumbprint as this will ensure consistent
+                # output in scenarios where this operation fails due to NC unhealthy and we need to fallback to reading the cluster manifest
+                $result | ForEach-Object {
+                    if ($null -ieq $_.NodeCertificateThumbprint) {
+                        $_ | Add-Member -MemberType NoteProperty -Name 'NodeCertificateThumbprint' -Value $_.NodeCertificate.Thumbprint
+                    }
+                }
+            }
         }
-        else {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode } -Credential $Credential
+        catch {
+            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
+            $result = Get-NetworkControllerNodeInfoFromClusterManifest -Credential $Credential
         }
 
         if ($Name) {
-            $result = $result | Where-Object {$_.Name -ieq $Name -or $_.IPAddressOrFQDN -ieq $Name}
-        }
-
-        foreach($obj in $result){
-            if($obj.Status -ine 'Up'){
-                "{0} is reporting status {1}" -f $obj.Name, $obj.Status | Trace-Output -Level:Warning
-            }
+            $result = $result | Where-Object {$_.Name -ieq $Name -or $_.Server -ieq $Name}
         }
 
         if($ServerNameOnly){
-            return [System.Array]$result.IPAddressOrFQDN
+            return [System.Array]$result.Server
         }
         else {
             return $result

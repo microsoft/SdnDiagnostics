@@ -8,7 +8,7 @@ function Get-SdnNetworkControllerNodeCertificate {
     #>
 
     try {
-        $networkControllerNode = Get-SdnNetworkControllerNode
+        $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:COMPUTERNAME
 
         # check to see if FindCertificateBy property exists as this was added in later builds
         # else if does not exist, default to Thumbprint for certificate
@@ -27,7 +27,7 @@ function Get-SdnNetworkControllerNodeCertificate {
             }
         }
         else {
-            $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificate.Thumbprint
+            $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint
         }
 
         if ($null -eq $certificate) {

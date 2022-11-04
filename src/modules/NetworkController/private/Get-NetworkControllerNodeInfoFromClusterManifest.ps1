@@ -8,26 +8,24 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
     param ()
 
     "Attempting to retrieve NetworkControllerNode information via ClusterManifest and other methods" | Trace-Output
+    $array = @()
 
     $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest)
-    $currentNodeName = $env:COMPUTERNAME
-    $currentIPAddresses = (Get-NetIPAddress).IPAddress
+    $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node | ForEach-Object {
+        $object = [PSCustomObject]@{
+            Name = $_.NodeName
+            Server = $_.IPAddressOrFQDN
+            FaultDomain = $_.FaultDomain
+            RestInterface = $null
+            Status = $null
+            NodeCertificate = $null
+        }
 
-    $currentNode = $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node `
-    | Where-Object {$_.NodeName -ilike "$($currentNodeName).*" -or $_.IPAddressOrFQDN -iin $currentIPAddresses -or $_.IPAddressOrFQDN -ilike "$($currentNodeName).*"}
+	    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $_.NodeName).Certificates.ServerCertificate.X509FindValue.ToString()
+        $object | Add-Member -MemberType NoteProperty -Name NodeCertificateThumbprint -Value $certificate
 
-    $object = [PSCustomObject]@{
-        Name = $currentNode.NodeName
-        Server = $currentNode.IPAddressOrFQDN
-        FaultDomain = $currentNode.FaultDomain
-        RestInterface = $null
-        Status = $null
+        $array += $object
     }
 
-    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $object.Name).Certificates.ServerCertificate.X509FindValue.ToString()
-    $cert = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $certificate
-
-    $object | Add-Member -MemberType NoteProperty -Name NodeCertificate -Value $cert
-
-    return $object
+    return $array
 }
