@@ -65,7 +65,7 @@ function Get-SdnNetworkControllerNode {
                 # if we returned the object, we want to add a new property called NodeCertificateThumbprint as this will ensure consistent
                 # output in scenarios where this operation fails due to NC unhealthy and we need to fallback to reading the cluster manifest
                 $result | ForEach-Object {
-                    if ($null -ieq $_.NodeCertificateThumbprint) {
+                    if (!($_.PSOBject.Properties.name -contains "NodeCertificateThumbprint")) {
                         $_ | Add-Member -MemberType NoteProperty -Name 'NodeCertificateThumbprint' -Value $_.NodeCertificate.Thumbprint
                     }
                 }
@@ -77,7 +77,7 @@ function Get-SdnNetworkControllerNode {
         }
 
         if ($Name) {
-            $result = $result | Where-Object {$_.Name -ieq $Name -or $_.Server -ieq $Name}
+            $result = $result | Where-Object { $_.Name.Split(".")[0] -ieq $Name.Split(".")[0] -or $_.Server -ieq $Name.Split(".")[0] }
         }
 
         if($ServerNameOnly){

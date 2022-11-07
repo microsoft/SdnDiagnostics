@@ -62,10 +62,6 @@ function Invoke-CertRotateCommand {
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)
-
-            if (-NOT (Test-ComputerNameIsLocal -ComputerName $NetworkController)) {
-                $params.Add('ComputerName', $NetworkController)
-            }
         }
     }
 

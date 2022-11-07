@@ -58,6 +58,9 @@ function Start-SdnCertificateRotation {
         "Starting certificate rotation" | Trace-Output
         "Retrieving current SDN environment details" | Trace-Output
 
+        # Get the Network Controller Info Offline (NC Cluster Down case)
+        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
+        
         # determine fabric information and current version settings for network controller
         $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential -NcRestCredential $NcRestCredential
         $ncClusterSettings = Get-NetworkControllerCluster
@@ -93,8 +96,11 @@ function Start-SdnCertificateRotation {
         if ($healthState.AggregatedHealthState -ine 'Ok') {
             "Service Fabric AggregatedHealthState is currently reporting {0}. Please address underlying health before proceeding with certificate rotation" `
             -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
-
-            return
+            $confirm = Confirm-UserInput -Message "Enter N to abort and address the underlying health. Enter Y to force continue: "
+            if (-NOT $confirm){
+                "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+                return
+            }
         }
 
         #####################################
@@ -106,39 +112,8 @@ function Start-SdnCertificateRotation {
         if ($GenerateCertificate) {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
-            # generate the NC REST Certificate
-            [System.String]$path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC)
-            "Creating directory {0}" -f $path | Trace-Output
-            [System.IO.DirectoryInfo]$CertPath = New-Item -Path $path -ItemType Directory -Force
-
-            $restCert = New-SdnCertificate -Subject $currentRestCert.Subject -NotAfter $NotAfter
-
-            # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
-            # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
-            [System.String]$filePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $currentRestCert.Subject.ToString().ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
-            "Exporting pfx certificate to {0}" -f $filePath | Trace-Output
-            $null = Export-PfxCertificate -Cert $restCert -FilePath $filePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
-
-            # generate NC node certificates
-            if ($rotateNCNodeCerts) {
-                "ClusterAuthentication is currently configured for {0}. Creating node certificates" -f $ncSettings.ClusterAuthentication | Trace-Output
-                foreach ($controller in $sdnFabricDetails.NetworkController) {
-                    if (Test-ComputerNameIsLocal -ComputerName $controller) {
-                        $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
-                    }
-                    else {
-                        $nodeCertSubject = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { (Get-SdnNetworkControllerNodeCertificate).Subject }
-                    }
-
-                    $selfSignedCert = New-SdnCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
-
-                    # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
-                    # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
-                    [System.String]$filePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $controller.ToString().ToLower().Replace('.','_').Trim()).pfx"
-                    "Exporting pfx certificate to {0}" -f $filePath | Trace-Output
-                    $null = Export-PfxCertificate -Cert $selfSignedCert -FilePath $filePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
-                }
-            }
+            $certGenerationInfo = New-SdnNetworkControllerCertificate -NetworkControllers $sdnFabricDetails.NetworkController -ClusterAuthentication $ncSettings.ClusterAuthentication -NcRestName $NcInfraInfo.NcRestName `
+                -NotAfter $NotAfter -CertPassword $CertPassword  -Credential $Credential
         }
 
         #####################################
@@ -149,7 +124,7 @@ function Start-SdnCertificateRotation {
 
         if ($PSBoundParameters.ContainsKey('GenerateCertificate') -or $PSBoundParameters.ContainsKey('CertPath')) {
             "== STAGE: CERTIFICATE SEEDING ==" | Trace-Output
-            Copy-CertificatesToFabric -CertPath $CertPath.FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
+            Copy-CertificatesToFabric -CertPath $($certGenerationInfo.CertPath).FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
         }
 
         #####################################
@@ -194,13 +169,15 @@ function Start-SdnCertificateRotation {
         -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $currentRestCert.NotAfter, $certificateConfig.RestCert.Thumbprint, $certificateConfig.RestCert.NotAfter `
         | Trace-Output -Level:Warning
 
-        foreach ($node in $sdnFabricDetails.NetworkController) {
-            $nodeCertConfig = $certificateConfig.NetworkController[$node]
-            "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
-            -f $nodeCertConfig.Current.Subject, $nodeCertConfig.Current.Thumbprint, $nodeCertConfig.Current.NotAfter, `
-            $nodeCertConfig.New.Thumbprint, $nodeCertConfig.New.NotAfter | Trace-Output -Level:Warning
+        if ($rotateNCNodeCerts) {
+            foreach ($node in $sdnFabricDetails.NetworkController) {
+                $nodeCertConfig = $certificateConfig.NetworkController[$node]
+                "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+                    -f $nodeCertConfig.Current.Subject, $nodeCertConfig.Current.Thumbprint, $nodeCertConfig.Current.NotAfter, `
+                    $nodeCertConfig.New.Thumbprint, $nodeCertConfig.New.NotAfter | Trace-Output -Level:Warning
+            }    
         }
-
+        
         $confirm = Confirm-UserInput
         if (-NOT $confirm){
             "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
@@ -259,7 +236,7 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE SOUTHBOUND CERTIFICATE CREDENTIALS ==" | Trace-Output
 
-        $null = Update-NetworkControllerCredentialResource -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential `
+        $null = Update-NetworkControllerCredentialResource -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential `
         -NewRestCertThumbprint ($certificateConfig.RestCert.Thumbprint).ToString() -ErrorAction Stop
 
         "Certificate rotation completed successfully" | Trace-Output
