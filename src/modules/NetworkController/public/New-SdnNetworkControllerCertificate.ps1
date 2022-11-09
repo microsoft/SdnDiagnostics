@@ -26,8 +26,8 @@ function New-SdnNetworkControllerCertificate {
         [Parameter(Mandatory = $true)]
         [System.Security.SecureString]$CertPassword,
         [Parameter(Mandatory = $false)]
-        [String]
-        $ClusterAuthentication = "X509",
+        [Switch]
+        $GenerateNcNodeCertificate,
         [Parameter(Mandatory = $true)]
         [String]
         $NcRestName,
@@ -52,9 +52,7 @@ function New-SdnNetworkControllerCertificate {
         "Exporting pfx certificate to {0}" -f $filePath | Trace-Output
         $null = Export-PfxCertificate -Cert $restCert -FilePath $filePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
 
-        # generate NC node certificates if auth type is X509 certificate
-        if ($ClusterAuthentication -ieq "X509") {
-            "ClusterAuthentication is currently configured for {0}. Creating node certificates" -f $ClusterAuthentication | Trace-Output
+        if ($GenerateNcNodeCertificate) {
             foreach ($controller in $NetworkControllers) {
                 if (Test-ComputerNameIsLocal -ComputerName $controller) {
                     $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
@@ -75,15 +73,11 @@ function New-SdnNetworkControllerCertificate {
         }
 
         if($InstallCertificate){
-            $rotateNCNodeCerts = $false
-            if ($ClusterAuthentication -ieq "X509"){
-                $rotateNCNodeCerts = $true
-            }
             $sdnFabricDetails = [PSCustomObject]@{
                 NetworkController = $NetworkControllers
             }
 
-            Copy-CertificatesToFabric -CertPath $CertPath.FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
+            Copy-CertificatesToFabric -CertPath $CertPath.FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$GenerateNcNodeCertificate
         }
         # return the cert password
         return [PSCustomObject]@{

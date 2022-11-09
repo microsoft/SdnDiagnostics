@@ -73,7 +73,7 @@ function Get-SdnNetworkControllerNode {
         }
         catch {
             "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
-            $result = Get-NetworkControllerNodeInfoFromClusterManifest -Credential $Credential
+            $result = Get-NetworkControllerNodeInfoFromClusterManifest  -NetworkController $NetworkController -Credential $Credential
         }
 
         if ($Name) {
