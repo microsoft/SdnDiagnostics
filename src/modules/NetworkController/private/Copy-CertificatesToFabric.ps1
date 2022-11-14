@@ -41,7 +41,7 @@ function Copy-CertificatesToFabric {
             $southBoundNodes += $FabricDetails.Server
         }
 
-        [System.String]$certDir = "$(Get-WorkingDirectory)\RotateCert_" -f (Get-FormattedDateTimeUTC)
+        [System.String]$certDir = "$(Get-WorkingDirectory)\RotateCert_{0}" -f (Get-FormattedDateTimeUTC)
 
         "Scanning certificates within {0}" -f $CertPath.FullName | Trace-Output
         $pfxFiles = Get-ChildItem -Path $CertPath.FullName -Filter '*.pfx'

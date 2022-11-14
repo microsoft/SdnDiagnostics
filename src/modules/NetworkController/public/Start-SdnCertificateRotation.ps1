@@ -77,9 +77,19 @@ function Start-SdnCertificateRotation {
         $currentRestCert = Get-SdnNetworkControllerRestCertificate
 
         $restCertExpired = (Get-Date) -gt $($currentRestCert.NotAfter)
+        $ncHealhty = $true
 
-        if($restCertExpired){
-            "Network Controller Rest Certificate $($currentRestCert.Thumbprint) expired at $($currentRestCert.NotAfter)." | Trace-Output -Level:Warning
+        if(!$restCertExpired){
+            try {
+                $null = Get-NetworkController
+            }
+            catch {
+                $ncHealhty = $false
+            }
+        }
+
+        if($restCertExpired -or !$ncHealhty){
+            "Network Controller Rest Certificate $($currentRestCert.Thumbprint) expired at $($currentRestCert.NotAfter). Network Controller Healthy: $ncHealhty" | Trace-Output -Level:Warning
             $sdnFabricDetails = @{
                 NetworkController = $NcInfraInfo.NodeList.IpAddressOrFQDN
             }
@@ -98,16 +108,6 @@ function Start-SdnCertificateRotation {
 
             # before we proceed with anything else, we want to make sure that all the Network Controllers within the SDN fabric are running the current version
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-
-            if($null -ne $sdnFabricDetails.SoftwareLoadBalancer){
-                Install-SdnDiagnostics -ComputerName $sdnFabricDetails.SoftwareLoadBalancer -ErrorAction Stop
-            }
-
-            if($null -ne $sdnFabricDetails.Server){
-                Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
-            }
-
-            Remove-PSRemotingSession -ComputerName $sdnFabricDetails.FabricNodes
 
             "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
             "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
@@ -140,12 +140,12 @@ function Start-SdnCertificateRotation {
 
         #####################################
         #
-        # Certificate Seeding
+        # Certificate Seeding (NetworkController)
         #
         #####################################
 
         if ($PSBoundParameters.ContainsKey('GenerateCertificate') -or $PSBoundParameters.ContainsKey('CertPath')) {
-            "== STAGE: CERTIFICATE SEEDING ==" | Trace-Output
+            "== STAGE: CERTIFICATE SEEDING (NetworkController) ==" | Trace-Output
             # FabricDetails include NetworkController's ServerName (FQDN), returned CertificateConfig use ServerName as the key to map node certificate
             $certificateInstalled = Copy-CertificatesToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
 
@@ -215,7 +215,8 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        if($restCertExpired){
+        if($restCertExpired -or !$ncHealhty){
+            # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
             Start-SdnNetworkControllerCertificateUpdate -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
         }
 
@@ -275,6 +276,28 @@ function Start-SdnCertificateRotation {
         -NewRestCertThumbprint $CertRotateConfig["NcRestCert"] -ErrorAction Stop
 
         "Certificate rotation completed successfully" | Trace-Output
+
+        #####################################
+        #
+        # Certificate Seeding (Southbound Nodes)
+        #
+        #####################################
+
+        if ($PSBoundParameters.ContainsKey('GenerateCertificate') -or $PSBoundParameters.ContainsKey('CertPath')) {
+            "== STAGE: CERTIFICATE SEEDING (Southbound Nodes) ==" | Trace-Output
+
+            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential -NcRestCredential $NcRestCredential -Force
+            if($null -ne $sdnFabricDetails.SoftwareLoadBalancer){
+                Install-SdnDiagnostics -ComputerName $sdnFabricDetails.SoftwareLoadBalancer -ErrorAction Stop
+            }
+
+            if($null -ne $sdnFabricDetails.Server){
+                Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
+            }
+
+            # FabricDetails include NetworkController's ServerName (FQDN), returned CertificateConfig use ServerName as the key to map node certificate
+            $null = Copy-CertificatesToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

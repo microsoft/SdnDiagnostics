@@ -70,7 +70,7 @@ function Wait-ServiceFabricClusterHealthy {
                 } 
                 if ($allServiceHealth -and $services.Count -gt 0) {
                     Write-Host "All service fabric service has been healthy"
-                    return
+                    return $allServiceHealth
                 }
                 Start-Sleep -Seconds 5
             }
@@ -78,10 +78,10 @@ function Wait-ServiceFabricClusterHealthy {
 
         $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
         if($NcVMs -contains $NodeFQDN){
-            Invoke-Command -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType
+            return Invoke-Command -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType
         }
         else {
-            Invoke-Command -ComputerName $NcVMs[0] -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType -Credential $Credential
+            return Invoke-Command -ComputerName $NcVMs[0] -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType -Credential $Credential
         }
     }
     catch {

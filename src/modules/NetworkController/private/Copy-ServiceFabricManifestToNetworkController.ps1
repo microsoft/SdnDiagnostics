@@ -8,9 +8,7 @@ function Copy-ServiceFabricManifestToNetworkController {
     .PARAMETER NcNodeList
         The NcNodeList that retrieved via Get-SdnNetworkControllerInfoOffline.
     .PARAMETER ManifestFolder
-        The Manifest Folder path for Manifest files copy to.
-    .PARAMETER ManifestFolderNew
-        The New Manifest Folder path for updated Manifest files.
+        The Manifest Folder path for Manifest files copy from.
     #>
 
     [CmdletBinding()]
@@ -21,9 +19,6 @@ function Copy-ServiceFabricManifestToNetworkController {
         [Parameter(Mandatory = $true)]
         [String]
         $ManifestFolder,
-        [Parameter(Mandatory = $true)]
-        [String]
-        $ManifestFolderNew,
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -70,9 +65,9 @@ function Copy-ServiceFabricManifestToNetworkController {
             
             } -Credential $Credential
             
-            Copy-FileToRemoteComputer -Path "$ManifestFolderNew\ClusterManifest.current.xml" -Destination "$fabricFolder\ClusterManifest.current.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
-            Copy-FileToRemoteComputer -Path "$ManifestFolderNew\InfrastructureManifest.xml" -Destination "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
-            Copy-FileToRemoteComputer -Path "$ManifestFolderNew\$($_.IpAddressOrFQDN)\settings.xml" -Destination $settingsFile -ComputerName $_.IpAddressOrFQDN -Credential $Credential
+            Copy-FileToRemoteComputer -Path "$ManifestFolder\ClusterManifest.current.xml" -Destination "$fabricFolder\ClusterManifest.current.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
+            Copy-FileToRemoteComputer -Path "$ManifestFolder\InfrastructureManifest.xml" -Destination "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
+            Copy-FileToRemoteComputer -Path "$ManifestFolder\$($_.IpAddressOrFQDN)\settings.xml" -Destination $settingsFile -ComputerName $_.IpAddressOrFQDN -Credential $Credential
         }
     }
     catch {
