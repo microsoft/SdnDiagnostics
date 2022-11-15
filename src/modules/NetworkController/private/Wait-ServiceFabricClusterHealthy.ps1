@@ -48,31 +48,45 @@ function Wait-ServiceFabricClusterHealthy {
             $cert = (Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -match "CN=$NodeFQDN" }) | Sort-Object -Property NotBefore -Descending | Select-Object -First 1    
             $certThumb = $cert.Thumbprint
             
-            while ($true) {
-                if ($ClusterCredentialType -eq "X509") {
-                    Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
-                }
-                else {
-                    Connect-ServiceFabricCluster | Out-Null
-                }
-                $services = @()
-                $services = Get-ServiceFabricService -ApplicationName fabric:/System
-                $allServiceHealth = $true
-                if ($services.Count -eq 0) {
-                    Write-Host "No service fabric services retrieved yet" -ForegroundColor Yellow
-                }
-
-                foreach ($service in $services) {
-                    if ($service.ServiceStatus -ne "Active" -or $service.HealthState -ne "Ok" ) {
-                        Write-Host "$($service.ServiceName) ServiceStatus: $($service.ServiceStatus) HealthState: $($service.HealthState)"
-                        $allServiceHealth = $false
+            $maxRetry = 10
+            $clusterConnected = $false
+            while ($maxRetry -gt 0) {
+                if(!$clusterConnected){
+                    try{
+                        Write-Host "Service fabric cluster connect attempt $(11 - $maxRetry)/10" -ForegroundColor Green
+                        if ($ClusterCredentialType -eq "X509") {
+                            Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
+                        }
+                        else {
+                            Connect-ServiceFabricCluster | Out-Null
+                        }
+                        $clusterConnected = $true
+                    }catch{
+                        continue
                     }
-                } 
-                if ($allServiceHealth -and $services.Count -gt 0) {
-                    Write-Host "All service fabric service has been healthy"
-                    return $allServiceHealth
                 }
-                Start-Sleep -Seconds 5
+                
+                if($clusterConnected){
+                    $services = @()
+                    $services = Get-ServiceFabricService -ApplicationName fabric:/System
+                    $allServiceHealth = $true
+                    if ($services.Count -eq 0) {
+                        Write-Host "No service fabric services retrieved yet" -ForegroundColor Yellow
+                    }
+    
+                    foreach ($service in $services) {
+                        if ($service.ServiceStatus -ne "Active" -or $service.HealthState -ne "Ok" ) {
+                            Write-Host "$($service.ServiceName) ServiceStatus: $($service.ServiceStatus) HealthState: $($service.HealthState)"
+                            $allServiceHealth = $false
+                        }
+                    } 
+                    if ($allServiceHealth -and $services.Count -gt 0) {
+                        Write-Host "All service fabric service has been healthy"
+                        return $allServiceHealth
+                    }
+                    
+                    Start-Sleep -Seconds 10
+                }
             }
         }
 

@@ -131,6 +131,7 @@ function Start-SdnNetworkControllerCertificateUpdate {
     Update-NetworkControllerCertificateAcl -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     Trace-Output "Step 5.2 Start Service Fabric Host Service and wait"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcVMs $NcVMs -ClusterCredentialType $NcInfraInfo.ClusterCredentialType -Credential $Credential
+    Trace-Output "ClusterHealthy: $clusterHealthy"
     if($clusterHealthy -ne $true){
         throw New-Object System.NotSupportedException("Cluster unheathy after manifest update, we cannot continue with current situation")
     }
