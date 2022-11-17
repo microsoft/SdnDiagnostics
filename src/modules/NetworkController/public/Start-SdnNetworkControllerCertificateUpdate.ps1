@@ -141,12 +141,9 @@ function Start-SdnNetworkControllerCertificateUpdate {
     
     # Step 7 Fix NC App
     Trace-Output "Step 7 Fix NC App"
-    Trace-Output "Step 7.1 Updating Network Controller Global Config"
-    Update-NetworkControllerGlobalConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
-
+    Trace-Output "Step 7.1 Updating Network Controller Global and Cluster Config"
     if ($NcInfraInfo.ClusterCredentialType -eq "X509") {
-        Trace-Output "Step 7.1 Updating Network Controller Cluster Config"
-        Update-NetworkControllerClusterConfig -NcVMs $NcVMs -Credential $Credential
+        Update-NetworkControllerConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     }
     
     Trace-Output "Step 7.2 Rotate Network Controller Certificate"

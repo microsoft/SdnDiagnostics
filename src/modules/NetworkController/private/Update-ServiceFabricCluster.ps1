@@ -43,71 +43,60 @@ function Update-ServiceFabricCluster {
         $minorVersionIncrease = [int]$currentVersionArray[$currentVersionArray.Length - 1] + 1
         $currentVersionArray[$currentVersionArray.Length - 1] = $minorVersionIncrease
         $newVersionString = $currentVersionArray -Join '.'
-        Write-Host "Upgrade Service Fabric from $($clusterManifestXml.ClusterManifest.Version) to $newVersionString"
+        "Upgrade Service Fabric from $($clusterManifestXml.ClusterManifest.Version) to $newVersionString" | Trace-Output
         $clusterManifestXml.ClusterManifest.Version = $newVersionString
         $clusterManifestXml.Save("$ManifestFolderNew\ClusterManifest_new.xml")
     
-        Copy-Item "$ManifestFolderNew\ClusterManifest_new.xml" "\\$($NcVms[0])\c$\ClusterManifest_new.xml" -Verbose
-        
-        # Register the new Cluster Manifest to ImageStore
-        $sfUpgradeScript = {   
-            param(
-                [String]
-                $ClusterCredentialType,
-                [String]
-                $NewVersionString
-            ) 
-            $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-            $cert = (Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -match $NodeFQDN }) | Sort-Object -Property NotBefore -Descending | Select-Object -First 1    
-            $certThumb = $cert.Thumbprint
-    
-            if($ClusterCredentialType -eq "X509")
-            {
-                Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
-            }else
-            {
-                Connect-ServiceFabricCluster | Out-Null
-            }
-            $clusterManifestPath = "C:\ClusterManifest_new.xml"
-        
-            if (!(Test-Path $clusterManifestPath)) {
-                Throw "Path $clusterManifestPath not foound" 
-            }
-            Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
-            Register-ServiceFabricClusterPackage -Config -ClusterManifestPath "ClusterManifest.xml"
-            Start-ServiceFabricClusterUpgrade -ClusterManifestVersion $NewVersionString -Config -UnmonitoredManual -UpgradeReplicaSetCheckTimeoutSec 30
-    
-            while ($true) {
-                $upgradeStatus = Get-ServiceFabricClusterUpgrade
-                Write-Host "Current upgrade state: $($upgradeStatus.UpgradeState) UpgradeDomains: $($upgradeStatus.UpgradeDomains)"
-                if ($upgradeStatus.UpgradeState -eq "RollingForwardPending") {
-                    $nextNode = $upgradeStatus.NextUpgradeDomain
-                    Write-Host "Next node to upgrade $nextNode"
-                    Resume-ServiceFabricClusterUpgrade -UpgradeDomainName $nextNode
-                }
-                elseif ($upgradeStatus.UpgradeState -eq "Invalid" `
-                        -or $upgradeStatus.UpgradeState -eq "Failed") {
-                    Throw "Something wrong with the upgrade"
-                }
-                elseif ($upgradeStatus.UpgradeState -eq "RollingBackCompleted" `
-                        -or $upgradeStatus.UpgradeState -eq "RollingForwardCompleted") {
-                    Write-Host "Upgrade has been completed"
-                    break
-                }
-                else {
-                    Write-Host "Waiting for current node upgrade to complete"
-                }
-    
-                Start-Sleep -Seconds 60
-            }
-        }
-    
         $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-        if($NcVMs -contains $NodeFQDN){
-            Invoke-Command -ScriptBlock $sfUpgradeScript -ArgumentList $ClusterCredentialType,$newVersionString
+        $cert = (Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -match $NodeFQDN }) | Sort-Object -Property NotBefore -Descending | Select-Object -First 1    
+        $certThumb = $cert.Thumbprint
+
+        if($ClusterCredentialType -eq "X509")
+        {
+            # TODO: this is using newly installed cert. need to update to user specified one, expose cert thumbprint parameters to caller. 
+            Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
+        }else
+        {
+            Connect-ServiceFabricCluster | Out-Null
         }
-        else {
-            Invoke-Command -ComputerName $NcVMs[0] -ScriptBlock $sfUpgradeScript -ArgumentList $ClusterCredentialType,$newVersionString -Credential $Credential
+        $clusterManifestPath = "$ManifestFolderNew\ClusterManifest_new.xml"
+    
+        if (!(Test-Path $clusterManifestPath)) {
+            Throw "Path $clusterManifestPath not found" 
+        }
+
+        "Upgrading Service Fabric Cluster with ClusterManifest at $clusterManifestPath" | Trace-Output
+        Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
+        Register-ServiceFabricClusterPackage -Config -ClusterManifestPath "ClusterManifest.xml"
+        Start-ServiceFabricClusterUpgrade -ClusterManifestVersion $NewVersionString -Config -UnmonitoredManual -UpgradeReplicaSetCheckTimeoutSec 30
+
+        while ($true) {
+            $upgradeStatus = Get-ServiceFabricClusterUpgrade
+            "Current upgrade state: $($upgradeStatus.UpgradeState) UpgradeDomains: $($upgradeStatus.UpgradeDomains)" | Trace-Output
+            if ($upgradeStatus.UpgradeState -eq "RollingForwardPending") {
+                $nextNode = $upgradeStatus.NextUpgradeDomain
+                "Next node to upgrade $nextNode" | Trace-Output
+                try{
+                    Resume-ServiceFabricClusterUpgrade -UpgradeDomainName $nextNode
+                    # Catch exception for resume call, as sometimes, the upgrade status not updated intime caused duplicate resume call.
+                }catch{
+                    "Exception in Resume-ServiceFabricClusterUpgrade $_.Exception" | Trace-Output -Level:Warning
+                }
+            }
+            elseif ($upgradeStatus.UpgradeState -eq "Invalid" `
+                    -or $upgradeStatus.UpgradeState -eq "Failed") {
+                Throw "Something wrong with the upgrade"
+            }
+            elseif ($upgradeStatus.UpgradeState -eq "RollingBackCompleted" `
+                    -or $upgradeStatus.UpgradeState -eq "RollingForwardCompleted") {
+                "Upgrade has been completed" | Trace-Output
+                break
+            }
+            else {
+                "Waiting for current node upgrade to complete" | Trace-Output
+            }
+
+            Start-Sleep -Seconds 60
         }
         
         Trace-Output "Ensure Service Fabric Healthy"
@@ -115,5 +104,7 @@ function Update-ServiceFabricCluster {
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        # Need to throw the exception as we should not continue if upgrade failed.
+        Throw 
     }
 }
