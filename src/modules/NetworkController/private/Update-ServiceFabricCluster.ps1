@@ -51,14 +51,6 @@ function Update-ServiceFabricCluster {
         $cert = (Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -match $NodeFQDN }) | Sort-Object -Property NotBefore -Descending | Select-Object -First 1    
         $certThumb = $cert.Thumbprint
 
-        if($ClusterCredentialType -eq "X509")
-        {
-            # TODO: this is using newly installed cert. need to update to user specified one, expose cert thumbprint parameters to caller. 
-            Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
-        }else
-        {
-            Connect-ServiceFabricCluster | Out-Null
-        }
         $clusterManifestPath = "$ManifestFolderNew\ClusterManifest_new.xml"
     
         if (!(Test-Path $clusterManifestPath)) {
@@ -66,7 +58,28 @@ function Update-ServiceFabricCluster {
         }
 
         "Upgrading Service Fabric Cluster with ClusterManifest at $clusterManifestPath" | Trace-Output
-        Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
+        
+        # Sometimes access denied returned for the copy call, retry here to workaround this.
+        $maxRetry = 3
+        while($maxRetry -gt 0){
+            try{
+                if($ClusterCredentialType -eq "X509")
+                {
+                    # TODO: this is using newly installed cert. need to update to user specified one, expose cert thumbprint parameters to caller. 
+                    Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
+                }else
+                {
+                    Connect-ServiceFabricCluster | Out-Null
+                }
+                Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
+                $maxRetry = 0
+            }catch{
+                "Copy-ServiceFabricClusterPackage failed with exception $_.Exception. Retry $(4 - $maxRetry)/3 after 60 seconds" | Trace-Output -Level:Warning
+                Start-Sleep -Seconds 60
+                $maxRetry --
+            } 
+        }
+        
         Register-ServiceFabricClusterPackage -Config -ClusterManifestPath "ClusterManifest.xml"
         Start-ServiceFabricClusterUpgrade -ClusterManifestVersion $NewVersionString -Config -UnmonitoredManual -UpgradeReplicaSetCheckTimeoutSec 30
 
