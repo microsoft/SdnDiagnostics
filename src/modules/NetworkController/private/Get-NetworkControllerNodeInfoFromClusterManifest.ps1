@@ -5,12 +5,20 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
     #>
 
     [CmdletBinding()]
-    param ()
+    param (
+        [Parameter(Mandatory = $false)]
+        [String]$NetworkController = $(HostName),
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
 
     "Attempting to retrieve NetworkControllerNode information via ClusterManifest and other methods" | Trace-Output
     $array = @()
 
-    $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest)
+    $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential)
     $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node | ForEach-Object {
         $object = [PSCustomObject]@{
             Name = $_.NodeName
