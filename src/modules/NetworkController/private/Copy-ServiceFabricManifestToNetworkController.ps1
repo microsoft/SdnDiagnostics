@@ -59,9 +59,9 @@ function Copy-ServiceFabricManifestToNetworkController {
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
             
             Invoke-Command -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
-                Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false -Verbose
-                Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false -Verbose
-                Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false -Verbose
+                Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false | Out-Null
+                Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false | Out-Null
+                Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false | Out-Null
             
             } -Credential $Credential
             

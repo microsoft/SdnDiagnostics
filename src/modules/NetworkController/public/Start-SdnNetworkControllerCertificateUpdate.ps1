@@ -104,56 +104,51 @@ function Start-SdnNetworkControllerCertificateUpdate {
         }
     }
     
-    $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
-    Trace-Output "Step 1 Copy manifests and settings.xml"
+    Trace-Output "Step 1 Copy manifests and settings.xml from Network Controller"
     Copy-ServiceFabricManifestFromNetworkController -NcNodeList $NcNodeList -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -Credential $Credential
     
     # Step 2 Update certificate thumbprint
-    Trace-Output "Step 2 Update certificate thumbprint"
+    Trace-Output "Step 2 Update certificate thumbprint and secret in manifest"
     Update-NetworkControllerCertificateInManifest -NcNodeList $NcNodeList -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -CertRotateConfig $CertRotateConfig -Credential $Credential
-    
-    # Step 3 Generate New Secrets
-    Trace-Output "Step 3 Generate New Secrets"
-    $SecretUpdated = New-NetworkControllerClusterSecret -NcVMs $NcVms -ManifestFolder $ManifestFolder -ManifestFolderNew $ManifestFolderNew -NcRestCertThumbprint $NcRestCertThumbprint -Credential $Credential
-    if (!$SecretUpdated) {
-        # If secret failed to be generated or updated. We stop here to not modify cluster manifest.
-        Trace-Output "Failed to get new secret." -Level:Error
-        return
-    }
 
-    # Step 4 Copy the new files back to the NC vms
-    Trace-Output "Step 4 Copy the new files back to the NC vms"
+    # Step 3 Copy the new files back to the NC vms
+    Trace-Output "Step 3 Copy the new files back to the NC vms"
     Copy-ServiceFabricManifestToNetworkController -NcNodeList $NcNodeList -ManifestFolder $ManifestFolderNew -Credential $Credential
     
     # Step 5 Start FabricHostSvc and wait for SF system service to become healty
-    Trace-Output "Step 5 Start FabricHostSvc and wait for SF system service to become healty"
-    Trace-Output "Step 5.1 Update Network Controller Certificate ACL to allow 'Network Service' Access"
+    Trace-Output "Step 4 Start FabricHostSvc and wait for SF system service to become healty"
+    Trace-Output "Step 4.1 Update Network Controller Certificate ACL to allow 'Network Service' Access"
     Update-NetworkControllerCertificateAcl -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
-    Trace-Output "Step 5.2 Start Service Fabric Host Service and wait"
-    $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcVMs $NcVMs -ClusterCredentialType $NcInfraInfo.ClusterCredentialType -Credential $Credential
+    Trace-Output "Step 4.2 Start Service Fabric Host Service and wait"
+    $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     Trace-Output "ClusterHealthy: $clusterHealthy"
     if($clusterHealthy -ne $true){
         throw New-Object System.NotSupportedException("Cluster unheathy after manifest update, we cannot continue with current situation")
     }
     # Step 6 Invoke SF Cluster Upgrade 
-    Trace-Output "Step 6 Invoke SF Cluster Upgrade"
-    Update-ServiceFabricCluster -NcVms $NcVMs -ManifestFolderNew $ManifestFolderNew -ClusterCredentialType $NcInfraInfo.ClusterCredentialType -Credential $Credential
-    
+    Trace-Output "Step 5 Invoke SF Cluster Upgrade"
+    Update-ServiceFabricCluster -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -ManifestFolderNew $ManifestFolderNew -Credential $Credential
+    $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
+    Trace-Output "ClusterHealthy: $clusterHealthy"
+    if($clusterHealthy -ne $true){
+        throw New-Object System.NotSupportedException("Cluster unheathy after cluster update, we cannot continue with current situation")
+    }
+
     # Step 7 Fix NC App
-    Trace-Output "Step 7 Fix NC App"
-    Trace-Output "Step 7.1 Updating Network Controller Global and Cluster Config"
+    Trace-Output "Step 6 Fix NC App"
+    Trace-Output "Step 6.1 Updating Network Controller Global and Cluster Config"
     if ($NcInfraInfo.ClusterCredentialType -eq "X509") {
         Update-NetworkControllerConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     }
     
-    Trace-Output "Step 7.2 Rotate Network Controller Certificate"
-    $null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
+<#     Trace-Output "Step 7.2 Rotate Network Controller Certificate"
+    #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
 
     # Step 8 Update REST CERT credential
     Trace-Output "Step 8 Update REST CERT credential"
     # Step 8.1 Wait for NC App Healthy
     Trace-Output "Step 8.1 Wiating for Network Controller App Ready"
-    Wait-NetworkControllerAppHealthy -Interval 60
-    Trace-Output "Step 8.2 Updating REST CERT Credential object calling REST API"
-    Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -NewRestCertThumbprint $NcRestCertThumbprint -Credential $NcRestCredential
+    #Wait-NetworkControllerAppHealthy -Interval 60
+    Trace-Output "Step 8.2 Updating REST CERT Credential object calling REST API" #>
+    #Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -NewRestCertThumbprint $NcRestCertThumbprint -Credential $NcRestCredential
 }

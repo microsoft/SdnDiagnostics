@@ -35,77 +35,88 @@ function Update-NetworkControllerCertificateInManifest {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        if ($NcNodeList.Count -eq 0) {
-            Trace-Output "No NC VMs found" -Level:Error
-            return
+    if ($NcNodeList.Count -eq 0) {
+        throw New-Object System.NotSupportedException("NcNodeList is empty")
+    }
+
+    # Prepare the cert thumbprint to be used
+    # Update certificates ClusterManifest.current.xml
+    
+    $clusterManifestXml = [xml](Get-Content "$ManifestFolder\ClusterManifest.current.xml")
+
+    if ($null -eq $clusterManifestXml) {
+        Trace-Output "ClusterManifest not found at $ManifestFolder\ClusterManifest.current.xml" -Level:Error
+        throw 
+    }
+
+    $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
+
+    # Update encrypted secret
+    # Get encrypted secret from Cluster Manifest
+    $fileStoreServiceSection = ($clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object name -eq FileStoreService)
+    $OldEncryptedSecret = ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value
+    $newEncryptedSecret = New-NetworkControllerClusterSecret -OldEncryptedSecret $OldEncryptedSecret -NcRestCertThumbprint $NcRestCertThumbprint -Credential $Credential
+
+    # Update new encrypted secret in Cluster Manifest
+    ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
+    ($fileStoreServiceSection.Parameter | Where-Object Name -eq "SecondaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
+    
+    # Update SecretsCertificate to new REST Cert
+    
+    Trace-Output "Updating SecretsCertificate with new rest cert thumbprint $NcRestCertThumbprint"
+    $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue = "$NcRestCertThumbprint"
+    
+    $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
+    $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
+
+    $infrastructureManifestXml = [xml](Get-Content "$ManifestFolder\InfrastructureManifest.xml")
+
+    # Update Node Certificate to new Node Cert if the ClusterCredentialType is X509 certificate
+    if($ClusterCredentialType.Value -eq "X509")
+    {
+        foreach ($node in $clusterManifestXml.ClusterManifest.NodeTypes.NodeType) {
+            $ncNode = $node.Name
+            $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.ToLower()]
+            Write-Verbose "Updating node $ncNode with new thumbprint $ncNodeCertThumbprint"
+            $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
+            $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
+            $node.Certificates.ClientCertificate.X509FindValue = "$ncNodeCertThumbprint"
         }
-    
-        # Prepare the cert thumbprint to be used
-        # Update certificates ClusterManifest.current.xml
+
+        # Update certificates InfrastructureManifest.xml
         
-        $clusterManifestXml = [xml](Get-Content "$ManifestFolder\ClusterManifest.current.xml")
-    
-        if ($null -eq $clusterManifestXml) {
-            Trace-Output "ClusterManifest not found at $ManifestFolder\ClusterManifest.current.xml" -Level:Error
-            throw 
+        foreach ($node in $infrastructureManifestXml.InfrastructureInformation.NodeList.Node) {
+            $ncNodeCertThumbprint = $CertRotateConfig[$node.NodeName.ToLower()]
+            $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
+            $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
+            $node.Certificates.ClientCertificate.X509FindValue = "$ncNodeCertThumbprint"
         }
-    
-        # Update SecretsCertificate to new REST Cert
-        
-        $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
-        Trace-Output "Updating SecretsCertificate with new rest cert thumbprint $NcRestCertThumbprint"
-        $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue = "$NcRestCertThumbprint"
-        
-        $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
-        $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
-    
-        $infrastructureManifestXml = [xml](Get-Content "$ManifestFolder\InfrastructureManifest.xml")
-    
-        # Update Node Certificate to new Node Cert if the ClusterCredentialType is X509 certificate
+    }
+
+    # Update certificates for settings.xml
+    foreach ($ncNode in $NcNodeList) {
+        $ncVm = $ncNode.IpAddressOrFQDN
+        $settingXml = [xml](Get-Content "$ManifestFolder\$ncVm\Settings.xml")
         if($ClusterCredentialType.Value -eq "X509")
         {
-            foreach ($node in $clusterManifestXml.ClusterManifest.NodeTypes.NodeType) {
-                $ncNode = $node.Name
-                $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.ToLower()]
-                Write-Verbose "Updating node $ncNode with new thumbprint $ncNodeCertThumbprint"
-                $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
-                $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
-                $node.Certificates.ClientCertificate.X509FindValue = "$ncNodeCertThumbprint"
-            }
-    
-            # Update certificates InfrastructureManifest.xml
-            
-            foreach ($node in $infrastructureManifestXml.InfrastructureInformation.NodeList.Node) {
-                $ncNodeCertThumbprint = $CertRotateConfig[$node.NodeName.ToLower()]
-                $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
-                $node.Certificates.ServerCertificate.X509FindValue = "$ncNodeCertThumbprint"
-                $node.Certificates.ClientCertificate.X509FindValue = "$ncNodeCertThumbprint"
-            }
+            $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
+            $fabricNodeSection = $settingXml.Settings.Section | Where-Object Name -eq "FabricNode"
+            $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ClientAuthX509FindValue"
+            $parameterToUpdate.Value = "$ncNodeCertThumbprint"
+            $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ServerAuthX509FindValue"
+            $parameterToUpdate.Value = "$ncNodeCertThumbprint"
+            $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ClusterX509FindValue"
+            $parameterToUpdate.Value = "$ncNodeCertThumbprint"
         }
-    
-        # Update certificates for settings.xml
-        foreach ($ncNode in $NcNodeList) {
-            $ncVm = $ncNode.IpAddressOrFQDN
-            $settingXml = [xml](Get-Content "$ManifestFolder\$ncVm\Settings.xml")
-            if($ClusterCredentialType.Value -eq "X509")
-            {
-                $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-                $fabricNodeSection = $settingXml.Settings.Section | Where-Object Name -eq "FabricNode"
-                $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ClientAuthX509FindValue"
-                $parameterToUpdate.Value = "$ncNodeCertThumbprint"
-                $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ServerAuthX509FindValue"
-                $parameterToUpdate.Value = "$ncNodeCertThumbprint"
-                $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ClusterX509FindValue"
-                $parameterToUpdate.Value = "$ncNodeCertThumbprint"
-            }
-            $settingXml.Save("$ManifestFolderNew\$ncVm\Settings.xml")
-        }
-    
-        $infrastructureManifestXml.Save("$ManifestFolderNew\InfrastructureManifest.xml")
-        $clusterManifestXml.Save("$ManifestFolderNew\ClusterManifest.current.xml")
+
+        # Update encrypted secret in settings.xml
+        $fileStoreServiceSection = $settingXml.Settings.Section | Where-Object Name -eq "FileStoreService"
+        ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
+        ($fileStoreServiceSection.Parameter | Where-Object Name -eq "SecondaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret" 
+
+        $settingXml.Save("$ManifestFolderNew\$ncVm\Settings.xml")
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
+
+    $infrastructureManifestXml.Save("$ManifestFolderNew\InfrastructureManifest.xml")
+    $clusterManifestXml.Save("$ManifestFolderNew\ClusterManifest.current.xml")
 }

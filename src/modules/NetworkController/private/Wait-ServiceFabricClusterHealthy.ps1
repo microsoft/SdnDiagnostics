@@ -16,10 +16,11 @@ function Wait-ServiceFabricClusterHealthy {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [String[]]
-        $NcVMs,
-        [String]
-        $ClusterCredentialType = "X509",
+        [PSCustomObject[]]
+        $NcNodeList,
+        [Parameter(Mandatory = $true)]
+        [hashtable]
+        $CertRotateConfig,
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -27,9 +28,14 @@ function Wait-ServiceFabricClusterHealthy {
     )
 
     try {
+        $currentNcNode = $null
         # Start Service Fabric Service for each NC
-        foreach ($nc in $NcVMs) {
-            Invoke-Command -ComputerName $nc -ScriptBlock {
+        foreach ($ncNode in $NcNodeList) {
+            if(Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN){
+                $currentNcNode = $ncNode
+            }
+
+            Invoke-Command -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                 Write-Host "[$(HostName)] Startting Service Fabric Service"
                 Start-Service FabricHostSvc
             }
@@ -37,65 +43,50 @@ function Wait-ServiceFabricClusterHealthy {
 
         Trace-Output "Sleeping 60s to wait for Serice Fabric Service to be ready"
         Start-Sleep -Seconds 60
-
-        $sfServiceHealthScript = {
-            param(
-                [String]
-                $ClusterCredentialType
-            )
-            Write-Host "waiting for service fabric service healthy"
-            $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-            $cert = (Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -match "CN=$NodeFQDN" }) | Sort-Object -Property NotBefore -Descending | Select-Object -First 1    
-            $certThumb = $cert.Thumbprint
-            
-            $maxRetry = 10
-            $clusterConnected = $false
-            while ($maxRetry -gt 0) {
-                if(!$clusterConnected){
-                    try{
-                        Write-Host "Service fabric cluster connect attempt $(11 - $maxRetry)/10" -ForegroundColor Green
-                        if ($ClusterCredentialType -eq "X509") {
-                            Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
-                        }
-                        else {
-                            Connect-ServiceFabricCluster | Out-Null
-                        }
-                        $clusterConnected = $true
-                    }catch{
-                        continue
-                    }
-                }
-                
-                if($clusterConnected){
-                    $services = @()
-                    $services = Get-ServiceFabricService -ApplicationName fabric:/System
-                    $allServiceHealth = $true
-                    if ($services.Count -eq 0) {
-                        Write-Host "No service fabric services retrieved yet" -ForegroundColor Yellow
-                    }
+        "waiting for service fabric service healthy" | Trace-Output
+        $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
+        $certThumb = $CertRotateConfig[$currentNcNode.NodeName.ToLower()]
     
-                    foreach ($service in $services) {
-                        if ($service.ServiceStatus -ne "Active" -or $service.HealthState -ne "Ok" ) {
-                            Write-Host "$($service.ServiceName) ServiceStatus: $($service.ServiceStatus) HealthState: $($service.HealthState)"
-                            $allServiceHealth = $false
-                        }
-                    } 
-                    if ($allServiceHealth -and $services.Count -gt 0) {
-                        Write-Host "All service fabric service has been healthy"
-                        return $allServiceHealth
+        $maxRetry = 10
+        $clusterConnected = $false
+        while ($maxRetry -gt 0) {
+            if(!$clusterConnected){
+                try{
+                    "Service fabric cluster connect attempt $(11 - $maxRetry)/10" | Trace-Output
+                    if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
+                        "Connecting to Service Fabric Cluster using cert with thumbprint: {0}" -f $certThumb | Trace-Output
+                        Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
                     }
-                    
-                    Start-Sleep -Seconds 10
+                    else {
+                        Connect-ServiceFabricCluster | Out-Null
+                    }
+                    $clusterConnected = $true
+                }catch{
+                    continue
                 }
             }
-        }
+            
+            if($clusterConnected){
+                $services = @()
+                $services = Get-ServiceFabricService -ApplicationName fabric:/System
+                $allServiceHealth = $true
+                if ($services.Count -eq 0) {
+                    "No service fabric services retrieved yet" | Trace-Output -Level:Warning
+                }
 
-        $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-        if($NcVMs -contains $NodeFQDN){
-            return Invoke-Command -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType
-        }
-        else {
-            return Invoke-Command -ComputerName $NcVMs[0] -ScriptBlock $sfServiceHealthScript -ArgumentList $ClusterCredentialType -Credential $Credential
+                foreach ($service in $services) {
+                    if ($service.ServiceStatus -ne "Active" -or $service.HealthState -ne "Ok" ) {
+                        "$($service.ServiceName) ServiceStatus: $($service.ServiceStatus) HealthState: $($service.HealthState)" | Trace-Output -Level:Warning
+                        $allServiceHealth = $false
+                    }
+                } 
+                if ($allServiceHealth -and $services.Count -gt 0) {
+                    "All service fabric service has been healthy" | Trace-Output -Level:Warning
+                    return $allServiceHealth
+                }
+                
+                Start-Sleep -Seconds 10
+            }
         }
     }
     catch {
