@@ -47,6 +47,11 @@ function Get-SdnDiagnosticLog {
         "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
         Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
 
+        # convert the trace file into human readable format without requirement of additional parsing tools
+        foreach ($file in (Get-ChildItem -Path $OutputDirectory.FullName -Include '*.etl')) {
+            $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+        }
+
         # once we have copied the files to the new location we want to compress them to reduce disk space
         # if confirmed we have a .zip file, then remove the staging folder
         "Compressing results to {0}" -f "$($OutputDirectory.FullName).zip" | Trace-Output -Level:Verbose

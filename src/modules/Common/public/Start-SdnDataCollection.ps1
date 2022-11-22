@@ -180,6 +180,9 @@ function Start-SdnDataCollection {
                 $dataNodes = $group.Group.Name
             }
 
+            # ensure SdnDiagnostics installed across the data nodes and versions are the same
+            Install-SdnDiagnostics -ComputerName $dataNodes -ErrorAction Stop
+
             "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                 Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
@@ -239,6 +242,13 @@ function Start-SdnDataCollection {
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                 [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
+
+                    # convert the trace file into human readable format without requirement of additional parsing tools
+                    foreach ($file in (Get-ChildItem -Path $networkTraceDir -Include '*.etl')) {
+                        $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+                    }
+
+                    # move the entire directory
                     try {
                         Move-Item -Path "$($using:workingDirectory.FullName)\NetworkTraces" -Destination $using:tempDirectory.FullName -Force -ErrorAction Stop
                     }
