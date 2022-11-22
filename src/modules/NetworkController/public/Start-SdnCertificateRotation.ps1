@@ -47,7 +47,14 @@ function Start-SdnCertificateRotation {
 
         [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
         [hashtable]
-        $CertRotateConfig
+        $CertRotateConfig,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [switch]
+        $Force
     )
 
     # ensure that the module is running as local administrator
@@ -116,10 +123,13 @@ function Start-SdnCertificateRotation {
             if ($healthState.AggregatedHealthState -ine 'Ok') {
                 "Service Fabric AggregatedHealthState is currently reporting {0}. Please address underlying health before proceeding with certificate rotation" `
                 -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
-                $confirm = Confirm-UserInput -Message "Enter N to abort and address the underlying health. Enter Y to force continue: "
-                if (-NOT $confirm){
-                    "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-                    return
+
+                if(!$Force){
+                    $confirm = Confirm-UserInput -Message "Enter N to abort and address the underlying health. Enter Y to force continue: "
+                    if (-NOT $confirm){
+                        "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+                        return
+                    }
                 }
             }
         }
@@ -203,10 +213,12 @@ function Start-SdnCertificateRotation {
             }    
         }
         
-        $confirm = Confirm-UserInput
-        if (-NOT $confirm){
-            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-            return
+        if(!$Force){
+            $confirm = Confirm-UserInput
+            if (-NOT $confirm){
+                "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+                return
+            }
         }
 
         #####################################

@@ -8,13 +8,13 @@ function Set-SdnServiceFabricClusterConfig {
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates. Default to local machine.
     .PARAMETER Uri
-        The Uri to read properties from fabric:/NetworkController/ClusterConfiguration, fabric:/NetworkController/GlobalConfiguration
+        The Uri to read properties from ClusterConfiguration, GlobalConfiguration
     .PARAMETER Name
         Property Name to filter the result. If not specified, it will return all properties.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Set-SdnServiceFabricClusterConfig -NetworkController 'NC01' -Uri "fabric:/NetworkController/ClusterConfiguration" -Credential (Get-Credential)
+        PS> Set-SdnServiceFabricClusterConfig -NetworkController 'NC01' -Uri "ClusterConfiguration" -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -23,6 +23,7 @@ function Set-SdnServiceFabricClusterConfig {
         [String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $true)]
+        [ValidateSet('GlobalConfiguration', 'ClusterConfiguration')]
         [String]$Uri,
 
         [Parameter(Mandatory = $true)]
@@ -40,6 +41,7 @@ function Set-SdnServiceFabricClusterConfig {
     try {
         Connect-ServiceFabricCluster | Out-Null
         $client = [System.Fabric.FabricClient]::new()
+        $Uri = "fabric:/NetworkController/$Uri"
         $task = $client.PropertyManager.PutPropertyAsync($Uri, $Name, $Value)
         $task.Wait()
     }

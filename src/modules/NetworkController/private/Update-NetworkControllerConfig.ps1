@@ -26,46 +26,41 @@ function Update-NetworkControllerConfig {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        $globalConfigUri = "fabric:/NetworkController/GlobalConfiguration"
-        $clusterConfigUri = "fabric:/NetworkController/ClusterConfiguration"
-        $globalConfigs = Get-SdnServiceFabricClusterConfig -Uri $globalConfigUri
-        $clusterConfigs = Get-SdnServiceFabricClusterConfig -Uri $clusterConfigUri
+    $globalConfigUri = "GlobalConfiguration"
+    $clusterConfigUri = "ClusterConfiguration"
+    $globalConfigs = Get-SdnServiceFabricClusterConfig -Uri $globalConfigUri
+    $clusterConfigs = Get-SdnServiceFabricClusterConfig -Uri $clusterConfigUri
 
-        foreach ($ncNode in $NcNodeList) {
-            $nodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-            if($null -eq $nodeCertThumbprint){
-                throw New-Object System.NotSupportedException("NodeCertificateThumbprint not found for $($ncNode.NodeName)")
-            }
-            $thumbprintPropertyName = "{0}.ClusterCertThumbprint" -f $ncNode.NodeName
-            # Global Config property name like Global.Version.NodeName.ClusterCertThumbprint
-            $thumbprintProperty = $globalConfigs | Where-Object Name -Match $thumbprintPropertyName
-            
-            if($null -ne $thumbprintProperty){
-                "GlobalConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
-                Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
-            }
-
-            # Cluster Config property name like NodeName.ClusterCertThumbprint
-            $thumbprintProperty = $clusterConfigs | Where-Object Name -ieq $thumbprintPropertyName
-            
-            # If NodeName.ClusterCertThumbprint exist (for Server 2022 +), Update
-            if($null -ne $thumbprintProperty){
-                "ClusterConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
-                Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
-            }
-
-            $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
-            if($null -ne $certProperty){
-                $nodeCert = Invoke-Command $ncNode.IpAddressOrFQDN -ScriptBlock{
-                    return Get-Item Cert:\LocalMachine\My\$using:nodeCertThumbprint
-                }
-                "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
-                Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name -Value $nodeCert.GetRawCertData()
-            }
+    foreach ($ncNode in $NcNodeList) {
+        $nodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
+        if($null -eq $nodeCertThumbprint){
+            throw New-Object System.NotSupportedException("NodeCertificateThumbprint not found for $($ncNode.NodeName)")
         }
-    }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $thumbprintPropertyName = "{0}.ClusterCertThumbprint" -f $ncNode.NodeName
+        # Global Config property name like Global.Version.NodeName.ClusterCertThumbprint
+        $thumbprintProperty = $globalConfigs | Where-Object Name -Match $thumbprintPropertyName
+        
+        if($null -ne $thumbprintProperty){
+            "GlobalConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
+            Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
+        }
+
+        # Cluster Config property name like NodeName.ClusterCertThumbprint
+        $thumbprintProperty = $clusterConfigs | Where-Object Name -ieq $thumbprintPropertyName
+        
+        # If NodeName.ClusterCertThumbprint exist (for Server 2022 +), Update
+        if($null -ne $thumbprintProperty){
+            "ClusterConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
+            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
+        }
+
+        $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
+        if($null -ne $certProperty){
+            $nodeCert = Invoke-Command $ncNode.IpAddressOrFQDN -ScriptBlock{
+                return Get-Item Cert:\LocalMachine\My\$using:nodeCertThumbprint
+            }
+            "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
+            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name -Value $nodeCert.GetRawCertData()
+        }
     }
 }

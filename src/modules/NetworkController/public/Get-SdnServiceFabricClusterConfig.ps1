@@ -8,13 +8,13 @@ function Get-SdnServiceFabricClusterConfig {
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates. Default to local machine.
     .PARAMETER Uri
-        The Uri to read properties from fabric:/NetworkController/ClusterConfiguration, fabric:/NetworkController/GlobalConfiguration
+        The Uri to read properties from ClusterConfiguration, GlobalConfiguration
     .PARAMETER Name
         Property Name to filter the result. If not specified, it will return all properties.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnServiceFabricClusterConfig -NetworkController 'NC01' -Uri "fabric:/NetworkController/ClusterConfiguration" -Credential (Get-Credential)
+        PS> Get-SdnServiceFabricClusterConfig -NetworkController 'NC01' -Uri "ClusterConfiguration" -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -23,6 +23,7 @@ function Get-SdnServiceFabricClusterConfig {
         [String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $true)]
+        [ValidateSet('GlobalConfiguration', 'ClusterConfiguration')]
         [String]$Uri,
 
         [Parameter(Mandatory = $false)]
@@ -38,6 +39,7 @@ function Get-SdnServiceFabricClusterConfig {
         Connect-ServiceFabricCluster | Out-Null
         $client = [System.Fabric.FabricClient]::new()
         $result = $null
+        $Uri = "fabric:/NetworkController/$Uri"
         $binaryMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([byte[]])
         $stringMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([string])
             
