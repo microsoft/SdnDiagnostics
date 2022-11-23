@@ -41,8 +41,8 @@ function Set-SdnServiceFabricClusterConfig {
     try {
         Connect-ServiceFabricCluster | Out-Null
         $client = [System.Fabric.FabricClient]::new()
-        $Uri = "fabric:/NetworkController/$Uri"
-        $task = $client.PropertyManager.PutPropertyAsync($Uri, $Name, $Value)
+        $absoluteUri = "fabric:/NetworkController/$Uri"
+        $task = $client.PropertyManager.PutPropertyAsync($absoluteUri, $Name, $Value)
         $task.Wait()
     }
     catch {

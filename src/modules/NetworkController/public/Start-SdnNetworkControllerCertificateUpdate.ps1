@@ -141,6 +141,10 @@ function Start-SdnNetworkControllerCertificateUpdate {
         Update-NetworkControllerConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     }
     
+    # Step 7 Restart
+    Trace-Output "Step 7 Restarting Service Fabric Cluster after configuration change"
+    $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential -Restart
+    
 <#     Trace-Output "Step 7.2 Rotate Network Controller Certificate"
     #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
 

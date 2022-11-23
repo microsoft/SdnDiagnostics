@@ -39,13 +39,13 @@ function Get-SdnServiceFabricClusterConfig {
         Connect-ServiceFabricCluster | Out-Null
         $client = [System.Fabric.FabricClient]::new()
         $result = $null
-        $Uri = "fabric:/NetworkController/$Uri"
+        $absoluteUri = "fabric:/NetworkController/$Uri"
         $binaryMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([byte[]])
         $stringMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([string])
             
         $results = [System.Collections.ArrayList]::new()
         do {
-            $result = $client.PropertyManager.EnumeratePropertiesAsync($Uri, $true, $result).Result
+            $result = $client.PropertyManager.EnumeratePropertiesAsync($absoluteUri, $true, $result).Result
             $result.GetEnumerator() | ForEach-Object {
                 $propertyName = $_.Metadata.PropertyName
                 

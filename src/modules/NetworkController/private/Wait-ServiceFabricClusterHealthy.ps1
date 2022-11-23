@@ -24,11 +24,15 @@ function Wait-ServiceFabricClusterHealthy {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $Restart
     )
 
     try {
         $currentNcNode = $null
+
         # Start Service Fabric Service for each NC
         foreach ($ncNode in $NcNodeList) {
             if(Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN){
@@ -36,6 +40,9 @@ function Wait-ServiceFabricClusterHealthy {
             }
 
             Invoke-Command -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
+                if($using:Restart){
+                    Stop-Service FabricHostSvc -Force
+                }
                 Write-Host "[$(HostName)] Startting Service Fabric Service"
                 Start-Service FabricHostSvc
             }
@@ -62,6 +69,7 @@ function Wait-ServiceFabricClusterHealthy {
                     }
                     $clusterConnected = $true
                 }catch{
+                    $maxRetry --
                     continue
                 }
             }
