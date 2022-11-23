@@ -129,6 +129,8 @@ function Invoke-CertRotateCommand {
         catch [InvalidOperationException] {
             if ($_.FullyQualifiedErrorId -ilike "*UpdateInProgress*") {
                 "Networkcontroller is being updated by another operation.`n`t{0}" -f $fullyQualifiedErrorId | Trace-Output -Level:Warning
+                # Sleep 60s or longer before next retry if update in progress
+                Start-Sleep -Seconds 60 * $retryAttempt
             }
             else {
                 $stopWatch.Stop()
