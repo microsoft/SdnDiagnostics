@@ -48,7 +48,7 @@ function Get-SdnDiagnosticLog {
         Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
 
         # convert the trace file into human readable format without requirement of additional parsing tools
-        foreach ($file in (Get-ChildItem -Path $OutputDirectory.FullName -Include '*.etl')) {
+        foreach ($file in (Get-ChildItem -Path "$($OutputDirectory.FullName)\*" -Include '*.etl')) {
             $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
         }
 

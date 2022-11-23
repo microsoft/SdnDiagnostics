@@ -168,6 +168,10 @@ function Start-SdnDataCollection {
 
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
+
+        # ensure SdnDiagnostics installed across the data nodes and versions are the same
+        Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Stop
+
         foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
             if ($PSCmdlet.ParameterSetName -eq 'Role') {
                 if ($group.Group.Name.Count -ge $Limit) {
@@ -179,9 +183,6 @@ function Start-SdnDataCollection {
             else {
                 $dataNodes = $group.Group.Name
             }
-
-            # ensure SdnDiagnostics installed across the data nodes and versions are the same
-            Install-SdnDiagnostics -ComputerName $dataNodes -ErrorAction Stop
 
             "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
@@ -244,7 +245,7 @@ function Start-SdnDataCollection {
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
 
                     # convert the trace file into human readable format without requirement of additional parsing tools
-                    foreach ($file in (Get-ChildItem -Path $networkTraceDir -Include '*.etl')) {
+                    foreach ($file in (Get-ChildItem -Path "$($networkTraceDir.FullName)\*" -Include '*.etl')) {
                         $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
                     }
 
