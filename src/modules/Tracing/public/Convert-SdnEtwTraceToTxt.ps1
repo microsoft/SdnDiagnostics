@@ -26,10 +26,16 @@ function Convert-SdnEtwTraceToTxt {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$FileName,
+        [ValidateScript( {
+            if ($_ -notmatch "(\.etl)") {
+                throw "The file specified in the FileName argument must be etl extension"
+            }
+            return $true
+        })]
+        [System.String]$FileName,
 
         [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Destination,
+        [System.String]$Destination,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('No', 'Yes')]
@@ -41,17 +47,19 @@ function Convert-SdnEtwTraceToTxt {
     )
 
     try {
-        if (!$Destination) {
-            [System.IO.FileInfo]$Destination = $FileName.FullName
+        $fileInfo = Get-Item -Path $FileName -ErrorAction Stop
+
+        if (-NOT $PSBoundParameters.ContainsKey('Destination')) {
+            [System.String]$Destination = $fileInfo.DirectoryName
         }
 
-        if (!(Test-Path -Path $Destination.FullName -PathType Container)) {
-            $null = New-Item -Path $Destination.FullName -ItemType Directory -Force
+        if (-NOT (Test-Path -Path $Destination -PathType Container)) {
+            $null = New-Item -Path $Destination -ItemType Directory -Force
         }
 
-        [System.String]$outputFile = "{0}.txt" -f (Join-Path -Path $Destination.FullName -ChildPath $FileName.BaseName)
+        [System.String]$outputFile = "{0}.txt" -f (Join-Path -Path $Destination -ChildPath $fileInfo.BaseName)
         [System.String]$cmd = "netsh trace convert input={0} output={1} overwrite={2} report={3}" `
-            -f $FileName.FullName, $outputFile, $Overwrite, $Report
+            -f $fileInfo.FullName, $outputFile, $Overwrite, $Report
 
         "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
         $expression = Invoke-Expression -Command $cmd
@@ -62,6 +70,7 @@ function Convert-SdnEtwTraceToTxt {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
                     Status = 'Success'
+                    FileName = $outputFile
                 }
             )
         }

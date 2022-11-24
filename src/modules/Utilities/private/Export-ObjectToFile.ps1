@@ -9,7 +9,7 @@ function Export-ObjectToFile {
 
     [CmdletBinding()]
     param(
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $true)]
         [Object[]]$Object,
 
         [Parameter(Mandatory = $true)]
@@ -32,6 +32,11 @@ function Export-ObjectToFile {
 
     begin {
         $arrayList = [System.Collections.ArrayList]::new()
+
+        # if object is null, then exit
+        if ($null -eq $Object) {
+            return
+        }
     }
     process {
         foreach ($obj in $Object) {

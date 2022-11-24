@@ -61,7 +61,7 @@ function Copy-FileFromRemoteComputer {
             else {
                 # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
                 }
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
