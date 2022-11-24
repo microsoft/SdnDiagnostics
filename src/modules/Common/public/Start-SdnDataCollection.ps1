@@ -244,8 +244,9 @@ function Start-SdnDataCollection {
                 [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
 
-                    # convert the trace file into human readable format without requirement of additional parsing tools
-                    foreach ($file in (Get-ChildItem -Path "$($networkTraceDir.FullName)\*" -Include '*.etl')) {
+                    # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
+                    $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
+                    if ($convertFile) {
                         $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
                     }
 
