@@ -28,6 +28,8 @@ function Start-SdnDataCollection {
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .PARAMETER Limit
         Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
+    .PARAMETER ConvertETW
+        Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
     .EXAMPLE
         PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,SoftwareLoadBalancer
     .EXAMPLE
@@ -89,7 +91,11 @@ function Start-SdnDataCollection {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
-        [Int]$Limit = 16
+        [Int]$Limit = 16,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [bool]$ConvertETW = $true
     )
 
     try {
@@ -245,9 +251,11 @@ function Start-SdnDataCollection {
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
 
                     # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
-                    $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
-                    if ($convertFile) {
-                        $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+                    if ($using:ConvertETW) {
+                        $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
+                        if ($convertFile) {
+                            $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+                        }
                     }
 
                     # move the entire directory
@@ -271,7 +279,7 @@ function Start-SdnDataCollection {
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
+                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW:$ConvertETW
                 } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
 
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
