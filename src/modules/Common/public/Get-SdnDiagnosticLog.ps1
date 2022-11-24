@@ -47,8 +47,9 @@ function Get-SdnDiagnosticLog {
         "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
         Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
 
-        # convert the trace file into human readable format without requirement of additional parsing tools
-        foreach ($file in (Get-ChildItem -Path "$($OutputDirectory.FullName)\*" -Include '*.etl')) {
+        # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
+        $convertFile = Get-Item -Path "$($OutputDirectory.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
+        if ($convertFile) {
             $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
         }
 
