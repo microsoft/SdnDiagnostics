@@ -9,23 +9,30 @@
     "properties": {
         "apiResources": [
             "accessControlLists",
+            "auditingSettings/configuration",
             "credentials",
+            "discovery",
             "gatewayPools",
             "gateways",
             "iDNSServer/configuration",
+            "learnedIPAddresses",
             "loadBalancerManager/config",
             "loadBalancerMuxes",
             "loadBalancers",
             "logicalNetworks",
             "macPools",
+            "networkControllerStatistics",
             "networkInterfaces",
             "publicIPAddresses",
+            "securityTags",
             "servers",
+            "serviceInsertions",
             "routeTables",
             "virtualGateways",
             "virtualNetworkManager/configuration",
             "virtualNetworks",
-            "virtualServers"
+            "virtualServers",
+            "virtualSwitchManager/configuration"
         ],
         "commonPaths": {
             "serviceFabricLogDirectory": "C:\\ProgramData\\Microsoft\\Service Fabric\\log\\Traces"
