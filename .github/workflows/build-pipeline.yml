@@ -48,7 +48,7 @@ jobs:
           ref: master
           path: wiki
 
-      - name: Copy Documentation to SdnDiagnostics.WikiRemove-Item -Path 
+      - name: Copy Documentation to SdnDiagnostics.Wiki
         run: |
           Remove-Item -Path .\wiki\functions\* -Force -Verbose
           Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
