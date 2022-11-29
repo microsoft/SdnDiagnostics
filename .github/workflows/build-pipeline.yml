@@ -48,8 +48,10 @@ jobs:
           ref: master
           path: wiki
 
-      - name: Copy Documentation to SdnDiagnostics.Wiki
-        run: Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\" -Force -Verbose
+      - name: Copy Documentation to SdnDiagnostics.WikiRemove-Item -Path 
+        run: |
+          Remove-Item -Path .\wiki\functions\* -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
         shell: powershell
 
       - name: Commit to SdnDiagnostics.Wiki
@@ -57,8 +59,8 @@ jobs:
           cd ".\wiki"
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .
-          git commit -m "Auto-Updated Documentation" --allow-empty
+          git add .\functions
+          git commit -m "Auto-Updated Function Documentation" --allow-empty
       
       - name: Push to SdnDiagnostics.Wiki
         run: |
