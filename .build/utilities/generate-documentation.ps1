@@ -20,7 +20,7 @@ else {
 }
 
 $modulePath = "$PSScriptRoot\..\..\src\SdnDiagnostics.psd1"
-$docPath = "$PSScriptRoot\..\..\.documentation"
+$docPath = "$PSScriptRoot\..\..\.documentation\functions"
 $sideBarNav = "$PSScriptRoot\..\..\.documentation\_SideBar.md"
 
 if(!(Test-Path -Path $docPath -PathType Container)){
