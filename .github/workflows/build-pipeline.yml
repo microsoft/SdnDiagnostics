@@ -59,7 +59,7 @@ jobs:
           cd ".\wiki"
           git config user.name github-actions
           git config user.email github-actions@github.com
-          git add .\functions
+          git add .
           git commit -m "Auto-Updated Function Documentation" --allow-empty
       
       - name: Push to SdnDiagnostics.Wiki
