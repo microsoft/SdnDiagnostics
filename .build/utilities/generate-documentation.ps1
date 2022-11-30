@@ -54,7 +54,7 @@ foreach($function in (Get-Command -Module SdnDiagnostics)){
 $sideBarInto = @'
 # Documentation
 - [Home](Home)
-
+- [Certificate Rotation](CertificateRotation)
 ## Functions
 '@
 
