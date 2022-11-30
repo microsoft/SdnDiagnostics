@@ -9,6 +9,8 @@ function Get-SdnDiagnosticLog {
         Specifies a specific path and folder in which to save the files.
     .PARAMETER FromDate
         Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 4 hours.
+    .PARAMETER ConvertETW
+        Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
     .EXAMPLE
         PS> Get-SdnDiagnosticLog -OutputDirectory "C:\Temp\CSS_SDN"
     .EXAMPLE
@@ -21,7 +23,10 @@ function Get-SdnDiagnosticLog {
         [System.IO.FileInfo]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]
-        [DateTime]$FromDate = (Get-Date).AddHours(-4)
+        [DateTime]$FromDate = (Get-Date).AddHours(-4),
+
+        [Parameter(Mandatory = $false)]
+        [bool]$ConvertETW = $true
     )
 
     try {
@@ -46,6 +51,14 @@ function Get-SdnDiagnosticLog {
         # copy the log files from the default log directory to the output directory
         "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
         Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
+
+        # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
+        if ($ConvertETW) {
+            $convertFile = Get-Item -Path "$($OutputDirectory.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
+            if ($convertFile) {
+                $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+            }
+        }
 
         # once we have copied the files to the new location we want to compress them to reduce disk space
         # if confirmed we have a .zip file, then remove the staging folder

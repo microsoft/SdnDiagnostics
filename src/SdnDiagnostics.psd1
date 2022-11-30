@@ -85,6 +85,7 @@
         'Get-SdnServiceFabricClusterManifest',
         'Get-SdnServiceFabricLog',
         'Get-SdnServiceFabricNode',
+        'Get-SdnServiceFabricPartition',
         'Get-SdnServiceFabricReplica',
         'Get-SdnServiceFabricService',
         'Get-SdnSlbMuxConfigurationState',
