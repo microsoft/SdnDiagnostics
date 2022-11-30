@@ -254,7 +254,7 @@ function Start-SdnDataCollection {
                     if ($using:ConvertETW) {
                         $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
                         if ($convertFile) {
-                            $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+                            $null = Convert-SdnEtwTraceToTxt -FileName $convertFile.FullName -Overwrite 'Yes'
                         }
                     }
 
