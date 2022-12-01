@@ -18,7 +18,7 @@ function Invoke-SdnServiceFabricCommand {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String[]]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -29,10 +29,15 @@ function Invoke-SdnServiceFabricCommand {
         [ScriptBlock]$ScriptBlock
     )
 
-    if (!$NetworkController) {
-        "NetworkController is null. Please specify -NetworkController parameter or run Get-SdnInfrastructureInfo to populate the infrastructure cache" | Trace-Output -Level:Warning
-        return
-    }
+    try {
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
 
     foreach ($controller in $NetworkController) {
 

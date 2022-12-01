@@ -46,6 +46,10 @@ function Get-SdnGatewayConfigurationState {
             Get-BgpPeer -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpPeer' -FileType txt -Format List
             Get-BgprouteInformation -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgprouteInformation' -FileType txt -Format List
             Get-BgpCustomRoute -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpCustomRoute' -FileType txt -Format List
+            Get-BgpStatistics -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpStatistics' -FileType txt -Format List
+            Get-BgpRoutingPolicy -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpRoutingPolicy' -FileType txt -Format List
+            Get-BgpRouteFlapDampening -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpRouteFlapDampening' -FileType txt -Format List
+            Get-BgpRouteAggregate -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpRouteAggregate' -FileType txt -Format List
         }
 
         # for ipsec fast path, there is a new service w/ new cmdlets to get the tunnels and routing domains
