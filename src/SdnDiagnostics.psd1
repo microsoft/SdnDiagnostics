@@ -114,7 +114,6 @@
         'Start-SdnDataCollection',
         'Start-SdnEtwTraceCapture',
         'Start-SdnNetshTrace',
-        'Start-SdnNetworkControllerCertificateUpdate',
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
