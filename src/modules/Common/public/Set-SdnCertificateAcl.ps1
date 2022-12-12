@@ -1,7 +1,15 @@
 function Set-SdnCertificateAcl {
     <#
-        .SYNOPSIS
+    .SYNOPSIS
         Configures NT AUTHORITY/NETWORK SERVICE to have appropriate permissions to the private key of the Network Controller certificates.
+    .PARAMETER Path
+        Specifies the certificate store in which to retrieve the certificate.
+    .PARAMETER Subject
+        Gets the thumbprint of a certificate with the specified store to ensure correct ACLs are defined.
+    .PARAMETER Thumbprint
+        Gets the thumbprint of a certificate with the specified store to ensure correct ACLs are defined.
+    .EXAMPLE
+        PS>
     #>
 
     [CmdletBinding()]

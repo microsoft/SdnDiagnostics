@@ -4,7 +4,7 @@
 function Get-SdnNetworkControllerNodeCertificate {
     <#
     .SYNOPSIS
-
+        Returns the current Network Controller node certificate
     #>
 
     try {

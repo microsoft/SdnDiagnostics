@@ -4,7 +4,7 @@
 function Get-SdnNetworkControllerRestCertificate {
     <#
     .SYNOPSIS
-
+        Returns the current Network Controller REST Certificate
     #>
 
     try {

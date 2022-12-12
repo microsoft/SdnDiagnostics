@@ -1,4 +1,19 @@
 function Import-SdnCertificate {
+    <#
+    .SYNOPSIS
+        Imports certificates and private keys from a Personal Information Exchange (PFX) file to the destination store.
+    .PARAMETER FilePath
+        Specifies the full path to the PFX file of the secured file.
+    .PARAMETER CertStore
+        Specifies the path of the store to which certificates will be imported. If paramater is not specified, defaults to Cert:\LocalMachine\Root.
+    .PARAMETER CertPassword
+        Specifies the password for the imported PFX file in the form of a secure string.
+    .EXAMPLE
+        PS> Import-SdnCertificate -FilePath c:\certs\cert.pfx -CertStore Cert:\LocalMachine\Root
+    .EXAMPLE
+        PS> Import-SdnCertificate -FilePath c:\certs\cert.pfx -CertStore Cert:\LocalMachine\Root -Password $secureString
+    #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
