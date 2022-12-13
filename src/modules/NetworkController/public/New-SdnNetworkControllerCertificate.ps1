@@ -8,7 +8,7 @@ function New-SdnNetworkControllerCertificate {
     .PARAMETER NetworkControllers
         Specify the list of Network Controllers need to generate certificate.
     .PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnInfrastructureInfo
     .EXAMPLE
@@ -60,7 +60,7 @@ function New-SdnNetworkControllerCertificate {
                 else {
                     $nodeCertSubject = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { (Get-SdnNetworkControllerNodeCertificate).Subject }
                 }
-                
+
                 "Creating node certificate {0}" -f $nodeCertSubject | Trace-Output
                 $selfSignedCert = New-SdnCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
 

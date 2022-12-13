@@ -8,7 +8,7 @@ function New-SdnCertificateRotationConfig {
     .PARAMETER NetworkController
         Specifies the name the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
     .PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> New-SdnCertificateRotationConfig
     .EXAMPLE
@@ -45,13 +45,13 @@ function New-SdnCertificateRotationConfig {
                 [String]
                 $certSubject
             )
-            
+
             # Default to return Node Certificate
             if ([string]::IsNullOrEmpty($certSubject)) {
                 $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
                 $certSubject = "CN=$NodeFQDN"
             }
-            
+
             Write-Verbose "Looking for cert match $certSubject"
             $cert = Get-ChildItem -Path Cert:\LocalMachine\My | ? { $_.Subject -ieq $certSubject } | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
             return $cert.Thumbprint

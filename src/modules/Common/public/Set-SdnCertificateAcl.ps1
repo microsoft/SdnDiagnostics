@@ -9,7 +9,7 @@ function Set-SdnCertificateAcl {
     .PARAMETER Thumbprint
         Gets the thumbprint of a certificate with the specified store to ensure correct ACLs are defined.
     .EXAMPLE
-        PS>
+        PS> Set-SdnCertificateAcl -Path CERT:\LocalMachine\My -Subject 'NCREST.Contoso.Local'
     #>
 
     [CmdletBinding()]
