@@ -254,7 +254,7 @@ function Start-SdnDataCollection {
                     if ($using:ConvertETW) {
                         $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
                         if ($convertFile) {
-                            $null = Convert-SdnEtwTraceToTxt -FileName $file.FullName -Overwrite 'Yes'
+                            $null = Convert-SdnEtwTraceToTxt -FileName $convertFile.FullName -Overwrite 'Yes'
                         }
                     }
 
@@ -279,7 +279,7 @@ function Start-SdnDataCollection {
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW:$ConvertETW
+                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW $using:ConvertETW
                 } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
 
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
