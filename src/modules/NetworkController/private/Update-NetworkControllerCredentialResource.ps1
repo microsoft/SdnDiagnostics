@@ -9,8 +9,8 @@ function Update-NetworkControllerCredentialResource {
         The Network Controller REST URI.
     .PARAMETER NewRestCertThumbprint
         The new Network Controller REST Certificate Thumbprint to be used by credential resource.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     param (

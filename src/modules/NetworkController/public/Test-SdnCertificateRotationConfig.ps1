@@ -42,7 +42,7 @@ function Test-SdnCertificateRotationConfig {
                     return $false
                 }else{
                     $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                        $nodeCertObj = Get-Item -Path "Cert:\LocalMachine\My\$using:nodeCert"
+                        $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCert
                         if($null -eq $nodeCertObj){
                             Write-Host "[$(HostName)] Node Certificate with thumbprint $using:nodeCert not found" -ForegroundColor:Red
                             return $false
@@ -63,7 +63,7 @@ function Test-SdnCertificateRotationConfig {
             }
 
             $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                $ncRestCertObj = Get-Item -Path "Cert:\LocalMachine\My\$using:ncRestCert"
+                $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:ncRestCert
                 if($null -eq $ncRestCertObj){
                     Write-Host "[$(HostName)] NcRest Certificate with thumbprint $using:ncRestCert not found" -ForegroundColor:Red
                     return $false

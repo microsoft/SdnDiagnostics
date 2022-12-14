@@ -7,12 +7,12 @@ function New-NetworkControllerClusterSecret {
         Decrypt the current secret in ClusterManifest and Generate new one if decrypt success.
     .PARAMETER NcVMs
         The list of Network Controller VMs.
-	.PARAMETER NcRestName
-		The Network Controller REST Name in FQDN format.
-	.PARAMETER ManifestFolder
-		The Manifest Folder contains the orginal Manifest Files.
-	.PARAMETER ManifestFolderNew
-		The New Manifest Folder contains the new Manifest Files. Updated manifest file save here.
+    .PARAMETER NcRestName
+        The Network Controller REST Name in FQDN format.
+    .PARAMETER ManifestFolder
+        The Manifest Folder contains the orginal Manifest Files.
+    .PARAMETER ManifestFolderNew
+        The New Manifest Folder contains the new Manifest Files. Updated manifest file save here.
     #>
 
     [CmdletBinding()]

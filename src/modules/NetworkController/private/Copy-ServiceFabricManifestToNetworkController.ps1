@@ -34,7 +34,7 @@ function Copy-ServiceFabricManifestToNetworkController {
     
         Trace-Output "Stopping Service Fabric Service"
         foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
-            Invoke-Command -ComputerName $nc -ScriptBlock {
+            Invoke-PSRemoteCommand -ComputerName $nc -ScriptBlock {
                 Write-Host "[$(HostName)] Stopping Service Fabric Service"
                 Stop-Service FabricHostSvc -Force
             } -Credential $Credential
@@ -44,21 +44,17 @@ function Copy-ServiceFabricManifestToNetworkController {
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
-            $version = Invoke-Command -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
-                param(
-                    [String]$NodeName
-                )
-                $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$NodeName\Fabric"
-                $fabricPkgFile = "$fabricFolder\Fabric.Package.current.xml"
+            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
+                $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
                 $xml = [xml](get-content $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
                 return $version
-            } -Credential $Credential -ArgumentList $_.NodeName
+            } -Credential $Credential
 
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
             
-            Invoke-Command -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
+            Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
                 Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false | Out-Null

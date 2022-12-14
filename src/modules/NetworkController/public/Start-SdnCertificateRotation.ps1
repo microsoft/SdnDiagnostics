@@ -39,10 +39,10 @@ function Start-SdnCertificateRotation {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [System.IO.DirectoryInfo]$CertPath,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'SelfSigned')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'SelfSigned')]
         [Switch]$GenerateCertificate,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]

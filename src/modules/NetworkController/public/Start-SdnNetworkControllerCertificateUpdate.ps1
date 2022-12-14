@@ -35,28 +35,9 @@ function Start-SdnNetworkControllerCertificateUpdate {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
-
-    $config = Get-SdnRoleConfiguration -Role 'NetworkController'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
-    }
-
     $NcUpdateFolder = "$(Get-WorkingDirectory)\NcCertUpdate_{0}" -f (Get-FormattedDateTimeUTC)
     $ManifestFolder = "$NcUpdateFolder\manifest"
     $ManifestFolderNew = "$NcUpdateFolder\manifest_new"
-
-    $result = Test-NetworkControllerRemoteAccess -Credential $Credential
-
-    if ($result -eq $false) {
-        Write-Verbose "Network Controller Remote Access test failed. PowerShell Remote Access or Admin Share access failed."
-        return
-    }
 
     $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
     Trace-Output "Network Controller Infrastrucutre Info detected:"

@@ -75,7 +75,7 @@ function Update-ServiceFabricCluster {
                 Connect-ServiceFabricCluster | Out-Null
             }
             Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
-            $maxRetry = 0
+            break
         }catch{
             "Copy-ServiceFabricClusterPackage failed with exception $_.Exception. Retry $(4 - $maxRetry)/3 after 60 seconds" | Trace-Output -Level:Warning
             Start-Sleep -Seconds 60

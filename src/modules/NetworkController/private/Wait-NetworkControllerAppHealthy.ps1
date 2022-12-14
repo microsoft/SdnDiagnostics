@@ -7,10 +7,10 @@ function Wait-NetworkControllerAppHealthy {
         Query the Network Controller App Health Status. Wait for the Network Controller App become healthy when $Interval specified.
     .PARAMETER NetworkController
         Specifies one of the Network Controller VM name.
-	.PARAMETER Interval
-		App healh status query interval until the App become healthy, default to 0 means no retry of the health status query.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Interval
+        App healh status query interval until the App become healthy, default to 0 means no retry of the health status query.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]

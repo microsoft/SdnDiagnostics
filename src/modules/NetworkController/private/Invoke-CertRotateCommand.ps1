@@ -34,12 +34,12 @@ function Invoke-CertRotateCommand {
     }
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-        $cert = Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+        $cert = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $Thumbprint
     }
     else {
         $params.Add('ComputerName', $NetworkController)
         $cert = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-            Get-ChildItem -Path 'Cert:\LocalMachine\My' | Where-Object {$_.Thumbprint -ieq $using:Thumbprint}
+            Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:Thumbprint
         }
     }
 
