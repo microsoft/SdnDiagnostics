@@ -52,7 +52,7 @@ function Get-SdnResource {
             [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
         }
         else {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ServiceName $ResourceType
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $ResourceType
         }
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose

@@ -8,21 +8,26 @@ enum SdnApiResource {
     Discovery
     GatewayPools
     Gateways
-    iDNSServerConfig
+    IDNSServerConfig
     LearnedIPAddresses
     LoadBalancerManagerConfig
     LoadBalancerMuxes
     LoadBalancers
     LogicalNetworks
     MacPools
+    NetworkControllerBackup
+    NetworkControllerRestore
     NetworkControllerState
     NetworkControllerStatistics
     NetworkInterfaces
+    Operations
+    OperationResults
     PublicIPAddresses
     SecurityTags
     Servers
     ServiceInsertions
     SlbState
+    SlbStateResults
     RouteTables
     VirtualGateways
     VirtualNetworkManagerConfig

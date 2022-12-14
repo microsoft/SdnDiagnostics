@@ -23,7 +23,7 @@ function Get-SdnDiscovery {
     )
 
     try {
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'Discovery'
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'Discovery'
         $result = Invoke-RestMethodWithRetry -Uri $uri -Method GET -UseBasicParsing -Credential $Credential -ErrorAction Stop
         return $result
     }

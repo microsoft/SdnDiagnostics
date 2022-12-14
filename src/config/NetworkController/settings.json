@@ -8,31 +8,193 @@
     ],
     "properties": {
         "apiResources": [
-            "accessControlLists",
-            "auditingSettings/configuration",
-            "credentials",
-            "discovery",
-            "gatewayPools",
-            "gateways",
-            "iDNSServer/configuration",
-            "learnedIPAddresses",
-            "loadBalancerManager/config",
-            "loadBalancerMuxes",
-            "loadBalancers",
-            "logicalNetworks",
-            "macPools",
-            "networkControllerStatistics",
-            "networkInterfaces",
-            "publicIPAddresses",
-            "securityTags",
-            "servers",
-            "serviceInsertions",
-            "routeTables",
-            "virtualGateways",
-            "virtualNetworkManager/configuration",
-            "virtualNetworks",
-            "virtualServers",
-            "virtualSwitchManager/configuration"
+            {
+                "name": "AccessControlLists",
+                "uri": "accessControlLists",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "AuditingSettingsConfig",
+                "uri": "auditingSettings/configuration",
+                "minVersion": "v3",
+                "operationId": false
+            },
+            {
+                "name": "Credentials",
+                "uri": "credentials",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "Discovery",
+                "uri": "discovery",
+                "minVersion": "",
+                "operationId": false
+            },
+            {
+                "name": "GatewayPools",
+                "uri": "gatewayPools",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "Gateways",
+                "uri": "gateways",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "IDNSServerConfig",
+                "uri": "iDNSServer/configuration",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "LearnedIPAddresses",
+                "uri": "learnedIPAddresses",
+                "minVersion": "v5",
+                "operationId": false
+            },
+            {
+                "name": "LoadBalancerManagerConfig",
+                "uri": "loadBalancerManager/config",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "LoadBalancerMuxes",
+                "uri": "loadBalancerMuxes",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "LoadBalancers",
+                "uri": "loadBalancers",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "LogicalNetworks",
+                "uri": "logicalNetworks",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "MacPools",
+                "uri": "macPools",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "NetworkControllerBackup",
+                "uri": "networkControllerBackup",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "NetworkControllerRestore",
+                "uri": "networkControllerRestore",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "NetworkControllerStatistics",
+                "uri": "monitoring/networkControllerStatistics",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "NetworkInterfaces",
+                "uri": "networkInterfaces",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "Operations",
+                "uri": "operations",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "OperationResults",
+                "uri": "operationResults",
+                "minVersion": "v1",
+                "operationId": true
+            },
+            {
+                "name": "PublicIPAddresses",
+                "uri": "publicIPAddresses",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "SecurityTags",
+                "uri": "securityTags",
+                "minVersion": "v5",
+                "operationId": false
+            },
+            {
+                "name": "Servers",
+                "uri": "Servers",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "ServiceInsertions",
+                "uri": "serviceInsertions",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "SlbState",
+                "uri": "diagnostics/slbState",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "SlbStateResults",
+                "uri": "diagnostics/slbStateResults",
+                "minVersion": "v1",
+                "operationId": true
+            },
+            {
+                "name": "RouteTables",
+                "uri": "routeTables",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "VirtualGateways",
+                "uri": "virtualGateways",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "VirtualNetworkManagerConfig",
+                "uri": "virtualNetworkManager/configuration",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "VirtualNetworks",
+                "uri": "virtualNetworks",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "VirtualServers",
+                "uri": "virtualServers",
+                "minVersion": "v1",
+                "operationId": false
+            },
+            {
+                "name": "VirtualSwitchManagerConfig",
+                "uri": "virtualSwitchManager/configuration",
+                "minVersion": "v1",
+                "operationId": false
+            }
+
         ],
         "commonPaths": {
             "serviceFabricLogDirectory": "C:\\ProgramData\\Microsoft\\Service Fabric\\log\\Traces"

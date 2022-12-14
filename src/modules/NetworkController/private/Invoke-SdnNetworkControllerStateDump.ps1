@@ -30,7 +30,7 @@ function Invoke-SdnNetworkControllerStateDump {
 
     try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'NetworkControllerState'
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'NetworkControllerState'
 
         $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
         -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
