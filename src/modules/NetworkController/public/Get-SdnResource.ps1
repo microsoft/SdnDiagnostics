@@ -9,50 +9,67 @@ function Get-SdnResource {
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER ResourceRef
         The resource ref of the object you want to perform the operation against.
-    .PARAMETER ResourceType
+    .PARAMETER Resource
         The resource type you want to perform the operation against.
+    .PARAMETER ResourceName
+    .PARAMETER InstanceID
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnResource -ResourceType PublicIPAddresses
+        PS> Get-SdnResource -Resource PublicIPAddresses
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
     #>
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'NoResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [System.String]$ResourceRef,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'NoResourceRef')]
-        [SdnApiResource]$ResourceType,
+        [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
+        [SdnApiResource]$Resource,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
+        [System.String]$ResourceId,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
+        [System.String]$InstanceId,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'NoResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'NoResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
+        switch ($PSCmdlet.ParameterSetName) {
+            'InstanceId' {
+                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
+                [System.String]$uri = "{0}/{1}" -f $uri, $InstanceId.Trim()
+            }
+            'ResourceRef' {
+                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
+            }
+            'Resource' {
+                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $Resource
 
-        [System.String]$method = 'GET'
-
-        if($PSBoundParameters.ContainsKey('ResourceRef')){
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
-        }
-        else {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $ResourceType
+                if ($ResourceID) {
+                    [System.String]$uri = "{0}/{1}" -f $uri, $ResourceId.Trim()
+                }
+            }
         }
 
         "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
@@ -60,7 +77,7 @@ function Get-SdnResource {
         # gracefully handle System.Net.WebException responses such as 404 to throw warning
         # anything else we want to throw terminating exception and capture for debugging purposes
         try {
-            $result = Invoke-RestMethodWithRetry -Uri $uri -Method $method -UseBasicParsing -Credential $Credential -ErrorAction Stop
+            $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
         }
         catch [System.Net.WebException] {
             "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning

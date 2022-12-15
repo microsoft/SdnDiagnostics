@@ -44,17 +44,16 @@ function Get-SdnApiEndpoint {
 
     switch ($PSCmdlet.ParameterSetName) {
         'ResourceRef' {
-            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object {$_.uri -ilike "$ResourceRef*"}
-            if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
-                [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $ResourceRef.TrimStart('/')
+            $ResourceRef = $ResourceRef.TrimStart('/')
+            if ($resourceRef -ilike "Discovery*") {
+                [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $ResourceRef
             }
             else {
-                [System.String]$endpoint = "{0}/networking/{1}/{2}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $ApiVersion, $ResourceRef.TrimStart('/')
+                [System.String]$endpoint = "{0}/networking/{1}/{2}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $ApiVersion, $ResourceRef
             }
         }
         'ResourceName' {
             $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object {$_.name -ieq $resourceName}
-
             if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
                 [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $apiEndpointProperties.uri
             }
@@ -68,16 +67,8 @@ function Get-SdnApiEndpoint {
         }
     }
 
+    $endpoint = $endpoint.TrimEnd('/')
     "Endpoint: {0}" -f $endpoint | Trace-Output -Level:Verbose
-
-    # query system supported configuration endpoints and throw warning if trying to query resource that does not exist on the system
-	[int]$apiVersionInt = $ApiVersion.Replace('v','').Replace('V','')
-	[int]$minVersionInt = $apiEndpointProperties.minVersion.Replace('v','').Replace('V','')
-
-    if ($apiVersionInt -lt $minVersionInt) {
-        "{0} requires minimum API version {1} while system is currently configured for {2}. Set Rest API version by running 'Get-SdnInfrastructureInfo'" `
-        -f $apiEndpointProperties.uri, $apiEndpointProperties.minVersion, $ApiVersion | Trace-Output -Level:Warning
-    }
 
     return $endpoint
 }

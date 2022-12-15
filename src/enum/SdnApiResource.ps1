@@ -17,7 +17,6 @@ enum SdnApiResource {
     MacPools
     NetworkControllerBackup
     NetworkControllerRestore
-    NetworkControllerState
     NetworkControllerStatistics
     NetworkInterfaces
     Operations
@@ -26,8 +25,6 @@ enum SdnApiResource {
     SecurityTags
     Servers
     ServiceInsertions
-    SlbState
-    SlbStateResults
     RouteTables
     VirtualGateways
     VirtualNetworkManagerConfig

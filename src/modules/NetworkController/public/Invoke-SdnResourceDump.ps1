@@ -45,8 +45,13 @@ function Invoke-SdnResourceDump {
         $config = Get-SdnRoleConfiguration -Role:NetworkController
         [int]$apiVersionInt = $ApiVersion.Replace('v','').Replace('V','')
         foreach ($resource in $config.properties.apiResources) {
-            [int]$minVersionInt = $resource.minVersion.Replace('v','').Replace('V','')
 
+            # skip any resources that are not designed to be exported
+            if ($resource.includeInResourceDump -ieq $false) {
+                continue
+            }
+
+            [int]$minVersionInt = $resource.minVersion.Replace('v','').Replace('V','')
             if ($minVersionInt -le $apiVersionInt) {
                 $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.uri -Credential $Credential
                 if ($sdnResource) {

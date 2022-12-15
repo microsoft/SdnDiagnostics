@@ -33,12 +33,12 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $networkInterface = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $Credential | Where-Object { $_.resourceId -ieq $ResourceId }
+        $networkInterface = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:NetworkInterfaces -Credential $Credential | Where-Object { $_.resourceId -ieq $ResourceId }
         if ($null -eq $networkInterface) {
             throw New-Object System.NullReferenceException("Unable to locate network interface within Network Controller")
         }
 
-        foreach ($ipConfig in $networkInterface.properties.ipConfigurations) { 
+        foreach ($ipConfig in $networkInterface.properties.ipConfigurations) {
             $publicIpRef = Get-PublicIpReference -NcUri $NcUri.AbsoluteUri -IpConfiguration $ipConfig -Credential $Credential
             if ($publicIpRef) {
                 $publicIpAddress = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Credential $Credential -ResourceRef $publicIpRef
