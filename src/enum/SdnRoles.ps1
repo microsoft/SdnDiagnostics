@@ -5,5 +5,5 @@ enum SdnRoles {
     Gateway
     NetworkController
     Server
-    SoftwareLoadBalancer
+    LoadBalancerMux
 }

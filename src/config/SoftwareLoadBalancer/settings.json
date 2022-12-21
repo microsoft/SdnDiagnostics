@@ -1,7 +1,7 @@
 {
-    "name": "SoftwareLoadBalancer",
+    "name": "LoadBalancerMux",
     "windowsFeature": [
-        "SoftwareLoadBalancer"
+        "LoadBalancerMux"
     ],
     "requiredModules": [],
     "properties": {

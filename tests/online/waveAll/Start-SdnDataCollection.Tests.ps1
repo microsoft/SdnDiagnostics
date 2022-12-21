@@ -5,7 +5,7 @@ Describe 'Start-SdnDataCollection test' {
     }
 
     It "Start-SdnNetshTrace successfully started trace on Mux" {
-        { Start-SdnNetshTrace -ComputerName (Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential).SoftwareLoadBalancer -Role SoftwareLoadBalancer} | Should -Not -Throw
+        { Start-SdnNetshTrace -ComputerName (Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential).LoadBalancerMux -Role LoadBalancerMux} | Should -Not -Throw
     }
 
     It "Start-SdnNetshTrace successfully started trace on Gateway" {
@@ -18,8 +18,8 @@ Describe 'Start-SdnDataCollection test' {
         { Stop-SdnNetshTrace -ComputerName (Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential).Server} | Should -Not -Throw
     }
 
-    It "Stop-SdnNetshTrace successfully stop trace on SoftwareLoadBalancer" {
-        { Stop-SdnNetshTrace -ComputerName (Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential).SoftwareLoadBalancer} | Should -Not -Throw
+    It "Stop-SdnNetshTrace successfully stop trace on LoadBalancerMux" {
+        { Stop-SdnNetshTrace -ComputerName (Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential).LoadBalancerMux} | Should -Not -Throw
     }
 
     It "Stop-SdnNetshTrace successfully stop trace on Gateway" {
@@ -27,6 +27,6 @@ Describe 'Start-SdnDataCollection test' {
     }
 
     It "Start-SdnDataCollection successfully collected the logs" {
-        { Start-SdnDataCollection -NetworkController $Global:PesterOnlineTests.configdata.NcVM -Role NetworkController,SoftwareLoadBalancer,Gateway,Server -OutputDirectory "$PSScriptRoot\..\..\DataCollected" -IncludeLogs -NcRestCredential $Global:PesterOnlineTests.NcRestCredential } | Should -Not -Throw
+        { Start-SdnDataCollection -NetworkController $Global:PesterOnlineTests.configdata.NcVM -Role NetworkController,LoadBalancerMux,Gateway,Server -OutputDirectory "$PSScriptRoot\..\..\DataCollected" -IncludeLogs -NcRestCredential $Global:PesterOnlineTests.NcRestCredential } | Should -Not -Throw
     }
   }

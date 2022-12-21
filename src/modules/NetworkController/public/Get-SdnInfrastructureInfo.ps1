@@ -63,7 +63,7 @@ function Get-SdnInfrastructureInfo {
         if ($PSBoundParameters.ContainsKey('Force')) {
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
             $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
-            $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = $null
+            $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
@@ -93,8 +93,8 @@ function Get-SdnInfrastructureInfo {
         }
 
         # get the load balancer muxes
-        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux)) {
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the gateways
@@ -119,10 +119,10 @@ function Get-SdnInfrastructureInfo {
             $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
         }
 
-        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer){
-            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
+        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux){
+            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
         }
-        
+
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo
@@ -131,7 +131,7 @@ function Get-SdnInfrastructureInfo {
         # Remove any cached info in case of exception as the cached info might be incorrect
         $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
         $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
-        $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer = $null
+        $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
