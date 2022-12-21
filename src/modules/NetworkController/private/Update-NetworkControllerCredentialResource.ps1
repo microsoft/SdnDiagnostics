@@ -61,19 +61,21 @@ function Update-NetworkControllerCredentialResource {
                 }
 
                 $result = Invoke-RestMethodWithRetry -Method 'Get' -Uri $uri -Credential $Credential -UseBasicParsing
-                switch ($result.properties.provisioningState) {
-                    'Updating' {
-                        "Status: {0}" -f $result.properties.provisioningState | Trace-Output
-                        Start-Sleep -Seconds 15
-                    }
-                    'Failed' {
-                        $stopWatch.Stop()
-                        throw New-Object System.Exception("Failed to update $($cred.resourceRef)")
-                    }
-                    'Succeeded' {
-                        "Successfully updated {0}" -f $cred.resourceRef | Trace-Output
-                        break
-                    }
+                if ($result.properties.provisioningState -ieq 'Updating') {
+                    "Status: {0}" -f $result.properties.provisioningState | Trace-Output
+                    Start-Sleep -Seconds 15
+                }
+                elseif ($result.properties.provisioningState -ieq 'Failed') {
+                    $stopWatch.Stop()
+                    throw New-Object System.Exception("Failed to update $($cred.resourceRef)")
+                }
+                elseif ($result.properties.provisioningState -ieq 'Succeeded') {
+                    "Successfully updated {0}" -f $cred.resourceRef | Trace-Output
+                    break
+                }
+                else {
+                    $stopWatch.Stop()
+                    throw New-Object System.Exception("Failed to update $($cred.resourceRef) with $($result.properties.provisioningState)")
                 }
             }
 
