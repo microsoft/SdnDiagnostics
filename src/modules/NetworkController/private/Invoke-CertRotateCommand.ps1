@@ -84,7 +84,7 @@ function Invoke-CertRotateCommand {
 
         # if the certificate already matches what has been configured, then break out of the loop
         if ($currentCertThumbprint -ieq $Thumbprint) {
-            "{0} has been updated to use certificate thumbprint {0}" -f $Command.Split('-')[1], $currentCertThumbprint | Trace-Output
+            "{0} has been updated to use certificate thumbprint {1}" -f $Command.Split('-')[1], $currentCertThumbprint | Trace-Output
             break
         }
 
