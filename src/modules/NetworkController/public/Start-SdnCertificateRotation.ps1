@@ -91,19 +91,19 @@ function Start-SdnCertificateRotation {
         $currentRestCert = Get-SdnNetworkControllerRestCertificate
 
         $restCertExpired = (Get-Date) -gt $($currentRestCert.NotAfter)
-        $ncHealhty = $true
+        $ncHealthy = $true
 
         if(!$restCertExpired){
             try {
                 $null = Get-NetworkController
             }
             catch {
-                $ncHealhty = $false
+                $ncHealthy = $false
             }
         }
 
-        if($restCertExpired -or !$ncHealhty){
-            "Network Controller Rest Certificate $($currentRestCert.Thumbprint) expired at $($currentRestCert.NotAfter). Network Controller Healthy: $ncHealhty" | Trace-Output -Level:Warning
+        if($restCertExpired -or !$ncHealthy){
+            "Network Controller Rest Certificate $($currentRestCert.Thumbprint) expired at $($currentRestCert.NotAfter). Network Controller Healthy: $ncHealthy" | Trace-Output -Level:Warning
             $sdnFabricDetails = @{
                 NetworkController = $NcInfraInfo.NodeList.IpAddressOrFQDN
             }
@@ -234,9 +234,9 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        if($restCertExpired -or !$ncHealhty){
+        if($restCertExpired -or !$ncHealthy){
             # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
-            Start-SdnNetworkControllerCertificateUpdate -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
+            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
         }
 
         #####################################
@@ -317,6 +317,8 @@ function Start-SdnCertificateRotation {
             # FabricDetails include NetworkController's ServerName (FQDN), returned CertificateConfig use ServerName as the key to map node certificate
             $null = Copy-CertificatesToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails -RotateNodeCertificates:$rotateNCNodeCerts
         }
+
+        "Certificate rotation has completed" | Trace-Output
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
