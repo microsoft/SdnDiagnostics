@@ -33,15 +33,29 @@ function Get-SdnCertificate {
 
     try {
         $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
-        if ($Subject) {
-            return ($certificateList | Where-Object {$_.Subject -ieq $Subject})
+
+        switch ($PSCmdlet.ParameterSetName) {
+            'Subject' {
+                $filteredCert = $certificateList | Where-Object {$_.Subject -ieq $Subject}
+            }
+            'Thumbprint' {
+                $filteredCert = $certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+            }
+            default {
+                return $certificateList
+            }
         }
 
-        if ($Thumbprint) {
-            return ($certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint})
+        if ($null -eq $filteredCert) {
+            "Unable to locate certificate using {0}" -f $PSCmdlet.ParameterSetName | Trace-Output -Level:Warning
+            return $null
         }
 
-        return $certificateList
+        if ($filteredCert.NotAfter -le (Get-Date)) {
+            "Certificate [Thumbprint: {0} | Subject: {1}] is currently expired" -f $filteredCert.Thumbprint, $filteredCert.Subject | Trace-Output -Level:Exception
+        }
+
+        return $filteredCert
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

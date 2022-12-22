@@ -28,35 +28,35 @@ function Test-SdnCertificateRotationConfig {
 
     try {
 
-        if([string]::IsNullOrEmpty($CertRotateConfig["NcRestCert"])){
-            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Error
+        if ([string]::IsNullOrEmpty($CertRotateConfig["NcRestCert"])) {
+            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Exception
             return $false
         }
 
         $ncRestCert = $CertRotateConfig["NcRestCert"]
-        foreach($ncNode in $NcNodeList){
-            if($CertRotateConfig["ClusterCredentialType"] -ieq "X509"){
+        foreach ($ncNode in $NcNodeList) {
+            if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
                 $nodeCert = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-                if([string]::IsNullOrEmpty($nodeCert)){
-                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Error
+                if ([string]::IsNullOrEmpty($nodeCert)) {
+                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Exception
                     return $false
-                }else{
+                }
+                else {
                     $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                         $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCert
-                        if($null -eq $nodeCertObj){
-                            Write-Host "[$(HostName)] Node Certificate with thumbprint $using:nodeCert not found" -ForegroundColor:Red
+                        if ($null -eq $nodeCertObj) {
                             return $false
-                        }else{
-                            if($nodeCertObj.NotAfter -le (Get-Date)){
-                                Write-Host "[$(HostName)] Node Certificate with thumbprint $using:nodeCert found but expired" -ForegroundColor:Red
+                        }
+                        else {
+                            if ($nodeCertObj.NotAfter -le (Get-Date)) {
                                 return $false
                             }
                         }
                         return $true
                     }
 
-                    if(!$certValid){
-                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Error
+                    if (!$certValid) {
+                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Exception
                         return $false
                     }
                 }
@@ -64,20 +64,19 @@ function Test-SdnCertificateRotationConfig {
 
             $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                 $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:ncRestCert
-                if($null -eq $ncRestCertObj){
-                    Write-Host "[$(HostName)] NcRest Certificate with thumbprint $using:ncRestCert not found" -ForegroundColor:Red
+                if ($null -eq $ncRestCertObj) {
                     return $false
-                }else{
-                    if($ncRestCertObj.NotAfter -le (Get-Date)){
-                        Write-Host "[$(HostName)] NcRest Certificate with thumbprint $using:ncRestCert found but expired" -ForegroundColor:Red
+                }
+                else {
+                    if ($ncRestCertObj.NotAfter -le (Get-Date)) {
                         return $false
                     }
                 }
                 return $true
             }
 
-            if(!$certValid){
-                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Error
+            if (!$certValid) {
+                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Exception
                 return $false
             }
         }
