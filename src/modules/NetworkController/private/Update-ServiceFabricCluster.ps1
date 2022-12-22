@@ -7,12 +7,12 @@ function Update-ServiceFabricCluster {
         Upgrade the Service Fabric Cluster via Start-ServiceFabricClusterUpgrade and wait for the cluster to become healthy.
     .PARAMETER NcNodeList
         The list of Network Controller Nodes.
-	.PARAMETER ClusterCredentialType
-		X509, Windows or None.
-	.PARAMETER ManifestFolderNew
-		The New Manifest Folder contains the new Manifest Files.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER ClusterCredentialType
+        X509, Windows or None.
+    .PARAMETER ManifestFolderNew
+        The New Manifest Folder contains the new Manifest Files.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -58,11 +58,11 @@ function Update-ServiceFabricCluster {
     $clusterManifestPath = "$ManifestFolderNew\ClusterManifest_new.xml"
 
     if (!(Test-Path $clusterManifestPath)) {
-        Throw "Path $clusterManifestPath not found" 
+        Throw "Path $clusterManifestPath not found"
     }
 
     "Upgrading Service Fabric Cluster with ClusterManifest at $clusterManifestPath" | Trace-Output
-    
+
     # Sometimes access denied returned for the copy call, retry here to workaround this.
     $maxRetry = 3
     while($maxRetry -gt 0){
@@ -80,9 +80,9 @@ function Update-ServiceFabricCluster {
             "Copy-ServiceFabricClusterPackage failed with exception $_.Exception. Retry $(4 - $maxRetry)/3 after 60 seconds" | Trace-Output -Level:Warning
             Start-Sleep -Seconds 60
             $maxRetry --
-        } 
+        }
     }
-    
+
     Register-ServiceFabricClusterPackage -Config -ClusterManifestPath "ClusterManifest.xml"
     Start-ServiceFabricClusterUpgrade -ClusterManifestVersion $NewVersionString -Config -UnmonitoredManual -UpgradeReplicaSetCheckTimeoutSec 30
 

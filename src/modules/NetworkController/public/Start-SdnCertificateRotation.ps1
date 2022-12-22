@@ -176,7 +176,7 @@ function Start-SdnCertificateRotation {
             if($certRotateConfig["ClusterCredentialType"] -ieq "X509"){
                 foreach($ncnode in $NcInfraInfo.NodeList){
                     $nodeCert = $certificateInstalled.NetworkController[$ncnode.IpAddressOrFQDN].Cert.PfxData.EndEntityCertificates.Thumbprint
-                    "$($ncnode.IpAddressOrFQDN)'s NodeCert: $nodeCert" | Trace-Output
+                    "{0} node certificate: {1}" -f $ncnode.IpAddressOrFQDN, $nodeCert | Trace-Output
                     if($null -eq $nodeCert){
                         throw New-Object System.NullReferenceException("Unable to locate node certificate for $($ncnode.IpAddressOrFQDN) after installed")
                     }

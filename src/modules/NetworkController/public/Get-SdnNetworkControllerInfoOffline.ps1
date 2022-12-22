@@ -42,15 +42,12 @@ function Get-SdnNetworkControllerInfoOffline {
         $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
         $secretCertThumbprint = $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue
 
-        $ncRestName = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock{
-            $secretCert = Get-Item "Cert:LocalMachine\My\$using:secretCertThumbprint"
-            if($null -eq $secretCert)
-            {
-                Write-Host "[$(HostName)] NetworkController secret certificate with thumbprint $secretCertThumbprint not found" -ForegroundColor:Yellow
+        $ncRestName = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {
+            $secretCert = Get-ChildItem -Path "Cert:\LocalMachine\My" | Where-Object {$_.Thumbprint -ieq $using:secretCertThumbprint}
+            if($null -eq $secretCert) {
                 return $null
             }
-            else
-            {
+            else {
                 return $secretCert.Subject.Replace("CN=","")
             }
         } -Credential $Credential

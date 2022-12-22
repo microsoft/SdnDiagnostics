@@ -7,10 +7,10 @@ function Wait-ServiceFabricClusterHealthy {
         Start the FabricHostSvc on each of the Network Controller VM and wait for the service fabric service to become healthy.
     .PARAMETER NcVMs
         The list of Network Controller VMs.
-	.PARAMETER ClusterCredentialType
-		X509, Windows or None.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER ClusterCredentialType
+        X509, Windows or None.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -18,13 +18,16 @@ function Wait-ServiceFabricClusterHealthy {
         [Parameter(Mandatory = $true)]
         [PSCustomObject[]]
         $NcNodeList,
+
         [Parameter(Mandatory = $true)]
         [hashtable]
         $CertRotateConfig,
+
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
+
         [Parameter(Mandatory = $false)]
         [switch]
         $Restart
@@ -39,21 +42,22 @@ function Wait-ServiceFabricClusterHealthy {
                 $currentNcNode = $ncNode
             }
 
-            Invoke-Command -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
+            Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                 if($using:Restart){
-                    Stop-Service FabricHostSvc -Force
+                    Stop-Service -Name 'FabricHostSvc' -Force
+                    Start-Sleep -Seconds 5
                 }
-                Write-Host "[$(HostName)] Startting Service Fabric Service"
-                Start-Service FabricHostSvc
-            }
+
+                Start-Service -Name 'FabricHostSvc'
+            } -Credential $Credential
         }
 
         Trace-Output "Sleeping 60s to wait for Serice Fabric Service to be ready"
         Start-Sleep -Seconds 60
-        "waiting for service fabric service healthy" | Trace-Output
+        "Waiting for service fabric service healthy" | Trace-Output
         $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
         $certThumb = $CertRotateConfig[$currentNcNode.NodeName.ToLower()]
-    
+
         $maxRetry = 10
         $clusterConnected = $false
         while ($maxRetry -gt 0) {
@@ -73,7 +77,7 @@ function Wait-ServiceFabricClusterHealthy {
                     continue
                 }
             }
-            
+
             if($clusterConnected){
                 $services = @()
                 $services = Get-ServiceFabricService -ApplicationName fabric:/System
@@ -87,12 +91,12 @@ function Wait-ServiceFabricClusterHealthy {
                         "$($service.ServiceName) ServiceStatus: $($service.ServiceStatus) HealthState: $($service.HealthState)" | Trace-Output -Level:Warning
                         $allServiceHealth = $false
                     }
-                } 
+                }
                 if ($allServiceHealth -and $services.Count -gt 0) {
                     "All service fabric service has been healthy" | Trace-Output -Level:Warning
                     return $allServiceHealth
                 }
-                
+
                 Start-Sleep -Seconds 10
             }
         }
