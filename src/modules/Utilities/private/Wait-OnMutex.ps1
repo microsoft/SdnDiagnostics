@@ -6,17 +6,12 @@ function Wait-OnMutex {
 
     try {
         $MutexInstance = New-Object System.Threading.Mutex($false, $MutexId)
-        while (-NOT ($MutexInstance.WaitOne(1000))) {
-            $totalWait++
-            if ($totalWait -ge 5) {
-                "System timeout acquiring Mutex" | Write-Warning
-                return $null
-            }
-
-            Start-Sleep -Milliseconds 100
+        if ($MutexInstance.WaitOne(3000)) {
+            return $MutexInstance
         }
-
-        return $MutexInstance
+        else {
+            throw New-Object -TypeName System.TimeoutException("Failed to acquire Mutex")
+        }
     }
 
     catch [System.Threading.AbandonedMutexException] {
@@ -25,6 +20,6 @@ function Wait-OnMutex {
     }
     catch {
         $MutexInstance.ReleaseMutex()
-        $_ | Write-Error
+        $_
     }
 }
