@@ -8,7 +8,7 @@ function Wait-OnMutex {
         $MutexInstance = New-Object System.Threading.Mutex($false, $MutexId)
         while (-NOT ($MutexInstance.WaitOne(1000))) {
             $totalWait++
-            if ($totalWait -ge 10) {
+            if ($totalWait -ge 5) {
                 "System timeout acquiring Mutex" | Write-Warning
                 return $null
             }
