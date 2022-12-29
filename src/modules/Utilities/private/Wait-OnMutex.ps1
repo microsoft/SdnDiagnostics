@@ -16,10 +16,10 @@ function Wait-OnMutex {
 
     catch [System.Threading.AbandonedMutexException] {
         $MutexInstance = New-Object System.Threading.Mutex($false, $MutexId)
-        return Wait-OnMutex -MutexId $MutexId
+        return (Wait-OnMutex -MutexId $MutexId)
     }
     catch {
         $MutexInstance.ReleaseMutex()
-        $_
+        $_ | Write-Error
     }
 }
