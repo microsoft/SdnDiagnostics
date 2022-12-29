@@ -11,6 +11,8 @@ function Get-SdnCertificate {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
         [ValidateScript({
             if ($_ -notlike "cert:\*") {
                 throw New-Object System.FormatException("Invalid path")
@@ -21,12 +23,10 @@ function Get-SdnCertificate {
         [System.String]$Path,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [System.String]$Subject,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateNotNullorEmpty()]
         [System.String]$Thumbprint
     )
