@@ -64,7 +64,7 @@ function Trace-Output {
         }
 
         # write the event to trace file to be used for debugging purposes
-        $mutexInstance = Wait-OnMutex -MutexId 'TraceLogging' -ErrorAction Continue
+        $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
         if ($mutexInstance) {
             $traceEvent | Export-Csv -Append -NoTypeInformation -Path $traceFile.FullName
         }
