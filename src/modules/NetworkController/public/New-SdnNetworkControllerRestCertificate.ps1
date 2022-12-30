@@ -55,6 +55,8 @@ function New-SdnNetworkControllerRestCertificate {
             }
         }
         else {
+            $installToSouthboundDevices = $false
+
             $FabricDetails = [SdnFabricInfrastructure]@{
                 NetworkController = (Get-SdnNetworkControllerNode).Server
             }
@@ -78,8 +80,7 @@ function New-SdnNetworkControllerRestCertificate {
         $exportedCertificate = Export-PfxCertificate -Cert $certificate -FilePath $pfxFilePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
         $null = Import-SdnCertificate -FilePath $exportedCertificate.FullName -CertStore 'Cert:\LocalMachine\Root' -CertPassword $CertPassword
 
-
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
+        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
             -NetworkControllerRestCertificate -InstallToSouthboundDevices:$installToSouthboundDevices -Credential $Credential
 
         return ([PSCustomObject]@{

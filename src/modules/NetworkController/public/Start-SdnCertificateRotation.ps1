@@ -162,8 +162,9 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'GenerateCertificate') {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
-            $null = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
+            $newSelfSignedCert = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
                 -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
+            $selfSignedCertFile = $newSelfSignedCert.FileInfo
 
             if ($rotateNCNodeCerts) {
                 $null = Invoke-PSRemoteCommand -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ScriptBlock {
@@ -183,8 +184,16 @@ function Start-SdnCertificateRotation {
 
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
-            Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
+            $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
                 -NetworkControllerHealthy:$ncHealthy -Credential $Credential
+
+            $pfxCertificates | ForEach-Object {
+                if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
+                    if ($_.SelfSigned -ieq $true) {
+                        $selfSignedCertFile = $_.FileInfo
+                    }
+                }
+            }
 
             $CertRotateConfig = New-SdnCertificateRotationConfig -Credential $Credential
         }
@@ -313,8 +322,7 @@ function Start-SdnCertificateRotation {
         # if nc was unhealthy and unable to determine southbound devices in the dataplane earlier
         # we now want to check to see if nc is healthy and if we need to install the rest cert (for self-signed) to southbound devices
         if ($postRotateSBRestCert) {
-            $restCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $CertRotateConfig["NcRestCert"]
-            if ($restCertificate.CertInfo.Subject -ieq $restCertificate.CertInfo.Issuer) {
+            if ($selfSignedCertFile) {
                 $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force
                 $southBoundNodes = @()
                 if ($null -ne $sdnFabricDetails.SoftwareLoadBalancer) {
@@ -327,12 +335,15 @@ function Start-SdnCertificateRotation {
                 if ($southBoundNodes) {
                     "== STAGE: REST SELF-SIGNED CERTIFICATE SEEDING (Southbound Nodes) ==" | Trace-Output
 
-                    if ($southBoundNodes) {
-                        # ensure that we have the latest version of sdnDiagnostics module on the southbound devices
-                        Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
+                    # ensure that we have the latest version of sdnDiagnostics module on the southbound devices
+                    Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
 
-                        ### NEED TO ADD STEPS HERE ###
-                    }
+                    "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
+                    [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedCertFile.Name
+                    Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedCertFile.FullName -Destination $remoteFilePath
+                    $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
+                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertStore 'Cert:\LocalMachine\Root'
+                    } -ErrorAction Stop
                 }
             }
         }

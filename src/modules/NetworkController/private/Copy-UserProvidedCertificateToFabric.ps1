@@ -38,6 +38,7 @@ function Copy-UserProvidedCertificateToFabric {
         $object = [PSCustomObject]@{
             FileInfo = $pfxFile
             PfxData  = $pfxData
+            SelfSigned = $false
         }
 
         $certificateCache += $object
@@ -53,9 +54,19 @@ function Copy-UserProvidedCertificateToFabric {
             "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
                 $cert.pfxFile.FileInfo.FullName, $cert.pfxData.EndEntityCertificates.Subject, $cert.pfxData.EndEntityCertificates.Thumbprint | Trace-Output -Level:Verbose
 
+            $cert | Add-Member -MemberType NoteProperty -Name 'CertificateType' -Value 'NetworkControllerRest'
             $restCertificate = $cert
             $certificateConfig.RestCert = $restCertificate.pfxData.EndEntityCertificates.Thumbprint
-            break
+        }
+        else {
+            "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Node Certificate" -f `
+                $cert.pfxFile.FileInfo.FullName, $cert.pfxData.EndEntityCertificates.Subject, $cert.pfxData.EndEntityCertificates.Thumbprint | Trace-Output -Level:Verbose
+
+            $cert | Add-Member -MemberType NoteProperty -Name 'CertificateType' -Value 'NetworkControllerNode'
+        }
+
+        if ($cert.pfxdata.EndEntityCertificates.Subject -ieq $cert.pfxdata.EndEntityCertificates.Issuer) {
+            $cert.SelfSigned = $true
         }
     }
 
@@ -100,4 +111,6 @@ function Copy-UserProvidedCertificateToFabric {
                 -NetworkControllerNodeCert -Credential $Credential
         }
     }
+
+    return $certificateCache
 }
