@@ -61,7 +61,7 @@ function Get-SdnApiEndpoint {
                 [System.String]$endpoint = "{0}/networking/{1}/{2}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $ApiVersion, $apiEndpointProperties.uri
             }
 
-            if ($apiEndpointProperties.operationId) {
+            if ($apiEndpointProperties.operationId -and (-NOT ([System.String]::IsNullOrEmpty($OperationId)))) {
                 $endpoint = "{0}/{1}" -f $endpoint, $OperationId
             }
         }
