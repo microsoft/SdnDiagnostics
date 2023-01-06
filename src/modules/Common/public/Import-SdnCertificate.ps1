@@ -44,11 +44,11 @@ function Import-SdnCertificate {
 
     $certExists = Get-ChildItem -Path $CertStore | Where-Object {$_.Thumbprint -ieq $pfxData.Thumbprint}
     if ($certExists) {
-        "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output
+        "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output -Level:Verbose
         $certObject.CertInfo = $certExists
     }
     else {
-        "Importing certificate file {0} with Thumbprint: {1} to {2}" -f $fileInfo.FullName, $pfxData.Thumbprint, $CertStore | Trace-Output
+        "Importing {0} to {1}" -f $pfxData.Thumbprint, $CertStore | Trace-Output
         if ($pfxData.HasPrivateKey) {
             $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
             Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
@@ -76,11 +76,11 @@ function Import-SdnCertificate {
 
             if (-NOT ($selfSignedCerExists)) {
                 # import the certificate to the trusted root store
-                "Importing certificate file {0} to {1}" -f $selfSignedCer.FullName, $trustedRootStore | Trace-Output
+                "Importing public key to {0}" -f $trustedRootStore | Trace-Output
                 $null = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
             }
             else {
-                "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output
+                "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output -Level:Verbose
             }
         }
     }
