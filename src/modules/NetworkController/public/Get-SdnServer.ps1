@@ -28,7 +28,7 @@ function Get-SdnServer {
     )
 
     try {
-        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:Servers -Credential $Credential
+        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:Servers -Credential $Credential
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){

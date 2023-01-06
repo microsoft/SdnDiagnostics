@@ -55,14 +55,14 @@ function Test-SdnKIServerHostId {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -73,7 +73,7 @@ function Test-SdnKIServerHostId {
             return $result.HostID
         }
 
-        $servers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType Servers -Credential $NcRestCredential
+        $servers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource Servers -Credential $NcRestCredential
         $hostId = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach($id in $hostId){
             if($id -inotin $servers.instanceId){

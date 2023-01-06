@@ -28,7 +28,7 @@ function Get-SdnLoadBalancerMux {
     )
 
     try {
-        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:LoadBalancerMuxes -Credential $Credential
+        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:LoadBalancerMuxes -Credential $Credential
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){

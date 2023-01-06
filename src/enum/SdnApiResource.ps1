@@ -3,23 +3,32 @@
 
 enum SdnApiResource {
     AccessControlLists
+    AuditingSettingsConfig
     Credentials
+    Discovery
     GatewayPools
     Gateways
-    iDNSServerConfig
+    IDNSServerConfig
+    LearnedIPAddresses
     LoadBalancerManagerConfig
     LoadBalancerMuxes
     LoadBalancers
     LogicalNetworks
     MacPools
-    NetworkControllerState
+    NetworkControllerBackup
+    NetworkControllerRestore
+    NetworkControllerStatistics
     NetworkInterfaces
+    Operations
+    OperationResults
     PublicIPAddresses
+    SecurityTags
     Servers
-    SlbState
+    ServiceInsertions
     RouteTables
     VirtualGateways
     VirtualNetworkManagerConfig
     VirtualNetworks
     VirtualServers
+    VirtualSwitchManagerConfig
 }

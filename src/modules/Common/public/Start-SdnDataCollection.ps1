@@ -212,7 +212,7 @@ function Start-SdnDataCollection {
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
 
-                    Get-SdnApiResource -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+                    Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
                     Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
                         -Credential $Credential -NcRestCredential $NcRestCredential
                     Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
