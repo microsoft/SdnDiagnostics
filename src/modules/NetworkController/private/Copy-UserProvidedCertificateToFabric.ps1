@@ -11,6 +11,9 @@ function Copy-UserProvidedCertificateToFabric {
         [System.Object]$FabricDetails,
 
         [Parameter(Mandatory = $false)]
+        [System.Boolean]$RotateNodeCerts = $false,
+
+        [Parameter(Mandatory = $false)]
         [System.Boolean]$NetworkControllerHealthy = $false,
 
         [Parameter(Mandatory = $false)]
@@ -48,7 +51,6 @@ function Copy-UserProvidedCertificateToFabric {
     $currentRestCertificate = Get-SdnNetworkControllerRestCertificate
 
     # enumerate the current certificates within the cache to isolate the rest certificate
-
     foreach ($cert in $certificateCache) {
         if ($cert.pfxdata.EndEntityCertificates.Subject -ieq $currentRestCertificate.Subject) {
             "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
@@ -58,12 +60,6 @@ function Copy-UserProvidedCertificateToFabric {
             $restCertificate = $cert
             $certificateConfig.RestCert = $restCertificate.pfxData.EndEntityCertificates.Thumbprint
         }
-        else {
-            "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Node Certificate" -f `
-                $cert.pfxFile.FileInfo.FullName, $cert.pfxData.EndEntityCertificates.Subject, $cert.pfxData.EndEntityCertificates.Thumbprint | Trace-Output -Level:Verbose
-
-            $cert | Add-Member -MemberType NoteProperty -Name 'CertificateType' -Value 'NetworkControllerNode'
-        }
 
         if ($cert.pfxdata.EndEntityCertificates.Subject -ieq $cert.pfxdata.EndEntityCertificates.Issuer) {
             $cert.SelfSigned = $true
@@ -71,22 +67,25 @@ function Copy-UserProvidedCertificateToFabric {
     }
 
     # enumerate the certificates for network controller nodes
-    foreach ($node in $FabricDetails.NetworkController) {
-        "Retrieving current node certificate for {0}" -f $node | Trace-Output
-        $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock { Get-SdnNetworkControllerNodeCertificate } -ErrorAction Stop
-        foreach ($cert in $certificateCache) {
-            $updatedNodeCert = $null
-            if ($cert.PfxData.EndEntityCertificates.Subject -ieq $currentNodeCert.Subject) {
-                $updatedNodeCert = $cert
-                "Matched {0} [Subject: {1}; Thumbprint: {2}] to {3}" -f `
-                    $updatedNodeCert.FileInfo.Name, $cert.PfxData.EndEntityCertificates.Subject, $cert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
+    if ($RotateNodeCerts) {
+        foreach ($node in $FabricDetails.NetworkController) {
+            "Retrieving current node certificate for {0}" -f $node | Trace-Output
+            $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock { Get-SdnNetworkControllerNodeCertificate } -ErrorAction Stop
+            foreach ($cert in $certificateCache) {
+                $updatedNodeCert = $null
+                if ($cert.PfxData.EndEntityCertificates.Subject -ieq $currentNodeCert.Subject) {
+                    $updatedNodeCert = $cert
+                    "Matched {0} [Subject: {1}; Thumbprint: {2}] to {3}" -f `
+                        $updatedNodeCert.FileInfo.Name, $cert.PfxData.EndEntityCertificates.Subject, $cert.PfxData.EndEntityCertificates.Thumbprint, $node | Trace-Output
 
-                break
+                    $cert | Add-Member -MemberType NoteProperty -Name 'CertificateType' -Value 'NetworkControllerNode'
+                    break
+                }
             }
-        }
 
-        $certificateConfig.NetworkController[$node] = @{
-            Cert = $updatedNodeCert
+            $certificateConfig.NetworkController[$node] = @{
+                Cert = $updatedNodeCert
+            }
         }
     }
 
@@ -94,21 +93,24 @@ function Copy-UserProvidedCertificateToFabric {
     # then seed out to the rest of the fabric
     $null = Import-SdnCertificate -FilePath $restCertificate.FileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
     Copy-CertificateToFabric -CertFile $restCertificate.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
-        -NetworkControllerRestCertificate -InstallToSouthboundDevices:$NetworkControllerHealthy -Credential $Credential
+    -NetworkControllerRestCertificate -InstallToSouthboundDevices:$NetworkControllerHealthy -Credential $Credential
 
-    foreach ($controller in $FabricDetails.NetworkController) {
-        $nodeCertConfig = $certificateConfig.NetworkController[$controller]
+    # install the nc node certificate to other network controller nodes if self-signed
+    if ($RotateNodeCerts) {
+        foreach ($controller in $FabricDetails.NetworkController) {
+            $nodeCertConfig = $certificateConfig.NetworkController[$controller]
 
-        # if we have identified a network controller node certificate then proceed
-        # with installing the cert locally (if matches current node)
-        if ($nodeCertConfig) {
-            if (Test-ComputerNameIsLocal -ComputerName $controller) {
-                $null = Import-SdnCertificate -FilePath $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
+            # if we have identified a network controller node certificate then proceed
+            # with installing the cert locally (if matches current node)
+            if ($nodeCertConfig) {
+                if (Test-ComputerNameIsLocal -ComputerName $controller) {
+                    $null = Import-SdnCertificate -FilePath $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
+                }
+
+
+                # pass the certificate to sub-function to be seeded across the fabric if necassary
+                Copy-CertificateToFabric -CertFile $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails -NetworkControllerNodeCert -Credential $Credential
             }
-
-            # pass the certificate to sub-function to be seeded across the fabric if necassary
-            Copy-CertificateToFabric -CertFile $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
-                -NetworkControllerNodeCert -Credential $Credential
         }
     }
 

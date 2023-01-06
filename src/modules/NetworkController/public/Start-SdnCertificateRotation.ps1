@@ -77,7 +77,7 @@ function Start-SdnCertificateRotation {
         "Starting certificate rotation" | Trace-Output
         "Retrieving current SDN environment details" | Trace-Output
 
-        if([String]::IsNullOrEmpty($CertPath)) {
+        if ([String]::IsNullOrEmpty($CertPath)) {
             [System.String]$CertPath = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC)
 
             if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
@@ -185,12 +185,13 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
             $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
-                -NetworkControllerHealthy:$ncHealthy -Credential $Credential
+            -NetworkControllerHealthy:$ncHealthy -Credential $Credential -RotateNodeCerts:$rotateNCNodeCerts
 
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
                     if ($_.SelfSigned -ieq $true) {
                         $selfSignedCertFile = $_.FileInfo
+                        break
                     }
                 }
             }
