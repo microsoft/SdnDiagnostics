@@ -6,7 +6,7 @@ name: Server2019SDNPullRequest
 on:
   # Triggers the workflow on pull request events but only for the main branch
   pull_request:
-    branches: [main, feature/data-collection]
+    branches: [ main ]
     paths:
       - /src/**
 
