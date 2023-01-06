@@ -103,7 +103,7 @@ function Copy-UserProvidedCertificateToFabric {
 
             # if we have identified a network controller node certificate then proceed
             # with installing the cert locally (if matches current node)
-            if ($nodeCertConfig) {
+            if ($null -ne $nodeCertConfig.Cert.FileInfo.FullName) {
                 if (Test-ComputerNameIsLocal -ComputerName $controller) {
                     $null = Import-SdnCertificate -FilePath $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
                 }
@@ -111,6 +111,9 @@ function Copy-UserProvidedCertificateToFabric {
 
                 # pass the certificate to sub-function to be seeded across the fabric if necassary
                 Copy-CertificateToFabric -CertFile $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails -NetworkControllerNodeCert -Credential $Credential
+            }
+            else {
+                "Unable to locate self-signed certificate file for {0}. Node certificate may need to be manually installed to other Network Controllers manually." -f $controller | Trace-Output -Level:Exception
             }
         }
     }
