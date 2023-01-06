@@ -85,7 +85,10 @@ function Get-SdnInfrastructureInfo {
 
         # get the supported rest API versions from network controller
         # as we default this to v1 on module import within $Global.SdnDiagnostics, will not check to see if null first
-        $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
+        $currentRestVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
+        if (-NOT [String]::IsNullOrEmpty($currentRestVersion)) {
+            $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = $currentRestVersion
+        }
 
         # get the network controllers
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
@@ -122,7 +125,7 @@ function Get-SdnInfrastructureInfo {
         if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer){
             $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
         }
-        
+
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
 
         return $Global:SdnDiagnostics.EnvironmentInfo

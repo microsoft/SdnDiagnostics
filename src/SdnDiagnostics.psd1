@@ -41,7 +41,7 @@
         'Debug-SdnFabricInfrastructure',
         'Disable-SdnRasGatewayTracing',
         'Enable-SdnRasGatewayTracing',
-        'Get-SdnApiResource',
+        'Get-SdnApiEndpoint'
         'Get-SdnCertificate',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog',
@@ -95,6 +95,7 @@
         'Install-SdnDiagnostics',
         'Invoke-SdnCommand',
         'Invoke-SdnGetNetView',
+        'Invoke-SdnResourceDump',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
         'Set-SdnVMNetworkAdapterPortProfile',

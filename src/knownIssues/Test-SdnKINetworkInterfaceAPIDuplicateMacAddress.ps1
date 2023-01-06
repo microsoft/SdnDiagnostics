@@ -27,25 +27,25 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
-    
+
     try {
         "Validate no duplicate MAC addresses for network interfaces in Network Controller" | Trace-Output
 
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
-        
+
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
 
-        $networkInterfaces = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
+        $networkInterfaces = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:NetworkInterfaces -Credential $NcRestCredential
         if($null -eq $networkInterfaces){
             throw New-Object System.NullReferenceException("No network interfaces returned from Network Controller")
         }
@@ -67,7 +67,7 @@ function Test-SdnKINetworkInterfaceAPIDuplicateMacAddress {
                 ) | Trace-Output -Level:Warning
             }
         }
-    
+
         return [PSCustomObject]@{
             Result = $issueDetected
             Properties = $arrayList

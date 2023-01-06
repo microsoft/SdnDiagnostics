@@ -37,7 +37,7 @@ function Get-SdnSlbStateInformation {
     )
 
     try {
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'SlbState'
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'SlbState'
         "Gathering SLB state information from {0}" -f $uri | Trace-Output -Level:Verbose
 
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
@@ -47,7 +47,7 @@ function Get-SdnSlbStateInformation {
 
         $resultObject = ConvertFrom-Json $putResult.Content
         "Response received $($putResult.Content)" | Trace-Output -Level:Verbose
-        [System.String]$operationURI = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'SlbStateResults' -OperationId $resultObject.properties.operationId
+        [System.String]$operationURI = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'SlbStateResults' -OperationId $resultObject.properties.operationId
 
         while ($true) {
             if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
