@@ -25,12 +25,12 @@ function Start-SdnCertificateRotation {
 
     [CmdletBinding(DefaultParameterSetName = 'GenerateCertificate')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $Credential,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
@@ -164,7 +164,7 @@ function Start-SdnCertificateRotation {
 
             $newSelfSignedCert = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
                 -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
-            $selfSignedCertFile = $newSelfSignedCert.FileInfo
+            $selfSignedRestCertFile = $newSelfSignedCert.FileInfo
 
             if ($rotateNCNodeCerts) {
                 $null = Invoke-PSRemoteCommand -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ScriptBlock {
@@ -190,10 +190,9 @@ function Start-SdnCertificateRotation {
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
                     if ($_.SelfSigned -ieq $true) {
-                        $selfSignedCertFile = $_.FileInfo
-                        break
+                        $selfSignedRestCertFile = $_.FileInfo
                     }
-                }
+                }Y
             }
 
             $CertRotateConfig = New-SdnCertificateRotationConfig -Credential $Credential
@@ -323,7 +322,7 @@ function Start-SdnCertificateRotation {
         # if nc was unhealthy and unable to determine southbound devices in the dataplane earlier
         # we now want to check to see if nc is healthy and if we need to install the rest cert (for self-signed) to southbound devices
         if ($postRotateSBRestCert) {
-            if ($selfSignedCertFile) {
+            if ($selfSignedRestCertFile) {
                 $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force
                 $southBoundNodes = @()
                 if ($null -ne $sdnFabricDetails.SoftwareLoadBalancer) {
@@ -340,8 +339,8 @@ function Start-SdnCertificateRotation {
                     Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
 
                     "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
-                    [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedCertFile.Name
-                    Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedCertFile.FullName -Destination $remoteFilePath
+                    [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
+                    Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedRestCertFile.FullName -Destination $remoteFilePath
                     $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
                         Import-SdnCertificate -FilePath $using:remoteFilePath -CertStore 'Cert:\LocalMachine\Root'
                     } -ErrorAction Stop

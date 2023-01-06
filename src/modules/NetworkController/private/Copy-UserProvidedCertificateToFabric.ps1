@@ -98,6 +98,7 @@ function Copy-UserProvidedCertificateToFabric {
     # install the nc node certificate to other network controller nodes if self-signed
     if ($RotateNodeCerts) {
         foreach ($controller in $FabricDetails.NetworkController) {
+            "Processing {0} for node certificates" -f $controller | Trace-Output -Level:Verbose
             $nodeCertConfig = $certificateConfig.NetworkController[$controller]
 
             # if we have identified a network controller node certificate then proceed
