@@ -192,7 +192,7 @@ function Start-SdnCertificateRotation {
                     if ($_.SelfSigned -ieq $true) {
                         $selfSignedRestCertFile = $_.FileInfo
                     }
-                }Y
+                }
             }
 
             $CertRotateConfig = New-SdnCertificateRotationConfig -Credential $Credential
