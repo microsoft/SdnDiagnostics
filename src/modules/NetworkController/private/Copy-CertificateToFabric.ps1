@@ -31,7 +31,7 @@ function Copy-CertificateToFabric {
 
     # if we are installing the rest certificate and need to seed certificate to southbound devices
     # then define the variables to know which nodes must be updated
-    if ($PSCmdlet.$PSBoundParameters -ieq 'NetworkControllerRest' -and $InstallToSouthboundDevices) {
+    if ($PSCmdlet.ParameterSetName -ieq 'NetworkControllerRest' -and $InstallToSouthboundDevices) {
         $southBoundNodes = @()
         if ($null -ne $FabricDetails.SoftwareLoadBalancer) {
             $southBoundNodes += $FabricDetails.SoftwareLoadBalancer
@@ -64,12 +64,20 @@ function Copy-CertificateToFabric {
                     # if the certificate was detected as self signed
                     # we will then copy the .cer file returned from the previous command to all the southbound nodes to install
                     if ($importCert.SelfSigned -and $InstallToSouthboundDevices) {
+                        Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
+
+                        "[REST CERT] Installing self-signed certificate to southbound devices" | Trace-Output
+                        Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
+                            if (-NOT (Test-Path -Path $using:importCert.CerFileInfo.Directory.FullName -PathType Container)) {
+                                $null = New-Item -Path $using:importCert.CerFileInfo.Directory.FullName -ItemType Directory -Force
+                            }
+                        }
+
                         foreach ($sbNode in $southBoundNodes) {
                             "[REST CERT] Installing self-signed certificate to {0}" -f $sbNode | Trace-Output
-                            [System.String]$remoteFilePath = Join-Path -Path $certDir -ChildPath $importCert.CerFileInfo.Name
-                            Copy-FileToRemoteComputer -ComputerName $sbNode -Credential $Credential -Path $importCert.CerFileInfo.FullName -Destination $remoteFilePath
+                            Copy-FileToRemoteComputer -ComputerName $sbNode -Credential $Credential -Path $importCert.CerFileInfo.FullName -Destination $importCert.CerFileInfo.FullName
                             $null = Invoke-PSRemoteCommand -ComputerName $sbNode -Credential $Credential -ScriptBlock {
-                                Import-SdnCertificate -FilePath $using:remoteFilePath -CertStore 'Cert:\LocalMachine\Root'
+                                Import-SdnCertificate -FilePath $using:importCert.CerFileInfo.FullName -CertStore 'Cert:\LocalMachine\Root'
                             } -ErrorAction Stop
                         }
                     }
