@@ -26,7 +26,7 @@ function Get-SdnServiceFabricApplicationHealth {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty        
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -34,7 +34,7 @@ function Get-SdnServiceFabricApplicationHealth {
             Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricApplicationHealth -ApplicationName $using:ApplicationName } -Credential $Credential
         }
         else {
-            Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterHealth -ApplicationName $using:ApplicationName } -Credential $Credential
+            Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricApplicationHealth -ApplicationName $using:ApplicationName } -Credential $Credential
         }
     }
     catch {
