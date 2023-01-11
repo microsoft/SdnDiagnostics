@@ -73,6 +73,16 @@ function Start-SdnCertificateRotation {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
     }
 
+    # add disclaimer that this feature is currently under preview
+    if (!$Force) {
+        "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues and help unblock your cert rotation." | Trace-Output -Level:Warning
+        $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? [Y/N]:"
+        if (-NOT $confirm) {
+            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+            return
+        }
+    }
+
     try {
         "Starting certificate rotation" | Trace-Output
         "Retrieving current SDN environment details" | Trace-Output
