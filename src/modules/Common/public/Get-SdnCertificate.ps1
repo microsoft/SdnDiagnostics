@@ -1,3 +1,7 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
+
 function Get-SdnCertificate {
     <#
         .SYNOPSIS
@@ -8,9 +12,11 @@ function Get-SdnCertificate {
             PS> Get-SdnCertificate -Path "Cert:\LocalMachine\My"
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
         [ValidateScript({
             if ($_ -notlike "cert:\*") {
                 throw New-Object System.FormatException("Invalid path")
@@ -18,29 +24,42 @@ function Get-SdnCertificate {
 
             return $true
         })]
-        [System.String]$Path
+        [System.String]$Path,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [ValidateNotNullorEmpty()]
+        [System.String]$Subject,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [ValidateNotNullorEmpty()]
+        [System.String]$Thumbprint
     )
 
     try {
-        $certificates = @()
         $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
-        foreach ($cert in $certificateList) {
-            $result = New-Object PSObject
-            foreach ($property in $cert.PSObject.Properties) {
-                if ($property.Name -ieq 'PrivateKey') {
-                    $acl = Get-Acl -Path ("$ENV:ProgramData\Microsoft\Crypto\RSA\MachineKeys\" + $cert.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)
-                    $result | Add-Member -MemberType NoteProperty -Name "AccesstoString" -Value $acl.AccessToString
-                    $result | Add-Member -MemberType NoteProperty -Name "Sddl" -Value $acl.Sddl
-                }
-                else {
-                    $result | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.value
-                }
-            }
 
-            $certificates += $result
+        switch ($PSCmdlet.ParameterSetName) {
+            'Subject' {
+                $filteredCert = $certificateList | Where-Object {$_.Subject -ieq $Subject}
+            }
+            'Thumbprint' {
+                $filteredCert = $certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+            }
+            default {
+                return $certificateList
+            }
         }
 
-        return $certificates
+        if ($null -eq $filteredCert) {
+            "Unable to locate certificate using {0}" -f $PSCmdlet.ParameterSetName | Trace-Output -Level:Warning
+            return $null
+        }
+
+        if ($filteredCert.NotAfter -le (Get-Date)) {
+            "Certificate [Thumbprint: {0} | Subject: {1}] is currently expired" -f $filteredCert.Thumbprint, $filteredCert.Subject | Trace-Output -Level:Exception
+        }
+
+        return $filteredCert
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
