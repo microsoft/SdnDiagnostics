@@ -65,7 +65,6 @@
         'Get-SdnNetworkControllerClusterInfo',
         'Get-SdnNetworkControllerConfigurationState',
         'Get-SdnNetworkControllerClusterInfo',
-        'Get-SdnNetworkControllerInfoOffline',
         'Get-SdnNetworkControllerNode',
         'Get-SdnNetworkControllerNodeCertificate'
         'Get-SdnNetworkControllerRestCertificate',

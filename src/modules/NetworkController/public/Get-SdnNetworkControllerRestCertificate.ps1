@@ -17,7 +17,7 @@ function Get-SdnNetworkControllerRestCertificate {
         }
 
         try {
-            $networkController = Get-NetworkController
+            $networkController = Get-SdnNetworkController
             $ncRestCertThumprint = $($networkController.ServerCertificate.Thumbprint).ToString()
         }
         catch {

@@ -44,11 +44,11 @@ function New-NetworkControllerClusterSecret {
         "GOOD, new key and old key are same. Ready for use" | Trace-Output
     }
     else {
-        throw New-Object System.NotSupportedException("BAD, something is not right, new encrypted key does not match old one.")
+        throw New-Object System.NotSupportedException("Decrypted text by new certificate is not matching the old one. We cannot continue.")
     }
     if($null -eq $newEncryptedSecret)
     {
-        throw New-Object System.NotSupportedException("Failed to encrypt the secret.")
+        throw New-Object System.NotSupportedException("Failed to encrypt the secret with new certificate")
     }
 
     return $newEncryptedSecret

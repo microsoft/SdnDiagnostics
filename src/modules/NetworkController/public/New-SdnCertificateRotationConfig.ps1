@@ -56,12 +56,12 @@ function New-SdnCertificateRotationConfig {
             $cert = Get-ChildItem -Path Cert:\LocalMachine\My | ? { $_.Subject -ieq $certSubject } | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
             return $cert.Thumbprint
         }
-        $CertificateRotationConfig["NcRestCert"] = Invoke-Command -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
+        $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
 
         if($NcInfraInfo.ClusterCredentialType -eq "X509"){
             foreach ($ncNode in $($NcInfraInfo.NodeList)) {
                 Trace-Output "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
-                $ncNodeCert = Invoke-Command -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
+                $ncNodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
                 $CertificateRotationConfig[$ncNode.NodeName.ToLower()] = $ncNodeCert
             }
         }
