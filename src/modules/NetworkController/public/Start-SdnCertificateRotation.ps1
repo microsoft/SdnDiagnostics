@@ -339,7 +339,7 @@ function Start-SdnCertificateRotation {
                     $southBoundNodes += $sdnFabricDetails.SoftwareLoadBalancer
                 }
                 if ($null -ne $sdnFabricDetails.Server) {
-                    $southBoundNodes += $sdnFabricDetails.SoftwareLoadBalancer
+                    $southBoundNodes += $sdnFabricDetails.Server
                 }
 
                 if ($southBoundNodes) {
