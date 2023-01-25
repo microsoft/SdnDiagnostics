@@ -28,7 +28,7 @@ function Get-SdnGateway {
     )
 
     try {
-        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:Gateways -Credential $Credential
+        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:Gateways -Credential $Credential
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){

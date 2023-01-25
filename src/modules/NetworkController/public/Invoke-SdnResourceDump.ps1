@@ -1,20 +1,20 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-function Get-SdnApiResource {
+function Invoke-SdnResourceDump {
     <#
     .SYNOPSIS
         Returns a list of gateways from network controller
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnApiResource
+        PS> Invoke-SdnResourceDump
     .EXAMPLE
-        PS> Get-SdnApiResource -NcUri "https://nc.contoso.com"
+        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com"
     .EXAMPLE
-        PS> Get-SdnApiResource -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
+        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -37,15 +37,28 @@ function Get-SdnApiResource {
             $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
         }
 
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
-        foreach ($resource in $config.properties.apiResources) {
-            $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource -Credential $Credential
-            if ($sdnResource) {
-                $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.Replace('/', '_') -FileType json
-            }
+        $apiVersion = (Get-SdnDiscovery -NcUri $NcUri.AbsoluteUri -Credential $Credential).currentRestVersion
+        if ($null -ieq $apiVersion) {
+            $apiVersion = 'v1'
         }
 
-        Get-SdnDiscovery -NcUri $NcUri.AbsoluteUri -Credential $Credential | Export-ObjectToFile -FilePath $outputDir.FullName -Name 'discovery' -FileType json
+        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        [int]$apiVersionInt = $ApiVersion.Replace('v','').Replace('V','')
+        foreach ($resource in $config.properties.apiResources) {
+
+            # skip any resources that are not designed to be exported
+            if ($resource.includeInResourceDump -ieq $false) {
+                continue
+            }
+
+            [int]$minVersionInt = $resource.minVersion.Replace('v','').Replace('V','')
+            if ($minVersionInt -le $apiVersionInt) {
+                $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.uri -Credential $Credential
+                if ($sdnResource) {
+                    $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $resource.name -FileType json
+                }
+            }
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

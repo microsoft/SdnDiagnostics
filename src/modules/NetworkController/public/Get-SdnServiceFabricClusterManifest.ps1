@@ -18,7 +18,7 @@ function Get-SdnServiceFabricClusterManifest {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String[]]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -27,11 +27,53 @@ function Get-SdnServiceFabricClusterManifest {
     )
 
     try {
-        if ($NetworkController) {
+        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+            $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+            if (-NOT ($confirmFeatures)) {
+                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+            }
+        }
+
+        # in instances where Service Fabric is down/offline we want to catch any exceptions returned by Invoke-SdnServiceFabricCommand
+        # and then fallback to getting the cluster manifest information from the file system directly
+        try {
             $clusterManifest = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricClusterManifest } -Credential $Credential
         }
-        else {
-            $clusterManifest = Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterManifest } -Credential $Credential
+        catch {
+            "Unable to retrieve ClusterManifest directly from Service Fabric. Attempting to retrieve ClusterManifest from file system" | Trace-Output -Level:Warning
+
+            # we want to loop through if multiple NetworkController objects were passed into the cmdlet
+            foreach ($obj in $NetworkController) {
+                $clusterManifestScript = {
+                    $clusterManifestFile = Get-ChildItem -Path "C:\ProgramData\Microsoft\Service Fabric" -Recurse -Depth 2 -Filter "ClusterManifest.current.xml" -ErrorAction SilentlyContinue
+                    if ($clusterManifestFile) {
+                        $clusterManifest = Get-Content -Path $clusterManifestFile.FullName -ErrorAction SilentlyContinue
+                        return $clusterManifest
+                    }
+
+                    return $null
+                }
+
+                if (Test-ComputerNameIsLocal -ComputerName $obj) {
+                    $xmlClusterManifest = Invoke-Command -ScriptBlock $clusterManifestScript
+                }
+                else {
+                    $xmlClusterManifest = Invoke-PSRemoteCommand -ComputerName $obj -Credential $Credential -ScriptBlock $clusterManifestScript
+                }
+                
+                # once the cluster manifest has been retrieved from the file system break out of the loop
+                if ($xmlClusterManifest) {
+                    "Successfully retrieved ClusterManifest from {0}" -f $obj | Trace-Output
+                    $clusterManifest = $xmlClusterManifest
+                    break
+                }
+            }
+        }
+
+        if ($null -eq $clusterManifest) {
+            throw New-Object System.NullReferenceException("Unable to retrieve ClusterManifest from Network Controller")
         }
 
         if ($clusterManifest) {

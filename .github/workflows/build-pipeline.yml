@@ -4,9 +4,10 @@ name: Build Pipeline
 on:
   # Triggers the workflow on push events but only for the main branch
   push:
-    branches: [ main ]
+    branches:
+      - main
     paths:
-      - /src/**
+      - 'src/**'
     
 
   # Allows you to run this workflow manually from the Actions tab
@@ -37,7 +38,7 @@ jobs:
           Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
         shell: powershell
 
-      - name: Generate Documentation
+      - name: Generate Documentation for Functions
         run: .\main\.build\utilities\generate-documentation.ps1
         shell: powershell
 
@@ -51,7 +52,8 @@ jobs:
       - name: Copy Documentation to SdnDiagnostics.Wiki
         run: |
           Remove-Item -Path .\wiki\functions\* -Force -Verbose
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\functions\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
+          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki" -Force -Verbose
         shell: powershell
 
       - name: Commit to SdnDiagnostics.Wiki

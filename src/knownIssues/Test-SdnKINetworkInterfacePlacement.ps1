@@ -60,7 +60,7 @@ function Test-SdnKINetworkInterfacePlacement {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
-        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -ResourceType:NetworkInterfaces -Credential $NcRestCredential
+        $networkInterfaces = Get-SdnResource -NcUri $ncUri.AbsoluteUri -Resource:NetworkInterfaces -Credential $NcRestCredential
         $networkAdapters = Get-SdnVMNetworkAdapter -ComputerName $servers -Credential $Credential -AsJob -Timeout 600 -PassThru
         $driftedNetworkInterfaces = Test-NetworkInterfaceLocation -NetworkControllerNetworkInterfaces $networkInterfaces -VMNetworkAdapters $networkAdapters
         if ($driftedNetworkInterfaces) {

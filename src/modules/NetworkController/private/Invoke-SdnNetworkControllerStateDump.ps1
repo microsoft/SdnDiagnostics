@@ -30,7 +30,7 @@ function Invoke-SdnNetworkControllerStateDump {
 
     try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ServiceName 'NetworkControllerState'
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
 
         $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
         -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
@@ -42,7 +42,7 @@ function Invoke-SdnNetworkControllerStateDump {
                 throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
             }
 
-            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceType:NetworkControllerState -Credential $Credential
+            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState' -Credential $Credential
             if ($result.properties.provisioningState -ine 'Updating') {
                 break
             }
