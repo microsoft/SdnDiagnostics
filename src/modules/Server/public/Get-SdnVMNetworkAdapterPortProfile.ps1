@@ -55,11 +55,11 @@ function Get-SdnVMNetworkAdapterPortProfile {
             }
 
             $object = [PSCustomObject]@{
-                VMName     = $adapter.VMName
-                Name       = $adapter.Name
-                MacAddress = $adapter.MacAddress
-                ProfileId  = $currentProfile.SettingData.ProfileId
-                Data       = $currentProfile.SettingData.ProfileData
+                VMName      = $adapter.VMName
+                Name        = $adapter.Name
+                MacAddress  = $adapter.MacAddress
+                ProfileId   = $currentProfile.SettingData.ProfileId
+                ProfileData = $currentProfile.SettingData.ProfileData
             }
 
             $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
