@@ -44,6 +44,8 @@ function Set-VMNetworkAdapterPortProfile {
             return
         }
 
+        # this is taking the default system switch extension port feature settings
+        # and modifying to our purposes so that we can then apply directly to network adapter
         $portProfileDefaultSetting = Get-VMSystemSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -ErrorAction Stop
         $portProfileDefaultSetting.SettingData.ProfileId = $ProfileId.ToString("B")
         $portProfileDefaultSetting.SettingData.NetCfgInstanceId = "{56785678-a0e5-4a26-bc9b-c0cba27311a3}"
@@ -54,6 +56,9 @@ function Set-VMNetworkAdapterPortProfile {
         $portProfileDefaultSetting.SettingData.VendorName = "NetworkController"
         $portProfileDefaultSetting.SettingData.ProfileData = $ProfileData
 
+        # get the current port feature associated with the vm network adapter
+        # if we don't return anything, then it has not been set and we need to add the port feature to network adapter
+        # else if already set, then modify a few settings to match what we provided and set the port feature properties
         $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $vmNic
         if ($null -eq $currentProfile) {
             "Port profile not previously configured" | Trace-Output
@@ -64,7 +69,7 @@ function Set-VMNetworkAdapterPortProfile {
 
             $currentProfile.SettingData.ProfileId = $ProfileId.ToString("B")
             $currentProfile.SettingData.ProfileData = $ProfileData
-            $currentProfile.SettingData.VendorId = $vendorId
+            $currentProfile.SettingData.VendorId = $vendorId.ToString("B")
 
             Set-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature $currentProfile -VMNetworkAdapter $vmNic
         }
