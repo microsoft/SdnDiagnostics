@@ -15,6 +15,9 @@ function Invoke-PSRemoteCommand {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
+        [Parameter(Mandatory = $false)]
+        [Object[]]$ArgumentList = $null,
+
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
         [Switch]$AsJob,
 
@@ -33,7 +36,7 @@ function Invoke-PSRemoteCommand {
         "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
 
         if ($AsJob) {
-            $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid)
+            $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid) -ArgumentList $ArgumentList
             if ($PassThru) {
                 if ($Activity) {
                     $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
@@ -46,7 +49,7 @@ function Invoke-PSRemoteCommand {
             return $result
         }
         else {
-            return (Invoke-Command -Session $session -ScriptBlock $ScriptBlock)
+            return (Invoke-Command -Session $session -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList)
         }
     }
 }

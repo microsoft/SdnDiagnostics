@@ -67,7 +67,7 @@ function Copy-FileToRemoteComputer {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
 
                     try {
-                        Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                        Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
                     }
                     catch {
                         # Catch the copy failed exception to not stop the copy for other computers which might success

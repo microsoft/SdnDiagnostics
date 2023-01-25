@@ -64,7 +64,7 @@ function Set-VMNetworkAdapterPortProfile {
 
             $currentProfile.SettingData.ProfileId = $ProfileId.ToString("B")
             $currentProfile.SettingData.ProfileData = $ProfileData
-            $currentProfile.SettingData.VendorId = $vendorId
+            $currentProfile.SettingData.VendorId = $vendorId.ToString("B")
 
             Set-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature $currentProfile -VMNetworkAdapter $vmNic
         }
