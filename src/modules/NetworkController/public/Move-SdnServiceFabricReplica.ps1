@@ -72,7 +72,7 @@ function Move-SdnServiceFabricReplica {
         $service = Get-SdnServiceFabricService @sfParams
         $serviceFabricReplicas = Get-SdnServiceFabricReplica @sfParams
         if ($serviceFabricReplicas.Count -eq 1) {
-            "Moving Service Fabric Replicas is only supported when running 3 or more instances of Network Controller" | Trace-Output -Level:Warning
+            "Moving Service Fabric replica is only supported when running 3 or more instances of Network Controller" | Trace-Output -Level:Warning
             return
         }
 
