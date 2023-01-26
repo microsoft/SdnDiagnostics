@@ -13,6 +13,8 @@ function Move-SdnServiceFabricReplica {
         A service fabric service TypeName, such as VSwitchService.
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates.
+    .PARAMETER NodeName
+        Specifies the name of a Service Fabric node. The cmdlet moves the primary replica to the node that you specify.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
@@ -34,6 +36,10 @@ function Move-SdnServiceFabricReplica {
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
         [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [System.String]$NodeName,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -60,27 +66,41 @@ function Move-SdnServiceFabricReplica {
             [void]$sfParams.Add('NetworkController', $NetworkController)
         }
 
+        # check to determine how many replicas are part of the partition for the service
+        # if we only have a single replica, then generate a warning and stop further processing
+        # otherwise locate the primary replica
         $service = Get-SdnServiceFabricService @sfParams
+        $serviceFabricReplicas = Get-SdnServiceFabricReplica @sfParams
+        if ($serviceFabricReplicas.Count -eq 1) {
+            "Moving Service Fabric Replicas is only supported when running 3 or more instances of Network Controller" | Trace-Output -Level:Warning
+            return
+        }
 
-        # update the hash table to now define -Primary switch, which will be used to get the service fabric replica details
-        # this is so we can provide information on-screen to the operator to inform them of the primary replica move
-        [void]$sfParams.Add('Primary', $true)
-        $replicaBefore = Get-SdnServiceFabricReplica @sfParams
+        $replicaBefore = $serviceFabricReplicas | Where-Object {$_.ReplicaRole -ieq 'Primary'}
 
         # regardless if user defined ServiceName or ServiceTypeName, the $service object returned will include the ServiceName property
         # which we will use to perform the move operation with
-        $sb = {
-            Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName
+        if ($NodeName) {
+            $sb = {
+                Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName -NodeName $NodeName
+            }
+        }
+        else {
+            $sb = {
+                Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName
+            }
         }
 
         # no useful information is returned during the move operation, so we will just null the results that are returned back
         if ($NetworkController) {
-            $null = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
+            $null = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential -ErrorAction Stop
         }
         else {
-            $null = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential
+            $null = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential -ErrorAction Stop
         }
 
+        # update the hash table to now define -Primary switch, which will be used to get the service fabric replica primary
+        [void]$sfParams.Add('Primary', $true)
         $replicaAfter = Get-SdnServiceFabricReplica @sfParams
         "Replica for {0} has been moved from {1} to {2}" -f $service.ServiceName, $replicaBefore.NodeName, $replicaAfter.NodeName | Trace-Output
     }
