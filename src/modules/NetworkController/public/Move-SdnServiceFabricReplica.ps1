@@ -69,9 +69,9 @@ function Move-SdnServiceFabricReplica {
         # check to determine how many replicas are part of the partition for the service
         # if we only have a single replica, then generate a warning and stop further processing
         # otherwise locate the primary replica
-        $service = Get-SdnServiceFabricService @sfParams
+        $service = Get-SdnServiceFabricService @sfParams -ErrorAction Stop
         $serviceFabricReplicas = Get-SdnServiceFabricReplica @sfParams
-        if ($serviceFabricReplicas.Count -eq 1) {
+        if ($serviceFabricReplicas.Count -lt 3) {
             "Moving Service Fabric replica is only supported when running 3 or more instances of Network Controller" | Trace-Output -Level:Warning
             return
         }
