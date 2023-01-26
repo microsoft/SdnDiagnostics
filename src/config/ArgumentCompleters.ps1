@@ -172,7 +172,11 @@ Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricReplica' -Parameter
 Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricService' -ParameterName 'ServiceName' -ScriptBlock $scriptBlocks.ServiceFabricServiceName
 Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricService' -ParameterName 'ServiceTypeName' -ScriptBlock $scriptBlocks.ServiceFabricServiceTypeName
 
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition ' -ParameterName 'ServiceName' -ScriptBlock $scriptBlocks.ServiceFabricServiceName
+Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition' -ParameterName 'ServiceName' -ScriptBlock $scriptBlocks.ServiceFabricServiceName
 Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition' -ParameterName 'ServiceTypeName' -ScriptBlock $scriptBlocks.ServiceFabricServiceTypeName
+
+Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceName' -ScriptBlock $scriptBlocks.ServiceFabricServiceName
+Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceTypeName' -ScriptBlock $scriptBlocks.ServiceFabricServiceTypeName
+
 
 
