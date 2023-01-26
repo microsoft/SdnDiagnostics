@@ -10,7 +10,7 @@ Describe 'Get-SdnInfrastructureInfo test' {
   }
   It "All MUX retrieved" {
     $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential
-    $infraInfo.SoftwareLoadBalancer.Count | Should -Be $Global:PesterOnlineTests.ConfigData.NumberOfMux
+    $infraInfo.LoadBalancerMux.Count | Should -Be $Global:PesterOnlineTests.ConfigData.NumberOfMux
   }
   It "All Gateway retrieved" {
     $infraInfo = Get-SdnInfrastructureInfo -NetworkController $Global:PesterOnlineTests.configdata.NcVM -NcRestCredential $Global:PesterOnlineTests.NcRestCredential

@@ -7,7 +7,7 @@ New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
         Gateway = (Get-SdnRoleConfiguration -Role:Gateway)
         NetworkController = (Get-SdnRoleConfiguration -Role:NetworkController)
         Server = (Get-SdnRoleConfiguration -Role:Server)
-        SoftwareLoadBalancer = (Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer)
+        LoadBalancerMux = (Get-SdnRoleConfiguration -Role:LoadBalancerMux)
     }
     Credential = $null
     EnvironmentInfo = @{

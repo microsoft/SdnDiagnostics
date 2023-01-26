@@ -47,7 +47,7 @@ function New-SdnNetworkControllerRestCertificate {
 
     try {
         if ($FabricDetails) {
-            if ($FabricDetails.SoftwareLoadBalancer -or $FabricDetails.Server) {
+            if ($FabricDetails.LoadBalancerMux -or $FabricDetails.Server) {
                 $installToSouthboundDevices = $true
             }
             else {

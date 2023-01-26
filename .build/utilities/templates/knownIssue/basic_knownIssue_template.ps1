@@ -27,7 +27,7 @@ function VERB-NAME {
         [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -43,8 +43,8 @@ function VERB-NAME {
     try {
         "Validating <DESCRIPTION>" | Trace-Output
 
-        $config = Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer
-        
+        $config = Get-SdnRoleConfiguration -Role:LoadBalancerMux
+
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
@@ -57,14 +57,14 @@ function VERB-NAME {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $issueDetected = $false

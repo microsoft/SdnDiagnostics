@@ -31,13 +31,13 @@ function Start-SdnDataCollection {
     .PARAMETER ConvertETW
         Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
     .EXAMPLE
-        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,SoftwareLoadBalancer
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,LoadBalancerMux
     .EXAMPLE
-        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,SoftwareLoadBalancer -IncludeLogs
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,LoadBalancerMux -IncludeLogs
     .EXAMPLE
-        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,Server,SoftwareLoadBalancer -IncludeLogs -FromDate (Get-Date).AddHours(-1) -Credential (Get-Credential)
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,Server,LoadBalancerMux -IncludeLogs -FromDate (Get-Date).AddHours(-1) -Credential (Get-Credential)
     .EXAMPLE
-        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role SoftwareLoadBalancer -IncludeLogs -IncludeNetView
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role LoadBalancerMux -IncludeLogs -IncludeNetView
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
@@ -148,7 +148,7 @@ function Start-SdnDataCollection {
             }
 
             'Computer' {
-                $keyLookup= @('Gateway','NetworkController','Server','SoftwareLoadBalancer')
+                $keyLookup= @('Gateway','NetworkController','Server','LoadBalancerMux')
                 foreach ($value in $ComputerName) {
                     foreach ($key in $sdnFabricDetails.Keys) {
                         if ($key -iin $keyLookup) {
@@ -234,7 +234,7 @@ function Start-SdnDataCollection {
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapter' -FileType csv
                 }
 
-                'SoftwareLoadBalancer' {
+                'LoadBalancerMux' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $using:tempDirectory.FullName
                     } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
