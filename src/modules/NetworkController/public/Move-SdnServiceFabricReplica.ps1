@@ -82,7 +82,7 @@ function Move-SdnServiceFabricReplica {
         # which we will use to perform the move operation with
         if ($NodeName) {
             $sb = {
-                Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName -NodeName $NodeName
+                Move-ServiceFabricPrimaryReplica -ServiceName $using:service.ServiceName -NodeName $using:NodeName
             }
         }
         else {
