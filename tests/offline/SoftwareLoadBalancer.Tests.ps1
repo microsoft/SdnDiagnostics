@@ -1,4 +1,4 @@
-Describe 'SoftwareLoadBalancer test' { 
+Describe 'LoadBalancerMux test' {
     BeforeAll {
         Mock -ModuleName SdnDiagnostics Get-SdnResource {
             if(![string]::IsNullOrEmpty($ResourceRef)){

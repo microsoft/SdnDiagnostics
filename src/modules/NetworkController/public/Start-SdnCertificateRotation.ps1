@@ -335,8 +335,8 @@ function Start-SdnCertificateRotation {
             if ($selfSignedRestCertFile) {
                 $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force
                 $southBoundNodes = @()
-                if ($null -ne $sdnFabricDetails.SoftwareLoadBalancer) {
-                    $southBoundNodes += $sdnFabricDetails.SoftwareLoadBalancer
+                if ($null -ne $sdnFabricDetails.LoadBalancerMux) {
+                    $southBoundNodes += $sdnFabricDetails.LoadBalancerMux
                 }
                 if ($null -ne $sdnFabricDetails.Server) {
                     $southBoundNodes += $sdnFabricDetails.Server

@@ -43,9 +43,9 @@ $scriptBlocks = @{
         return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
     }
 
-    SoftwareLoadBalancerNodes = {
+    LoadBalancerMuxNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)
