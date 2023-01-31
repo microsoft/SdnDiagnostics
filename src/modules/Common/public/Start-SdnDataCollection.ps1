@@ -277,6 +277,11 @@ function Start-SdnDataCollection {
                     } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
                 }
 
+                if ($group.Name -ieq 'Server') {
+                    Get-SdnAuditLog -NcUri $NcUri.AbsoluteUri -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
+                    -ComputerName $dataNodes -Credential $Credential
+                }
+
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
                     Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW $using:ConvertETW
