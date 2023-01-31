@@ -50,7 +50,7 @@ function Get-SdnAuditLog {
         # check to see that auditing has been enabled
         $auditSettingsConfig = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource 'AuditingSettingsConfig' -ApiVersion $currentRestVersion -Credential $NcRestCredential
         if ([string]::IsNullOrEmpty($auditSettingsConfig.properties.outputDirectory)) {
-            "Audit logging is not enabled" | Trace-Output -Level:Warning
+            "Audit logging is not enabled" | Trace-Output
             return
         }
         else {
