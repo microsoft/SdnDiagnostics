@@ -4,5 +4,5 @@
 enum NcManagedRoles {
     Gateway
     Server
-    SoftwareLoadBalancer
+    LoadBalancerMux
 }

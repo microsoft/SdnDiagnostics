@@ -36,8 +36,8 @@ function Copy-CertificateToFabric {
     # then define the variables to know which nodes must be updated
     if ($PSCmdlet.ParameterSetName -ieq 'NetworkControllerRest' -and $InstallToSouthboundDevices) {
         $southBoundNodes = @()
-        if ($null -ne $FabricDetails.SoftwareLoadBalancer) {
-            $southBoundNodes += $FabricDetails.SoftwareLoadBalancer
+        if ($null -ne $FabricDetails.LoadBalancerMux) {
+            $southBoundNodes += $FabricDetails.LoadBalancerMux
         }
 
         if ($null -ne $FabricDetails.Server) {

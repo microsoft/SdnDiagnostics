@@ -46,7 +46,7 @@ When creating a health validation test, ensure you:
 
 To help ensure consistency, leverage `.build\utilities\create-health-function.ps1` to help create your functions. This will create a `.ps1` file off the specified template and place into the appropriate module under `src\health`. Example:
 ```powershell
-.\create-health-function.ps1 -FunctionName 'Test-SdnLoadBalancerMuxOnline' -Module SoftwareLoadBalancer -Template basic_health_template.ps1
+.\create-health-function.ps1 -FunctionName 'Test-SdnLoadBalancerMuxOnline' -Module LoadBalancerMux -Template basic_health_template.ps1
 ```
 - You only need to specify the `FunctionName` property. The other properties leverage ArgumentCompleters and will allow you to tab complete to pick a choice.
 
