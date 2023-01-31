@@ -30,7 +30,7 @@ function Copy-FileToRemoteComputerSMB {
         [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
+        [System.System]$Destination = (Get-WorkingDirectory),
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [System.Management.Automation.PSCredential]
@@ -44,28 +44,51 @@ function Copy-FileToRemoteComputerSMB {
         [Switch]$Force
     )
 
-    # set this to suppress the information status bar from being displayed
-    $Global:ProgressPreference = 'SilentlyContinue'
-
-    $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
-
-    # set this back to default now that Test-NetConnection has completed
-    $Global:ProgressPreference = 'Continue'
-
-    if (-NOT ($testNetConnection)) {
-        $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
-        throw New-Object System.Exception($msg)
-    }
-
-    $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
-    foreach ($subPath in $Path) {
-        "Copying {0} to {1}" -f $subPath, $remotePath | Trace-Output
-
-        if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
-            Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential -ErrorAction:Continue
+    begin {
+        $params = @{
+            'Path'          = $null
+            'Destination'   = $null
+            'Force'         = $Force.IsPresent
+            'Recurse'       = $Recurse.IsPresent
         }
-        else {
-            Copy-Item -Path $subPath -Destination $remotePath -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $params.Add('Credential', $Credential)
+        }
+
+        # set this to suppress the information status bar from being displayed
+        $Global:ProgressPreference = 'SilentlyContinue'
+        $testNetConnection = Test-NetConnection -ComputerName $ComputerName -Port 445 -InformationLevel Quiet
+        $Global:ProgressPreference = 'Continue'
+
+        if (-NOT ($testNetConnection)) {
+            $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
+            throw New-Object System.Exception($msg)
+        }
+
+        $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination
+        $params.Destination = $remotePath
+    }
+    process {
+        foreach ($subPath in $Path) {
+            $params.Path = $subPath
+
+            try {
+                "Copying {0} to {1}" -f $params.Path, $params.Destination | Trace-Output
+                Copy-Item @params
+            }
+            catch [System.IO.IOException] {
+                if ($_.Exception.Message -ilike "*used by another process*") {
+                    "{0}\{1} is in use by another process" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
+                    continue
+                }
+
+                if ($_.Exception.Message -ilike "*already exists*") {
+                    "{0}\{1} already exists" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
+                    continue
+                }
+
+                $_ | Trace-Output -Level:Exception
+            }
         }
     }
 }
