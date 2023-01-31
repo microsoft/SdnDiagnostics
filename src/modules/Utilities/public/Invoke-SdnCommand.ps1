@@ -15,7 +15,7 @@ function Invoke-SdnCommand {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String]$ComputerName,
+        [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $true)]
         [ScriptBlock]$ScriptBlock,

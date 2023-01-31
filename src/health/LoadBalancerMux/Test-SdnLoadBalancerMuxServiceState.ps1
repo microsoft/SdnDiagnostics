@@ -16,11 +16,11 @@ function Test-SdnLoadBalancerMuxServiceState {
     .EXAMPLE
         PS> Test-SdnLoadBalancerMuxServiceState -ComputerName 'SLB01','SLB02' -Credential (Get-Credential)
     #>
-    
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.SoftwareLoadBalancer,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -29,7 +29,7 @@ function Test-SdnLoadBalancerMuxServiceState {
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:SoftwareLoadBalancer
+        $config = Get-SdnRoleConfiguration -Role:LoadBalancerMux
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
         if($null -eq $ComputerName){
@@ -40,7 +40,7 @@ function Test-SdnLoadBalancerMuxServiceState {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $status = 'Success'
