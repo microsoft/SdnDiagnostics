@@ -10,9 +10,9 @@ function Get-SdnAuditLog {
     .PARAMETER NCRestCredential
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     .PARAMETER ComputerName
-         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote compute
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote compute
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
