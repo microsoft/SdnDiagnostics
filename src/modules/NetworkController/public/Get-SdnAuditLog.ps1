@@ -1,5 +1,20 @@
 
 function Get-SdnAuditLog {
+    <#
+    .SYNOPSIS
+        Collects the audit logs for Network Security Groups (NSG) from the hypervisor hosts
+    .PARAMETER OutputDirectory
+        Directory the results will be saved to. If ommitted, will default to the current working directory.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER NCRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER ComputerName
+         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote compute
+	.PARAMETER Credential
+		Specifies a user account that has permission to perform this action. The default is the current user.
+    #>
+
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
@@ -33,7 +48,7 @@ function Get-SdnAuditLog {
         }
 
         # check to see that auditing has been enabled
-        $auditSettingsConfig = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource 'AuditingSettingsConfig' -ApiVersion v4 -Credential $NcRestCredential
+        $auditSettingsConfig = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource 'AuditingSettingsConfig' -ApiVersion $currentRestVersion -Credential $NcRestCredential
         if ([string]::IsNullOrEmpty($auditSettingsConfig.properties.outputDirectory)) {
             "Audit logging is not enabled" | Trace-Output -Level:Warning
             return
@@ -45,8 +60,8 @@ function Get-SdnAuditLog {
         # if $ComputerName was not specified, then attempt to locate the servers within the SDN fabric
         # only add the servers where auditingEnabled has been configured as 'Firewall'
         if ($null -eq $ComputerName) {
-            $sdnServers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
-            $ComputerName = $sdnServers | Where-Object {$_.properties.auditingEnabled -ieq 'Firewall'}
+            $sdnServers = Get-SdnResource -Resource Servers -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ApiVersion $currentRestVersion | Where-Object {$_.properties.auditingEnabled -ieq 'Firewall'}
+            $ComputerName = ($sdnServers.properties.connections | Where-Object {$_.credentialType -ieq 'UsernamePassword'}).managementAddresses
         }
     }
 
@@ -54,11 +69,7 @@ function Get-SdnAuditLog {
         $ComputerName | ForEach-Object {
             "Collecting audit logs from {0}" -f $_ | Trace-Output
             $outputDir = Join-Path -Path $OutputDirectory -ChildPath $_.ToLower()
-            Copy-FileFromRemoteComputer -ComputerName $_ -Credential $Credential -Path $auditSettingsConfig.properties.outputDirectory -Destination $outputDir
+            Copy-FileFromRemoteComputer -ComputerName $_ -Credential $Credential -Path $auditSettingsConfig.properties.outputDirectory -Destination $outputDir -Recurse -Force
         }
-    }
-
-    end {
-        # do nothing
     }
 }
