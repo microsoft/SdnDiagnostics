@@ -60,7 +60,9 @@ function Get-SdnAuditLog {
         # if $ComputerName was not specified, then attempt to locate the servers within the SDN fabric
         # only add the servers where auditingEnabled has been configured as 'Firewall'
         if ($null -eq $ComputerName) {
-            $sdnServers = Get-SdnResource -Resource Servers -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ApiVersion $currentRestVersion | Where-Object {$_.properties.auditingEnabled -ieq 'Firewall'}
+            $sdnServers = Get-SdnResource -Resource Servers -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ApiVersion $currentRestVersion `
+            | Where-Object {$_.properties.auditingEnabled -ieq 'Firewall'}
+
             $ComputerName = ($sdnServers.properties.connections | Where-Object {$_.credentialType -ieq 'UsernamePassword'}).managementAddresses
         }
     }
