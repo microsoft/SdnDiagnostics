@@ -30,7 +30,7 @@ function Copy-FileToRemoteComputerSMB {
         [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
-        [System.System]$Destination = (Get-WorkingDirectory),
+        [System.String]$Destination = (Get-WorkingDirectory),
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [System.Management.Automation.PSCredential]
