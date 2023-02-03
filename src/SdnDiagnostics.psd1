@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'SdnDiagnostics.psm1'
+    # RootModule = ''
 
     # Author of this module
     Author = 'Adam Rudell'
@@ -26,7 +26,14 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @()
+    NestedModules = @(
+        'modules\SdnDiag.Common\SdnDiag.Common.psd1'
+        'modules\SdnDiag.Fabric.Health\SdnDiag.Fabric.Health.psm1'
+        'modules\SdnDiag.Gateway\SdnDiag.Gateway.psm1'
+        'modules\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer.psm1'
+        'modules\SdnDiag.NetworkController\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.Server\SdnDiag.Server.psm1'
+    )
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()

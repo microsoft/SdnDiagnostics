@@ -24,10 +24,10 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
-        'SdnDiag.Health.Gateway.psm1'
-        'SdnDiag.Health.LoadBalancerMux.psm1'
-        'SdnDiag.Health.NetworkController.psm1'
-        'SdnDiag.Health.Server.psm1'
+        'SdnDiag.Fabric.Health.Gateway.psm1'
+        'SdnDiag.Fabric.Health.LoadBalancerMux.psm1'
+        'SdnDiag.Fabric.Health.NetworkController.psm1'
+        'SdnDiag.Fabric.Health.Server.psm1'
     )
 
     # Modules that must be imported into the global environment prior to importing this module
@@ -37,7 +37,10 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Get-SdnFabricInfrastructureHealth'
+        'Debug-SdnFabricInfrastructure'
+    )
 
     # Variables to export from this module
     VariablesToExport = @()

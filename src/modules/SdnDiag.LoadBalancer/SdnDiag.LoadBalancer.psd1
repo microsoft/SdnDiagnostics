@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'SdnCommon.psm1'
+    RootModule = 'SdnDiag.LoadBalancer.psm1'
 
     # Author of this module
     Author = 'Adam Rudell'
@@ -24,9 +24,7 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
-        'SdnDiag.NetworkController.RotateCert.psm1'
-        'SdnDiag.NetworkController.ServiceFabric.psm1'
-        ''
+        'SdnDiag.LoadBalancer.Mux.psm1'
     )
 
     # Modules that must be imported into the global environment prior to importing this module

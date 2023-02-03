@@ -35,20 +35,7 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @(
-        'Export-RegistryKeyConfigDetails'
-        'Get-GeneralConfigurationState'
-        'Get-SdnRole'
-        'Get-SdnRoleConfiguration'
-        'Get-SdnCertificate'
-        'Get-SdnDiagnosticLog'
-        'Get-SdnEventLog'
-        'Import-SdnCertificate'
-        'Invoke-SdnGetNetView'
-        'New-SdnCertificate'
-        'Set-SdnCertificateAcl'
-        'Start-SdnDataCollection'
-    )
+    FunctionsToExport = @()
 
     # Variables to export from this module
     VariablesToExport = @()
