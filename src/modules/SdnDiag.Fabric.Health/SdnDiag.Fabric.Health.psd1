@@ -40,6 +40,7 @@
     FunctionsToExport = @(
         'Get-SdnFabricInfrastructureHealth'
         'Debug-SdnFabricInfrastructure'
+        'Test-SdnGatewayConfigState'
     )
 
     # Variables to export from this module

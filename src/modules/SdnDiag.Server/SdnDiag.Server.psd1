@@ -35,7 +35,27 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Get-SdnNetAdapterEncapOverheadConfig'
+        'Get-SdnNetAdapterRdmaConfig'
+        'Get-SdnOvsdbAddressMapping'
+        'Get-SdnOvsdbFirewallRuleTable'
+        'Get-SdnOvsdbGlobalTable'
+        'Get-SdnOvsdbPhysicalPortTable'
+        'Get-SdnOvsdbUcastMacRemoteTable'
+        'Get-SdnProviderAddress'
+        'Get-SdnServerConfigurationState'
+        'Get-SdnVfpPortGroup'
+        'Get-SdnVfpPortLayer'
+        'Get-SdnVfpPortRule'
+        'Get-SdnVfpPortState'
+        'Get-SdnVfpVmSwitchPort'
+        'Get-SdnVMNetworkAdapter'
+        'Get-SdnVMNetworkAdapterPortProfile'
+        'Set-SdnVMNetworkAdapterPortProfile'
+        'Show-SdnVfpPortConfig'
+        'Test-SdnProviderAddressConnectivity'
+    )
 
     # Variables to export from this module
     VariablesToExport = @()
