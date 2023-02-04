@@ -27,7 +27,8 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
-        'modules\SdnDiag.Common\SdnDiag.Common.psd1'
+        'modules\ArgumentCompleters.psm1'
+        'modules\SdnDiag.Common\SdnDiag.Common.psm1'
         'modules\SdnDiag.Fabric.Health\SdnDiag.Fabric.Health.psm1'
         'modules\SdnDiag.Gateway\SdnDiag.Gateway.psm1'
         'modules\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer.psm1'
