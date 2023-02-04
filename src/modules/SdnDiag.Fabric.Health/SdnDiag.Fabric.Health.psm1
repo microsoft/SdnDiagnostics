@@ -27,7 +27,7 @@ function Get-SdnFabricInfrastructureHealth {
 
         if ($PSBoundParameters.ContainsKey('Name')) {
             if ($cacheResults) {
-                return $cacheResults | Where-Object {$_.Name -eq $Name}
+                return $cacheResults | Where-Object { $_.Name -eq $Name }
             }
         }
 
@@ -71,20 +71,20 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false)]
         [ArgumentCompleter({
-            $possibleValues = Get-ChildItem -Path $PSScriptRoot -Directory | Select-Object -ExpandProperty Name
-            return $possibleValues | ForEach-Object { $_ }
-        })]
+                $possibleValues = Get-ChildItem -Path $PSScriptRoot -Directory | Select-Object -ExpandProperty Name
+                return $possibleValues | ForEach-Object { $_ }
+            })]
         [System.String]$Role
     )
 
     try {
         $arrayList = [System.Collections.ArrayList]::new()
 
-        if($PSBoundParameters.ContainsKey('Credential')){
+        if ($PSBoundParameters.ContainsKey('Credential')) {
             $Global:SdnDiagnostics.Credential = $Credential
         }
 
-        if($PSBoundParameters.ContainsKey('NcRestCredential')){
+        if ($PSBoundParameters.ContainsKey('NcRestCredential')) {
             $Global:SdnDiagnostics.NcRestCredential = $NcRestCredential
         }
 
@@ -98,32 +98,32 @@ function Debug-SdnFabricInfrastructure {
         }
 
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        if($null -eq $environmentInfo){
+        if ($null -eq $environmentInfo) {
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
         }
 
-        if($PSBoundParameters.ContainsKey('Role')){
-            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\$Role" -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-*"}
+        if ($PSBoundParameters.ContainsKey('Role')) {
+            $healthValidationScripts = Get-ChildItem -Path "$PSScriptRoot\$Role" -Recurse | Where-Object { $_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-*" }
         }
         else {
-            $healthValidationScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object {$_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-*"}
+            $healthValidationScripts = Get-ChildItem -Path $PSScriptRoot -Recurse | Where-Object { $_.Extension -eq '.ps1' -and $_.BaseName -ilike "Test-*" }
         }
 
-        if($null -eq $healthValidationScripts){
+        if ($null -eq $healthValidationScripts) {
             throw New-Object System.NullReferenceException("No health validations returned")
         }
 
         "Located {0} health validation scripts" -f $healthValidationScripts.Count | Trace-Output -Level:Verbose
-        foreach($script in $healthValidationScripts){
+        foreach ($script in $healthValidationScripts) {
             $functions = Get-FunctionFromFile -FilePath $script.FullName -Verb 'Test'
-            if($functions){
-                foreach($function in $functions){
+            if ($functions) {
+                foreach ($function in $functions) {
                     "Executing {0}" -f $function | Trace-Output -Level:Verbose
                     $result = Invoke-Expression -Command $function
 
                     $object = [PSCustomObject]@{
-                        Name = $function
-                        Status = $result.Status
+                        Name       = $function
+                        Status     = $result.Status
                         Properties = $result.Properties
                     }
 

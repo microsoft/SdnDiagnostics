@@ -31,13 +31,13 @@ function Test-SdnGatewayConfigState {
     try {
         "Validating configuration and provisioning state of Gateways" | Trace-Output
 
-        if($null -eq $NcUri){
+        if ($null -eq $NcUri) {
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if NcRestCredential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
-            if($Global:SdnDiagnostics.NcRestCredential){
+        if (!$PSBoundParameters.ContainsKey('NcRestCredential')) {
+            if ($Global:SdnDiagnostics.NcRestCredential) {
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
             }
         }
@@ -46,17 +46,17 @@ function Test-SdnGatewayConfigState {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $gateways = Get-SdnGateway -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
-        foreach($object in $gateways){
-            if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
-                if($object.properties.configurationState.status -ieq 'Uninitialized'){
+        foreach ($object in $gateways) {
+            if ($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded') {
+                if ($object.properties.configurationState.status -ieq 'Uninitialized') {
                     # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                 }
                 else {
                     $status = 'Failure'
 
                     $details = [PSCustomObject]@{
-                        resourceRef = $object.resourceRef
-                        provisioningState = $object.properties.provisioningState
+                        resourceRef        = $object.resourceRef
+                        provisioningState  = $object.properties.provisioningState
                         configurationState = $object.properties.configurationState
                     }
 
@@ -73,7 +73,7 @@ function Test-SdnGatewayConfigState {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }
@@ -113,13 +113,13 @@ function Test-SdnGatewayServiceState {
         $config = Get-SdnRoleConfiguration -Role:Gateway
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
-        if($null -eq $ComputerName){
+        if ($null -eq $ComputerName) {
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.Credential){
+        if (!$PSBoundParameters.ContainsKey('Credential')) {
+            if ($Global:SdnDiagnostics.Credential) {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
@@ -129,9 +129,9 @@ function Test-SdnGatewayServiceState {
 
         $scriptBlock = {
             $serviceArrayList = [System.Collections.ArrayList]::new()
-            foreach($service in $($using:config.properties.services.name)){
+            foreach ($service in $($using:config.properties.services.name)) {
                 $result = Get-Service -Name $service -ErrorAction SilentlyContinue
-                if($result){
+                if ($result) {
                     [void]$serviceArrayList.Add($result)
                 }
             }
@@ -140,8 +140,8 @@ function Test-SdnGatewayServiceState {
         }
 
         $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
-        foreach($result in $serviceStateResults){
-            if($result.Status -ine 'Running'){
+        foreach ($result in $serviceStateResults) {
+            if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
                 $status = 'Failure'
 
@@ -153,7 +153,7 @@ function Test-SdnGatewayServiceState {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }

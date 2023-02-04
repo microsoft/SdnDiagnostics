@@ -32,13 +32,13 @@ function Test-NetworkControllerServiceState {
         $config = Get-SdnRoleConfiguration -Role:NetworkController
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
-        if($null -eq $ComputerName){
+        if ($null -eq $ComputerName) {
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.Credential){
+        if (!$PSBoundParameters.ContainsKey('Credential')) {
+            if ($Global:SdnDiagnostics.Credential) {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
@@ -48,9 +48,9 @@ function Test-NetworkControllerServiceState {
 
         $scriptBlock = {
             $serviceArrayList = [System.Collections.ArrayList]::new()
-            foreach($service in $($using:config.properties.services.name)){
+            foreach ($service in $($using:config.properties.services.name)) {
                 $result = Get-Service -Name $service -ErrorAction SilentlyContinue
-                if($result){
+                if ($result) {
                     [void]$serviceArrayList.Add($result)
                 }
             }
@@ -59,8 +59,8 @@ function Test-NetworkControllerServiceState {
         }
 
         $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
-        foreach($result in $serviceStateResults){
-            if($result.Status -ine 'Running'){
+        foreach ($result in $serviceStateResults) {
+            if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
                 $status = 'Failure'
 
@@ -72,7 +72,7 @@ function Test-NetworkControllerServiceState {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }

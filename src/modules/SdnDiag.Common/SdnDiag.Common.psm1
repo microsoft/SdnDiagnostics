@@ -20,11 +20,11 @@ function Export-RegistryKeyConfigDetails {
 
     try {
         # create the OutputDirectory if does not already exist
-        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
+        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
-        foreach($regKeyPath in $Path){
+        foreach ($regKeyPath in $Path) {
             "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output -Level:Verbose
 
             $regKeyDirectories = @()
@@ -32,8 +32,8 @@ function Export-RegistryKeyConfigDetails {
             $regKeyDirectories += Get-ChildItem -Path $regKeyPath -Recurse -ErrorAction SilentlyContinue
             $regKeyDirectories = $regKeyDirectories | Sort-Object -Unique
 
-            [System.String]$filePath = "{0}\Registry_{1}.txt" -f $OutputDirectory.FullName, $($regKeyPath.Replace(':','').Replace('\','_'))
-            foreach($obj in $RegKeyDirectories){
+            [System.String]$filePath = "{0}\Registry_{1}.txt" -f $OutputDirectory.FullName, $($regKeyPath.Replace(':', '').Replace('\', '_'))
+            foreach ($obj in $RegKeyDirectories) {
                 "Scanning {0}" -f $obj.PsPath | Trace-Output -Level:Verbose
                 try {
                     $properties = Get-ItemProperty -Path $obj.PSPath -ErrorAction Stop
@@ -46,9 +46,9 @@ function Export-RegistryKeyConfigDetails {
                 $properties | Out-File -FilePath $filePath -Encoding utf8 -Append
 
                 # if the registry key item is referencing a dll, then lets get the dll properties so we can see the version and file information
-                if($properties.Path -like "*.dll" -or $properties.Path -like "*.exe"){
+                if ($properties.Path -like "*.dll" -or $properties.Path -like "*.exe") {
                     "Getting file properties for {0}" -f $properties.Path | Trace-Output -Level:Verbose
-                    [System.String]$fileName = "FileInfo_{0}" -f $($properties.Path.Replace(':','').Replace('\','_').Replace('.','_'))
+                    [System.String]$fileName = "FileInfo_{0}" -f $($properties.Path.Replace(':', '').Replace('\', '_').Replace('.', '_'))
                     Get-Item -Path $properties.Path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name $fileName -FileType txt -Format List
                 }
             }
@@ -83,8 +83,8 @@ function Get-GeneralConfigurationState {
 
         # Gather general configuration details from all nodes
         "Gathering network and system properties" | Trace-Output -Level:Verbose
-        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName}} `
-            | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetTCPConnection' -FileType csv
+        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n = "ProcessName"; e = { (Get-Process -Id $_.OwningProcess -ErrorAction SilentlyContinue).ProcessName } } `
+        | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetTCPConnection' -FileType csv
         Get-Service | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Service' -FileType txt -Format List
         Get-Process | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Process' -FileType txt -Format List
         Get-Volume | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Volume' -FileType txt -Format Table
@@ -97,24 +97,24 @@ function Get-GeneralConfigurationState {
         "Gathering network adapter properties" | Trace-Output -Level:Verbose
         Get-NetAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format Table
         $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
-        foreach($adapter in Get-NetAdapter){
+        foreach ($adapter in Get-NetAdapter) {
             Get-NetAdapter -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapter' -FileType txt -Format List
             Get-NetAdapterAdvancedProperty -Name $adapter.Name `
-                | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
+            | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
         }
 
         # Gather DNS client settings
         "Gathering DNS client properties" | Trace-Output -Level:Verbose
         $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'DnsClient') -ItemType Directory -Force
         $dnsCommands = Get-Command -Verb Get -Module DnsClient
-        foreach($cmd in $dnsCommands.Name){
+        foreach ($cmd in $dnsCommands.Name) {
             Invoke-Expression -Command $cmd -ErrorAction SilentlyContinue | Export-ObjectToFile -FilePath $outputDir.FullName -Name $cmd.ToString() -FileType txt -Format List
         }
 
         # gather the certificates configured on the system
-        $certificatePaths = @('Cert:\LocalMachine\My','Cert:\LocalMachine\Root')
+        $certificatePaths = @('Cert:\LocalMachine\My', 'Cert:\LocalMachine\Root')
         foreach ($path in $certificatePaths) {
-            $fileName = $path.Replace(':','').Replace('\','_')
+            $fileName = $path.Replace(':', '').Replace('\', '_')
             Get-SdnCertificate -Path $path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name "Get-SdnCertificate_$($fileName)" -FileType csv
         }
 
@@ -169,7 +169,7 @@ function Get-SdnRole {
 
     # enumerate the objects for each of the available SDN roles to find a match
     # once match is found, return the role name as string back to calling function
-    foreach ($role in ($Global:SdnDiagnostics.EnvironmentInfo.Keys | Where-Object {$_ -iin $Global:SdnDiagnostics.Config.Keys})) {
+    foreach ($role in ($Global:SdnDiagnostics.EnvironmentInfo.Keys | Where-Object { $_ -iin $Global:SdnDiagnostics.Config.Keys })) {
         foreach ($object in $Global:SdnDiagnostics.EnvironmentInfo[$role]) {
             if ($object -ieq $computerNameNetBIOS -or $object -ieq $computerNameFQDN) {
                 return $role.ToString()
@@ -208,12 +208,12 @@ function Get-SdnCertificate {
         [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
         [ValidateScript({
-            if ($_ -notlike "cert:\*") {
-                throw New-Object System.FormatException("Invalid path")
-            }
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
 
-            return $true
-        })]
+                return $true
+            })]
         [System.String]$Path,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
@@ -226,14 +226,14 @@ function Get-SdnCertificate {
     )
 
     try {
-        $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
+        $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object { $_.PSISContainer -eq $false } -ErrorAction Stop
 
         switch ($PSCmdlet.ParameterSetName) {
             'Subject' {
-                $filteredCert = $certificateList | Where-Object {$_.Subject -ieq $Subject}
+                $filteredCert = $certificateList | Where-Object { $_.Subject -ieq $Subject }
             }
             'Thumbprint' {
-                $filteredCert = $certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+                $filteredCert = $certificateList | Where-Object { $_.Thumbprint -ieq $Thumbprint }
             }
             default {
                 return $certificateList
@@ -291,7 +291,7 @@ function Get-SdnDiagnosticLog {
         "Collect diagnostic logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
 
         $logFiles = Get-ChildItem -Path $logDir.FullName -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $FromDate }
-        if($null -eq $logFiles){
+        if ($null -eq $logFiles) {
             "No log files found under {0} between {1} and {2} UTC." -f $logDir.FullName, $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output -Level:Warning
             return
         }
@@ -440,8 +440,8 @@ function Import-SdnCertificate {
     $fileInfo = Get-Item -Path $FilePath
 
     $certObject = @{
-        SelfSigned = $false
-        CertInfo = $null
+        SelfSigned  = $false
+        CertInfo    = $null
         CerFileInfo = $null
     }
 
@@ -452,7 +452,7 @@ function Import-SdnCertificate {
         $pfxData = Get-PfxCertificate -FilePath $fileInfo.FullName
     }
 
-    $certExists = Get-ChildItem -Path $CertStore | Where-Object {$_.Thumbprint -ieq $pfxData.Thumbprint}
+    $certExists = Get-ChildItem -Path $CertStore | Where-Object { $_.Thumbprint -ieq $pfxData.Thumbprint }
     if ($certExists) {
         "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output -Level:Verbose
         $certObject.CertInfo = $certExists
@@ -479,8 +479,8 @@ function Import-SdnCertificate {
         # if it is not, then we want to check the root store to see if this certificate has already been installed
         # and finally if does not exist, then export the certificate from current store and import into trusted root store
         if ($CertStore -ine $trustedRootStore) {
-            $selfSignedCerExists = Get-ChildItem -Path $trustedRootStore | Where-Object {$_.Thumbprint -ieq $certObject.CertInfo.Thumbprint}
-            [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=','_')
+            $selfSignedCerExists = Get-ChildItem -Path $trustedRootStore | Where-Object { $_.Thumbprint -ieq $certObject.CertInfo.Thumbprint }
+            [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=', '_')
             $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
             $certObject.CerFileInfo = $selfSignedCer
 
@@ -598,12 +598,12 @@ function New-SdnCertificate {
 
         [Parameter(Mandatory = $false)]
         [ValidateScript({
-            if ($_ -notlike "cert:\*") {
-                throw New-Object System.FormatException("Invalid path")
-            }
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
 
-            return $true
-        })]
+                return $true
+            })]
         [System.String]$CertStoreLocation = 'Cert:\LocalMachine\My',
 
         [Parameter(Mandatory = $true)]
@@ -618,7 +618,7 @@ function New-SdnCertificate {
 
         if ($selfSignedCert) {
             "Successfully generated self signed certificate`n`tSubject: {0}`n`tThumbprint: {1}`n`tNotAfter: {2}" `
-            -f $selfSignedCert.Subject, $selfSignedCert.Thumbprint, $selfSignedCert.NotAfter | Trace-Output
+                -f $selfSignedCert.Subject, $selfSignedCert.Thumbprint, $selfSignedCert.NotAfter | Trace-Output
 
             Set-SdnCertificateAcl -Path $CertStoreLocation -Thumbprint $selfSignedCert.Thumbprint
         }
@@ -649,12 +649,12 @@ function Set-SdnCertificateAcl {
         [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
         [ValidateScript({
-            if ($_ -notlike "cert:\*") {
-                throw New-Object System.FormatException("Invalid path")
-            }
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
 
-            return $true
-        })]
+                return $true
+            })]
         [System.String]$Path,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
@@ -686,7 +686,7 @@ function Set-SdnCertificateAcl {
         }
 
         if ($certificate.HasPrivateKey) {
-            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\*" | Where-Object {$_.Name -ieq $($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName)}
+            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\*" | Where-Object { $_.Name -ieq $($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName) }
             $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
             if ($privateKeyAcl.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
                 $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"

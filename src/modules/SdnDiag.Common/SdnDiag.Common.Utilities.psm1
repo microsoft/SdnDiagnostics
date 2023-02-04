@@ -63,12 +63,12 @@ function Confirm-RequiredFeaturesInstalled {
 
     try {
 
-        if($null -eq $Name){
+        if ($null -eq $Name) {
             return $true
         }
         else {
-            foreach($obj in $Name){
-                if(!(Get-WindowsFeature -Name $obj).Installed){
+            foreach ($obj in $Name) {
+                if (!(Get-WindowsFeature -Name $obj).Installed) {
                     return $false
                 }
             }
@@ -91,12 +91,12 @@ function Confirm-RequiredModulesLoaded {
 
     try {
 
-        if($null -eq $Name){
+        if ($null -eq $Name) {
             return $true
         }
         else {
-            foreach($obj in $Name){
-                if(!(Get-Module -Name $obj)){
+            foreach ($obj in $Name) {
+                if (!(Get-Module -Name $obj)) {
                     Import-Module -Name $obj -Force -ErrorAction Stop
                 }
             }
@@ -141,7 +141,7 @@ function Convert-FileSystemPathToUNC {
         [System.String]$Path
     )
 
-    $newPath = $path.Replace([System.IO.Path]::GetPathRoot($Path),[System.IO.Path]::GetPathRoot($Path).Replace(':','$'))
+    $newPath = $path.Replace([System.IO.Path]::GetPathRoot($Path), [System.IO.Path]::GetPathRoot($Path).Replace(':', '$'))
     return ("\\{0}\{1}" -f $ComputerName, $newPath)
 }
 
@@ -269,10 +269,10 @@ function Copy-FileFromRemoteComputerSMB {
 
     begin {
         $params = @{
-            'Path'          = $null
-            'Destination'   = $Destination.FullName
-            'Force'         = $Force.IsPresent
-            'Recurse'       = $Recurse.IsPresent
+            'Path'        = $null
+            'Destination' = $Destination.FullName
+            'Force'       = $Force.IsPresent
+            'Recurse'     = $Recurse.IsPresent
         }
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
             $params.Add('Credential', $Credential)
@@ -505,10 +505,10 @@ function Copy-FileToRemoteComputerSMB {
 
     begin {
         $params = @{
-            'Path'          = $null
-            'Destination'   = $null
-            'Force'         = $Force.IsPresent
-            'Recurse'       = $Recurse.IsPresent
+            'Path'        = $null
+            'Destination' = $null
+            'Force'       = $Force.IsPresent
+            'Recurse'     = $Recurse.IsPresent
         }
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
             $params.Add('Credential', $Credential)
@@ -629,11 +629,11 @@ function Export-ObjectToFile {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet("json","csv","txt")]
+        [ValidateSet("json", "csv", "txt")]
         [System.String]$FileType = "json",
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet("Table","List")]
+        [ValidateSet("Table", "List")]
         [System.String]$Format
     )
 
@@ -653,7 +653,7 @@ function Export-ObjectToFile {
     end {
         try {
             # build the file directory and name that will be used to export the object out
-            if($Prefix){
+            if ($Prefix) {
                 [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
             }
             else {
@@ -663,13 +663,13 @@ function Export-ObjectToFile {
             [System.IO.FileInfo]$fileName = $formattedFileName
 
             # create the parent directory structure if does not already exist
-            if(!(Test-Path -Path $fileName.Directory -PathType Container)){
+            if (!(Test-Path -Path $fileName.Directory -PathType Container)) {
                 "Creating directory {0}" -f $fileName.Directory | Trace-Output -Level:Verbose
                 $null = New-Item -Path $fileName.Directory -ItemType Directory
             }
 
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
-            switch($FileType){
+            switch ($FileType) {
                 "json" {
                     $arrayList | ConvertTo-Json -Depth 10 | Out-File -FilePath $fileName
                 }
@@ -677,7 +677,7 @@ function Export-ObjectToFile {
                     $arrayList | Export-Csv -NoTypeInformation -Path $fileName
                 }
                 "txt" {
-                    switch($Format){
+                    switch ($Format) {
                         'Table' {
                             $arrayList | Format-Table -AutoSize | Out-String -Width 4096 | Out-File -FilePath $fileName
                         }
@@ -705,9 +705,9 @@ function Format-ByteSize {
     )
 
     return ([PSCustomObject]@{
-        GB = "{0}" -f ($Bytes / 1GB)
-        MB = "{0}" -f ($Bytes / 1MB)
-    })
+            GB = "{0}" -f ($Bytes / 1GB)
+            MB = "{0}" -f ($Bytes / 1MB)
+        })
 }
 
 function Format-MacAddressNoDashes {
@@ -723,15 +723,15 @@ function Format-MacAddressNoDashes {
 
     "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
 
-    if($MacAddress.Split('-').Count -eq 6){
-        foreach($obj in $MacAddress.Split('-')){
-            if($obj.Length -ne 2){
+    if ($MacAddress.Split('-').Count -eq 6) {
+        foreach ($obj in $MacAddress.Split('-')) {
+            if ($obj.Length -ne 2) {
                 throw New-Object System.ArgumentOutOfRangeException("Invalid MAC Address. Unable to split into expected pairs")
             }
         }
     }
 
-    $MacAddress = $MacAddress.Replace('-','').Trim().ToUpper()
+    $MacAddress = $MacAddress.Replace('-', '').Trim().ToUpper()
     return ($MacAddress.ToString())
 }
 
@@ -748,9 +748,9 @@ function Format-MacAddressWithDashes {
 
     "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
 
-    if($MacAddress.Split('-').Count -eq 6){
-        foreach($obj in $MacAddress.Split('-')){
-            if($obj.Length -ne 2){
+    if ($MacAddress.Split('-').Count -eq 6) {
+        foreach ($obj in $MacAddress.Split('-')) {
+            if ($obj.Length -ne 2) {
                 throw New-Object System.ArgumentOutOfRangeException("Invalid MAC Address. Unable to split into expected pairs")
             }
         }
@@ -758,11 +758,11 @@ function Format-MacAddressWithDashes {
         return ($MacAddress.ToString().ToUpper())
     }
 
-    if($MacAddress.Length -ne 12){
+    if ($MacAddress.Length -ne 12) {
         throw New-Object System.ArgumentOutOfRangeException("Invalid MAC Address. Length is not equal to 12 ")
     }
     else {
-        $MacAddress = $MacAddress.Insert(2,"-").Insert(5,"-").Insert(8,"-").Insert(11,"-").Insert(14,"-").Trim().ToUpper()
+        $MacAddress = $MacAddress.Insert(2, "-").Insert(5, "-").Insert(8, "-").Insert(11, "-").Insert(14, "-").Trim().ToUpper()
         return ($MacAddress.ToString())
     }
 }
@@ -781,28 +781,28 @@ function Format-NetshTraceProviderAsString {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory=$true)]
+        [Parameter(Mandatory = $true)]
         [guid]$Provider,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$Level,
 
-        [Parameter(Mandatory=$false)]
+        [Parameter(Mandatory = $false)]
         [string]$Keywords
     )
 
     try {
         [guid]$guid = [guid]::Empty
-        if(!([guid]::TryParse($Provider,[ref]$guid))){
+        if (!([guid]::TryParse($Provider, [ref]$guid))) {
             throw "The value specified in the Provider argument must be in GUID format"
         }
         [string]$formattedString = $null
-        foreach($param in $PSBoundParameters.GetEnumerator()){
-            if($param.Value){
-                if($param.Key -ieq "Provider"){
+        foreach ($param in $PSBoundParameters.GetEnumerator()) {
+            if ($param.Value) {
+                if ($param.Key -ieq "Provider") {
                     $formattedString += "$($param.Key)='$($param.Value.ToString("B"))' "
                 }
-                elseif($param.Key -ieq "Level" -or $param.Key -ieq "Keywords") {
+                elseif ($param.Key -ieq "Level" -or $param.Key -ieq "Keywords") {
                     $formattedString += "$($param.Key)=$($param.Value) "
                 }
             }
@@ -847,25 +847,25 @@ function Get-FolderSize {
                 $folderSize = Format-ByteSize -Bytes $subFolderItems.sum
 
                 [void]$arrayList.Add([PSCustomObject]@{
-                    Name     = $item
-                    SizeInGB = $folderSize.GB
-                    SizeInMB = $folderSize.MB
-                    Size     = $subFolderItems.sum
-                    Type     = "Folder"
-                    FullName = $item.FullName
-                })
+                        Name     = $item
+                        SizeInGB = $folderSize.GB
+                        SizeInMB = $folderSize.MB
+                        Size     = $subFolderItems.sum
+                        Type     = "Folder"
+                        FullName = $item.FullName
+                    })
 
             }
             else {
                 $fileSize = Format-ByteSize -Bytes $item.Length
                 [void]$arrayList.Add([PSCustomObject]@{
-                    Name     = $item.Name
-                    SizeInGB = $fileSize.GB
-                    SizeInMB = $fileSize.MB
-                    Size     = $item.Length
-                    Type     = "File"
-                    FullName = $item.FullName
-                })
+                        Name     = $item.Name
+                        SizeInGB = $fileSize.GB
+                        SizeInMB = $fileSize.MB
+                        Size     = $item.Length
+                        Type     = "File"
+                        FullName = $item.FullName
+                    })
             }
         }
 
@@ -907,11 +907,11 @@ function Get-FunctionFromFile {
         $code = Get-Content -Path $FilePath.FullName -Raw
 
         # list all the functions in ps1 using language namespace parser
-        $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast,bool]]{$args[0] -is [Management.Automation.Language.FunctionDefinitionAst]}, $false) `
-            | Select-Object -ExpandProperty Name
+        $functionName = [Management.Automation.Language.Parser]::ParseInput($code, [ref]$null, [ref]$null).EndBlock.Statements.FindAll([Func[Management.Automation.Language.Ast, bool]] { $args[0] -is [Management.Automation.Language.FunctionDefinitionAst] }, $false) `
+        | Select-Object -ExpandProperty Name
 
-        if($functionName){
-            return ($functionName | Where-Object {$_ -like "$Verb-*"})
+        if ($functionName) {
+            return ($functionName | Where-Object { $_ -like "$Verb-*" })
         }
         else {
             return $null
@@ -1003,7 +1003,7 @@ function Initialize-DataCollection {
 
         $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
         if (-NOT ($confirmModules)) {
-            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ')| Trace-Output -Level:Exception
+            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ') | Trace-Output -Level:Exception
             return $false
         }
     }
@@ -1015,7 +1015,7 @@ function Initialize-DataCollection {
     }
 
     # confirm sufficient disk space
-    [System.Char]$driveLetter = (Split-Path -Path $FilePath.FullName -Qualifier).Replace(':','')
+    [System.Char]$driveLetter = (Split-Path -Path $FilePath.FullName -Qualifier).Replace(':', '')
     switch ($PSCmdlet.ParameterSetName) {
         'GB' {
             $diskSpace = Confirm-DiskSpace -DriveLetter $driveLetter -MinimumGB $MinimumGB
@@ -1311,7 +1311,7 @@ function New-PSRemotingSession {
     try {
         # ensure that WinRM service is running on the local machine
         $serviceState = Get-Service -Name 'WinRm'
-        if($serviceState.Status -ine 'Running'){
+        if ($serviceState.Status -ine 'Running') {
             $msg = "WinRM Service is currently {0}. Ensure that service is running and try again." -f $serviceState.Status
             throw New-Object System.Exception($msg)
         }
@@ -1321,18 +1321,18 @@ function New-PSRemotingSession {
         # return a list of current sessions on the computer
         # return only the sessions that are opened and available as this will allow new sessions to be opened
         # without having to wait for existing sessions to move from Busy -> Available
-        $currentActiveSessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.State -ieq 'Opened' -and $_.Availability -ieq 'Available'}
+        $currentActiveSessions = Get-PSSession -Name "SdnDiag-*" | Where-Object { $_.State -ieq 'Opened' -and $_.Availability -ieq 'Available' }
 
-        foreach($obj in $ComputerName){
+        foreach ($obj in $ComputerName) {
             $session = $null
 
             # determine if an IP address was passed for the destination
             # if using IP address it needs to be added to the trusted hosts
             $isIpAddress = ($obj -as [IPAddress]) -as [Bool]
-            if($isIpAddress){
+            if ($isIpAddress) {
                 "{0} is an ip address" -f $obj | Trace-Output -Level:Verbose
                 $trustedHosts = Get-Item -Path "WSMan:\localhost\client\TrustedHosts"
-                if($trustedHosts.Value -notlike "*$obj*" -and $trustedHosts.Value -ne "*") {
+                if ($trustedHosts.Value -notlike "*$obj*" -and $trustedHosts.Value -ne "*") {
                     "Adding {0} to {1}" -f $obj, $trustedHosts.PSPath | Trace-Output
                     Set-Item -Path "WSMan:\localhost\client\TrustedHosts" -Value $obj -Concatenate
                 }
@@ -1340,13 +1340,13 @@ function New-PSRemotingSession {
 
             # check to see if session is already opened
             # if no session already exists or Force is defined, then create a new remote session
-            if($currentActiveSessions.ComputerName -contains $obj -and !$Force){
-                $session = ($currentActiveSessions | Where-Object {$_.ComputerName -eq $obj})[0]
+            if ($currentActiveSessions.ComputerName -contains $obj -and !$Force) {
+                $session = ($currentActiveSessions | Where-Object { $_.ComputerName -eq $obj })[0]
                 "Located existing powershell session {0} for {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose
             }
             else {
                 try {
-                    if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
+                    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
                         "PSRemotingSession use provided credential {0}" -f $Credential.UserName | Trace-Output -Level:Verbose
                         $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
                     }
@@ -1371,7 +1371,7 @@ function New-PSRemotingSession {
             }
 
             # add the session to the array
-            if($session){
+            if ($session) {
                 [void]$remoteSessions.Add($session)
             }
         }
@@ -1389,7 +1389,7 @@ function New-TraceOutputFile {
     try {
         # make sure that directory path exists, else create the folder structure required
         [System.IO.FileInfo]$workingDir = Get-WorkingDirectory
-        if(!(Test-Path -Path $workingDir.FullName -PathType Container)){
+        if (!(Test-Path -Path $workingDir.FullName -PathType Container)) {
             $workingDir = New-Item -Path $workingDir.FullName -ItemType Directory -Force
         }
 
@@ -1418,7 +1418,7 @@ function New-WorkingDirectory {
     try {
 
         # create the working directory and set the global cache
-        if(!(Test-Path -Path $Path.FullName -PathType Container)){
+        if (!(Test-Path -Path $Path.FullName -PathType Container)) {
             $null = New-Item -Path $Path.FullName -ItemType Directory -Force
         }
 
@@ -1446,16 +1446,16 @@ function Remove-PSRemotingSession {
 
     try {
         [int]$timeOut = 120
-        $stopWatch =  [System.Diagnostics.Stopwatch]::StartNew()
+        $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-        $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -iin $ComputerName}
-        while($sessions){
-            if($stopWatch.Elapsed.TotalSeconds -gt $timeOut){
+        $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object { $_.ComputerName -iin $ComputerName }
+        while ($sessions) {
+            if ($stopWatch.Elapsed.TotalSeconds -gt $timeOut) {
                 throw New-Object System.TimeoutException("Unable to drain PSSessions")
             }
 
-            foreach($session in $sessions){
-                if($session.Availability -ieq 'Busy'){
+            foreach ($session in $sessions) {
+                if ($session.Availability -ieq 'Busy') {
                     "{0} is currently {1}. Waiting for PSSession.. {2} seconds" -f $session.Name, $session.Availability, $stopWatch.Elapsed.TotalSeconds | Trace-Output
                     Start-Sleep -Seconds 5
                     continue
@@ -1466,7 +1466,7 @@ function Remove-PSRemotingSession {
                 }
             }
 
-            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -iin $ComputerName}
+            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object { $_.ComputerName -iin $ComputerName }
         }
 
         $stopWatch.Stop()
@@ -1500,22 +1500,22 @@ function Test-ComputerNameIsLocal {
         # detect if the ComputerName passed is an IP address
         # if so, need to enumerate the IP addresses on the system to compare with ComputerName to determine if there is a match
         $isIpAddress = ($ComputerName -as [IPAddress]) -as [Bool]
-        if($isIpAddress){
+        if ($isIpAddress) {
             $ipAddresses = Get-NetIPAddress
-            foreach($ip in $ipAddresses){
-                if([IPAddress]$ip.IpAddress -eq [IPAddress]$ComputerName){
+            foreach ($ip in $ipAddresses) {
+                if ([IPAddress]$ip.IpAddress -eq [IPAddress]$ComputerName) {
                     return $true
                 }
             }
         }
 
         # check to determine if the ComputerName matches the NetBIOS name of the computer
-        if($env:COMPUTERNAME -ieq $ComputerName){
+        if ($env:COMPUTERNAME -ieq $ComputerName) {
             return $true
         }
 
         # check to determine if ComputerName matches the FQDN name of the computer
-        if(([System.Net.Dns]::GetHostEntry($env:COMPUTERNAME).HostName) -ieq $ComputerName){
+        if (([System.Net.Dns]::GetHostEntry($env:COMPUTERNAME).HostName) -ieq $ComputerName) {
             return $true
         }
 
@@ -1551,7 +1551,7 @@ function Test-Ping {
         [IPAddress]$SourceAddress,
 
         [Parameter(Mandatory = $false)]
-        [int]$CompartmentId = (Get-NetCompartment | Where-Object {$_.CompartmentDescription -ieq 'Default Compartment'}).CompartmentId,
+        [int]$CompartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'Default Compartment' }).CompartmentId,
 
         [Parameter()]
         [int[]]$BufferSize = 1472,
@@ -1563,16 +1563,16 @@ function Test-Ping {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
 
-        foreach($size in $BufferSize){
+        foreach ($size in $BufferSize) {
             $Global:LASTEXITCODE = 0
-            if($DontFragment){
+            if ($DontFragment) {
                 $ping = ping $DestinationAddress.IPAddressToString -c $CompartmentId -l $size -S $SourceAddress.IPAddressToString -n 2-f
             }
             else {
                 $ping = ping $DestinationAddress.IPAddressToString -c $CompartmentId -l $size -S $SourceAddress.IPAddressToString -n 2
             }
 
-            if($LASTEXITCODE -ieq 0){
+            if ($LASTEXITCODE -ieq 0) {
                 $status = 'Success'
             }
             else {
@@ -1580,12 +1580,12 @@ function Test-Ping {
             }
 
             $result = [PSCustomObject]@{
-                SourceAddress = $SourceAddress.IPAddressToString
+                SourceAddress      = $SourceAddress.IPAddressToString
                 DestinationAddress = $DestinationAddress.IPAddressToString
-                CompartmentId = $CompartmentId
-                BufferSize = $size
-                Status = $status
-                Result = $ping
+                CompartmentId      = $CompartmentId
+                BufferSize         = $size
+                Status             = $status
+                Result             = $ping
             }
 
             [void]$arrayList.Add($result)
@@ -1624,15 +1624,15 @@ function Trace-Output {
     process {
         # create custom object for formatting purposes
         $traceEvent = [PSCustomObject]@{
-            Computer = $env:COMPUTERNAME.ToUpper().ToString()
+            Computer     = $env:COMPUTERNAME.ToUpper().ToString()
             TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
             FunctionName = (Get-PSCallStack)[1].Command
-            Level = $Level.ToString()
-            Message = $Message
+            Level        = $Level.ToString()
+            Message      = $Message
         }
 
         # write the message to the console
-        switch($Level){
+        switch ($Level) {
             'Error' {
                 "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Error
             }
@@ -1646,7 +1646,7 @@ function Trace-Output {
             }
 
             'Verbose' {
-                if($VerbosePreference -ne [System.Management.Automation.ActionPreference]::SilentlyContinue) {
+                if ($VerbosePreference -ne [System.Management.Automation.ActionPreference]::SilentlyContinue) {
                     "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Verbose
                 }
             }
@@ -1938,7 +1938,7 @@ function Install-SdnDiagnostics {
         }
 
         # due to how arrayLists are interpreted, need to check if count is 0 rather than look for $null
-        if ($filteredComputerName.Count -eq 0){
+        if ($filteredComputerName.Count -eq 0) {
             return
         }
 
@@ -1966,7 +1966,7 @@ function Install-SdnDiagnostics {
 
             # enumerate the versions returned for each computer and compare with current module version to determine if we should perform an update
             foreach ($computer in ($remoteModuleVersion.PSComputerName | Sort-Object -Unique)) {
-                $remoteComputerModuleVersions = $remoteModuleVersion | Where-Object {$_.PSComputerName -ieq $computer}
+                $remoteComputerModuleVersions = $remoteModuleVersion | Where-Object { $_.PSComputerName -ieq $computer }
                 "{0} is currently using version(s): {1}" -f $computer, ($remoteComputerModuleVersions.ToString() -join ' | ') | Trace-Output -Level:Verbose
                 $updateRequired = $true
 

@@ -59,7 +59,7 @@ function Copy-CertificateToFabric {
                 "Processing {0}" -f $controller | Trace-Output -Level:Verbose
 
                 "[REST CERT] Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
-                $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                    $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
 
                 if (Test-ComputerNameIsLocal -ComputerName $controller) {
                     $importCert = Import-SdnCertificate -FilePath $certFileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
@@ -116,7 +116,7 @@ function Copy-CertificateToFabric {
                 # within the fabric and install under localmachine\root as appropriate
                 if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
                     "[NODE CERT] Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
-                    $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                        $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
 
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
                     $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
@@ -317,8 +317,8 @@ function Copy-UserProvidedCertificateToFabric {
         $pfxData = Get-PfxData -FilePath $pfxFile.FullName -Password $CertPassword -ErrorAction Stop
 
         $object = [PSCustomObject]@{
-            FileInfo = $pfxFile
-            PfxData  = $pfxData
+            FileInfo   = $pfxFile
+            PfxData    = $pfxData
             SelfSigned = $false
         }
 
@@ -371,7 +371,7 @@ function Copy-UserProvidedCertificateToFabric {
     # then seed out to the rest of the fabric
     $null = Import-SdnCertificate -FilePath $restCertificate.FileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
     Copy-CertificateToFabric -CertFile $restCertificate.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
-    -NetworkControllerRestCertificate -InstallToSouthboundDevices:$NetworkControllerHealthy -Credential $Credential
+        -NetworkControllerRestCertificate -InstallToSouthboundDevices:$NetworkControllerHealthy -Credential $Credential
 
     # install the nc node certificate to other network controller nodes if self-signed
     if ($RotateNodeCerts) {
@@ -428,7 +428,7 @@ function Invoke-CertRotateCommand {
     $retryAttempt = 0
 
     $params = @{
-        'PassThru'  = $true
+        'PassThru' = $true
     }
     if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
         $params.Add('Credential', $Credential)
@@ -600,7 +600,7 @@ function Start-SdnExpiredCertificateRotation {
     Trace-Output "NcNodeList: $($NcNodeList.IpAddressOrFQDN)"
 
     Trace-Output "Validate CertRotateConfig"
-    if(!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)){
+    if (!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)) {
         Trace-Output "Invalid CertRotateConfig, please correct the configuration and try again" -Level:Error
         return
     }
@@ -650,7 +650,7 @@ function Start-SdnExpiredCertificateRotation {
     Trace-Output "Step 4.2 Start Service Fabric Host Service and wait"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     Trace-Output "ClusterHealthy: $clusterHealthy"
-    if($clusterHealthy -ne $true){
+    if ($clusterHealthy -ne $true) {
         throw New-Object System.NotSupportedException("Cluster unheathy after manifest update, we cannot continue with current situation")
     }
     # Step 6 Invoke SF Cluster Upgrade
@@ -658,7 +658,7 @@ function Start-SdnExpiredCertificateRotation {
     Update-ServiceFabricCluster -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -ManifestFolderNew $ManifestFolderNew -Credential $Credential
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     Trace-Output "ClusterHealthy: $clusterHealthy"
-    if($clusterHealthy -ne $true){
+    if ($clusterHealthy -ne $true) {
         throw New-Object System.NotSupportedException("Cluster unheathy after cluster update, we cannot continue with current situation")
     }
 
@@ -673,7 +673,7 @@ function Start-SdnExpiredCertificateRotation {
     Trace-Output "Step 7 Restarting Service Fabric Cluster after configuration change"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential -Restart
 
-<#     Trace-Output "Step 7.2 Rotate Network Controller Certificate"
+    <#     Trace-Output "Step 7.2 Rotate Network Controller Certificate"
     #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
 
     # Step 8 Update REST CERT credential
@@ -717,14 +717,14 @@ function Update-NetworkControllerConfig {
 
     foreach ($ncNode in $NcNodeList) {
         $nodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-        if($null -eq $nodeCertThumbprint){
+        if ($null -eq $nodeCertThumbprint) {
             throw New-Object System.NotSupportedException("NodeCertificateThumbprint not found for $($ncNode.NodeName)")
         }
         $thumbprintPropertyName = "{0}.ClusterCertThumbprint" -f $ncNode.NodeName
         # Global Config property name like Global.Version.NodeName.ClusterCertThumbprint
         $thumbprintProperty = $globalConfigs | Where-Object Name -Match $thumbprintPropertyName
 
-        if($null -ne $thumbprintProperty){
+        if ($null -ne $thumbprintProperty) {
             "GlobalConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
             Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
         }
@@ -733,14 +733,14 @@ function Update-NetworkControllerConfig {
         $thumbprintProperty = $clusterConfigs | Where-Object Name -ieq $thumbprintPropertyName
 
         # If NodeName.ClusterCertThumbprint exist (for Server 2022 +), Update
-        if($null -ne $thumbprintProperty){
+        if ($null -ne $thumbprintProperty) {
             "ClusterConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
             Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
         }
 
         $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
-        if($null -ne $certProperty){
-            $nodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock{
+        if ($null -ne $certProperty) {
+            $nodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
                 return Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCertThumbprint
             }
             "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
@@ -775,7 +775,7 @@ function Update-NetworkControllerCredentialResource {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $headers = @{"Accept"="application/json"}
+    $headers = @{"Accept" = "application/json" }
     $content = "application/json; charset=UTF-8"
     $timeoutInMinutes = 10
     $array = @()
@@ -783,7 +783,7 @@ function Update-NetworkControllerCredentialResource {
     $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
     foreach ($object in $servers) {
         "Processing X509 connections for {0}" -f $object | Trace-Output
-        foreach ($connection in $servers.properties.connections | Where-Object {$_.credentialType -ieq 'X509Certificate'}) {
+        foreach ($connection in $servers.properties.connections | Where-Object { $_.credentialType -ieq 'X509Certificate' }) {
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
             $cred = Get-SdnResource -NcUri $NcUri -ResourceRef $connection.credential.resourceRef -Credential $Credential
@@ -800,7 +800,7 @@ function Update-NetworkControllerCredentialResource {
 
             [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef $cred.resourceRef
             $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -UseBasicParsing `
-            -Headers $headers -ContentType $content -Body $credBody
+                -Headers $headers -ContentType $content -Body $credBody
 
             while ($true) {
                 if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
@@ -890,7 +890,7 @@ function New-SdnCertificateRotationConfig {
         }
         $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
 
-        if($NcInfraInfo.ClusterCredentialType -eq "X509"){
+        if ($NcInfraInfo.ClusterCredentialType -eq "X509") {
             foreach ($ncNode in $($NcInfraInfo.NodeList)) {
                 Trace-Output "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
                 $ncNodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
@@ -977,9 +977,9 @@ function New-SdnNetworkControllerNodeCertificate {
             -NetworkControllerNodeCert -Credential $Credential
 
         return ([PSCustomObject]@{
-            Certificate = $certificate
-            FileInfo = $exportedCertificate
-        })
+                Certificate = $certificate
+                FileInfo    = $exportedCertificate
+            })
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
@@ -1069,9 +1069,9 @@ function New-SdnNetworkControllerRestCertificate {
             -NetworkControllerRestCertificate -InstallToSouthboundDevices:$installToSouthboundDevices -Credential $Credential
 
         return ([PSCustomObject]@{
-            Certificate = $certificate
-            FileInfo = $exportedCertificate
-        })
+                Certificate = $certificate
+                FileInfo    = $exportedCertificate
+            })
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
@@ -1272,7 +1272,7 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
             $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
-            -NetworkControllerHealthy:$ncHealthy -Credential $Credential -RotateNodeCerts:$rotateNCNodeCerts
+                -NetworkControllerHealthy:$ncHealthy -Credential $Credential -RotateNodeCerts:$rotateNCNodeCerts
 
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {

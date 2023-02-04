@@ -1199,15 +1199,15 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
     $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential)
     $clusterManifest.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node | ForEach-Object {
         $object = [PSCustomObject]@{
-            Name = $_.NodeName
-            Server = $_.IPAddressOrFQDN
-            FaultDomain = $_.FaultDomain
-            RestInterface = $null
-            Status = $null
+            Name            = $_.NodeName
+            Server          = $_.IPAddressOrFQDN
+            FaultDomain     = $_.FaultDomain
+            RestInterface   = $null
+            Status          = $null
             NodeCertificate = $null
         }
 
-	    $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $_.NodeName).Certificates.ServerCertificate.X509FindValue.ToString()
+        $certificate = ($clusterManifest.ClusterManifest.NodeTypes.NodeType | Where-Object Name -ieq $_.NodeName).Certificates.ServerCertificate.X509FindValue.ToString()
         $object | Add-Member -MemberType NoteProperty -Name NodeCertificateThumbprint -Value $certificate
 
         $array += $object
@@ -1246,8 +1246,7 @@ function New-NetworkControllerClusterSecret {
 
     $decryptedText = Invoke-ServiceFabricDecryptText -CipherText $OldEncryptedSecret
 
-    if($null -eq $decryptedText)
-    {
+    if ($null -eq $decryptedText) {
         throw New-Object System.NotSupportedException("Failed to decrypt the secret.")
     }
 
@@ -1261,8 +1260,7 @@ function New-NetworkControllerClusterSecret {
     else {
         throw New-Object System.NotSupportedException("Decrypted text by new certificate is not matching the old one. We cannot continue.")
     }
-    if($null -eq $newEncryptedSecret)
-    {
+    if ($null -eq $newEncryptedSecret) {
         throw New-Object System.NotSupportedException("Failed to encrypt the secret with new certificate")
     }
 
@@ -1340,8 +1338,7 @@ function Update-NetworkControllerCertificateInManifest {
     $infrastructureManifestXml = [xml](Get-Content "$ManifestFolder\InfrastructureManifest.xml")
 
     # Update Node Certificate to new Node Cert if the ClusterCredentialType is X509 certificate
-    if($ClusterCredentialType.Value -eq "X509")
-    {
+    if ($ClusterCredentialType.Value -eq "X509") {
         foreach ($node in $clusterManifestXml.ClusterManifest.NodeTypes.NodeType) {
             $ncNode = $node.Name
             $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.ToLower()]
@@ -1365,8 +1362,7 @@ function Update-NetworkControllerCertificateInManifest {
     foreach ($ncNode in $NcNodeList) {
         $ncVm = $ncNode.IpAddressOrFQDN
         $settingXml = [xml](Get-Content "$ManifestFolder\$ncVm\Settings.xml")
-        if($ClusterCredentialType.Value -eq "X509")
-        {
+        if ($ClusterCredentialType.Value -eq "X509") {
             $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
             $fabricNodeSection = $settingXml.Settings.Section | Where-Object Name -eq "FabricNode"
             $parameterToUpdate = $fabricNodeSection.Parameter | Where-Object Name -eq "ClientAuthX509FindValue"
@@ -1437,7 +1433,7 @@ function Update-ServiceFabricCluster {
     $currentNcNode = $null
     # Start Service Fabric Service for each NC
     foreach ($ncNode in $NcNodeList) {
-        if(Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN){
+        if (Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN) {
             $currentNcNode = $ncNode
         }
     }
@@ -1453,18 +1449,19 @@ function Update-ServiceFabricCluster {
 
     # Sometimes access denied returned for the copy call, retry here to workaround this.
     $maxRetry = 3
-    while($maxRetry -gt 0){
-        try{
-            if($CertRotateConfig["ClusterCredentialType"] -ieq "X509"){
+    while ($maxRetry -gt 0) {
+        try {
+            if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
                 "Connecting to Service Fabric Cluster using cert with thumbprint: {0}" -f $certThumb | Trace-Output
                 Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb -ConnectionEndpoint "$($currentNcNode.IpAddressOrFQDN):49006" | Out-Null
             }
-            else{
+            else {
                 Connect-ServiceFabricCluster | Out-Null
             }
             Copy-ServiceFabricClusterPackage -Config -ImageStoreConnectionString "fabric:ImageStore" -ClusterManifestPath  $clusterManifestPath -ClusterManifestPathInImageStore "ClusterManifest.xml"
             break
-        }catch{
+        }
+        catch {
             "Copy-ServiceFabricClusterPackage failed with exception $_.Exception. Retry $(4 - $maxRetry)/3 after 60 seconds" | Trace-Output -Level:Warning
             Start-Sleep -Seconds 60
             $maxRetry --
@@ -1480,10 +1477,11 @@ function Update-ServiceFabricCluster {
         if ($upgradeStatus.UpgradeState -eq "RollingForwardPending") {
             $nextNode = $upgradeStatus.NextUpgradeDomain
             "Next node to upgrade $nextNode" | Trace-Output
-            try{
+            try {
                 Resume-ServiceFabricClusterUpgrade -UpgradeDomainName $nextNode
                 # Catch exception for resume call, as sometimes, the upgrade status not updated intime caused duplicate resume call.
-            }catch{
+            }
+            catch {
                 "Exception in Resume-ServiceFabricClusterUpgrade $_.Exception" | Trace-Output -Level:Warning
             }
         }

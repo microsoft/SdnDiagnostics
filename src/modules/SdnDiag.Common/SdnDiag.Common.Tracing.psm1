@@ -336,11 +336,11 @@ function Convert-SdnEtwTraceToTxt {
     param (
         [Parameter(Mandatory = $true)]
         [ValidateScript( {
-            if ($_ -notmatch "(\.etl)") {
-                throw "The file specified in the FileName argument must be etl extension"
-            }
-            return $true
-        })]
+                if ($_ -notmatch "(\.etl)") {
+                    throw "The file specified in the FileName argument must be etl extension"
+                }
+                return $true
+            })]
         [System.String]$FileName,
 
         [Parameter(Mandatory = $false)]
@@ -378,7 +378,7 @@ function Convert-SdnEtwTraceToTxt {
         if ($expression[5] -ilike "*done*") {
             $object = New-Object -TypeName PSCustomObject -Property (
                 [Ordered]@{
-                    Status = 'Success'
+                    Status   = 'Success'
                     FileName = $outputFile
                 }
             )
@@ -423,17 +423,17 @@ function Start-SdnEtwTraceCapture {
         $config = Get-SdnRoleConfiguration -Role $Role
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
+        if (!$confirmFeatures) {
             throw New-Object System.Exception("Required feature is missing")
         }
 
         $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if(!$confirmModules){
+        if (!$confirmModules) {
             throw New-Object System.Exception("Required module is not loaded")
         }
 
         # create the OutputDirectory if does not already exist
-        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
+        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
             $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
         }
 
@@ -527,7 +527,7 @@ function Start-SdnNetshTrace {
                 "No default trace providers found for role {0}. Setting capture to {1}" -f $Role, $Capture | Trace-Output
             }
 
-            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory.FullName -MinimumMB ($MaxTraceSize*1.5) )) {
+            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory.FullName -MinimumMB ($MaxTraceSize * 1.5) )) {
                 "Unable to initialize environment for data collection" | Trace-Output -Level:Error
                 return
             }
@@ -536,12 +536,12 @@ function Start-SdnNetshTrace {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 Start-SdnNetshTrace -Role $using:Role -OutputDirectory $using:OutputDirectory.FullName `
-                -Capture $using:Capture -Overwrite $using:Overwrite -Report $using:Report -MaxTraceSize $using:MaxTraceSize -Providers $using:Providers
+                    -Capture $using:Capture -Overwrite $using:Overwrite -Report $using:Report -MaxTraceSize $using:MaxTraceSize -Providers $using:Providers
             }
         }
         else {
             Start-NetshTrace -OutputDirectory $OutputDirectory.FullName -TraceProviderString $traceProviderString `
-            -Capture $Capture -Overwrite $Overwrite -Report $Report -MaxTraceSize $MaxTraceSize
+                -Capture $Capture -Overwrite $Overwrite -Report $Report -MaxTraceSize $MaxTraceSize
         }
     }
     catch {

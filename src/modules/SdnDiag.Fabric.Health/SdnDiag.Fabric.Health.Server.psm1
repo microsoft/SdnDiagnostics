@@ -29,13 +29,13 @@ function Test-SdnEncapOverhead {
     try {
         "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
 
-        if($null -eq $ComputerName){
+        if ($null -eq $ComputerName) {
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.Credential){
+        if (!$PSBoundParameters.ContainsKey('Credential')) {
+            if ($Global:SdnDiagnostics.Credential) {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
@@ -43,19 +43,19 @@ function Test-SdnEncapOverhead {
         $arrayList = [System.Collections.ArrayList]::new()
         $status = 'Success'
 
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
-        if($null -eq $encapOverheadResults){
+        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock { Get-SdnNetAdapterEncapOverheadConfig }
+        if ($null -eq $encapOverheadResults) {
             throw New-Object System.NullReferenceException("No encap overhead results found")
         }
 
-        foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName)){
-            foreach($interface in $object.Group){
+        foreach ($object in ($encapOverheadResults | Group-Object -Property PSComputerName)) {
+            foreach ($interface in $object.Group) {
                 "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
 
-                if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
+                if ($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue) {
                     "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
 
-                    if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
+                    if ($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue) {
                         "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
                         $status = 'Failure'
 
@@ -67,7 +67,7 @@ function Test-SdnEncapOverhead {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }
@@ -104,13 +104,13 @@ function Test-SdnProviderNetwork {
     try {
         "Validating Provider Address network has connectivity across the SDN dataplane" | Trace-Output
 
-        if($null -eq $ComputerName){
+        if ($null -eq $ComputerName) {
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.Credential){
+        if (!$PSBoundParameters.ContainsKey('Credential')) {
+            if ($Global:SdnDiagnostics.Credential) {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
@@ -119,29 +119,29 @@ function Test-SdnProviderNetwork {
         $status = 'Success'
 
         $providerAddresses = (Get-SdnProviderAddress -ComputerName $ComputerName -Credential $Credential).ProviderAddress
-        if ($null -eq $providerAddresses){
+        if ($null -eq $providerAddresses) {
             "No provider addresses were found on the hosts specified. This may be expected if tenant workloads have not yet been deployed." | Trace-Output -Level:Warning
         }
 
         if ($providerAddresses) {
-            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses}
-            foreach($computer in $connectivityResults | Group-Object PSComputerName){
-                foreach($destinationAddress in $computer.Group){
-                    if($destinationAddress.Status -ine 'Success'){
+            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock { Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses }
+            foreach ($computer in $connectivityResults | Group-Object PSComputerName) {
+                foreach ($destinationAddress in $computer.Group) {
+                    if ($destinationAddress.Status -ine 'Success') {
                         $status = 'Failure'
 
-                        $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
-                        $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
+                        $jumboPacketResult = $destinationAddress | Where-Object { $_.BufferSize -gt 1472 }
+                        $standardPacketResult = $destinationAddress | Where-Object { $_.BufferSize -le 1472 }
 
                         # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
-                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
+                        if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure') {
                             "Cannot ping to {0} from {1} using {2}. Investigate the physical connection." `
                                 -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
                         }
 
                         # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
                         # either on the physical nic or within the physical switches between the provider addresses
-                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
+                        if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success') {
                             "Cannot send jumbo packets to {0} from {1} using {2}. Physical switch ports or network interface may not be configured to support jumbo packets." `
                                 -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
                         }
@@ -154,7 +154,7 @@ function Test-SdnProviderNetwork {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }
@@ -193,13 +193,13 @@ function Test-SdnServerConfigState {
     try {
         "Validating configuration and provisioning state of Servers" | Trace-Output
 
-        if($null -eq $NcUri){
+        if ($null -eq $NcUri) {
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if NcRestCredential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
-            if($Global:SdnDiagnostics.NcRestCredential){
+        if (!$PSBoundParameters.ContainsKey('NcRestCredential')) {
+            if ($Global:SdnDiagnostics.NcRestCredential) {
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
             }
         }
@@ -208,13 +208,13 @@ function Test-SdnServerConfigState {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
-        foreach($object in $servers){
-            if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
+        foreach ($object in $servers) {
+            if ($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded') {
                 $status = 'Failure'
 
                 $details = [PSCustomObject]@{
-                    resourceRef = $object.resourceRef
-                    provisioningState = $object.properties.provisioningState
+                    resourceRef        = $object.resourceRef
+                    provisioningState  = $object.properties.provisioningState
                     configurationState = $object.properties.configurationState
                 }
 
@@ -230,7 +230,7 @@ function Test-SdnServerConfigState {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }
@@ -270,13 +270,13 @@ function Test-SdnServerServiceState {
         $config = Get-SdnRoleConfiguration -Role:Server
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
-        if($null -eq $ComputerName){
+        if ($null -eq $ComputerName) {
             throw New-Object System.NullReferenceException("Please specify ComputerName parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
-        if(!$PSBoundParameters.ContainsKey('Credential')){
-            if($Global:SdnDiagnostics.Credential){
+        if (!$PSBoundParameters.ContainsKey('Credential')) {
+            if ($Global:SdnDiagnostics.Credential) {
                 $Credential = $Global:SdnDiagnostics.Credential
             }
         }
@@ -286,9 +286,9 @@ function Test-SdnServerServiceState {
 
         $scriptBlock = {
             $serviceArrayList = [System.Collections.ArrayList]::new()
-            foreach($service in $($using:config.properties.services.name)){
+            foreach ($service in $($using:config.properties.services.name)) {
                 $result = Get-Service -Name $service -ErrorAction SilentlyContinue
-                if($result){
+                if ($result) {
                     [void]$serviceArrayList.Add($result)
                 }
             }
@@ -297,8 +297,8 @@ function Test-SdnServerServiceState {
         }
 
         $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
-        foreach($result in $serviceStateResults){
-            if($result.Status -ine 'Running'){
+        foreach ($result in $serviceStateResults) {
+            if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
                 $status = 'Failure'
 
@@ -310,7 +310,7 @@ function Test-SdnServerServiceState {
         }
 
         return [PSCustomObject]@{
-            Status = $status
+            Status     = $status
             Properties = $arrayList
         }
     }

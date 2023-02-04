@@ -126,20 +126,20 @@ function Get-SdnNetworkControllerInfoOffline {
         $secretCertThumbprint = $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue
 
         $ncRestName = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {
-            $secretCert = Get-ChildItem -Path "Cert:\LocalMachine\My" | Where-Object {$_.Thumbprint -ieq $using:secretCertThumbprint}
-            if($null -eq $secretCert) {
+            $secretCert = Get-ChildItem -Path "Cert:\LocalMachine\My" | Where-Object { $_.Thumbprint -ieq $using:secretCertThumbprint }
+            if ($null -eq $secretCert) {
                 return $null
             }
             else {
-                return $secretCert.Subject.Replace("CN=","")
+                return $secretCert.Subject.Replace("CN=", "")
             }
         } -Credential $Credential
 
         $infraInfo = [PSCustomObject]@{
             ClusterCredentialType = $ClusterCredentialType.Value
-            NodeList = $NodeList
-            NcRestName = $ncRestName
-            NcRestCertThumbprint = $secretCertThumbprint
+            NodeList              = $NodeList
+            NcRestName            = $ncRestName
+            NcRestCertThumbprint  = $secretCertThumbprint
         }
 
         return $infraInfo
@@ -281,7 +281,7 @@ function Invoke-SdnNetworkControllerStateDump {
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
 
         $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
-        -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
+            -Headers @{"Accept" = "application/json" } -Content "application/json; charset=UTF-8"
 
         # monitor until the provisionState for the object is not in 'Updating' state
         while ($true) {
@@ -362,7 +362,7 @@ function Get-SdnApiEndpoint {
             }
         }
         'ResourceName' {
-            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object {$_.name -ieq $resourceName}
+            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object { $_.name -ieq $resourceName }
             if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
                 [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $apiEndpointProperties.uri
             }
@@ -413,13 +413,13 @@ function Get-SdnGateway {
     try {
         $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:Gateways -Credential $Credential
         if ($result) {
-            foreach($obj in $result){
-                if($obj.properties.provisioningState -ne 'Succeeded'){
+            foreach ($obj in $result) {
+                if ($obj.properties.provisioningState -ne 'Succeeded') {
                     "{0} is reporting provisioningState: {1}" -f $obj.resourceId, $obj.properties.provisioningState | Trace-Output -Level:Warning
                 }
             }
 
-            if($ManagementAddressOnly){
+            if ($ManagementAddressOnly) {
                 $managementAddresses = [System.Collections.ArrayList]::new()
                 foreach ($resource in $result) {
                     $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
@@ -427,7 +427,7 @@ function Get-SdnGateway {
                 }
                 return $managementAddresses
             }
-            else{
+            else {
                 return $result
             }
         }
@@ -471,11 +471,11 @@ function Get-SdnInfrastructureInfo {
 
         [Parameter(Mandatory = $false)]
         [ValidateScript({
-            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-            }
-            return $true
-        })]
+                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+                }
+                return $true
+            })]
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
@@ -552,15 +552,15 @@ function Get-SdnInfrastructureInfo {
         $fabricNodes = @()
         $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.NetworkController
 
-        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Server){
+        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Server) {
             $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
         }
 
-        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Gateway){
+        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Gateway) {
             $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
         }
 
-        if($null -ne $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux){
+        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux) {
             $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
         }
 
@@ -611,13 +611,13 @@ function Get-SdnLoadBalancerMux {
     try {
         $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:LoadBalancerMuxes -Credential $Credential
         if ($result) {
-            foreach($obj in $result){
-                if($obj.properties.provisioningState -ne 'Succeeded'){
+            foreach ($obj in $result) {
+                if ($obj.properties.provisioningState -ne 'Succeeded') {
                     "{0} is reporting provisioningState: {1}" -f $obj.resourceId, $obj.properties.provisioningState | Trace-Output -Level:Warning
                 }
             }
 
-            if($ManagementAddressOnly){
+            if ($ManagementAddressOnly) {
                 $managementAddresses = [System.Collections.ArrayList]::new()
                 foreach ($resource in $result) {
                     $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
@@ -721,9 +721,9 @@ function Get-SdnNetworkControllerConfigurationState {
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "C:\Windows\NetworkController" -Directory
-        foreach($directory in $ncAppDirectories){
+        foreach ($directory in $ncAppDirectories) {
             [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
-            Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
+            Get-Item -Path "$($directory.FullName)\*" -Include *.dll, *.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
         }
 
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
@@ -793,8 +793,8 @@ function Get-SdnNetworkControllerNode {
 
             # in this scenario if the results returned we will parse the objects returned and generate warning to user if node is not up
             # this property is only going to exist though if service fabric is healthy and underlying NC cmdlet can query node status
-            foreach($obj in $result){
-                if($obj.Status -ine 'Up'){
+            foreach ($obj in $result) {
+                if ($obj.Status -ine 'Up') {
                     "{0} is reporting status {1}" -f $obj.Name, $obj.Status | Trace-Output -Level:Warning
                 }
 
@@ -816,7 +816,7 @@ function Get-SdnNetworkControllerNode {
             $result = $result | Where-Object { $_.Name.Split(".")[0] -ieq $Name.Split(".")[0] -or $_.Server -ieq $Name.Split(".")[0] }
         }
 
-        if($ServerNameOnly){
+        if ($ServerNameOnly) {
             return [System.Array]$result.Server
         }
         else {
@@ -1128,19 +1128,19 @@ function Get-SdnServer {
     try {
         $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:Servers -Credential $Credential
         if ($result) {
-            foreach($obj in $result){
-                if($obj.properties.provisioningState -ne 'Succeeded'){
+            foreach ($obj in $result) {
+                if ($obj.properties.provisioningState -ne 'Succeeded') {
                     "{0} is reporting provisioningState: {1}" -f $obj.resourceId, $obj.properties.provisioningState | Trace-Output -Level:Warning
                 }
             }
 
-            if($ManagementAddressOnly){
+            if ($ManagementAddressOnly) {
                 # there might be multiple connection endpoints to each node so we will want to only return the unique results
                 # this does not handle if some duplicate connections are listed as IPAddress with another record saved as NetBIOS or FQDN
                 # further processing may be required by the calling function to handle that
                 return ($result.properties.connections.managementAddresses | Sort-Object -Unique)
             }
-            else{
+            else {
                 return $result
             }
         }
@@ -1192,7 +1192,7 @@ function Invoke-SdnResourceDump {
         }
 
         $config = Get-SdnRoleConfiguration -Role:NetworkController
-        [int]$apiVersionInt = $ApiVersion.Replace('v','').Replace('V','')
+        [int]$apiVersionInt = $ApiVersion.Replace('v', '').Replace('V', '')
         foreach ($resource in $config.properties.apiResources) {
 
             # skip any resources that are not designed to be exported
@@ -1200,7 +1200,7 @@ function Invoke-SdnResourceDump {
                 continue
             }
 
-            [int]$minVersionInt = $resource.minVersion.Replace('v','').Replace('V','')
+            [int]$minVersionInt = $resource.minVersion.Replace('v', '').Replace('V', '')
             if ($minVersionInt -le $apiVersionInt) {
                 $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.uri -Credential $Credential
                 if ($sdnResource) {
@@ -1262,11 +1262,11 @@ function Start-SdnDataCollection {
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
         [ValidateScript({
-            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-            }
-            return $true
-        })]
+                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+                }
+                return $true
+            })]
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
@@ -1361,7 +1361,7 @@ function Start-SdnDataCollection {
             }
 
             'Computer' {
-                $keyLookup= @('Gateway','NetworkController','Server','LoadBalancerMux')
+                $keyLookup = @('Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')
                 foreach ($value in $ComputerName) {
                     foreach ($key in $sdnFabricDetails.Keys) {
                         if ($key -iin $keyLookup) {
@@ -1492,7 +1492,7 @@ function Start-SdnDataCollection {
 
                 if ($group.Name -ieq 'Server') {
                     Get-SdnAuditLog -NcUri $NcUri.AbsoluteUri -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
-                    -ComputerName $dataNodes -Credential $Credential
+                        -ComputerName $dataNodes -Credential $Credential
                 }
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
@@ -1583,7 +1583,7 @@ function Get-SdnAuditLog {
         # verify that the environment we are on supports at least v3 API and later
         # as described in https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/dc23b547-9ec4-4cb3-ab20-a6bfe01ddafb
         $currentRestVersion = (Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource 'Discovery' -Credential $NcRestCredential).properties.currentRestVersion
-        [int]$currentRestVersionInt = $currentRestVersion.Replace('V','').Replace('v','').Trim()
+        [int]$currentRestVersionInt = $currentRestVersion.Replace('V', '').Replace('v', '').Trim()
         if ($currentRestVersionInt -lt 3) {
             "Auditing requires API version 3 or later. Network Controller supports version {0}" -f $currentRestVersionInt | Trace-Output -Level:Warning
             return
@@ -1603,9 +1603,9 @@ function Get-SdnAuditLog {
         # only add the servers where auditingEnabled has been configured as 'Firewall'
         if ($null -eq $ComputerName) {
             $sdnServers = Get-SdnResource -Resource Servers -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ApiVersion $currentRestVersion `
-            | Where-Object {$_.properties.auditingEnabled -ieq 'Firewall'}
+            | Where-Object { $_.properties.auditingEnabled -ieq 'Firewall' }
 
-            $ComputerName = ($sdnServers.properties.connections | Where-Object {$_.credentialType -ieq 'UsernamePassword'}).managementAddresses
+            $ComputerName = ($sdnServers.properties.connections | Where-Object { $_.credentialType -ieq 'UsernamePassword' }).managementAddresses
         }
     }
 

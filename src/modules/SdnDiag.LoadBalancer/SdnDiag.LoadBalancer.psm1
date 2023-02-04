@@ -180,7 +180,7 @@ function Get-SdnSlbStateInformation {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
 
         $putResult = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
-        -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json"}
+            -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json" }
 
         $resultObject = ConvertFrom-Json $putResult.Content
         "Response received $($putResult.Content)" | Trace-Output -Level:Verbose

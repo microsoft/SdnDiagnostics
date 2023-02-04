@@ -21,7 +21,7 @@ function Get-VfpVMSwitchPort {
         foreach ($line in $vfpResults) {
             $line = $line.Trim()
 
-            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+            if ($line -like 'ITEM LIST' -or $line -ilike '===========') {
                 continue
             }
 
@@ -64,13 +64,13 @@ function Get-VfpVMSwitchPort {
             }
             else {
                 if ($line.Contains('Port is')) {
-                    $object | Add-Member -MemberType NoteProperty -Name 'PortState' -Value $line.Split(' ')[2].Replace('.','').Trim()
+                    $object | Add-Member -MemberType NoteProperty -Name 'PortState' -Value $line.Split(' ')[2].Replace('.', '').Trim()
                 }
                 elseif ($line.Contains('MAC Learning is')) {
-                    $object | Add-Member -MemberType NoteProperty -Name 'MACLearning' -Value $line.Split(' ')[3].Replace('.','').Trim()
+                    $object | Add-Member -MemberType NoteProperty -Name 'MACLearning' -Value $line.Split(' ')[3].Replace('.', '').Trim()
                 }
                 elseif ($line.Contains('NIC is')) {
-                    $object | Add-Member -MemberType NoteProperty -Name 'NICState' -Value $line.Split(' ')[2].Replace('.','').Trim()
+                    $object | Add-Member -MemberType NoteProperty -Name 'NICState' -Value $line.Split(' ')[2].Replace('.', '').Trim()
                 }
             }
         }
@@ -113,11 +113,11 @@ function Get-SdnVfpPortGroup {
         [System.String]$Layer,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [ValidateSet('IN','OUT')]
+        [ValidateSet('IN', 'OUT')]
         [System.String]$Direction,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [ValidateSet('IPv4','IPv6')]
+        [ValidateSet('IPv4', 'IPv6')]
         [System.String]$Type,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
@@ -127,7 +127,7 @@ function Get-SdnVfpPortGroup {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpGroups = vfpctrl /list-group /port $PortId /layer $Layer
-        if ($null -eq $vfpGroups){
+        if ($null -eq $vfpGroups) {
             return $null
         }
 
@@ -141,7 +141,7 @@ function Get-SdnVfpPortGroup {
         foreach ($line in $vfpGroups) {
             $line = $line.Trim()
 
-            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+            if ($line -like 'ITEM LIST' -or $line -ilike '===========') {
                 continue
             }
 
@@ -152,7 +152,7 @@ function Get-SdnVfpPortGroup {
             # in situations where the value might be nested in another line we need to do some additional data processing
             # subkey is declared below if the value is null after the split
             if ($subKey) {
-                if($null -eq $subObject){
+                if ($null -eq $subObject) {
                     $subObject = New-Object -TypeName PSObject
                 }
                 if ($null -eq $subArrayList) {
@@ -165,7 +165,7 @@ function Get-SdnVfpPortGroup {
                         # we also see common pattern that Match type is the next property after Conditions, so we can use that to determine when
                         # no further processing is needed for this sub value
                         if ($line.Contains('Match type')) {
-                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject}
+                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject }
 
                             $subObject = $null
                             $subKey = $null
@@ -233,11 +233,11 @@ function Get-SdnVfpPortGroup {
         }
 
         if ($Direction) {
-            $arrayList = $arrayList | Where-Object {$_.Direction -ieq $Direction}
+            $arrayList = $arrayList | Where-Object { $_.Direction -ieq $Direction }
         }
 
         if ($Type) {
-            $arrayList = $arrayList | Where-Object {$_.Type -ieq $Type}
+            $arrayList = $arrayList | Where-Object { $_.Type -ieq $Type }
         }
 
         return ($arrayList | Sort-Object -Property Priority)
@@ -272,7 +272,7 @@ function Get-SdnVfpPortLayer {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpLayers = vfpctrl /list-layer /port $PortId
-        if ($null -eq $vfpLayers){
+        if ($null -eq $vfpLayers) {
             return $null
         }
 
@@ -286,7 +286,7 @@ function Get-SdnVfpPortLayer {
         foreach ($line in $vfpLayers) {
             $line = $line.Trim()
 
-            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+            if ($line -like 'ITEM LIST' -or $line -ilike '===========') {
                 continue
             }
 
@@ -381,7 +381,7 @@ function Get-SdnVfpPortRule {
     try {
         $arrayList = [System.Collections.ArrayList]::new()
         $vfpRules = vfpctrl /list-rule /port $PortId /layer $Layer /group $Group
-        if ($null -eq $vfpRules){
+        if ($null -eq $vfpRules) {
             return $null
         }
 
@@ -395,7 +395,7 @@ function Get-SdnVfpPortRule {
         foreach ($line in $vfpRules) {
             $line = $line.Trim()
 
-            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
+            if ($line -like 'ITEM LIST' -or $line -ilike '===========') {
                 continue
             }
 
@@ -406,7 +406,7 @@ function Get-SdnVfpPortRule {
             # in situations where the value might be nested in another line we need to do some additional data processing
             # subkey is declared below if the value is null after the split
             if ($subKey) {
-                if($null -eq $subObject){
+                if ($null -eq $subObject) {
                     $subObject = New-Object -TypeName PSObject
                 }
                 if ($null -eq $subArrayList) {
@@ -419,7 +419,7 @@ function Get-SdnVfpPortRule {
                         # we also see common pattern that Flow TTL is the next property after Conditions, so we can use that to determine when
                         # no further processing is needed for this sub value
                         if ($line.Contains('Flow TTL')) {
-                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject}
+                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject }
 
                             $subObject = $null
                             $subKey = $null
@@ -449,7 +449,7 @@ function Get-SdnVfpPortRule {
                             $subKey = $null
                         }
                         else {
-                            [System.String[]]$subResults = $line.Replace('{','').Replace('}','').Split(',').Trim()
+                            [System.String[]]$subResults = $line.Replace('{', '').Replace('}', '').Split(',').Trim()
                             foreach ($subResult in $subResults) {
                                 [System.String]$subKeyName = $subResult.Split('=')[0].Trim()
                                 [System.String]$subKeyValue = $subResult.Split('=')[1].Trim()
@@ -487,7 +487,7 @@ function Get-SdnVfpPortRule {
                     # because some rules defined within groups do not have a rule name defined such as NAT layers,
                     # grab the friendly name and update the ps object
                     if ($key -ieq 'Friendly name') {
-                        if([String]::IsNullOrEmpty($object.Rule)) {
+                        if ([String]::IsNullOrEmpty($object.Rule)) {
                             $object.Rule = $value
                         }
                     }
@@ -514,7 +514,7 @@ function Get-SdnVfpPortRule {
         }
 
         if ($Name) {
-            return ($arrayList | Where-Object {$_.Rule -ieq $Name -or $_.'Friendly name' -ieq $Name})
+            return ($arrayList | Where-Object { $_.Rule -ieq $Name -or $_.'Friendly name' -ieq $Name })
         }
 
         return ($arrayList | Sort-Object -Property Priority)
@@ -552,7 +552,7 @@ function Get-SdnVfpPortState {
         }
 
         foreach ($line in $vfpPortState) {
-            $trimmedLine = $line.Replace(':','').Trim()
+            $trimmedLine = $line.Replace(':', '').Trim()
 
             # look for true/false and then seperate out the key/value pairs
             # we will convert the true/false values to boolean when adding to the object
@@ -634,9 +634,9 @@ function Get-SdnVfpVmSwitchPort {
         }
 
         switch ($PSCmdlet.ParameterSetName) {
-            'Port' { return ($results | Where-Object {$_.PortName -ieq $PortName}) }
-            'VMID' { return ($results | Where-Object {$_.VMID -ieq $VMID}) }
-            'VMName' { return ($results | Where-Object {$_.VMName -ieq $VMName}) }
+            'Port' { return ($results | Where-Object { $_.PortName -ieq $PortName }) }
+            'VMID' { return ($results | Where-Object { $_.VMID -ieq $VMID }) }
+            'VMName' { return ($results | Where-Object { $_.VMName -ieq $VMName }) }
             default { return $results }
         }
     }
@@ -669,11 +669,11 @@ function Show-SdnVfpPortConfig {
         [GUID]$PortId,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [ValidateSet('IPv4','IPv6')]
+        [ValidateSet('IPv4', 'IPv6')]
         [System.String]$Type,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [ValidateSet('IN','OUT')]
+        [ValidateSet('IN', 'OUT')]
         [System.String]$Direction
     )
 
@@ -695,7 +695,7 @@ function Show-SdnVfpPortConfig {
             }
 
             if ($Type) {
-                $vfpGroups = $vfpGroups | Where-Object {$_.Type -ieq $Type}
+                $vfpGroups = $vfpGroups | Where-Object { $_.Type -ieq $Type }
             }
 
             foreach ($group in $vfpGroups) {

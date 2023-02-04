@@ -61,14 +61,14 @@ function Set-VMNetworkAdapterPortProfile {
     )
 
     [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
-    [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
+    [System.Guid]$vendorId = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
 
     try {
         if ($null -eq (Get-Module -Name Hyper-V)) {
             Import-Module -Name Hyper-V -Force
         }
 
-        $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
+        $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object { $_.MacAddress -ieq $MacAddress }
         if ($null -eq $vmNic) {
             "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Exception
             return
@@ -218,7 +218,7 @@ function Get-SdnNetAdapterRdmaConfig {
         "Network adapter {0} (Name: {1}) is a {2}" -f $rdmaAdapter.InterfaceIndex, $rdmaAdapter.Name, $adapterType | Trace-Output -Level:Verbose
 
         $rdmaCapabilities = Get-NetAdapterRdma -InterfaceDescription $rdmaAdapter.InterfaceDescription
-        if($null -eq $rdmaCapabilities -or $rdmaCapabilities.Enabled -ieq $false) {
+        if ($null -eq $rdmaCapabilities -or $rdmaCapabilities.Enabled -ieq $false) {
             $rdmaEnabled = $false
             "Network adapter {0} is not enabled for RDMA" -f $rdmaAdapter.InterfaceIndex | Trace-Output -Level:Warning
         }
@@ -234,7 +234,7 @@ function Get-SdnNetAdapterRdmaConfig {
             $maxQueueConfigIsValid = $true
         }
 
-        $rdmaAdapterSmbClientNetworkInterface = Get-SmbClientNetworkInterface | Where-Object {$_.InterfaceIndex -ieq $InterfaceIndex}
+        $rdmaAdapterSmbClientNetworkInterface = Get-SmbClientNetworkInterface | Where-Object { $_.InterfaceIndex -ieq $InterfaceIndex }
         if ($null -eq $rdmaAdapterSmbClientNetworkInterface) {
             "No interfaces found within SMB Client Network Interfaces that match interface index {0}" -f $InterfaceIndex | Trace-Output -Level:Warning
         }
@@ -250,7 +250,7 @@ function Get-SdnNetAdapterRdmaConfig {
 
         if ($adapterType -eq "vNIC") {
             "Retrieving vSwitch bound to the virtual adapter" | Trace-Output -Level:Verbose
-            $virtualAdapter = Get-VMNetworkAdapter -ManagementOS | Where-Object {$_.DeviceId -eq $rdmaAdapter.DeviceID}
+            $virtualAdapter = Get-VMNetworkAdapter -ManagementOS | Where-Object { $_.DeviceId -eq $rdmaAdapter.DeviceID }
             $vSwitch = Get-VMSwitch -Name $virtualAdapter.SwitchName
             if ($vSwitch) {
                 "Found vSwitch: {0}" -f $vSwitch.Name | Trace-Output -Level:Verbose
@@ -259,9 +259,9 @@ function Get-SdnNetAdapterRdmaConfig {
                 if ($rdmaAdapters) {
                     "Found the following physical adapter(s) bound to vSwitch:`r`n`n {0}" -f `
                     ($rdmaAdapters.InterfaceDescription `
-                    | Select-Object @{n="Description";e={"`t$($_)"}} `
-                    | Select-Object -ExpandProperty Description `
-                    | Out-String ) | Trace-Output -Level:Verbose
+                        | Select-Object @{n = "Description"; e = { "`t$($_)" } } `
+                        | Select-Object -ExpandProperty Description `
+                        | Out-String ) | Trace-Output -Level:Verbose
                 }
             }
         }
@@ -295,15 +295,15 @@ function Get-SdnNetAdapterRdmaConfig {
         }
 
         $object = [PSCustomObject]@{
-            Name                                = $rdmaAdapter.Name
-            InterfaceDescription                = $rdmaAdapter.InterfaceDescription
-            InterfaceIndex                      = $InterfaceIndex
-            AdapterType                         = $adapterType
-            MaxQueueConfigIsValid               = $maxQueueConfigIsValid
-            QoSEnabled                          = $qosEnabled
-            QoSOperationalFlowControlEnabled    = $qosOperationalFlowControlEnabled
-            RdmaEnabled                         = $rdmaEnabled
-            SMBInterfaceRdmaCapable             = $smbInterfaceRdmaCapable
+            Name                             = $rdmaAdapter.Name
+            InterfaceDescription             = $rdmaAdapter.InterfaceDescription
+            InterfaceIndex                   = $InterfaceIndex
+            AdapterType                      = $adapterType
+            MaxQueueConfigIsValid            = $maxQueueConfigIsValid
+            QoSEnabled                       = $qosEnabled
+            QoSOperationalFlowControlEnabled = $qosOperationalFlowControlEnabled
+            RdmaEnabled                      = $rdmaEnabled
+            SMBInterfaceRdmaCapable          = $smbInterfaceRdmaCapable
         }
 
         return $object
