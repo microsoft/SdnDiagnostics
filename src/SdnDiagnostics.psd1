@@ -168,9 +168,7 @@
             LicenseUri = 'https://microsoft.mit-license.org/'
 
             # External dependent modules of this module
-            ExternalModuleDependencies = @(
-                'CimCmdlets', 'DnsClient', 'Microsoft.PowerShell.Archive', 'NetSecurity', 'NetTCPIP', 'SmbShare'
-            )
+            ExternalModuleDependencies = @()
         }
     }
 }

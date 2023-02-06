@@ -54,7 +54,7 @@
 
             # External dependent modules of this module
             ExternalModuleDependencies = @(
-                'CimCmdlets', 'DnsClient', 'Microsoft.PowerShell.Archive', 'NetSecurity', 'NetTCPIP', 'SmbShare'
+                'CimCmdlets', 'NetSecurity', 'NetTCPIP', 'Microsoft.PowerShell.Archive', 'SmbShare'
             )
         }
     }

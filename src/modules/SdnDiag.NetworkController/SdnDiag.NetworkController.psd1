@@ -26,7 +26,6 @@
     NestedModules = @(
         'SdnDiag.NetworkController.RotateCert.psm1'
         'SdnDiag.NetworkController.ServiceFabric.psm1'
-        ''
     )
 
     # Modules that must be imported into the global environment prior to importing this module
@@ -57,7 +56,9 @@
             LicenseUri = 'https://microsoft.mit-license.org/'
 
             # External dependent modules of this module
-            ExternalModuleDependencies = @()
+            ExternalModuleDependencies = @(
+                'Microsoft.PowerShell.Archive'
+            )
         }
     }
 }
