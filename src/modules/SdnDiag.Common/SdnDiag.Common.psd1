@@ -23,7 +23,10 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @()
+    NestedModules = @(
+        'SdnDiag.Common.Tracing.psm1'
+        'SdnDiag.Common.Utilities.psm1'
+    )
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()
@@ -32,7 +35,23 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Clear-SdnWorkingDirectory'
+        'Convert-SdnEtwTraceToTxt'
+        'Get-SdnDiagnosticLog'
+        'Get-SdnEventLog'
+        'Import-SdnCertificate'
+        'Install-SdnDiagnostics'
+        'Invoke-SdnCommand'
+        'Invoke-SdnGetNetView'
+        'New-SdnCertificate'
+        'Set-SdnCertificateAcl'
+        'Start-NetshTrace'
+        'Start-SdnEtwTraceCapture'
+        'Start-SdnNetshTrace'
+        'Stop-SdnEtwTraceCapture'
+        'Stop-SdnNetshTrace'
+    )
 
     # Variables to export from this module
     VariablesToExport = @()

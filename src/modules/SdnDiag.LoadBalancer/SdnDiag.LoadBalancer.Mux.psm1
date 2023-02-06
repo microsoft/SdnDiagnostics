@@ -13,7 +13,6 @@ function Get-SdnMuxDistributedRouterIP {
     <#
         .SYNOPSIS
             This cmdlet returns the Distributed Router IPs that are advertised on the MUX.
-        .DESCRIPTION
         .PARAMETER VirtualIP
             The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
@@ -45,11 +44,11 @@ function Get-SdnMuxDistributedRouterIP {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxState {
     <#
         .SYNOPSIS
             This cmdlet retrieves the current state of the load balancer MUX.
-        .DESCRIPTION
     #>
 
     try {
@@ -59,11 +58,11 @@ function Get-SdnMuxState {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxStatefulVip {
     <#
         .SYNOPSIS
             Gets details related to the stateful VIPs.
-        .DESCRIPTION
         .PARAMETER VirtualIP
             The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
@@ -95,11 +94,11 @@ function Get-SdnMuxStatefulVip {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxStatelessVip {
     <#
         .SYNOPSIS
             Gets details related to the stateless VIPs.
-        .DESCRIPTION
         .PARAMETER VirtualIP
             The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
@@ -131,11 +130,11 @@ function Get-SdnMuxStatelessVip {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxStats {
     <#
         .SYNOPSIS
             Get the statistics related to the Virtual IPs.
-        .DESCRIPTION
         .PARAMETER VirtualIP
             The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .PARAMETER SkipReset
@@ -162,11 +161,11 @@ function Get-SdnMuxStats {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxVip {
     <#
         .SYNOPSIS
             This cmdlet returns the VIP endpoint(s).
-        .DESCRIPTION
         .PARAMETER VirtualIP
             The Virtual IP address (VIP) of the resource. If omitted, will return all VIPs programmed within the MUX driver.
         .EXAMPLE
@@ -198,6 +197,7 @@ function Get-SdnMuxVip {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
+
 function Get-SdnMuxVipConfig {
     <#
         .SYNOPSIS

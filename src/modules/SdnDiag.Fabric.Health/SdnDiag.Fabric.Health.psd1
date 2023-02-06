@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'SdnDiag.Health.psm1'
+    RootModule = 'SdnDiag.Fabric.Health.psm1'
 
     # Author of this module
     Author = 'Adam Rudell'

@@ -34,7 +34,18 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Get-SdnSlbStateInformation'
+        'Get-SdnSlbMuxConfigurationState'
+        'Get-SdnNetworkInterfaceOutboundPublicIPAddress'
+        'Get-SdnMuxVipConfig'
+        'Get-SdnMuxVip'
+        'Get-SdnMuxStats'
+        'Get-SdnMuxStatelessVip'
+        'Get-SdnMuxStatefulVip'
+        'Get-SdnMuxState'
+        'Get-SdnMuxDistributedRouterIP'
+    )
 
     # Variables to export from this module
     VariablesToExport = @()

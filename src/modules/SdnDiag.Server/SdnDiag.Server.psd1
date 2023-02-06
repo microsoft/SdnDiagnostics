@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'Sdn.Server.psm1'
+    RootModule = 'SdnDiag.Server.psm1'
 
     # Author of this module
     Author = 'Adam Rudell'

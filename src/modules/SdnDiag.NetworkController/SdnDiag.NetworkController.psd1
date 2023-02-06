@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'SdnCommon.psm1'
+    RootModule = 'SdnDiag.NetworkController.psm1'
 
     # Author of this module
     Author = 'Adam Rudell'
@@ -35,7 +35,19 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @()
+    FunctionsToExport = @(
+        'Get-SdnServiceFabricApplicationHealth'
+        'Get-SdnServiceFabricClusterConfig'
+        'Get-SdnServiceFabricClusterHealth'
+        'Get-SdnServiceFabricClusterManifest'
+        'Get-SdnServiceFabricLog'
+        'Get-SdnServiceFabricNode'
+        'Get-SdnServiceFabricPartition'
+        'Get-SdnServiceFabricReplica'
+        'Get-SdnServiceFabricService'
+        'Invoke-SdnServiceFabricCommand'
+        'Move-SdnServiceFabricReplica'
+    )
 
     # Variables to export from this module
     VariablesToExport = @()
