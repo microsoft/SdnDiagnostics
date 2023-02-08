@@ -24,6 +24,7 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
+        'SdnDiag.Gateway.Health.psm1'
         'SdnDiag.Gateway.Tracing.psm1'
     )
 
@@ -38,6 +39,8 @@
         'Disable-SdnRasGatewayTracing'
         'Enable-SdnRasGatewayTracing'
         'Get-SdnGatewayConfigurationState'
+        'Test-SdnGatewayConfigState'
+        'Test-SdnGatewayServiceState'
     )
 
     # Variables to export from this module

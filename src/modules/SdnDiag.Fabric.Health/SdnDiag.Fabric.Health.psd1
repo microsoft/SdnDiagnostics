@@ -23,12 +23,7 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @(
-        'SdnDiag.Fabric.Health.Gateway.psm1'
-        'SdnDiag.Fabric.Health.LoadBalancerMux.psm1'
-        'SdnDiag.Fabric.Health.NetworkController.psm1'
-        'SdnDiag.Fabric.Health.Server.psm1'
-    )
+    NestedModules = @()
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()
@@ -40,7 +35,6 @@
     FunctionsToExport = @(
         'Get-SdnFabricInfrastructureHealth'
         'Debug-SdnFabricInfrastructure'
-        'Test-SdnGatewayConfigState'
     )
 
     # Variables to export from this module
