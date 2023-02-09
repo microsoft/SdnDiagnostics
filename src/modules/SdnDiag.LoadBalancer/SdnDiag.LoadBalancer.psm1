@@ -1,7 +1,8 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
+Import-Module "$PSScriptRoot\..\SdnDiag.Utilities"
+Import-Module "$PSScriptRoot\..\SdnDiag.Common"
 
 function Get-PublicIpReference {
     [CmdletBinding()]

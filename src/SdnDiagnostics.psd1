@@ -34,6 +34,7 @@
         'modules\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer'
         'modules\SdnDiag.NetworkController\SdnDiag.NetworkController'
         'modules\SdnDiag.Server\SdnDiag.Server'
+        'modules\SdnDiag.Utilities\SdnDiag.Utilities'
     )
 
     # Modules that must be imported into the global environment prior to importing this module

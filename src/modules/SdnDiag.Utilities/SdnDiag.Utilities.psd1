@@ -5,7 +5,7 @@
 
 @{
     # Script module or binary module file associated with this manifest.
-    RootModule = 'SdnDiag.Common.psm1'
+    RootModule = 'SdnDiag.Utilities.psm1'
 
     # Author of this module
     Author = 'Adam Rudell'
@@ -23,9 +23,7 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @(
-        'SdnDiag.Common.Tracing.psm1'
-    )
+    NestedModules = @()
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()
@@ -35,22 +33,7 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
-        'Clear-SdnWorkingDirectory'
-        'Convert-SdnEtwTraceToTxt'
-        'Get-SdnDiagnosticLog'
-        'Get-SdnGeneralConfigurationState'
-        'Get-SdnEventLog'
-        'Get-SdnRoleConfiguration'
-        'Import-SdnCertificate'
-        'Install-SdnDiagnostics'
-        'Invoke-SdnCommand'
-        'Invoke-SdnGetNetView'
-        'New-SdnCertificate'
-        'Set-SdnCertificateAcl'
-        'Start-SdnEtwTraceCapture'
-        'Start-SdnNetshTrace'
-        'Stop-SdnEtwTraceCapture'
-        'Stop-SdnNetshTrace'
+        'Confirm-DiskSpace'
     )
 
     # Variables to export from this module

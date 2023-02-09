@@ -27,8 +27,6 @@ function Disable-SdnRasGatewayTracing {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Enable-SdnRasGatewayTracing {
     <#
