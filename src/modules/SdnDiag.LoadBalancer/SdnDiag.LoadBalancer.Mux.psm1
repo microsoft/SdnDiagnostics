@@ -1,6 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
+
 function Get-MuxDriverControl {
     if (-NOT (Get-Module -Name 'Microsoft.Cloudnet.Slb.Mux.MuxDriverControl')) {
         Import-Module 'C:\windows\System32\Microsoft.Cloudnet.Slb.Mux.MuxDriverControl.dll' -Force
@@ -283,7 +286,7 @@ function Get-SdnSlbMuxConfigurationState {
         Get-SdnMuxVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVip' -FileType json
         Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVipConfig' -FileType json
 
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnGeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -1,6 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
 Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
 
 function Get-SdnGatewayConfigurationState {
@@ -74,7 +75,7 @@ function Get-SdnGatewayConfigurationState {
             }
         }
 
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnGeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

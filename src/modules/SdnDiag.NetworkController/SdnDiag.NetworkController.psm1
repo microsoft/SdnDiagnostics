@@ -726,7 +726,7 @@ function Get-SdnNetworkControllerConfigurationState {
             Get-Item -Path "$($directory.FullName)\*" -Include *.dll, *.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
         }
 
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnGeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

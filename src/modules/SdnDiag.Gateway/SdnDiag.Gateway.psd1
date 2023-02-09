@@ -24,6 +24,7 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
+        'SdnDiag.Gateway.Helper.psm1'
         'SdnDiag.Gateway.Health.psm1'
         'SdnDiag.Gateway.Tracing.psm1'
     )
