@@ -1,7 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Utilities"
+Import-Module "$PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1"
 
 enum SdnRoles {
     Gateway
@@ -139,6 +139,8 @@ function Get-SdnRoleConfiguration {
         [Parameter(Mandatory = $true)]
         [SdnRoles]$Role
     )
+
+    return $Global:SdnDiagnostics
 
     return ($Global:SdnDiagnostics.Config[$Role])
 }
@@ -914,117 +916,4 @@ function Invoke-SdnCommand {
     }
 }
 
-function Export-RegistryKeyConfigDetails {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [System.String[]]$Path,
 
-        [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory
-    )
-
-    try {
-        # create the OutputDirectory if does not already exist
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
-        }
-
-        foreach ($regKeyPath in $Path) {
-            "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output -Level:Verbose
-
-            $regKeyDirectories = @()
-            $regKeyDirectories += Get-ChildItem -Path $regKeyPath -ErrorAction SilentlyContinue
-            $regKeyDirectories += Get-ChildItem -Path $regKeyPath -Recurse -ErrorAction SilentlyContinue
-            $regKeyDirectories = $regKeyDirectories | Sort-Object -Unique
-
-            [System.String]$filePath = "{0}\Registry_{1}.txt" -f $OutputDirectory.FullName, $($regKeyPath.Replace(':', '').Replace('\', '_'))
-            foreach ($obj in $RegKeyDirectories) {
-                "Scanning {0}" -f $obj.PsPath | Trace-Output -Level:Verbose
-                try {
-                    $properties = Get-ItemProperty -Path $obj.PSPath -ErrorAction Stop
-                }
-                catch {
-                    "Unable to return results from {0}`n`t{1}" -f $obj.PSPath, $_.Exception | Trace-Output -Level:Warning
-                    continue
-                }
-
-                $properties | Out-File -FilePath $filePath -Encoding utf8 -Append
-
-                # if the registry key item is referencing a dll, then lets get the dll properties so we can see the version and file information
-                if ($properties.Path -like "*.dll" -or $properties.Path -like "*.exe") {
-                    "Getting file properties for {0}" -f $properties.Path | Trace-Output -Level:Verbose
-                    [System.String]$fileName = "FileInfo_{0}" -f $($properties.Path.Replace(':', '').Replace('\', '_').Replace('.', '_'))
-                    Get-Item -Path $properties.Path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name $fileName -FileType txt -Format List
-                }
-            }
-        }
-    }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }
-}
-
-function Initialize-DataCollection {
-    <#
-    .SYNOPSIS
-        Prepares the environment for data collection that logs will be saved to.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'GB')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'MB')]
-        [SdnRoles]$Role,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
-        [System.IO.FileInfo]$FilePath,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
-        [System.Int32]$MinimumGB,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
-        [System.Int32]$MinimumMB
-    )
-
-    # ensure that the appropriate windows feature is installed and ensure module is imported
-    if ($Role) {
-        $config = Get-SdnRoleConfiguration -Role $Role
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (-NOT ($confirmFeatures)) {
-            "Required feature is missing: {0}" -f ($config.windowsFeature -join ', ') | Trace-Output -Level:Exception
-            return $false
-        }
-
-        $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if (-NOT ($confirmModules)) {
-            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ') | Trace-Output -Level:Exception
-            return $false
-        }
-    }
-
-    # create the directories if does not already exist
-    if (-NOT (Test-Path -Path $FilePath.FullName -PathType Container)) {
-        "Creating {0}" -f $FilePath.FullName | Trace-Output -Level:Verbose
-        $null = New-Item -Path $FilePath.FullName -ItemType Directory -Force
-    }
-
-    # confirm sufficient disk space
-    [System.Char]$driveLetter = (Split-Path -Path $FilePath.FullName -Qualifier).Replace(':', '')
-    switch ($PSCmdlet.ParameterSetName) {
-        'GB' {
-            $diskSpace = Confirm-DiskSpace -DriveLetter $driveLetter -MinimumGB $MinimumGB
-        }
-        'MB' {
-            $diskSpace = Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB $MinimumMB
-        }
-    }
-
-    if (-NOT ($diskSpace)) {
-        "Insufficient disk space detected." | Trace-Output -Level:Exception
-        return $false
-    }
-
-    return $true
-}

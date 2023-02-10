@@ -1,8 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Common"
-Import-Module "$PSScriptRoot\..\SdnDiag.Utilities"
+Import-Module "$PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1"
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
 
 function Get-MuxDriverControl {
     if (-NOT (Get-Module -Name 'Microsoft.Cloudnet.Slb.Mux.MuxDriverControl')) {

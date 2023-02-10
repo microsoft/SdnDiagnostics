@@ -32,9 +32,7 @@
     CmdletsToExport = @()
 
     # Functions to export from this module
-    FunctionsToExport = @(
-        'Confirm-DiskSpace'
-    )
+    FunctionsToExport = @()
 
     # Variables to export from this module
     VariablesToExport = @()

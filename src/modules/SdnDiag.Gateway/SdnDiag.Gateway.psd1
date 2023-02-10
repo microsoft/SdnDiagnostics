@@ -23,10 +23,7 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @(
-        'SdnDiag.Gateway.Health.psm1'
-        'SdnDiag.Gateway.Tracing.psm1'
-    )
+    NestedModules = @()
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()

@@ -24,7 +24,7 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
-        'SdnDiag.Common.Tracing.psm1'
+        "$PSScriptRoot\SdnDiag.Common.Tracing.psm1"
     )
 
     # Modules that must be imported into the global environment prior to importing this module

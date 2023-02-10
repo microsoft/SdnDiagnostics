@@ -1,7 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Utilities"
+Import-Module "$PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1"
 
 function Format-NetshTraceProviderAsString {
     <#
