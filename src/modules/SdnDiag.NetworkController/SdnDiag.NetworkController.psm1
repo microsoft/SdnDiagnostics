@@ -82,8 +82,6 @@ function Get-SdnDiscovery {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnNetworkControllerInfoOffline {
     <#
@@ -150,8 +148,6 @@ function Get-SdnNetworkControllerInfoOffline {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnNetworkControllerRestURL {
     <#
@@ -172,8 +168,8 @@ function Get-SdnNetworkControllerRestURL {
 
     try {
         # if already populated into the cache, return the value
-        if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))) {
-            return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.InfrastructureInfo.NcUrl))) {
+            return $Global:SdnDiagnostics.InfrastructureInfo.NcUrl
         }
 
         $result = Get-SdnNetworkController -NetworkController $NetworkController -Credential $Credential
@@ -193,8 +189,6 @@ function Get-SdnNetworkControllerRestURL {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnVirtualServer {
     <#
@@ -248,7 +242,6 @@ function Get-SdnVirtualServer {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-
 
 function Invoke-SdnNetworkControllerStateDump {
     <#
@@ -318,7 +311,7 @@ function Get-SdnApiEndpoint {
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER ApiVersion
-        The API version to use when invoking against the NC REST API endpoint. By default, reads from $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion
+        The API version to use when invoking against the NC REST API endpoint. By default, reads from $Global:SdnDiagnostics.InfrastructureInfo.RestApiVersion
         which defaults to 'v1' unless explicity overwritten, or 'Get-SdnInfrastructureInfo' is called.
     .PARAMETER ResourceName
         Network Controller resource exposed via NB API interface of Network Controller, as defined under https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/6dbabf43-0fcd-439c-81e2-7eb794f7c140.
@@ -340,7 +333,7 @@ function Get-SdnApiEndpoint {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceName')]
-        [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
+        [System.String]$ApiVersion = $Global:SdnDiagnostics.InfrastructureInfo.RestApiVersion,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ResourceName')]
         [System.String]$ResourceName,
@@ -363,7 +356,7 @@ function Get-SdnApiEndpoint {
             }
         }
         'ResourceName' {
-            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object { $_.name -ieq $resourceName }
+            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources[$ResourceName]
             if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
                 [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $apiEndpointProperties.uri
             }
@@ -382,8 +375,6 @@ function Get-SdnApiEndpoint {
 
     return $endpoint
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnGateway {
     <#
@@ -437,13 +428,11 @@ function Get-SdnGateway {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnInfrastructureInfo {
     <#
     .SYNOPSIS
-        Get the SDN infrastructure information from network controller. The function will update the $Global:SdnDiagnostics.EnvironmentInfo variable.
+        Get the SDN infrastructure information from network controller. The function will update the $Global:SdnDiagnostics.InfrastructureInfo variable.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
     .PARAMETER NcUri
@@ -500,83 +489,83 @@ function Get-SdnInfrastructureInfo {
 
         # if force is defined, purge the cache to force a refresh on the objects
         if ($PSBoundParameters.ContainsKey('Force')) {
-            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
-            $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
-            $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
+            $Global:SdnDiagnostics.InfrastructureInfo.NcUrl = $null
+            $global:SdnDiagnostics.InfrastructureInfo.NetworkController = $null
+            $global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux = $null
+            $Global:SdnDiagnostics.InfrastructureInfo.Gateway = $null
+            $Global:SdnDiagnostics.InfrastructureInfo.Server = $null
+            $Global:SdnDiagnostics.InfrastructureInfo.FabricNodes = $null
         }
 
         # get the NC Northbound API endpoint
         if ($NcUri) {
-            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $NcUri.AbsoluteUri
+            $Global:SdnDiagnostics.InfrastructureInfo.NcUrl = $NcUri.AbsoluteUri
         }
-        elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
+        elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.InfrastructureInfo.NcUrl)) {
             $result = Get-SdnNetworkControllerRestURL -NetworkController $NetworkController -Credential $Credential
 
             if ($null -eq $result) {
                 throw New-Object System.NullReferenceException("Unable to locate REST API endpoint for Network Controller. Please specify REST API with -RestUri parameter.")
             }
 
-            $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $result
+            $Global:SdnDiagnostics.InfrastructureInfo.NcUrl = $result
         }
 
         # get the supported rest API versions from network controller
         # as we default this to v1 on module import within $Global.SdnDiagnostics, will not check to see if null first
-        $currentRestVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
+        $currentRestVersion = (Get-SdnDiscovery -NcUri $Global:SdnDiagnostics.InfrastructureInfo.NcUrl -Credential $NcRestCredential).properties.currentRestVersion
         if (-NOT [String]::IsNullOrEmpty($currentRestVersion)) {
-            $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion = $currentRestVersion
+            $Global:SdnDiagnostics.InfrastructureInfo.RestApiVersion = $currentRestVersion
         }
 
         # get the network controllers
-        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
+        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.InfrastructureInfo.NetworkController)) {
+            [System.Array]$global:SdnDiagnostics.InfrastructureInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential
         }
 
         # get the load balancer muxes
-        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux)) {
+            [System.Array]$global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.InfrastructureInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the gateways
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.InfrastructureInfo.Gateway)) {
+            [System.Array]$Global:SdnDiagnostics.InfrastructureInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.InfrastructureInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # get the hypervisor hosts
-        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Server)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+        if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.InfrastructureInfo.Server)) {
+            [System.Array]$Global:SdnDiagnostics.InfrastructureInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.InfrastructureInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above
         $fabricNodes = @()
-        $fabricNodes += $global:SdnDiagnostics.EnvironmentInfo.NetworkController
+        $fabricNodes += $global:SdnDiagnostics.InfrastructureInfo.NetworkController
 
-        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Server) {
-            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Server
+        if ($null -ne $Global:SdnDiagnostics.InfrastructureInfo.Server) {
+            $fabricNodes += $Global:SdnDiagnostics.InfrastructureInfo.Server
         }
 
-        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.Gateway) {
-            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        if ($null -ne $Global:SdnDiagnostics.InfrastructureInfo.Gateway) {
+            $fabricNodes += $Global:SdnDiagnostics.InfrastructureInfo.Gateway
         }
 
-        if ($null -ne $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux) {
-            $fabricNodes += $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
+        if ($null -ne $Global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux) {
+            $fabricNodes += $Global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux
         }
 
-        $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
+        $Global:SdnDiagnostics.InfrastructureInfo.FabricNodes = $fabricNodes
 
-        return $Global:SdnDiagnostics.EnvironmentInfo
+        return $Global:SdnDiagnostics.InfrastructureInfo
     }
     catch {
         # Remove any cached info in case of exception as the cached info might be incorrect
-        $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
-        $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
-        $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
-        $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
+        $Global:SdnDiagnostics.InfrastructureInfo.NcUrl = $null
+        $global:SdnDiagnostics.InfrastructureInfo.NetworkController = $null
+        $global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux = $null
+        $Global:SdnDiagnostics.InfrastructureInfo.Gateway = $null
+        $Global:SdnDiagnostics.InfrastructureInfo.Server = $null
+        $Global:SdnDiagnostics.InfrastructureInfo.FabricNodes = $null
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
@@ -1036,7 +1025,7 @@ function Get-SdnResource {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
+        [System.String]$ApiVersion = $Global:SdnDiagnostics.InfrastructureInfo.RestApiVersion,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
@@ -1194,7 +1183,7 @@ function Invoke-SdnResourceDump {
 
         $config = Get-SdnRoleConfiguration -Role:NetworkController
         [int]$apiVersionInt = $ApiVersion.Replace('v', '').Replace('V', '')
-        foreach ($resource in $config.properties.apiResources) {
+        foreach ($resource in $config.properties.apiResources.Values) {
 
             # skip any resources that are not designed to be exported
             if ($resource.includeInResourceDump -ieq $false) {

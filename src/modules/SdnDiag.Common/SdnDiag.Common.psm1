@@ -92,8 +92,8 @@ function Get-SdnRole {
         [System.String]$ComputerName
     )
 
-    if ($null -eq $Global:SdnDiagnostics.EnvironmentInfo.NetworkController) {
-        "Unable to enumerate data from EnvironmentInfo. Please run 'Get-SdnInfrastructureInfo' to populate infrastructure details." | Trace-Output -Level:Warning
+    if ($null -eq $Global:SdnDiagnostics.InfrastructureInfo.NetworkController) {
+        "Unable to enumerate data from InfrastructureInfo. Please run 'Get-SdnInfrastructureInfo' to populate infrastructure details." | Trace-Output -Level:Warning
         return
     }
 
@@ -120,8 +120,8 @@ function Get-SdnRole {
 
     # enumerate the objects for each of the available SDN roles to find a match
     # once match is found, return the role name as string back to calling function
-    foreach ($role in ($Global:SdnDiagnostics.EnvironmentInfo.Keys | Where-Object { $_ -iin $Global:SdnDiagnostics.Config.Keys })) {
-        foreach ($object in $Global:SdnDiagnostics.EnvironmentInfo[$role]) {
+    foreach ($role in ($Global:SdnDiagnostics.InfrastructureInfo.Keys | Where-Object { $_ -iin $Global:SdnDiagnostics.Config.Keys })) {
+        foreach ($object in $Global:SdnDiagnostics.InfrastructureInfo[$role]) {
             if ($object -ieq $computerNameNetBIOS -or $object -ieq $computerNameFQDN) {
                 return $role.ToString()
             }

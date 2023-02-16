@@ -22,10 +22,10 @@ function Test-SdnKINetworkControllerCertCredential {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String[]]$NetworkController = $global:SdnDiagnostics.InfrastructureInfo.NetworkController,
 
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -56,7 +56,7 @@ function Test-SdnKINetworkControllerCertCredential {
         if (!$PSBoundParameters.ContainsKey('NcRestCredential')) {
             if ($Global:SdnDiagnostics.NcRestCredential) {
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -77,7 +77,7 @@ function Test-SdnKINetworkControllerCertCredential {
                         $serverCredentialRefs.Add($credRef, $serverList)
                     }
                     [void]$serverCredentialRefs[$credRef].Add($server)
-                }     
+                }
             }
         }
 
@@ -94,7 +94,7 @@ function Test-SdnKINetworkControllerCertCredential {
                         return $true
                     }
                 }
-                
+
                 # invoke command on each NC seperately so to record which NC missing certificate
                 foreach ($nc in $NetworkController) {
                     "Validating certificate [{0}] on NC {1}" -f $thumbPrint, $nc | Trace-Output -Level:Verbose
@@ -107,11 +107,11 @@ function Test-SdnKINetworkControllerCertCredential {
                             CertificateMissing = $thumbPrint
                             AffectedServers    = $serverCredentialRefs[$credRef]
                         }
-        
+
                         [void]$arrayList.Add($object)
-                    }    
+                    }
                 }
-                
+
             }
         }
 

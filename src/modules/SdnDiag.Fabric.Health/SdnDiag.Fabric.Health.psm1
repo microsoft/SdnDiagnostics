@@ -95,9 +95,9 @@ function Debug-SdnFabricInfrastructure {
             }
         }
 
-        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        if ($null -eq $environmentInfo) {
-            throw New-Object System.NullReferenceException("Unable to retrieve environment details")
+        $infrastructureInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        if ($null -eq $infrastructureInfo) {
+            throw New-Object System.NullReferenceException("Unable to retrieve infrastructure details")
         }
 
         if ($PSBoundParameters.ContainsKey('Role')) {

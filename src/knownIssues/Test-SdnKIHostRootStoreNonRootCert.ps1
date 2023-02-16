@@ -24,7 +24,7 @@ function Test-SdnKIHostRootStoreNonRootCert {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -43,12 +43,12 @@ function Test-SdnKIHostRootStoreNonRootCert {
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $issueDetected = $false
         $arrayList = [System.Collections.ArrayList]::new()
-        
+
         $scriptBlock = {
             $nonRootCerts = [System.Collections.ArrayList]::new()
             $rootCerts = Get-ChildItem Cert:LocalMachine\Root
@@ -73,13 +73,13 @@ function Test-SdnKIHostRootStoreNonRootCert {
                     ComputerName = $node
                     NonRootCerts = $nonRootCerts
                 }
-    
+
                 [void]$arrayList.Add($object)
 
                 $issueDetected = $true
             }
         }
-        
+
         return [PSCustomObject]@{
             Result = $issueDetected
             Properties = $arrayList

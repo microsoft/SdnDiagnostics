@@ -16,7 +16,7 @@ New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
         Server = $serverConfig
     }
     Credential = $null
-    EnvironmentInfo = @{
+    InfrastructureInfo = @{
         RestApiVersion = 'V1'
     }
     NcRestCredential = $null

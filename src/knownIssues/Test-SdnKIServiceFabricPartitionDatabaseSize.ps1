@@ -20,7 +20,7 @@ function Test-SdnKIServiceFabricPartitionDatabaseSize {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String[]]$NetworkController = $global:SdnDiagnostics.InfrastructureInfo.NetworkController,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

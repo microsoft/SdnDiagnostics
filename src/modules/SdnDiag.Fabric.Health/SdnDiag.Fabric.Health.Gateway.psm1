@@ -20,7 +20,7 @@ function Test-SdnGatewayConfigState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -101,7 +101,7 @@ function Test-SdnGatewayServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $Global:SdnDiagnostics.EnvironmentInfo.Gateway,
+        [System.String[]]$ComputerName = $Global:SdnDiagnostics.InfrastructureInfo.Gateway,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

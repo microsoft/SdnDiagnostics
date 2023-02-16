@@ -1,7 +1,7 @@
 $scriptBlocks = @{
     AllFabricNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes
+        $computerName = $Global:SdnDiagnostics.InfrastructureInfo.FabricNodes
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)
@@ -12,7 +12,7 @@ $scriptBlocks = @{
 
     GatewayNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+        $computerName = $Global:SdnDiagnostics.InfrastructureInfo.Gateway
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)
@@ -23,7 +23,7 @@ $scriptBlocks = @{
 
     NetworkControllerNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.NetworkController
+        $computerName = $Global:SdnDiagnostics.InfrastructureInfo.NetworkController
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)
@@ -34,7 +34,7 @@ $scriptBlocks = @{
 
     ServerNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.Server
+        $computerName = $Global:SdnDiagnostics.InfrastructureInfo.Server
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)
@@ -45,7 +45,7 @@ $scriptBlocks = @{
 
     LoadBalancerMuxNodes = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
+        $computerName = $Global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux
 
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($computerName | Sort-Object)

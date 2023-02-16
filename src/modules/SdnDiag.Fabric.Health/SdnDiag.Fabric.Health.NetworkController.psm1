@@ -20,7 +20,7 @@ function Test-NetworkControllerServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.NetworkController,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

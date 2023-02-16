@@ -22,7 +22,7 @@ function Test-SdnKINetworkInterfacePlacement {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

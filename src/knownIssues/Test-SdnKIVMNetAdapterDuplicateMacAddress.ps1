@@ -20,7 +20,7 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -32,26 +32,26 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
-    
+
     try {
         "Validate no duplicate MAC addresses for network adapters within Hyper-V" | Trace-Output
 
         if($null -eq $NcUri){
             throw New-Object System.NullReferenceException("Please specify NcUri parameter or execute Get-SdnInfrastructureInfo to populate environment details")
         }
-        
+
         # if NcRestCredential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('NcRestCredential')){
             if($Global:SdnDiagnostics.NcRestCredential){
                 $NcRestCredential = $Global:SdnDiagnostics.NcRestCredential
-            }    
+            }
         }
 
         # if Credential parameter not defined, check to see if global cache is populated
         if(!$PSBoundParameters.ContainsKey('Credential')){
             if($Global:SdnDiagnostics.Credential){
                 $Credential = $Global:SdnDiagnostics.Credential
-            }    
+            }
         }
 
         $issueDetected = $false
@@ -74,7 +74,7 @@ function Test-SdnKIVMNetAdapterDuplicateMacAddress {
                 ) | Trace-Output -Level:Warning
             }
         }
-    
+
         return [PSCustomObject]@{
             Result = $issueDetected
             Properties = $arrayList

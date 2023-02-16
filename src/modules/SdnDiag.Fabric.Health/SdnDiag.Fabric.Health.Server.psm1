@@ -15,7 +15,7 @@ function Test-SdnEncapOverhead {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -93,7 +93,7 @@ function Test-SdnProviderNetwork {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -182,7 +182,7 @@ function Test-SdnServerConfigState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -258,7 +258,7 @@ function Test-SdnServerServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.Server,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

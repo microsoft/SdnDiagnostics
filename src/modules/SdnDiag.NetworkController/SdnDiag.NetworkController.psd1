@@ -36,6 +36,22 @@
 
     # Functions to export from this module
     FunctionsToExport = @(
+        'Get-SdnApiEndpoint'
+        'Get-SdnAuditLog'
+        'Get-SdnDiscovery'
+        'Get-SdnGateway'
+        'Get-SdnInfrastructureInfo'
+        'Get-SdnLoadBalancerMux'
+        'Get-SdnNetworkController'
+        'Get-SdnNetworkControllerConfigurationState'
+        'Get-SdnNetworkControllerInfoOffline'
+        'Get-SdnNetworkControllerNode'
+        'Get-SdnNetworkControllerNodeCertificate'
+        'Get-SdnNetworkControllerRestCertificate'
+        'Get-SdnNetworkControllerRestURL'
+        'Get-SdnNetworkControllerState'
+        'Get-SdnResource'
+        'Get-SdnServer'
         'Get-SdnServiceFabricApplicationHealth'
         'Get-SdnServiceFabricClusterConfig'
         'Get-SdnServiceFabricClusterHealth'
@@ -45,8 +61,12 @@
         'Get-SdnServiceFabricPartition'
         'Get-SdnServiceFabricReplica'
         'Get-SdnServiceFabricService'
+        'Get-SdnVirtualServer'
+        'Invoke-SdnNetworkControllerStateDump'
+        'Invoke-SdnResourceDump'
         'Invoke-SdnServiceFabricCommand'
         'Move-SdnServiceFabricReplica'
+        'Start-SdnDataCollection'
     )
 
     # Variables to export from this module

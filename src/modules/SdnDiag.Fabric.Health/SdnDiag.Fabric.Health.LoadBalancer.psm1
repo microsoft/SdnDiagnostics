@@ -18,7 +18,7 @@ function Test-SdnLoadBalancerMuxConfigState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Uri]$NcUri = $Global:SdnDiagnostics.InfrastructureInfo.NcUrl,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -94,7 +94,7 @@ function Test-SdnLoadBalancerMuxServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux,
+        [System.String[]]$ComputerName = $global:SdnDiagnostics.InfrastructureInfo.LoadBalancerMux,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
