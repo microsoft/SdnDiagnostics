@@ -1137,6 +1137,62 @@ function Invoke-WebRequestWithRetry {
     return $result
 }
 
+function New-TraceOutputFile {
+
+    try {
+        # make sure that directory path exists, else create the folder structure required
+        [System.IO.FileInfo]$workingDir = Get-WorkingDirectory
+        if (!(Test-Path -Path $workingDir.FullName -PathType Container)) {
+            $workingDir = New-Item -Path $workingDir.FullName -ItemType Directory -Force
+        }
+
+        # build the trace file path and set global variable
+        [System.String]$fileName = "SdnDiagnostics_TraceOutput_{0}.csv" -f (Get-Date).ToString('yyyyMMdd')
+        [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir.FullName -ChildPath $fileName
+        Set-TraceOutputFile -Path $filePath.FullName
+
+        # configure the cache to not cleanup the trace file
+        $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup = $filePath.Name
+
+        "TraceFile: {0}" -f $filePath.FullName | Trace-Output -Level:Verbose
+    }
+    catch {
+        $_.Exception | Write-Error
+    }
+}
+
+function New-WorkingDirectory {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.IO.FileInfo]$Path = $global:SdnDiagnostics.Settings.WorkingDirectory
+    )
+
+    try {
+
+        # create the working directory and set the global cache
+        if (!(Test-Path -Path $Path.FullName -PathType Container)) {
+            $null = New-Item -Path $Path.FullName -ItemType Directory -Force
+        }
+
+        # create the trace file
+        New-TraceOutputFile
+    }
+    catch {
+        $_.Exception | Write-Error
+    }
+}
+
+function Set-TraceOutputFile {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$Path
+    )
+
+    $global:SdnDiagnostics.TraceFilePath = $Path.FullName
+}
+
 function New-PSRemotingSession {
     [CmdletBinding()]
     param (
@@ -1228,52 +1284,6 @@ function New-PSRemotingSession {
     }
 }
 
-function New-TraceOutputFile {
-
-    try {
-        # make sure that directory path exists, else create the folder structure required
-        [System.IO.FileInfo]$workingDir = Get-WorkingDirectory
-        if (!(Test-Path -Path $workingDir.FullName -PathType Container)) {
-            $workingDir = New-Item -Path $workingDir.FullName -ItemType Directory -Force
-        }
-
-        # build the trace file path and set global variable
-        [System.String]$fileName = "SdnDiagnostics_TraceOutput_{0}.csv" -f (Get-Date).ToString('yyyyMMdd')
-        [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir.FullName -ChildPath $fileName
-        Set-TraceOutputFile -Path $filePath.FullName
-
-        # configure the cache to not cleanup the trace file
-        $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup = $filePath.Name
-
-        "TraceFile: {0}" -f $filePath.FullName | Trace-Output -Level:Verbose
-    }
-    catch {
-        $_.Exception | Write-Error
-    }
-}
-
-function New-WorkingDirectory {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [System.IO.FileInfo]$Path = $global:SdnDiagnostics.Settings.WorkingDirectory
-    )
-
-    try {
-
-        # create the working directory and set the global cache
-        if (!(Test-Path -Path $Path.FullName -PathType Container)) {
-            $null = New-Item -Path $Path.FullName -ItemType Directory -Force
-        }
-
-        # create the trace file
-        New-TraceOutputFile
-    }
-    catch {
-        $_.Exception | Write-Error
-    }
-}
-
 function Remove-PSRemotingSession {
     <#
     .SYNOPSIS
@@ -1320,16 +1330,6 @@ function Remove-PSRemotingSession {
         $stopWatch.Stop()
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
-}
-
-function Set-TraceOutputFile {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$Path
-    )
-
-    $global:SdnDiagnostics.TraceFilePath = $Path.FullName
 }
 
 function Test-ComputerNameIsLocal {

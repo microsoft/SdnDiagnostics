@@ -1,7 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1"
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
 
 enum SdnRoles {
     Gateway
@@ -689,14 +689,6 @@ function Clear-SdnWorkingDirectory {
     [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.String[]]$ComputerName,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [System.String[]]$Path = (Get-WorkingDirectory),
 
@@ -706,14 +698,22 @@ function Clear-SdnWorkingDirectory {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
-                Clear-SdnWorkingDirectory -Path $using:Path -Recurse:($using:Recurse.IsPresent) -Force:($using:Force.IsPresent)
-            }
+                Clear-SdnWorkingDirectory
+            } -ArgumentList $Path, $Recurse, $Force
         }
         else {
             foreach ($object in $Path) {

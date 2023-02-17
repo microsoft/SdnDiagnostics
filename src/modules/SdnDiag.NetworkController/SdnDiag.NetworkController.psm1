@@ -1,7 +1,7 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1"
+Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
 Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
 
 class SdnFabricInfrastructure {
@@ -724,8 +724,6 @@ function Get-SdnNetworkControllerConfigurationState {
 
     $ProgressPreference = 'Continue'
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnNetworkControllerNode {
     <#
@@ -858,8 +856,6 @@ function Get-SdnNetworkControllerNodeCertificate {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnNetworkControllerRestCertificate {
     <#
@@ -898,8 +894,6 @@ function Get-SdnNetworkControllerRestCertificate {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnNetworkControllerState {
     <#
@@ -979,8 +973,6 @@ function Get-SdnNetworkControllerState {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnResource {
     <#
@@ -1086,8 +1078,6 @@ function Get-SdnResource {
         "{0}`nAbsoluteUri:{1}`n{2}" -f $_.Exception, $_.TargetObject.Address.AbsoluteUri, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
 
 function Get-SdnServer {
     <#
