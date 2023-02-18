@@ -1,8 +1,0 @@
-{
-    "githubRepo": [
-        {
-            "cloneUri": "https://github.com/microsoft/Get-NetView.git",
-            "destinationFolder": "Get-NetView"
-        }
-    ]
-}

@@ -16,7 +16,6 @@ if (-NOT (Test-Path -Path $outDir -PathType Container)) {
 }
 
 Copy-Item -Path "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Exclude "*.md" -Recurse -Force
-& $PSScriptRoot\restore.ps1 -DestinationFolder "$outDir\SdnDiagnostics"
 
 # setting the version of the module manifest
 $modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"

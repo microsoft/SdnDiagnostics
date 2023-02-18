@@ -8,7 +8,7 @@ on:
       - main
     paths:
       - 'src/**'
-    
+
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -21,7 +21,7 @@ jobs:
     runs-on: windows-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:          
+    steps:
       - name: Checkout SdnDiagnostics
         uses: actions/checkout@v2
         with:
@@ -30,12 +30,23 @@ jobs:
       - name: Build SdnDiagnostics Module
         run: .\main\.build\build.ps1
         shell: powershell
-    
+
+      - name: 'Restore external dependencies'
+        run: .\main\.build\restore.ps1
+        shell: powershell
+
+      - name: 'Generate nuget package'
+        run: .\main\.build\package.ps1
+        shell: powershell
+
+      - name: Publish to Nuget Gallery
+        run: |
+          nuget.exe push  ".\main\out\packages\SdnDiagnostics.nupkg" -k ${{ secrets.PSGALLERY_AUTH_TOKEN }} -s https://api.nuget.org/v3/index.json
+        shell: powershell
+
       - name: Publish to PowerShell Gallery
         run: |
-          Copy-Item -Path ".\main\out\build\SdnDiagnostics" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
-          Import-Module -Name SdnDiagnostics
-          Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
+          nuget.exe push  ".\main\out\packages\SdnDiagnostics.nupkg" -k ${{ secrets.PSGALLERY_AUTH_TOKEN }} -s https://www.powershellgallery.com/api/v2
         shell: powershell
 
       - name: Generate Documentation for Functions
@@ -63,7 +74,7 @@ jobs:
           git config user.email github-actions@github.com
           git add .
           git commit -m "Auto-Updated Function Documentation" --allow-empty
-      
+
       - name: Push to SdnDiagnostics.Wiki
         run: |
           cd ".\wiki"

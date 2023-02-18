@@ -1,22 +1,23 @@
-param(
-    [String]$DestinationFolder
-)
+"Restoring nuget packages for SdnDiagnostics" | Write-Host
 
-$outDir = Join-Path -Path $DestinationFolder -ChildPath 'tools'
-"Restoring github tools" | Write-Host
+$pkgConfig = "$PSScriptRoot\..\packages.config"
+$rstrPath = "$PSScriptRoot\..\.packages"
 
-if (Test-Path -Path $outDir) {
-    Remove-Item -Path $outDir -Recurse -Force
-    $null = New-Item -ItemType:Directory -Path $outDir -Force
+if (!(Test-Path -Path $rstrPath -PathType Container)) {
+    $null = New-Item -Path $rstrPath -ItemType Directory -Force
+}
+else {
+    Remove-Item -Path $rstrPath\* -Recurse -Force
 }
 
 # Put all redistributed and github repos into this directory.
-& $PSScriptRoot\build-tools.ps1 -DestinationFolder $outDir
+nuget restore $pkgConfig -OutputDirectory $rstrPath
 
 # Check exit code and exit with non-zero exit code so that build will fail.
-if($LASTEXITCODE -ne 0){
-    "Failed to restore packages correctly" | Write-Error
+if ($LASTEXITCODE -ne 0){
+    "Failed to restore packages correctly." | Write-Error
     exit $LASTEXITCODE
 }
 
 exit $LASTEXITCODE
+

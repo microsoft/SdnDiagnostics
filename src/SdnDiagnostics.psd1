@@ -8,7 +8,7 @@
     RootModule = 'SdnDiagnostics.psm1'
 
     # Author of this module
-    Author = 'Adam Rudell'
+    Author = 'Adam Rudell, Luyao Feng'
 
     # Company or vendor of this module
     CompanyName = 'Microsoft Corporation'
@@ -158,7 +158,7 @@
         PSData = @{
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags = @(
-                'MSFTNet', 'Networking','Sdn'
+                'MSFTNet','Microsoft','Windows','Network','Networking','SDN','Diagnostics'
             )
 
             # A URL to the main website for this project.
