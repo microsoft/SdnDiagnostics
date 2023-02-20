@@ -1,56 +1,11 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
+using module ".\..\classes\SdnDiag.Classes.psm1"
 
-class SdnFabricInfrastructure {
-    [System.String[]]$NetworkController
-    [System.String[]]$LoadBalancerMux
-    [System.String[]]$Gateway
-    [System.String]$NcUrl
-    [System.String]$RestApiVersion
-    [System.String[]]$FabricNodes
-}
-
-enum SdnRoles {
-    Gateway
-    NetworkController
-    Server
-    LoadBalancerMux
-}
-
-enum SdnApiResource {
-    AccessControlLists
-    AuditingSettingsConfig
-    Credentials
-    Discovery
-    GatewayPools
-    Gateways
-    IDNSServerConfig
-    LearnedIPAddresses
-    LoadBalancerManagerConfig
-    LoadBalancerMuxes
-    LoadBalancers
-    LogicalNetworks
-    MacPools
-    NetworkControllerBackup
-    NetworkControllerRestore
-    NetworkControllerStatistics
-    NetworkInterfaces
-    Operations
-    OperationResults
-    PublicIPAddresses
-    SecurityTags
-    Servers
-    ServiceInsertions
-    RouteTables
-    VirtualGateways
-    VirtualNetworkManagerConfig
-    VirtualNetworks
-    VirtualServers
-    VirtualSwitchManagerConfig
-}
+Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
+Import-Module "$PSScriptRoot\SdnDiag.NetworkController.ServiceFabric.psm1"
+Import-Module "$PSScriptRoot\SdnDiag.NetworkController.x509.psm1"
 
 function Get-SdnDiscovery {
     <#
@@ -1250,7 +1205,8 @@ function Start-SdnDataCollection {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
-        [SdnRoles[]]$Role,
+        [ValidateSet('Gateway','NetworkController','Server','LoadBalancerMux')]
+        [System.String[]]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Computer')]
         [System.String[]]$ComputerName,
@@ -1301,7 +1257,7 @@ function Start-SdnDataCollection {
             }
         }
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC)
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDataCollection_$(Get-FormattedDateTimeUTC)"
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
 
@@ -1384,9 +1340,7 @@ function Start-SdnDataCollection {
             }
 
             "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
-            Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-            } -Credential $Credential -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
+            Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -Force -ComputerName $dataNodes -Credential $Credential
 
             # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
             # to account for if filtering was applied

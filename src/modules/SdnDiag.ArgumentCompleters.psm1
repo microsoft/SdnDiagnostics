@@ -117,6 +117,20 @@ $scriptBlocks = @{
             return ($serviceTypeName | Sort-Object)
         }
     }
+
+    SdnRoles = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $roleName = @(
+            'Gateway'
+            'NetworkController'
+            'Server'
+            'LoadBalancerMux'
+        )
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($roleName | Sort-Object)
+        }
+    }
 }
 
 Register-ArgumentCompleter -CommandName 'Get-SdnKnownIssue' -ParameterName 'Name' -ScriptBlock $scriptBlocks.KnownIssueTests
@@ -177,3 +191,14 @@ Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition' -Paramet
 
 Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceName' -ScriptBlock $scriptBlocks.ServiceFabricServiceName
 Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceTypeName' -ScriptBlock $scriptBlocks.ServiceFabricServiceTypeName
+
+# argument completers for sdn roles
+$sdnRoleParamCommands = @(
+    'Get-SdnEventLog'
+    'Start-SdnEtwTraceCapture'
+    'Start-SdnNetshTrace'
+    'Stop-SdnEtwTraceCapture'
+    'Start-SdnDataCollection'
+)
+
+Register-ArgumentCompleter -CommandName $sdnRoleParamCommands  -ParameterName 'Role' -ScriptBlock $scriptBlocks.SdnRoles

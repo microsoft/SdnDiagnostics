@@ -1,5 +1,0 @@
-powershell.exe -ExecutionPolicy Unrestricted -NoProfile -File "%~dp0.build\clean.ps1"
-powershell.exe -ExecutionPolicy Unrestricted -NoProfile -File "%~dp0.build\generate-version.ps1"
-powershell.exe -ExecutionPolicy Unrestricted -NoProfile -File "%~dp0.build\restore.ps1"
-powershell.exe -ExecutionPolicy Unrestricted -NoProfile -File "%~dp0.build\build.ps1"
-powershell.exe -ExecutionPolicy Unrestricted -NoProfile -File "%~dp0.build\package.ps1"

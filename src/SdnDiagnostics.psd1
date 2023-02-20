@@ -27,13 +27,18 @@
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
-        'modules\ArgumentCompleters.psm1'
-        'modules\SdnDiag.Common\SdnDiag.Common'
-        'modules\SdnDiag.Fabric.Health\SdnDiag.Fabric.Health'
-        'modules\SdnDiag.Gateway\SdnDiag.Gateway'
-        'modules\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer'
-        'modules\SdnDiag.NetworkController\SdnDiag.NetworkController'
-        'modules\SdnDiag.Server\SdnDiag.Server'
+        'modules\SdnDiag.ArgumentCompleters.psm1'
+        'modules\SdnDiag.Common.psm1'
+        'modules\SdnDiag.Gateway.psm1'
+        'modules\SdnDiag.Health.psm1'
+        'modules\SdnDiag.LoadBalancer.psm1'
+        'modules\SdnDiag.LoadBalancer.Mux.psm1'
+        'modules\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.NetworkController.ServiceFabric.psm1'
+        'modules\SdnDiag.NetworkController.x509.psm1'
+        'modules\SdnDiag.Server.psm1'
+        'modules\SdnDiag.Server.Ovsdb.psm1'
+        'modules\SdnDiag.Server.Vfp.psm1'
     )
 
     # Modules that must be imported into the global environment prior to importing this module

@@ -1,8 +1,9 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
+using module ".\..\classes\SdnDiag.Classes.psm1"
+
+Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
 
 function Copy-CertificateToFabric {
     [CmdletBinding()]
@@ -1557,17 +1558,25 @@ function Update-NetworkControllerCertificateAcl {
     )
 
     try {
-        $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
+        $restCertParams = @{
+            Path = 'Cert:\LocalMachine\My'
+            Thumbprint = $CertRotateConfig["NcRestCert"]
+        }
 
         foreach ($ncNode in $NcNodeList) {
             $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
             Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:NcRestCertThumbprint
+                Set-SdnCertificateAcl @using:restCertParams
             } -Credential $Credential
 
             if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
+                $nodeCertParams = @{
+                    Path = 'Cert:\LocalMachine\My'
+                    Thumbprint = $ncNodeCertThumbprint
+                }
+
                 Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                    Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:ncNodeCertThumbprint
+                    Set-SdnCertificateAcl @using:nodeCertParams
                 } -Credential $Credential
             }
         }
@@ -1577,3 +1586,286 @@ function Update-NetworkControllerCertificateAcl {
     }
 }
 
+
+function Import-SdnCertificate {
+    <#
+    .SYNOPSIS
+        Imports certificates and private keys from a Personal Information Exchange (PFX) file to the destination store.
+    .PARAMETER FilePath
+        Specifies the full path to the PFX file of the secured file.
+    .PARAMETER CertStore
+        Specifies the path of the store to which certificates will be imported. If paramater is not specified, defaults to Cert:\LocalMachine\Root.
+    .PARAMETER CertPassword
+        Specifies the password for the imported PFX file in the form of a secure string.
+    .EXAMPLE
+        PS> Import-SdnCertificate -FilePath c:\certs\cert.pfx -CertStore Cert:\LocalMachine\Root
+    .EXAMPLE
+        PS> Import-SdnCertificate -FilePath c:\certs\cert.pfx -CertStore Cert:\LocalMachine\Root -Password $secureString
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$FilePath,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$CertStore,
+
+        [Parameter(Mandatory = $false)]
+        [System.Security.SecureString]$CertPassword
+    )
+
+    $trustedRootStore = 'Cert:\LocalMachine\Root'
+    $fileInfo = Get-Item -Path $FilePath
+
+    $certObject = @{
+        SelfSigned  = $false
+        CertInfo    = $null
+        CerFileInfo = $null
+    }
+
+    if ($CertPassword) {
+        $pfxData = (Get-PfxData -FilePath $fileInfo.FullName -Password $CertPassword).EndEntityCertificates
+    }
+    else {
+        $pfxData = Get-PfxCertificate -FilePath $fileInfo.FullName
+    }
+
+    $certExists = Get-ChildItem -Path $CertStore | Where-Object { $_.Thumbprint -ieq $pfxData.Thumbprint }
+    if ($certExists) {
+        "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output -Level:Verbose
+        $certObject.CertInfo = $certExists
+    }
+    else {
+        "Importing {0} to {1}" -f $pfxData.Thumbprint, $CertStore | Trace-Output
+        if ($pfxData.HasPrivateKey) {
+            $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
+            Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
+        }
+        else {
+            $importCert = Import-Certificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -ErrorAction Stop
+        }
+
+        $certObject.CertInfo = $importCert
+    }
+
+    # determine if the certificates being used are self signed
+    if ($certObject.CertInfo.Subject -ieq $certObject.CertInfo.Issuer) {
+        "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
+        $certObject.SelfSigned = $true
+
+        # check to see if we installed to root store with above operation
+        # if it is not, then we want to check the root store to see if this certificate has already been installed
+        # and finally if does not exist, then export the certificate from current store and import into trusted root store
+        if ($CertStore -ine $trustedRootStore) {
+            $selfSignedCerExists = Get-ChildItem -Path $trustedRootStore | Where-Object { $_.Thumbprint -ieq $certObject.CertInfo.Thumbprint }
+            [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=', '_')
+            $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
+            $certObject.CerFileInfo = $selfSignedCer
+
+            if (-NOT ($selfSignedCerExists)) {
+                # import the certificate to the trusted root store
+                "Importing public key to {0}" -f $trustedRootStore | Trace-Output
+                $null = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
+            }
+            else {
+                "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output -Level:Verbose
+            }
+        }
+    }
+
+    return $certObject
+}
+
+function New-SdnCertificate {
+    <#
+    .SYNOPSIS
+        Creates a new self-signed certificate for use with SDN fabric.
+    .PARAMETER Subject
+        Specifies the string that appears in the subject of the new certificate. This cmdlet prefixes CN= to any value that does not contain an equal sign.
+    .PARAMETER CertStoreLocation
+        Specifies the certificate store in which to store the new certificate. If paramater is not specified, defaults to Cert:\LocalMachine\My.
+    .PARAMETER NotAfter
+        Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
+    .EXAMPLE
+        PS> New-SdnCertificate -Subject rest.sdn.contoso -CertStoreLocation Cert:\LocalMachine\My
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.String]$Subject,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateScript({
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
+
+                return $true
+            })]
+        [System.String]$CertStoreLocation = 'Cert:\LocalMachine\My',
+
+        [Parameter(Mandatory = $true)]
+        [System.DateTime]$NotAfter
+    )
+
+    try {
+        $selfSignedCert = New-SelfSignedCertificate -Type Custom -KeySpec KeyExchange -Subject $Subject `
+            -KeyExportPolicy Exportable -HashAlgorithm sha256 -KeyLength 2048 `
+            -CertStoreLocation $CertStoreLocation -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2") `
+            -NotAfter $NotAfter
+
+        if ($selfSignedCert) {
+            "Successfully generated self signed certificate`n`tSubject: {0}`n`tThumbprint: {1}`n`tNotAfter: {2}" `
+                -f $selfSignedCert.Subject, $selfSignedCert.Thumbprint, $selfSignedCert.NotAfter | Trace-Output
+
+            Set-SdnCertificateAcl -Path $CertStoreLocation -Thumbprint $selfSignedCert.Thumbprint
+        }
+
+        return $selfSignedCert
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Set-SdnCertificateAcl {
+    <#
+    .SYNOPSIS
+        Configures NT AUTHORITY/NETWORK SERVICE to have appropriate permissions to the private key of the Network Controller certificates.
+    .PARAMETER Path
+        Specifies the certificate store in which to retrieve the certificate.
+    .PARAMETER Subject
+        Gets the thumbprint of a certificate with the specified store to ensure correct ACLs are defined.
+    .PARAMETER Thumbprint
+        Gets the thumbprint of a certificate with the specified store to ensure correct ACLs are defined.
+    .EXAMPLE
+        PS> Set-SdnCertificateAcl -Path CERT:\LocalMachine\My -Subject 'NCREST.Contoso.Local'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
+        [ValidateScript({
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
+
+                return $true
+            })]
+        [System.String]$Path,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
+        [System.String]$Subject,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
+        [System.String]$Thumbprint
+    )
+
+    try {
+        switch ($PSCmdlet.ParameterSetName) {
+            'Subject' {
+                $certificate = Get-SdnCertificate -Path $Path -Subject $Subject
+            }
+            'Thumbprint' {
+                $certificate = Get-SdnCertificate -Path $Path -Thumbprint $Thumbprint
+            }
+        }
+
+        if ($null -eq $certificate) {
+            throw New-Object System.NullReferenceException("Unable to locate the certificate based on $($PSCmdlet.ParameterSetName)")
+        }
+        else {
+            "Located certificate with Thumbprint: {0} and Subject: {1}" -f $certificate.Thumbprint, $certificate.Subject | Trace-Output -Level:Verbose
+        }
+
+        if ($certificate.Count -ge 2) {
+            throw New-Object System.Exception("Multiple certificates found matching $($PSCmdlet.ParameterSetName)")
+        }
+
+        if ($certificate.HasPrivateKey) {
+            $privateKeyCertFile = Get-Item -Path "$($env:ProgramData)\Microsoft\Crypto\RSA\MachineKeys\*" | Where-Object { $_.Name -ieq $($certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName) }
+            $privateKeyAcl = Get-Acl -Path $privateKeyCertFile.FullName
+            if ($privateKeyAcl.Access.IdentityReference -inotcontains "NT AUTHORITY\NETWORK SERVICE") {
+                $networkServicePermission = "NT AUTHORITY\NETWORK SERVICE", "Read", "Allow"
+                "Configuring {0} on {1}" -f ($networkServicePermission -join ', ').ToString(), $privateKeyCertFile.FullName | Trace-Output
+
+                $accessRule = New-Object System.Security.AccessControl.FileSystemAccessRule($networkServicePermission)
+                [void]$privateKeyAcl.AddAccessRule($accessRule)
+                $null = Set-Acl -Path $privateKeyCertFile.FullName -AclObject $privateKeyAcl
+            }
+            else {
+                "Permissions already defined for NT AUTHORITY\NETWORK SERVICE for {0}. No ACL changes required." -f $certificate.PrivateKey.CspKeyContainerInfo.UniqueKeyContainerName | Trace-Output -Level:Verbose
+            }
+        }
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}
+
+function Get-SdnCertificate {
+    <#
+        .SYNOPSIS
+            Returns a list of the certificates within the given certificate store.
+        .PARAMETER Path
+            Defines the path within the certificate store. Path is expected to start with cert:\.
+        .EXAMPLE
+            PS> Get-SdnCertificate -Path "Cert:\LocalMachine\My"
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Thumbprint')]
+        [ValidateScript({
+                if ($_ -notlike "cert:\*") {
+                    throw New-Object System.FormatException("Invalid path")
+                }
+
+                return $true
+            })]
+        [System.String]$Path,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [ValidateNotNullorEmpty()]
+        [System.String]$Subject,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [ValidateNotNullorEmpty()]
+        [System.String]$Thumbprint
+    )
+
+    try {
+        $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object { $_.PSISContainer -eq $false } -ErrorAction Stop
+
+        switch ($PSCmdlet.ParameterSetName) {
+            'Subject' {
+                $filteredCert = $certificateList | Where-Object { $_.Subject -ieq $Subject }
+            }
+            'Thumbprint' {
+                $filteredCert = $certificateList | Where-Object { $_.Thumbprint -ieq $Thumbprint }
+            }
+            default {
+                return $certificateList
+            }
+        }
+
+        if ($null -eq $filteredCert) {
+            "Unable to locate certificate using {0}" -f $PSCmdlet.ParameterSetName | Trace-Output -Level:Warning
+            return $null
+        }
+
+        if ($filteredCert.NotAfter -le (Get-Date)) {
+            "Certificate [Thumbprint: {0} | Subject: {1}] is currently expired" -f $filteredCert.Thumbprint, $filteredCert.Subject | Trace-Output -Level:Exception
+        }
+
+        return $filteredCert
+    }
+    catch {
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+    }
+}

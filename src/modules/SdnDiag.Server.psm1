@@ -1,36 +1,11 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.Utilities.psm1"
-Import-Module "$PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1"
+using module ".\..\classes\SdnDiag.Classes.psm1"
 
-enum VMState {
-    Other
-    Running
-    Off
-    Stopping
-    Saved
-    Paused
-    Starting
-    Reset
-    Saving
-    Pausing
-    Resuming
-    FastSaved
-    FastSaving
-    RunningCritical
-    OffCritical
-    StoppingCritical
-    SavedCritical
-    PausedCritical
-    StartingCritical
-    ResetCritical
-    SavingCritical
-    PausingCritical
-    ResumingCritical
-    FastSavedCritical
-    FastSavingCritical
-}
+Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
+Import-Module "$PSScriptRoot\SdnDiag.Server.Ovsdb.psm1"
+Import-Module "$PSScriptRoot\SdnDiag.Server.Vfp.psm1"
 
 function Set-VMNetworkAdapterPortProfile {
     <#
@@ -657,15 +632,22 @@ function Set-SdnVMNetworkAdapterPortProfile {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $params = @{
+        VMName = $VMName
+        MacAddress = $MacAddress
+        ProfileId = $ProfileId
+        ProfileData = $ProfileData
+    }
+
     try {
         switch ($PSCmdlet.ParameterSetName) {
             'Remote' {
                 Invoke-PSRemoteCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
-                    Set-VMNetworkAdapterPortProfile -VMName $using:VMName -MacAddress $using:MacAddress -ProfileId $using:ProfileId -ProfileData $using:ProfileData
+                    Set-VMNetworkAdapterPortProfile @using:params
                 }
             }
             'Local' {
-                Set-VMNetworkAdapterPortProfile -VMName $VMName -MacAddress $MacAddress -ProfileId $ProfileId -ProfileData $ProfileData
+                Set-VMNetworkAdapterPortProfile @params
             }
         }
     }
