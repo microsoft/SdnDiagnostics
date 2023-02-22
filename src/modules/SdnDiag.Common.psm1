@@ -230,14 +230,14 @@ function Get-SdnEventLog {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [ValidateSet('Gateway','NetworkController','Server','LoadBalancerMux')]
         [System.String]$Role,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 1)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [parameter(Mandatory = $false)]
+        [parameter(Mandatory = $false, Position = 2)]
         [DateTime]$FromDate = (Get-Date).AddDays(-1)
     )
     try {
@@ -334,7 +334,7 @@ function Clear-SdnWorkingDirectory {
         [Parameter(Mandatory = $false, Position = 2, ParameterSetName = 'Local')]
         [Switch]$Force,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
@@ -358,12 +358,10 @@ function Clear-SdnWorkingDirectory {
                 if ($obj -ilike $allowedFolderPath) {
                     $filteredPaths += $obj
                 }
-                else {
-                    "{0} is not defined as an allowed path for cleanup. Skipping" -f $obj | Trace-Output -Level:Warning
-                }
             }
         }
 
+        "Cleaning up: {0}" -f ($filteredPaths -join ', ') | Trace-Output -Level:Verbose
         Remove-Item -Path $filteredPaths -Exclude $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup -Force:$Force -Recurse:$Recurse -ErrorAction Continue
     }
 
@@ -3032,7 +3030,7 @@ function Invoke-SdnGetNetView {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.IO.FileInfo]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]

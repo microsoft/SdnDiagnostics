@@ -392,10 +392,10 @@ function Get-SdnServiceFabricLog {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [parameter(Mandatory = $false)]
+        [parameter(Mandatory = $false, Position = 1)]
         [DateTime]$FromDate = (Get-Date).AddHours(-4)
     )
 

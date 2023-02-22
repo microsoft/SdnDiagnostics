@@ -79,7 +79,8 @@ function Get-SdnNetworkControllerInfoOffline {
         $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
         $secretCertThumbprint = $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue
 
-        $ncRestName = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {
+        $session = New-PSRemotingSession -ComputerName $NetworkController -Credential $Credential -ErrorAction Stop
+        $ncRestName = Invoke-Command -Session $session -ScriptBlock {
             $secretCert = Get-ChildItem -Path "Cert:\LocalMachine\My" | Where-Object { $_.Thumbprint -ieq $using:secretCertThumbprint }
             if ($null -eq $secretCert) {
                 return $null
@@ -87,7 +88,7 @@ function Get-SdnNetworkControllerInfoOffline {
             else {
                 return $secretCert.Subject.Replace("CN=", "")
             }
-        } -Credential $Credential
+        }
 
         $infraInfo = [PSCustomObject]@{
             ClusterCredentialType = $ClusterCredentialType.Value
@@ -913,7 +914,8 @@ function Get-SdnNetworkControllerState {
 
         $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         # invoke scriptblock to clean up any stale NetworkControllerState files
-        Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -ScriptBlock $scriptBlock -Credential $Credential
+        $session = New-PSRemotingSession -ComputerName $infraInfo.NetworkController -Credential $Credential -ErrorAction Stop
+        Invoke-Command -Session $session -ScriptBlock $scriptBlock
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the Network Controllers defined to collect the files
@@ -1349,15 +1351,13 @@ function Start-SdnDataCollection {
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
             switch ($group.Name) {
                 'Gateway' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnGatewayConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnGatewayConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnGatewayConfigurationState} -ArgumentList $tempDirectory.FullName `
+                    -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnGatewayConfigurationState'
                 }
 
                 'NetworkController' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnNetworkControllerConfigurationState } -ArgumentList $tempDirectory.FullName `
+                    -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
 
                     Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
                     Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
@@ -1367,9 +1367,8 @@ function Start-SdnDataCollection {
                 }
 
                 'Server' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnServerConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnServerConfigurationState } -ArgumentList $tempDirectory.FullName `
+                    -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
 
                     Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
@@ -1382,9 +1381,8 @@ function Start-SdnDataCollection {
                 }
 
                 'LoadBalancerMux' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnSlbMuxConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnSlbMuxConfigurationState } -ArgumentList $tempDirectory.FullName `
+                    -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
 
                     $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
                     $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
@@ -1393,7 +1391,8 @@ function Start-SdnDataCollection {
 
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
-            Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
+            $sessions = New-PSRemotingSession -ComputerName $dataNodes -Credential $Credential -ErrorAction Continue
+            Invoke-Command -Session $sessions -ScriptBlock {
                 [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
                 if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
 
@@ -1419,9 +1418,8 @@ function Start-SdnDataCollection {
             if ($IncludeLogs) {
                 if ($group.Name -ieq 'NetworkController') {
                     "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnServiceFabricLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnServiceFabricLog } -ArgumentList $tempDirectory.FullName, $FromDate `
+                    -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
                 }
 
                 if ($group.Name -ieq 'Server') {
@@ -1430,26 +1428,20 @@ function Start-SdnDataCollection {
                 }
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW $using:ConvertETW
-                } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnDiagnosticLog } -ArgumentList $tempDirectory.FullName, $FromDate, $ConvertETW `
+                -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
 
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnEventLog -Role $using:group.Name -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
-                } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnEventLog'
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock { Get-SdnEventLog } -ArgumentList $group.Name, $tempDirectory.FullName, $FromDate `
+                -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnEventLog'
             }
         }
 
         if ($IncludeNetView) {
             "Collect Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
             $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
-                Invoke-SdnGetNetView -OutputDirectory $using:tempDirectory.FullName `
-                    -SkipAdminCheck `
-                    -SkipNetshTrace `
-                    -SkipVM `
-                    -SkipCounters
-            } -Credential $Credential -AsJob -PassThru -Activity 'Invoke-SdnGetNetView'
+                Invoke-SdnGetNetView -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters
+            } -ArgumentList $tempDirectory.FullName -Credential $Credential -AsJob -PassThru -Activity 'Invoke-SdnGetNetView'
         }
 
         foreach ($node in $filteredDataCollectionNodes) {
@@ -1464,9 +1456,7 @@ function Start-SdnDataCollection {
         }
 
         "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
-        Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
-            Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-        } -Credential $Credential -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
+        Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -Force -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
         "Data collection completed" | Trace-Output
     }

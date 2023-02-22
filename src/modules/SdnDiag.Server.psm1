@@ -467,36 +467,49 @@ function Get-SdnVMNetworkAdapter {
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
-
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, Position = 0, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, Position = 0, ParameterSetName = 'Remote')]
         [VMState]$VmState = 'Running',
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Switch]$AsJob,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Switch]$PassThru,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [int]$Timeout = 600
     )
 
-    try {
-        $scriptBlock = {
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq [String]$using:VmState }
-            $virtualMachines | Get-VMNetworkAdapter
-        }
+    function Get-SdnVMNetAdapter {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $false)]
+            [String]$VmState
+        )
 
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock $scriptBlock -Credential $Credential `
+        $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState }
+        return ($virtualMachines | Get-VMNetworkAdapter)
+    }
+
+    try {
+        if ($PSCmdlet.ParameterSetName -ieq 'Remote') {
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnVMNetworkAdapter } -ArgumentList $VMState -Credential $Credential `
             -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        }
+        else {
+            Get-SdnVMNetAdapter -VmState $VmState
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
