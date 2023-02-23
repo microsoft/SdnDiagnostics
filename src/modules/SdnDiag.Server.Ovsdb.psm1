@@ -1,7 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
+. "$PSScriptRoot\..\scripts\SdnDiag.Utilities.ps1"
+
 
 function Get-OvsdbAddressMapping {
     <#

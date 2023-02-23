@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 using module ".\..\classes\SdnDiag.Classes.psm1"
+. "$PSScriptRoot\..\scripts\SdnDiag.Utilities.ps1"
 
-Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
 
 function Copy-CertificateToFabric {
     [CmdletBinding()]
@@ -74,7 +74,8 @@ function Copy-CertificateToFabric {
                         Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
 
                         "[REST CERT] Installing self-signed certificate to southbound devices" | Trace-Output
-                        Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
+                        $sbNodeSessions = New-PSRemotingSession -ComputerName $southBoundNodes -Credential $Credential
+                        Invoke-Command -Session $sbNodeSessions -ScriptBlock {
                             if (-NOT (Test-Path -Path $using:importCert.CerFileInfo.Directory.FullName -PathType Container)) {
                                 $null = New-Item -Path $using:importCert.CerFileInfo.Directory.FullName -ItemType Directory -Force
                             }
@@ -83,15 +84,16 @@ function Copy-CertificateToFabric {
                         foreach ($sbNode in $southBoundNodes) {
                             "[REST CERT] Installing self-signed certificate to {0}" -f $sbNode | Trace-Output
                             Copy-FileToRemoteComputer -ComputerName $sbNode -Credential $Credential -Path $importCert.CerFileInfo.FullName -Destination $importCert.CerFileInfo.FullName
-                            $null = Invoke-PSRemoteCommand -ComputerName $sbNode -Credential $Credential -ScriptBlock {
-                                Import-SdnCertificate -FilePath $using:importCert.CerFileInfo.FullName -CertStore 'Cert:\LocalMachine\Root'
-                            } -ErrorAction Stop
+                            $null = Invoke-Command -ComputerName $sbNode -Credential $Credential -ScriptBlock { Import-SdnCertificate } `
+                            -ArgumentList $importCert.CerFileInfo.FullName, 'Cert:\LocalMachine\Root' -ErrorAction Stop
                         }
                     }
                 }
                 else {
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
-                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+
+                    $controllerSession = New-PSRemotingSession -ComputerName $controller -Credential $Credential
+                    $null = Invoke-Command -Session $controllerSession -ScriptBlock {
                         if (-NOT (Test-Path -Path $using:certFileInfo.Directory.FullName -PathType Container)) {
                             New-Item -Path $using:certFileInfo.Directory.FullName -ItemType Directory -Force
                         }
@@ -99,9 +101,8 @@ function Copy-CertificateToFabric {
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
-                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword -CertStore 'Cert:\LocalMachine\My'
-                    }
+                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { Import-SdnCertificate } `
+                    -ArgumentList $remoteFilePath, 'Cert:\LocalMachine\My', $CertPassword -ErrorAction Stop
                 }
             }
         }
@@ -123,7 +124,8 @@ function Copy-CertificateToFabric {
                         $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
 
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
-                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                    $controllerSession = New-PSRemotingSession -ComputerName $controller -Credential $Credential
+                    $null = Invoke-Command -Session $controllerSession -ScriptBlock {
                         if (-NOT (Test-Path -Path $using:certFileInfo.Directory.FullName -PathType Container)) {
                             New-Item -Path $using:certFileInfo.Directory.FullName -ItemType Directory -Force
                         }
@@ -131,9 +133,8 @@ function Copy-CertificateToFabric {
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
-                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword -CertStore 'Cert:\LocalMachine\Root'
-                    } -ErrorAction Stop
+                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock { Import-SdnCertificate } `
+                    -ArgumentList $remoteFilePath, 'Cert:\LocalMachine\Root', $CertPassword -ErrorAction Stop
                 }
 
                 else {
@@ -190,7 +191,8 @@ function Copy-ServiceFabricManifestFromNetworkController {
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
-            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
+            $session = New-PSRemotingSession -ComputerName $_.IpAddressOrFQDN -Credential $Credential
+            $version = Invoke-Command -Session $session -ScriptBlock {
                 $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
                 $xml = [xml](get-content $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
@@ -253,7 +255,8 @@ function Copy-ServiceFabricManifestToNetworkController {
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
-            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
+            $session = New-PSRemotingSession -ComputerName $_.IpAddressOrFQDN -Credential $Credential
+            $version = Invoke-Command -Session $session -ScriptBlock {
                 $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
                 $xml = [xml](get-content $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
@@ -263,7 +266,7 @@ function Copy-ServiceFabricManifestToNetworkController {
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
 
-            Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
+            Invoke-Command -Session $session -ScriptBlock {
                 Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false | Out-Null
@@ -443,7 +446,8 @@ function Invoke-CertRotateCommand {
     }
     else {
         $params.Add('ComputerName', $NetworkController)
-        $cert = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
+        $session = New-PSRemotingSession -ComputerName $NetworkController -Credential $Credential
+        $cert = Invoke-Command -Session $session -ScriptBlock {
             Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:Thumbprint
         }
     }
@@ -744,9 +748,11 @@ function Update-NetworkControllerConfig {
 
         $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
         if ($null -ne $certProperty) {
-            $nodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                return Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCertThumbprint
+            $ncNodeSession = New-PSRemotingSession -ComputerName $ncNode.IPAddressOrFQDN -Credential $Credential
+            $nodeCert = Invoke-Command -Session $ncNodeSession -ScriptBlock {
+                Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCertThumbprint
             }
+
             "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
             Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name -Value $nodeCert.GetRawCertData()
         }
@@ -1258,7 +1264,8 @@ function Start-SdnCertificateRotation {
             $selfSignedRestCertFile = $newSelfSignedCert.FileInfo
 
             if ($rotateNCNodeCerts) {
-                $null = Invoke-PSRemoteCommand -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ScriptBlock {
+                $ncSession = New-PSRemotingSession -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential
+                $null = Invoke-Command -Session $ncSession -ScriptBlock {
                     New-SdnNetworkControllerNodeCertificate -NotAfter $using:NotAfter -CertPassword $using:CertPassword `
                         -Credential $using:Credential -Path $using:CertPath.FullName -FabricDetails $sdnFabricDetails
                 }
@@ -1313,12 +1320,13 @@ function Start-SdnCertificateRotation {
 
         if ($rotateNCNodeCerts) {
             foreach ($node in $NcInfraInfo.NodeList) {
+                $ncNodeSession = New-PSRemotingSession -ComputerName $node.IpAddressOrFQDN -Credential $Credential
                 $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
-                $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                $currentNodeCert = Invoke-Command -Session $ncNodeSession -ScriptBlock {
                     Get-SdnNetworkControllerNodeCertificate
                 }
 
-                $newNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                $newNodeCert = Invoke-Command -Session $ncNodeSession -ScriptBlock {
                     Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:nodeCertThumbprint
                 }
 
@@ -1432,9 +1440,9 @@ function Start-SdnCertificateRotation {
                     "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
                     [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
                     Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedRestCertFile.FullName -Destination $remoteFilePath
-                    $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertStore 'Cert:\LocalMachine\Root'
-                    } -ErrorAction Stop
+
+                    $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock { Import-SdnCertificate } `
+                    -ArgumentList $remoteFilePath, 'Cert:\LocalMachine\Root' -ErrorAction Stop
                 }
             }
         }
@@ -1480,6 +1488,7 @@ function Test-SdnCertificateRotationConfig {
 
         $ncRestCert = $CertRotateConfig["NcRestCert"]
         foreach ($ncNode in $NcNodeList) {
+            $ncNodeSession = New-PSRemotingSession -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential
             if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
                 $nodeCert = $CertRotateConfig[$ncNode.NodeName.ToLower()]
                 if ([string]::IsNullOrEmpty($nodeCert)) {
@@ -1487,7 +1496,7 @@ function Test-SdnCertificateRotationConfig {
                     return $false
                 }
                 else {
-                    $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
+                    $certValid = Invoke-Command -Session $ncNodeSession -ScriptBlock {
                         $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCert
                         if ($null -eq $nodeCertObj) {
                             return $false
@@ -1507,7 +1516,7 @@ function Test-SdnCertificateRotationConfig {
                 }
             }
 
-            $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
+            $certValid = Invoke-Command -Session $ncNodeSession -ScriptBlock {
                 $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:ncRestCert
                 if ($null -eq $ncRestCertObj) {
                     return $false
@@ -1605,13 +1614,13 @@ function Import-SdnCertificate {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 0)]
         [System.String]$FilePath,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, Position = 1)]
         [System.String]$CertStore,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, Position = 2)]
         [System.Security.SecureString]$CertPassword
     )
 
@@ -1838,7 +1847,6 @@ function Get-SdnCertificate {
         [ValidateNotNullorEmpty()]
         [System.String]$Thumbprint
     )
-
     try {
         $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object { $_.PSISContainer -eq $false } -ErrorAction Stop
 

@@ -1,7 +1,8 @@
 ﻿# Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
+. "$PSScriptRoot\..\scripts\SdnDiag.Utilities.ps1"
+
 
 function Get-SdnGatewayConfigurationState {
     <#
@@ -28,7 +29,7 @@ function Get-SdnGatewayConfigurationState {
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role:Gateway -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -Configuration $config -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 

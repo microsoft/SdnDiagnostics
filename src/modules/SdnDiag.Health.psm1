@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+. "$PSScriptRoot\..\scripts\SdnDiag.Utilities.ps1"
+
 
 function Get-SdnFabricInfrastructureHealth {
     <#
@@ -202,7 +204,8 @@ function Test-NetworkControllerServiceState {
             return $serviceArrayList
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
+        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+        $serviceStateResults = Invoke-Command -Session $session -Scriptblock $scriptBlock
         foreach ($result in $serviceStateResults) {
             if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
@@ -348,7 +351,7 @@ function Test-SdnProviderNetwork {
         }
 
         if ($providerAddresses) {
-            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock { Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses }
+            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock { Test-SdnProviderAddressConnectivity } -ArgumentList $providerAddresses
             foreach ($computer in $connectivityResults | Group-Object PSComputerName) {
                 foreach ($destinationAddress in $computer.Group) {
                     if ($destinationAddress.Status -ine 'Success') {
@@ -520,7 +523,8 @@ function Test-SdnServerServiceState {
             return $serviceArrayList
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
+        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+        $serviceStateResults = Invoke-Command -Session $session -Scriptblock $scriptBlock
         foreach ($result in $serviceStateResults) {
             if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
@@ -674,7 +678,8 @@ function Test-SdnLoadBalancerMuxServiceState {
             return $serviceArrayList
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
+        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+        $serviceStateResults = Invoke-Command -Session $session -Scriptblock $scriptBlock
         foreach ($result in $serviceStateResults) {
             if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)
@@ -835,7 +840,8 @@ function Test-SdnGatewayServiceState {
             return $serviceArrayList
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
+        $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+        $serviceStateResults = Invoke-Command -Session $session -Scriptblock $scriptBlock
         foreach ($result in $serviceStateResults) {
             if ($result.Status -ine 'Running') {
                 [void]$arrayList.Add($result)

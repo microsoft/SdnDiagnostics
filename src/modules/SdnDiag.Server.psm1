@@ -2,8 +2,9 @@
 # Licensed under the MIT License.
 
 using module ".\..\classes\SdnDiag.Classes.psm1"
+. "$PSScriptRoot\..\scripts\SdnDiag.Utilities.ps1"
 
-Import-Module "$PSScriptRoot\SdnDiag.Common.psm1"
+
 Import-Module "$PSScriptRoot\SdnDiag.Server.Ovsdb.psm1"
 Import-Module "$PSScriptRoot\SdnDiag.Server.Vfp.psm1"
 
@@ -361,20 +362,20 @@ function Get-SdnServerConfigurationState {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory
+        [Parameter(Mandatory = $true, Position = 0)]
+        [System.String]$OutputDirectory
     )
 
     $ProgressPreference = 'SilentlyContinue'
 
     try {
         $config = Get-SdnRoleConfiguration -Role:Server
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role:Server -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -Configuration $config -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
