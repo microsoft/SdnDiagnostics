@@ -1,0 +1,25 @@
+<?xml version="1.0"?>
+<package >
+	<metadata>
+		<id>SdnDiagnostics</id>
+		<version>$version$</version>
+		<authors>Adam Rudell, Luyao Feng</authors>
+        <owners>Microsoft Corporation</owners>
+        <license type="expression">MIT</license>
+		<requireLicenseAcceptance>false</requireLicenseAcceptance>
+		<description>SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.</description>
+		<copyright>© Microsoft Corporation. All rights reserved.</copyright>
+        <projectUrl>https://github.com/microsoft/SdnDiagnostics</projectUrl>
+        <language>en-US</language>
+		<tags>MSFTNet,Microsoft,Windows,Network,Networking,SDN,Diagnostics</tags>
+		<readme>SdnDiagnostics\docs\README.md</readme>
+	</metadata>
+	<files>
+        <!-- package root module -->
+        <file src="out\build\SdnDiagnostics\**" target="SdnDiagnostics" />
+		<file src="README.md" target = "SdnDiagnostics\docs" />
+
+        <!-- restore package dependencies -->
+        <file src=".packages\Get-NetView.*\**" target="SdnDiagnostics\packages" />
+	</files>
+</package>
