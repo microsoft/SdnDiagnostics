@@ -2,6 +2,9 @@ if (Get-Module -Name 'SdnDiagnostics') {
     Remove-Module -Name 'SdnDiagnostics' -Force
 }
 
+nuget help
+nuget sources
+
 .$PSScriptRoot\.build\clean.ps1
 .$PSScriptRoot\.build\restore.ps1
 $buildVersion = .$PSScriptRoot\.build\generate-Version.ps1
