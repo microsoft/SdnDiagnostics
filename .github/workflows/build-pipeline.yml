@@ -35,12 +35,12 @@ jobs:
 
       - name: 'Publish to Nuget Gallery'
         run: |
-          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -k ${{ secrets.NUGET_AUTH_TOKEN }} -s https://api.nuget.org/v3/index.json
+          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.NUGET_AUTH_TOKEN }} -Source https://api.nuget.org/v3/index.json
         shell: powershell
 
       - name: 'Publish to PowerShell Gallery'
         run: |
-          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -k ${{ secrets.PSGALLERY_AUTH_TOKEN }} -s https://www.powershellgallery.com/api/v2
+          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -Source https://www.powershellgallery.com/api/v2
         shell: powershell
 
       - name: 'Generate Documentation for Functions'
