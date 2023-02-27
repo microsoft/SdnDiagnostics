@@ -28,6 +28,8 @@ jobs:
           path: main
 
       - name: 'Build SdnDiagnostics Module and Nuget Package'
-        run: .\main\build.ps1
+        run: |
+          Set-Location -Path .\main
+          & .\build.ps1
         shell: powershell
 
