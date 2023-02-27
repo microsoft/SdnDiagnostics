@@ -29,11 +29,12 @@ jobs:
 
       - name: 'Generate build version'
         run: |
-          echo ".\main\.build\generate-version.ps1" >> $VERSION
+          $buildVersion = .\main\.build\generate-version.ps1
+          echo "version=$buildVersion >> $GITHUB_ENV
         shell: powershell
 
-      - name: Build SdnDiagnostics Module
-        run: .\main\.build\build.ps1 -Version $VERSION
+      - name: Build SdnDiagnostics Module "${{ env.version }}"
+        run: .\main\.build\build.ps1 -Version "${{ env.version }}"
         shell: powershell
 
       - name: 'Restore external dependencies'
@@ -41,5 +42,5 @@ jobs:
         shell: powershell
 
       - name: 'Generate nuget package'
-        run: .\main\.build\package.ps1 -Version $VERSION
+        run: .\main\.build\package.ps1 -Version "${{ env.version }}"
         shell: powershell
