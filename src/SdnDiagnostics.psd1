@@ -8,7 +8,7 @@
     RootModule = 'SdnDiagnostics.psm1'
 
     # Author of this module
-    Author = 'Adam Rudell'
+    Author = 'Adam Rudell, Luyao Feng'
 
     # Company or vendor of this module
     CompanyName = 'Microsoft Corporation'
@@ -20,7 +20,7 @@
     Description = 'SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.'
 
     # Version number of this module.
-    ModuleVersion = '1.0.0.0'
+    ModuleVersion = '0.0.0.0'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
@@ -151,7 +151,7 @@
         PSData = @{
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags = @(
-                'MSFTNet', 'Networking','Sdn'
+                'MSFTNet','Microsoft','Windows','Network','Networking','SDN','Diagnostics'
             )
 
             # A URL to the main website for this project.
