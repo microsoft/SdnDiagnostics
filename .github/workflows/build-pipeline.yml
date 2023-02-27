@@ -33,3 +33,7 @@ jobs:
           & .\build.ps1
         shell: powershell
 
+      - name: 'Where am I at?'
+        run: |
+          Get-Location
+        shell: powershell
