@@ -30,7 +30,7 @@ jobs:
       - name: 'Generate build version'
         run: |
           $buildVersion = .\main\.build\generate-version.ps1
-          echo "version=$buildVersion >> $GITHUB_ENV
+          echo "version=$buildVersion" >> $GITHUB_ENV
         shell: powershell
 
       - name: Build SdnDiagnostics Module "${{ env.version }}"
