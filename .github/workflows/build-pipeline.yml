@@ -33,14 +33,16 @@ jobs:
           & .\build.ps1
         shell: powershell
 
+      - name: 'Publish to PowerShell Gallery'
+        run: |
+          Copy-Item -Path ".\main\out\build\SdnDiagnostics" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
+          Import-Module -Name SdnDiagnostics -Force
+          Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
+        shell: powershell
+
       - name: 'Publish to Nuget Gallery'
         run: |
           nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.NUGET_AUTH_TOKEN }} -Source https://api.nuget.org/v3/index.json
-        shell: powershell
-
-      - name: 'Publish to PowerShell Gallery'
-        run: |
-          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -Source https://www.powershellgallery.com/api/v2
         shell: powershell
 
       - name: 'Generate Documentation for Functions'
