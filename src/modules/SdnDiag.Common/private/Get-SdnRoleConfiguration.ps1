@@ -8,5 +8,5 @@ function Get-SdnRoleConfiguration {
         [SdnRoles]$Role
     )
 
-    return (Get-Content -Path "$PSScriptRoot\..\..\..\config\$Role\settings.json" | ConvertFrom-Json)
+    return ($Global:SdnDiagnostics.Config[$Role])
 }

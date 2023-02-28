@@ -11,7 +11,46 @@ if (-NOT (Test-Path -Path $outDir -PathType Container)) {
     $null = New-Item -ItemType:Directory -Path $outDir -Force
 }
 
-Copy-Item -Path "$PSScriptRoot\..\src" -Destination "$outDir\SdnDiagnostics" -Recurse -Force
+$folders = Get-ChildItem -Path $PSScriptRoot\..\src -Directory
+foreach ($folder in $folders) {
+
+    $outDirFolder = New-Item -Path (Join-Path -Path $outDir -ChildPath "SdnDiagnostics\$($folder.BaseName)") -ItemType Directory -Force
+    switch ($folder.Name) {
+        'enum' {
+            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Enum.ps1")
+            foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
+                $content = Get-Content -Path $file.FullName -Raw
+                $powershellFile | Add-Content -Value $content
+            }
+        }
+
+        'classes' {
+            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Classes.ps1")
+            foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
+                $content = Get-Content -Path $file.FullName -Raw
+                $powershellFile | Add-Content -Value $content
+            }
+        }
+
+        'modules' {
+            foreach ($moduleDir in (Get-ChildItem -Path "$PSScriptRoot\..\src\modules" -Directory)) {
+                $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "$($moduleDir.BaseName).ps1")
+                foreach ($file in (Get-ChildItem -Path $moduleDir.FullName -Recurse -Include *.ps1)) {
+                    $content = Get-Content -Path $file.FullName -Raw
+                    $powershellFile | Add-Content -Value $content
+                }
+            }
+
+            Copy-Item -Path "$($folder.FullName)\*.ps1" -Destination "$outDir\SdnDiagnostics\modules\"
+        }
+        default {
+            Copy-Item -Path "$($folder.FullName)\*" -Destination $outDirFolder -Recurse -Force
+        }
+    }
+}
+
+Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
+Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
 
 # setting the version of the module manifest
 $modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"
