@@ -1,3 +1,6 @@
+# Copyright (c) Microsoft Corporation.
+# Licensed under the MIT License.
+
 @{
     DefaultLogDirectory = "C:\Windows\tracing\SDNDiagnostics\Logs"
     FilesExcludedFromCleanup = @()

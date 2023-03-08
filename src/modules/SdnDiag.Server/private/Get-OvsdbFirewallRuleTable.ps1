@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-OvsdbFirewallRuleTable {
     <#
     .SYNOPSIS
@@ -41,7 +38,7 @@ function Get-OvsdbFirewallRuleTable {
             # add the psobject to array list
             [void]$arrayList.Add($result)
         }
-        
+
         return $arrayList
     }
     catch {

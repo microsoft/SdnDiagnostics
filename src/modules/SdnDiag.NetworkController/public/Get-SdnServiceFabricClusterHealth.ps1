@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnServiceFabricClusterHealth {
     <#
     .SYNOPSIS
@@ -21,7 +18,7 @@ function Get-SdnServiceFabricClusterHealth {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty        
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {

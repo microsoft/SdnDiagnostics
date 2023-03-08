@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Update-NetworkControllerCertificateInManifest {
     <#
     .SYNOPSIS
@@ -41,12 +38,12 @@ function Update-NetworkControllerCertificateInManifest {
 
     # Prepare the cert thumbprint to be used
     # Update certificates ClusterManifest.current.xml
-    
+
     $clusterManifestXml = [xml](Get-Content "$ManifestFolder\ClusterManifest.current.xml")
 
     if ($null -eq $clusterManifestXml) {
         Trace-Output "ClusterManifest not found at $ManifestFolder\ClusterManifest.current.xml" -Level:Error
-        throw 
+        throw
     }
 
     $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
@@ -60,12 +57,12 @@ function Update-NetworkControllerCertificateInManifest {
     # Update new encrypted secret in Cluster Manifest
     ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
     ($fileStoreServiceSection.Parameter | Where-Object Name -eq "SecondaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
-    
+
     # Update SecretsCertificate to new REST Cert
-    
+
     Trace-Output "Updating SecretsCertificate with new rest cert thumbprint $NcRestCertThumbprint"
     $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue = "$NcRestCertThumbprint"
-    
+
     $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
     $ClusterCredentialType = $securitySection.Parameter | Where-Object Name -eq "ClusterCredentialType"
 
@@ -84,7 +81,7 @@ function Update-NetworkControllerCertificateInManifest {
         }
 
         # Update certificates InfrastructureManifest.xml
-        
+
         foreach ($node in $infrastructureManifestXml.InfrastructureInformation.NodeList.Node) {
             $ncNodeCertThumbprint = $CertRotateConfig[$node.NodeName.ToLower()]
             $node.Certificates.ClusterCertificate.X509FindValue = "$ncNodeCertThumbprint"
@@ -112,7 +109,7 @@ function Update-NetworkControllerCertificateInManifest {
         # Update encrypted secret in settings.xml
         $fileStoreServiceSection = $settingXml.Settings.Section | Where-Object Name -eq "FileStoreService"
         ($fileStoreServiceSection.Parameter | Where-Object Name -eq "PrimaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
-        ($fileStoreServiceSection.Parameter | Where-Object Name -eq "SecondaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret" 
+        ($fileStoreServiceSection.Parameter | Where-Object Name -eq "SecondaryAccountNTLMPasswordSecret").Value = "$newEncryptedSecret"
 
         $settingXml.Save("$ManifestFolderNew\$ncVm\Settings.xml")
     }

@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-OvsdbGlobalTable {
     <#
     .SYNOPSIS
@@ -9,7 +6,7 @@ function Get-OvsdbGlobalTable {
         PS> Get-OvsdbGlobalTable
     #>
 
-    try {      
+    try {
         $arrayList = [System.Collections.ArrayList]::new()
 
         $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep

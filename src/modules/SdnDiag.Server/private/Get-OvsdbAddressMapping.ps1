@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-OvsdbAddressMapping {
     <#
     .SYNOPSIS
@@ -59,8 +56,8 @@ function Get-OvsdbAddressMapping {
             # create the psobject now that we have all the mappings identified
             $result = New-Object PSObject -Property @{
                 UUID            = $uuid
-                CustomerAddress = $ca 
-                ProviderAddress = $pa 
+                CustomerAddress = $ca
+                ProviderAddress = $pa
                 MAC             = $mac
                 RoutingDomainID = $rdid
                 VirtualSwitchID = $vsid

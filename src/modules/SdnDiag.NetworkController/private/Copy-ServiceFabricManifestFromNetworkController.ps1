@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Copy-ServiceFabricManifestFromNetworkController {
     <#
     .SYNOPSIS
@@ -36,24 +33,24 @@ function Copy-ServiceFabricManifestFromNetworkController {
             return
         }
         Trace-Output "Copying Manifest files from $($NcNodeList.IpAddressOrFQDN)" -Level:Verbose
-    
+
         New-Item -Path $ManifestFolder -ItemType Directory -Force | Out-Null
         New-Item -Path $ManifestFolderNew -ItemType Directory -Force | Out-Null
 
         $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($NcNodeList[0].NodeName)\Fabric"
         Copy-FileFromRemoteComputer -Path "$fabricFolder\ClusterManifest.current.xml" -ComputerName $($NcNodeList[0].IpAddressOrFQDN) -Destination $ManifestFolder -Credential $Credential
         Copy-FileFromRemoteComputer -Path "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $($NcNodeList[0].IpAddressOrFQDN) -Destination $ManifestFolder -Credential $Credential
-        
+
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
-            
+
             $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
                 $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
                 $xml = [xml](get-content $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
                 return $version
             } -Credential $Credential
-            
+
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
             New-Item -Path "$ManifestFolder\$($_.IpAddressOrFQDN)" -type Directory -Force | Out-Null

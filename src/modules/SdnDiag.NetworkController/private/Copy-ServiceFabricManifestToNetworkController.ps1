@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Copy-ServiceFabricManifestToNetworkController {
     <#
     .SYNOPSIS
@@ -31,7 +28,7 @@ function Copy-ServiceFabricManifestToNetworkController {
             return
         }
         Trace-Output "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
-    
+
         Trace-Output "Stopping Service Fabric Service"
         foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
             Invoke-PSRemoteCommand -ComputerName $nc -ScriptBlock {
@@ -39,8 +36,8 @@ function Copy-ServiceFabricManifestToNetworkController {
                 Stop-Service FabricHostSvc -Force
             } -Credential $Credential
         }
-        
-    
+
+
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
@@ -53,14 +50,14 @@ function Copy-ServiceFabricManifestToNetworkController {
 
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
-            
+
             Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
                 Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false | Out-Null
-            
+
             } -Credential $Credential
-            
+
             Copy-FileToRemoteComputer -Path "$ManifestFolder\ClusterManifest.current.xml" -Destination "$fabricFolder\ClusterManifest.current.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
             Copy-FileToRemoteComputer -Path "$ManifestFolder\InfrastructureManifest.xml" -Destination "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
             Copy-FileToRemoteComputer -Path "$ManifestFolder\$($_.IpAddressOrFQDN)\settings.xml" -Destination $settingsFile -ComputerName $_.IpAddressOrFQDN -Credential $Credential

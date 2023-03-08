@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function New-NetworkControllerClusterSecret {
     <#
     .SYNOPSIS
@@ -37,7 +34,7 @@ function New-NetworkControllerClusterSecret {
     }
 
     $newEncryptedSecret = Invoke-ServiceFabricEncryptText -CertThumbPrint $NcRestCertThumbprint -Text $decryptedText -StoreName MY -StoreLocation LocalMachine -CertStore
-    
+
     $newDecryptedText = Invoke-ServiceFabricDecryptText -CipherText $newEncryptedSecret
 
     if ($newDecryptedText -eq $decryptedText) {

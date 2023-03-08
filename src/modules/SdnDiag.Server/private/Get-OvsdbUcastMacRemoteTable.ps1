@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-OvsdbUcastMacRemoteTable {
     <#
     .SYNOPSIS
@@ -18,7 +15,7 @@ function Get-OvsdbUcastMacRemoteTable {
         if ($null -eq $ucastMacsRemoteTable) {
             return $null
         }
-        
+
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $ucastMacsRemoteTable.data) {
             $result = New-Object PSObject -Property @{

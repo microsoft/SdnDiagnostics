@@ -50,7 +50,6 @@
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
-        'Get-SdnKnownIssue',
         'Get-SdnMuxDistributedRouterIP',
         'Get-SdnMuxState',
         'Get-SdnMuxStatefulVip',
@@ -119,32 +118,16 @@
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
-        'Test-SdnKIHostRootStoreNonRootCert',
-        'Test-SdnKINetworkControllerCertCredential',
-        'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
-        'Test-SdnKINetworkInterfacePlacement',
-        'Test-SdnKIServerHostId',
-        'Test-SdnKIServiceFabricPartitionDatabaseSize',
-        'Test-SdnKIVfpDuplicatePort',
-        'Test-SdnKIVMNetAdapterDuplicateMacAddress',
-        'Test-SdnEncapOverhead',
-        'Test-SdnGatewayConfigState',
-        'Test-SdnGatewayServiceState',
-        'Test-SdnKnownIssue',
-        'Test-SdnLoadBalancerMuxConfigState',
-        'Test-SdnLoadBalancerMuxServiceState',
-        'Test-SdnNetworkControllerServiceState',
-        'Test-SdnProviderAddressConnectivity',
-        'Test-SdnProviderNetwork',
-        'Test-SdnServerConfigState',
-        'Test-SdnServerServiceState'
+        'Test-SdnProviderAddressConnectivity'
     )
 
     # Variables to export from this module
     VariablesToExport = @()
 
     # Aliases to export from this module
-    AliasesToExport = @()
+    AliasesToExport = @(
+        'Get-SdnEnvironmentInfo'
+    )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{

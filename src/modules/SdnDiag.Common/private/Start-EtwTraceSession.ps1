@@ -1,16 +1,13 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Start-EtwTraceSession {
     <#
     .SYNOPSIS
-        Start the ETW trace with TraceProviders included. 
+        Start the ETW trace with TraceProviders included.
     .PARAMETER TraceName
-        The trace name to identify the ETW trace session 
+        The trace name to identify the ETW trace session
     .PARAMETER TraceProviders
         The trace providers in string format that you want to trace on
     .PARAMETER TraceFile
-        The trace file that will be written. 
+        The trace file that will be written.
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     #>
@@ -45,8 +42,8 @@ function Start-EtwTraceSession {
         $logmanCmd = "logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets"
         $result = Invoke-Expression -Command $logmanCmd
 
-        # Session create failure error need to be reported to user to be aware, this means we have one trace session missing. 
-        # Provider add failure might be ignored and exposed via verbose trace/log file only to debug. 
+        # Session create failure error need to be reported to user to be aware, this means we have one trace session missing.
+        # Provider add failure might be ignored and exposed via verbose trace/log file only to debug.
         if ("$result".Contains("Error")) {
             "Create session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
         }
@@ -62,5 +59,5 @@ function Start-EtwTraceSession {
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-    }   
+    }
 }

@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnVirtualServer {
     <#
     .SYNOPSIS
@@ -48,7 +45,7 @@ function Get-SdnVirtualServer {
         else {
             return $result
         }
-    } 
+    }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }

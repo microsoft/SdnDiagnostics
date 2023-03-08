@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Update-NetworkControllerCertificateAcl {
     <#
     .SYNOPSIS
@@ -28,7 +25,7 @@ function Update-NetworkControllerCertificateAcl {
 
     try {
         $NcRestCertThumbprint = $CertRotateConfig["NcRestCert"]
-        
+
         foreach ($ncNode in $NcNodeList) {
             $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
             Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {

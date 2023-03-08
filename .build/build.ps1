@@ -16,8 +16,9 @@ foreach ($folder in $folders) {
 
     $outDirFolder = New-Item -Path (Join-Path -Path $outDir -ChildPath "SdnDiagnostics\$($folder.BaseName)") -ItemType Directory -Force
     switch ($folder.Name) {
-        'enum' {
-            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Enum.ps1")
+        'enums' {
+            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Enums.ps1")
+            $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
             foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
                 $content = Get-Content -Path $file.FullName -Raw
                 $powershellFile | Add-Content -Value $content
@@ -26,6 +27,7 @@ foreach ($folder in $folders) {
 
         'classes' {
             $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Classes.ps1")
+            $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
             foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
                 $content = Get-Content -Path $file.FullName -Raw
                 $powershellFile | Add-Content -Value $content
@@ -35,6 +37,7 @@ foreach ($folder in $folders) {
         'modules' {
             foreach ($moduleDir in (Get-ChildItem -Path "$PSScriptRoot\..\src\modules" -Directory)) {
                 $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "$($moduleDir.BaseName).ps1")
+                $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
                 foreach ($file in (Get-ChildItem -Path $moduleDir.FullName -Recurse -Include *.ps1)) {
                     $content = Get-Content -Path $file.FullName -Raw
                     $powershellFile | Add-Content -Value $content

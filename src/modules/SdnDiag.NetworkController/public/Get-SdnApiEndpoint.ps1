@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnApiEndpoint {
     <#
     .SYNOPSIS
@@ -53,7 +50,7 @@ function Get-SdnApiEndpoint {
             }
         }
         'ResourceName' {
-            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.properties.apiResources | Where-Object {$_.name -ieq $resourceName}
+            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.Properties.ApiResources[$ResourceName]
             if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
                 [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $apiEndpointProperties.uri
             }

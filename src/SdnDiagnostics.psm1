@@ -1,15 +1,13 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
-. "$PSScriptRoot\enum\SdnDiag.Enum.ps1"
+. "$PSScriptRoot\enums\SdnDiag.Enums.ps1"
 . "$PSScriptRoot\classes\SdnDiag.Classes.ps1"
 . "$PSScriptRoot\modules\SdnDiag.Common.ps1"
 . "$PSScriptRoot\modules\SdnDiag.Gateway.ps1"
+. "$PSScriptRoot\modules\SdnDiag.Health.ps1"
 . "$PSScriptRoot\modules\SdnDiag.LoadBalancer.ps1"
 . "$PSScriptRoot\modules\SdnDiag.NetworkController.ps1"
 . "$PSScriptRoot\modules\SdnDiag.Server.ps1"
-. "$PSScriptRoot\modules\SdnDiag.Utilties.ps1"
-. "$PSScriptRoot\modules\SdnDiag.ArgumentCompleters.ps1"
+. "$PSScriptRoot\modules\SdnDiag.Utilities.ps1"
+. "$PSScriptRoot\SdnDiagnostics.ArgCompleter.ps1"
 
 $sdnDiagConfig = Import-PowerShellDataFile -Path "$PSScriptRoot\config\SdnDiag.psd1"
 $gwConfig = Import-PowerShellDataFile -Path "$PSScriptRoot\config\SdnDiag.Gateway.psd1"
@@ -25,11 +23,9 @@ New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
         NetworkController = $ncConfig
         Server = $serverConfig
     }
-    Credential = $null
-    InfrastructureInfo = @{
+    EnvironmentInfo = @{
         RestApiVersion = 'V1'
     }
-    NcRestCredential = $null
     Settings = $sdnDiagConfig
     TraceFilePath = $null
 }

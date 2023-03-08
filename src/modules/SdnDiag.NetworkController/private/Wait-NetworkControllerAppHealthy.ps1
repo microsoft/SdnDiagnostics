@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Wait-NetworkControllerAppHealthy {
     <#
     .SYNOPSIS
@@ -44,7 +41,7 @@ function Wait-NetworkControllerAppHealthy {
                     if ($clusterHealth.NodeHealthStates -ne "Ok") {
                         Get-ServiceFabricNode -StatusFilter All | Format-Table Nodename, Nodestatus, HealthState, IpAddressOrFQDN, NodeUptime -autosize
                     }
-                    $applicationStatus = Get-ServiceFabricApplication -ApplicationName fabric:/NetworkController 
+                    $applicationStatus = Get-ServiceFabricApplication -ApplicationName fabric:/NetworkController
                     if ($applicationStatus.HealthState -ne "Ok") {
                         $applicationStatus | Format-Table ApplicationName, ApplicationStatus, HealthState -AutoSize
                         $services = Get-ServiceFabricService -ApplicationName fabric:/NetworkController
@@ -59,21 +56,21 @@ function Wait-NetworkControllerAppHealthy {
                             $isApplicationHealth = $true
                             break
                         }
-    
+
                         $services | Format-Table ServiceName, ServiceStatus, HealthState -AutoSize
                     }
                     else {
                         $isApplicationHealth = $true
                     }
-    
+
                     $systemStatus = Get-ServiceFabricService -ApplicationName fabric:/System
                     if ($systemStatus.HealthState -ne "Ok") {
                         $systemStatus | Format-Table ServiceName, ServiceStatus, HealthState -AutoSize
-                    } 
+                    }
                 }else{
                     $isApplicationHealth = $true;
                 }
-    
+
                 Write-Host "[$(HostName)] Current Network Controller Health Status: $isApplicationHealth"
                 if($Interval -gt 0)
                 {
@@ -83,7 +80,7 @@ function Wait-NetworkControllerAppHealthy {
                 }
             }
         }
-    
+
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController')))
         {
             Invoke-Command -ScriptBlock $scriptBlock -ArgumentList $Interval

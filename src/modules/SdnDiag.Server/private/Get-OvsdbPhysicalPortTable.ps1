@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-OvsdbPhysicalPortTable {
     <#
     .SYNOPSIS
@@ -18,7 +15,7 @@ function Get-OvsdbPhysicalPortTable {
         if ($null -eq $portTable) {
             return $null
         }
-        
+
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $portTable.data) {
             $result = New-Object PSObject -Property @{
@@ -31,7 +28,7 @@ function Get-OvsdbPhysicalPortTable {
             foreach ($property in $obj[4][1]) {
                 $result | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
             }
-            
+
             # add the psobject to array
             [void]$arrayList.Add($result)
         }

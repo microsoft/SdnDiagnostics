@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Test-SdnProviderAddressConnectivity {
     <#
     .SYNOPSIS
@@ -8,7 +5,7 @@ function Test-SdnProviderAddressConnectivity {
     .PARAMETER ProviderAddress
         The IP address assigned to a hidden network adapter in a non-default network compartment.
     .EXAMPLE
-        PS> Test-SdnProviderAddressConnectivity -ProviderAddress (Get-SdnProviderAddress -ComputerName 'Server01','Server02')
+        PS> Test-SdnProviderAddressConnectivity -ProviderAddress (Get-SdnProviderAddress -ComputerName 'Server01','Server02').ProviderAddress
     #>
 
     [CmdletBinding()]

@@ -20,8 +20,8 @@ $ErrorActionPreference = 'Stop'
 
 # verify the function name matches approved verbs
 $FunctionName = (Get-Culture).TextInfo.ToTitleCase("$FunctionName".tolower())
-if($FunctionName -inotlike "Test-SdnKI*"){
-    "Please ensure that you are prefixing your function name wtih 'Test-SdnKI' when creating known issue check." | Write-Host -ForegroundColor:Yellow
+if($FunctionName -inotlike "*"){
+    "Please ensure that you are prefixing your function name wtih '' when creating known issue check." | Write-Host -ForegroundColor:Yellow
     return
 }
 

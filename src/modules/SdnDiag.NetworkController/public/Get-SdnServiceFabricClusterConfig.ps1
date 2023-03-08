@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnServiceFabricClusterConfig {
     <#
     .SYNOPSIS
@@ -32,7 +29,7 @@ function Get-SdnServiceFabricClusterConfig {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty        
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
@@ -42,13 +39,13 @@ function Get-SdnServiceFabricClusterConfig {
         $absoluteUri = "fabric:/NetworkController/$Uri"
         $binaryMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([byte[]])
         $stringMethod = [System.Fabric.NamedProperty].getmethod("GetValue").MakeGenericMethod([string])
-            
+
         $results = [System.Collections.ArrayList]::new()
         do {
             $result = $client.PropertyManager.EnumeratePropertiesAsync($absoluteUri, $true, $result).Result
             $result.GetEnumerator() | ForEach-Object {
                 $propertyName = $_.Metadata.PropertyName
-                
+
                 $propertyObj = [PSCustomObject]@{
                     Name = $propertyName
                     Value = $null

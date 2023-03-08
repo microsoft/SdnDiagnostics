@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Update-NetworkControllerConfig {
     <#
     .SYNOPSIS
@@ -39,7 +36,7 @@ function Update-NetworkControllerConfig {
         $thumbprintPropertyName = "{0}.ClusterCertThumbprint" -f $ncNode.NodeName
         # Global Config property name like Global.Version.NodeName.ClusterCertThumbprint
         $thumbprintProperty = $globalConfigs | Where-Object Name -Match $thumbprintPropertyName
-        
+
         if($null -ne $thumbprintProperty){
             "GlobalConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
             Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
@@ -47,7 +44,7 @@ function Update-NetworkControllerConfig {
 
         # Cluster Config property name like NodeName.ClusterCertThumbprint
         $thumbprintProperty = $clusterConfigs | Where-Object Name -ieq $thumbprintPropertyName
-        
+
         # If NodeName.ClusterCertThumbprint exist (for Server 2022 +), Update
         if($null -ne $thumbprintProperty){
             "ClusterConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output

@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnServiceFabricService {
     <#
     .SYNOPSIS
@@ -16,7 +13,7 @@ function Get-SdnServiceFabricService {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential) 
+        PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential)
     .EXAMPLE
         PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential) -ServiceTypeName 'ApiService'
     #>
@@ -43,7 +40,7 @@ function Get-SdnServiceFabricService {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
-    
+
     try {
         switch ($PSCmdlet.ParameterSetName) {
             'NamedService' {

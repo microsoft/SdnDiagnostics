@@ -1,12 +1,9 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-TraceProviders {
     <#
     .SYNOPSIS
         Get ETW Trace Providers based on Role
     .PARAMETER Role
-        The SDN Roles 
+        The SDN Roles
     .PARAMETER Providers
         Allowed values are Default,Optional And All to control what are the providers needed
     #>

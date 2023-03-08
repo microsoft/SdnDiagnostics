@@ -1,6 +1,3 @@
-# Copyright (c) Microsoft Corporation.
-# Licensed under the MIT License.
-
 function Get-SdnServiceFabricClusterManifest {
     <#
     .SYNOPSIS
@@ -62,7 +59,7 @@ function Get-SdnServiceFabricClusterManifest {
                 else {
                     $xmlClusterManifest = Invoke-PSRemoteCommand -ComputerName $obj -Credential $Credential -ScriptBlock $clusterManifestScript
                 }
-                
+
                 # once the cluster manifest has been retrieved from the file system break out of the loop
                 if ($xmlClusterManifest) {
                     "Successfully retrieved ClusterManifest from {0}" -f $obj | Trace-Output
