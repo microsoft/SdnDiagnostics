@@ -25,7 +25,7 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $sdnHealthObject = [SdnHealthResult]::new()
+    $sdnHealthObject = [SdnHealth]::new()
     $sdnHealthObject.Result = 'PASS'
     $arrayList = [System.Collections.ArrayList]::new()
 

@@ -22,7 +22,7 @@ function Test-EncapOverhead {
 
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
-    $sdnHealthObject = [SdnHealthResult]::new()
+    $sdnHealthObject = [SdnHealth]::new()
     $sdnHealthObject.Result = 'PASS'
     $arrayList = [System.Collections.ArrayList]::new()
 

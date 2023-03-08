@@ -1,4 +1,4 @@
-class SdnHealthResult {
+class SdnHealth {
     [SdnHealthResult]$Result
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
