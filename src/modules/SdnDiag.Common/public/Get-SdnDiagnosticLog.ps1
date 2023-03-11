@@ -27,7 +27,7 @@ function Get-SdnDiagnosticLog {
     )
 
     try {
-        [System.IO.FileInfo]$logDir = $Global:SdnDiagnostics.Settings.DefaultLogDirectory
+        [System.IO.FileInfo]$logDir = $Local:SdnDiagnostics_Common.Config.DefaultLogDirectory
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnosticLogs"
 
         "Collect diagnostic logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output

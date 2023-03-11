@@ -8,7 +8,7 @@ function Initialize-DataCollection {
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MB')]
-        [SdnRoles]$Role,
+        [String]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]

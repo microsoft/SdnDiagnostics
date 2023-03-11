@@ -5,5 +5,13 @@ function Get-SdnRoleConfiguration {
         [SdnRoles]$Role
     )
 
-    return ($Global:SdnDiagnostics.Config[$Role])
+    switch ($Role) {
+        'Gateway' {
+            return (Get-SdnGatewayModuleConfig)
+        }
+
+        default {
+            return ($Global:SdnDiagnostics.Config[$Role])
+        }
+    }
 }

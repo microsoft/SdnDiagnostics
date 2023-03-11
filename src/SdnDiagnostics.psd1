@@ -16,6 +16,9 @@
     # Copyright statement for this module
     Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
+    # ID used to uniquely identify this module
+    GUID = 'c6cd3002-c6b1-4798-b532-2f939f527599'
+
     # Description of the functionality provided by this module
     Description = 'SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.'
 
@@ -26,7 +29,15 @@
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @()
+    NestedModules = @(
+        'modules\SdnDiag.Common\SdnDiag.Common.psm1'
+        'modules\SdnDiag.Gateway\SdnDiag.Gateway.psm1'
+        'modules\SdnDiag.Health\SdnDiag.Health.psm1'
+        'modules\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer.psm1'
+        'modules\SdnDiag.NetworkController\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.Server\SdnDiag.Server.psm1'
+        'modules\SdnDiag.Utilities\SdnDiag.Utilities.psm1'
+    )
 
     # Modules that must be imported into the global environment prior to importing this module
     RequiredModules = @()
@@ -76,6 +87,7 @@
         'Get-SdnOvsdbUcastMacRemoteTable',
         'Get-SdnProviderAddress',
         'Get-SdnResource',
+        'Get-SdnRoleConfiguration'
         'Get-SdnServer',
         'Get-SdnServerConfigurationState',
         'Get-SdnServiceFabricApplicationHealth',

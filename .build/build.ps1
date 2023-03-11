@@ -16,29 +16,23 @@ foreach ($folder in $folders) {
 
     $outDirFolder = New-Item -Path (Join-Path -Path $outDir -ChildPath "SdnDiagnostics\$($folder.BaseName)") -ItemType Directory -Force
     switch ($folder.Name) {
-        'enums' {
-            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Enums.ps1")
-            $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
-            foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
-                $content = Get-Content -Path $file.FullName -Raw
-                $powershellFile | Add-Content -Value $content
-            }
-        }
-
-        'classes' {
-            $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "SdnDiag.Classes.ps1")
-            $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
-            foreach ($file in (Get-ChildItem -Path $folder.FullName -Recurse -Include *.ps1)) {
-                $content = Get-Content -Path $file.FullName -Raw
-                $powershellFile | Add-Content -Value $content
-            }
-        }
-
         'modules' {
             foreach ($moduleDir in (Get-ChildItem -Path "$PSScriptRoot\..\src\modules" -Directory)) {
-                $powershellFile = New-Item -Path (Join-Path -Path $outDirFolder.FullName -ChildPath "$($moduleDir.BaseName).ps1")
-                $powershellFile | Add-Content -Value "# Copyright (c) Microsoft Corporation.`n# Licensed under the MIT License.`n"
-                foreach ($file in (Get-ChildItem -Path $moduleDir.FullName -Recurse -Include *.ps1)) {
+                # create the output module directory
+                $outModuleDirPath = Join-Path -Path $outDirFolder.FullName -ChildPath "$($moduleDir.BaseName)"
+                if (-NOT (Test-Path -Path $outModuleDirPath -PathType Container)) {
+                    $null = New-Item -Path $outModuleDirPath -ItemType Directory -Force
+                }
+
+                # copy the current psm1 and psd1 files we have declared under src
+                Copy-Item -Path "$($moduleDir.FullName)\*" -Include '*.psd1','*.psm1' -Destination "$outModuleDirPath\"
+
+                # locate the psm1 file within the output module directory so that we can add all the private and public ps1 functions
+                # under source to the single psm1 file
+                $powershellFile = Get-Item -Path (Join-Path -Path $outModuleDirPath -ChildPath "$($moduleDir.BaseName).psm1")
+                "`nUpdating module: {0}" -f $powershellFile.BaseName | Write-Host
+                foreach ($file in (Get-ChildItem -Path $moduleDir.FullName -Recurse -Include '*.ps1')) {
+                    "`tProcessing: {0}" -f $File.FullName | Write-Host
                     $content = Get-Content -Path $file.FullName -Raw
                     $powershellFile | Add-Content -Value $content
                 }
