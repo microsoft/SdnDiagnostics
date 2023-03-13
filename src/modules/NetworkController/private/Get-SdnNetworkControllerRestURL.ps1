@@ -4,7 +4,7 @@
 function Get-SdnNetworkControllerRestURL {
     <#
         .SYNOPSIS
-            Queries Network Controller to identify the Rest URL endpoint that can be used to query the north bound API endpoint.
+        Queries Network Controller to identify the Rest URL endpoint that can be used to query the north bound API endpoint.
     #>
 
     [CmdletBinding()]
@@ -49,7 +49,7 @@ function Get-SdnNetworkControllerRestURL {
         }
 
         # generate the url based on the values identified previously
-        $ncUrl = "{0}/{1}" -f $protocol, $url
+        $ncUrl = "{0}://{1}" -f $protocol, $url
         return $ncUrl
     }
     catch {
