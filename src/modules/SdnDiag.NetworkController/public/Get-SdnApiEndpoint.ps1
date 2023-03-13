@@ -50,7 +50,7 @@ function Get-SdnApiEndpoint {
             }
         }
         'ResourceName' {
-            $apiEndpointProperties = $Global:SdnDiagnostics.Config.NetworkController.Properties.ApiResources[$ResourceName]
+            $apiEndpointProperties = $Script:SdnDiagnostics_NC.Config.Properties.ApiResources[$ResourceName]
             if ([string]::IsNullOrEmpty($apiEndpointProperties.minVersion)) {
                 [System.String]$endpoint = "{0}/networking/{1}" -f $NcUri.AbsoluteUri.TrimEnd('/'), $apiEndpointProperties.uri
             }

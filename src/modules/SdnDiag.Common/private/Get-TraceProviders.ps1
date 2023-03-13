@@ -22,7 +22,7 @@ function Get-TraceProviders {
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role $Role
+        $config = Get-SdnModuleConfiguration -Role $Role
         $traceProvidersArray = [System.Collections.ArrayList]::new()
         foreach ($traceProviders in $config.properties.etwTraceProviders) {
             switch ($Providers) {

@@ -17,7 +17,7 @@ function Get-SdnServerConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:Server
+        $config = Get-SdnModuleConfiguration -Role:Server
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 

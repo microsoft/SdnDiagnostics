@@ -17,7 +17,7 @@ function Get-SdnGatewayConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:Gateway
+        $config = Get-SdnModuleConfiguration -Role:Gateway
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 

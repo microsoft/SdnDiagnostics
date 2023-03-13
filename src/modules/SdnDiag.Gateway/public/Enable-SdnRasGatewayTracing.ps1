@@ -6,7 +6,7 @@ function Enable-SdnRasGatewayTracing {
 
     try {
         # ensure that the appropriate windows feature is installed and ensure module is imported
-        $config = Get-SdnRoleConfiguration -Role:Gateway
+        $config = Get-SdnModuleConfiguration -Role:Gateway
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if(!$confirmFeatures){
             throw New-Object System.Exception("Required feature is missing")

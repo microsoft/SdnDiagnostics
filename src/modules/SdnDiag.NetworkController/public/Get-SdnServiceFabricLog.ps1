@@ -22,7 +22,7 @@ function Get-SdnServiceFabricLog {
     )
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        $config = Get-SdnModuleConfiguration -Role:NetworkController
         [System.IO.FileInfo]$logDir = $config.properties.commonPaths.serviceFabricLogDirectory
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ServiceFabricLogs"
 

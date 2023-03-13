@@ -5,7 +5,7 @@ Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
 # create local variable to store configuration data
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Gateway.Config.psd1"
-New-Variable -Name 'SdnDiagnostics_Gateway' -Scope 'Local' -Force -Value @{
+New-Variable -Name 'SdnDiagnostics_Gateway' -Scope 'Script' -Force -Value @{
     Config = $configurationData
 }
 

@@ -17,7 +17,7 @@ function Get-SdnSlbMuxConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:LoadBalancerMux
+        $config = Get-SdnModuleConfiguration -Role:LoadBalancerMux
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 

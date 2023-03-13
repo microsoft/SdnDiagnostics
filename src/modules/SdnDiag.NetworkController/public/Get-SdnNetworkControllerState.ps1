@@ -38,7 +38,7 @@ function Get-SdnNetworkControllerState {
         [int]$ExecutionTimeOut = 300
     )
     try {
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        $config = Get-SdnModuleConfiguration -Role:NetworkController
         [System.IO.FileInfo]$netControllerStatePath = $config.properties.netControllerStatePath
         [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetworkControllerState'
 

@@ -58,7 +58,7 @@ function Clear-SdnWorkingDirectory {
             foreach ($object in $Path) {
                 # enumerate through the allowed folder paths for cleanup to make sure the paths specified can be cleaned up
                 $pathAllowed = $false
-                foreach ($allowedFolderPath in $Global:SdnDiagnostics.Settings.FolderPathsAllowedForCleanup) {
+                foreach ($allowedFolderPath in $Script:SdnDiagnostics_Utilities.Config.FolderPathsAllowedForCleanup) {
                     if ($object -ilike $allowedFolderPath) {
                         $pathAllowed = $true
                     }
@@ -68,7 +68,7 @@ function Clear-SdnWorkingDirectory {
                 if ($pathAllowed) {
                     if (Test-Path -Path $object) {
                         "Remove {0}" -f $object | Trace-Output -Level:Verbose
-                        Remove-Item -Path $object -Exclude $Global:SdnDiagnostics.Settings.FilesExcludedFromCleanup -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Continue
+                        Remove-Item -Path $object -Exclude $Script:SdnDiagnostics_Utilities.Cache.FilesExcludedFromCleanup -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Continue
                     }
                 }
                 else {

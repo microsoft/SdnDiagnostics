@@ -1,3 +1,3 @@
 function Get-TraceOutputFile {
-    return [System.IO.FileInfo]$global:SdnDiagnostics.TraceFilePath
+    return [System.String]$Script:SdnDiagnostics_Utilities.Cache.TraceFilePath
 }

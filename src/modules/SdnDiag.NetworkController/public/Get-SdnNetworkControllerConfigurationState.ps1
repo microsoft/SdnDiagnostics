@@ -17,7 +17,7 @@ function Get-SdnNetworkControllerConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        $config = Get-SdnModuleConfiguration -Role:NetworkController
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"

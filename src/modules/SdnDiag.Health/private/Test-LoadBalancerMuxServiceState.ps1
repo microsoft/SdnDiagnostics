@@ -30,7 +30,7 @@ function Test-LoadBalancerMuxServiceState {
     $arrayList = [System.Collections.ArrayList]::new()
 
     try {
-        $config = Get-SdnRoleConfiguration -Role:LoadBalancerMux
+        $config = Get-SdnModuleConfiguration -Role:LoadBalancerMux
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
         $scriptBlock = {

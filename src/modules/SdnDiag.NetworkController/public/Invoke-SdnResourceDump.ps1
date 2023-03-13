@@ -39,7 +39,7 @@ function Invoke-SdnResourceDump {
             $apiVersion = 'v1'
         }
 
-        $config = Get-SdnRoleConfiguration -Role:NetworkController
+        $config = Get-SdnModuleConfiguration -Role:NetworkController
         [int]$apiVersionInt = $ApiVersion.Replace('v','').Replace('V','')
         foreach ($resource in $config.properties.apiResources) {
 

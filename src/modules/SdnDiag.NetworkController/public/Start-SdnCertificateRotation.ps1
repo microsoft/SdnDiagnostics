@@ -64,7 +64,7 @@ function Start-SdnCertificateRotation {
         throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
     }
 
-    $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")

@@ -19,11 +19,11 @@ else {
     Install-Module -Name platyPS -Scope CurrentUser -Confirm:$false -Force
 }
 
-$modulePath = "$PSScriptRoot\..\..\src\SdnDiagnostics.psd1"
-$docPath = "$PSScriptRoot\..\..\.documentation\functions"
-$sideBarNav = "$PSScriptRoot\..\..\.documentation\_SideBar.md"
+$modulePath = "$PSScriptRoot\..\src\SdnDiagnostics.psd1"
+$docPath = "$PSScriptRoot\..\.documentation\functions"
+$sideBarNav = "$PSScriptRoot\..\.documentation\_SideBar.md"
 
-if(!(Test-Path -Path $docPath -PathType Container)){
+if(-NOT (Test-Path -Path $docPath -PathType Container)) {
     $null = New-Item -Path $docPath -ItemType Directory -Force
 }
 
@@ -47,23 +47,3 @@ foreach($function in (Get-Command -Module SdnDiagnostics)){
         "Documentation not generated for {0}" -f $function.Name | Write-Host -ForegroundColor:Yellow
     }
 }
-
-# generate the side bar navigation
-"Generating side bar navigation" | Write-Host
-
-$sideBarInto = @'
-# Documentation
-- [Home](Home)
-- [Certificate Rotation](CertificateRotation)
-## Functions
-'@
-
-$sideBarNavcontent = @()
-$sideBarNavcontent += $sideBarInto
-
-foreach($file in $currentFiles){
-    $navLink = "- [{0}]({0})" -f $file.BaseName
-    $sideBarNavcontent += $navLink
-}
-
-$sideBarNavcontent | Out-File -FilePath $sideBarNav -Encoding utf8

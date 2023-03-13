@@ -61,6 +61,7 @@
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
+        'Get-SdnModuleConfiguration'
         'Get-SdnMuxDistributedRouterIP',
         'Get-SdnMuxState',
         'Get-SdnMuxStatefulVip',
@@ -87,7 +88,6 @@
         'Get-SdnOvsdbUcastMacRemoteTable',
         'Get-SdnProviderAddress',
         'Get-SdnResource',
-        'Get-SdnRoleConfiguration'
         'Get-SdnServer',
         'Get-SdnServerConfigurationState',
         'Get-SdnServiceFabricApplicationHealth',

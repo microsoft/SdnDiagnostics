@@ -1,3 +1,3 @@
-function Get-SdnGatewayModuleConfig {
-    return $Local:SdnDiagnostics_Gateway.Config
+function Get-GatewayModuleConfig {
+    return $Script:SdnDiagnostics_Gateway.Config
 }

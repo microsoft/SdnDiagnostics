@@ -29,7 +29,7 @@ function New-SdnNetworkControllerNodeCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $config = Get-SdnRoleConfiguration -Role 'NetworkController'
+    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")

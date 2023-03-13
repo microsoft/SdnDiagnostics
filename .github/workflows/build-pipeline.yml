@@ -46,7 +46,7 @@ jobs:
         shell: powershell
 
       - name: 'Generate Documentation for Functions'
-        run: .\main\.build\utilities\generate-documentation.ps1
+        run: .\main\.build\generate-documentation.ps1
         shell: powershell
 
       - name: 'Checkout SdnDiagnostics.Wiki'
@@ -60,7 +60,6 @@ jobs:
         run: |
           Remove-Item -Path .\wiki\functions\* -Force -Verbose
           Copy-Item -Path ".\main\.documentation\functions\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki" -Force -Verbose
         shell: powershell
 
       - name: 'Commit to SdnDiagnostics.Wiki'

@@ -3,11 +3,9 @@
 
 Import-Module $PSScriptRoot\SdnDiagnostics.Helper.psm1
 
-New-Variable -Name SdnDiagnostics -Scope Global -Force -Value @{
+New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
         RestApiVersion = 'V1'
     }
 }
-
-$ErrorActionPreference = 'Continue'

@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 @{
-    FilesExcludedFromCleanup = @()
     FolderPathsAllowedForCleanup = @(
         "C:\Windows\Tracing\SdnDiag"
         "C:\Windows\Tracing\SdnDiag\*"
