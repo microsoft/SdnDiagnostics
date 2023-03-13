@@ -275,7 +275,7 @@ function Start-SdnDataCollection {
                 }
 
                 if ($group.Name -ieq 'Server') {
-                    Get-SdnAuditLog -NcUri $NcUri.AbsoluteUri -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
+                    Get-SdnAuditLog -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
                     -ComputerName $dataNodes -Credential $Credential
                 }
 

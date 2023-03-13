@@ -22,17 +22,32 @@ function Get-SdnNetworkControllerRestURL {
         }
 
         $result = Get-SdnNetworkController -NetworkController $NetworkController -Credential $Credential
-
-        # check to see if RestName is populated and return back to the caller
-        if ($result.RestName) {
-            if ($result.ServerCertificate) {
-                return ("https://$($result.RestName)")
-            }
-
-            return ("http://$($result.RestName)")
+        if ($null -eq $result) {
+            throw New-Object System.NullReferenceException("Unable to return information from Network Controller")
         }
 
-        return $null
+        # determine if we are using X509 authentication
+        if ($result.ServerCertificate) {
+            $protocol = 'https'
+        }
+        else {
+            $protocol = 'http'
+        }
+
+        # determine if we are using FQDN or IP Address for our NC URL
+        if ($result.RestName) {
+            $url = $result.RestName
+        }
+        elseif ($result.RestIPAddress) {
+            $url = $result.RestIPAddress
+        }
+        else {
+            throw New-Object System.NullReferenceException("Unable to determine REST URL")
+        }
+
+        # generate the url based on the values identified previously
+        $ncUrl = "{0}/{1}" -f $protocol, $url
+        return $ncUrl
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
