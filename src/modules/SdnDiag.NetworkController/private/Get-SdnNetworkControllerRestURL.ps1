@@ -46,7 +46,7 @@ function Get-SdnNetworkControllerRestURL {
         }
 
         # generate the url based on the values identified previously
-        $ncUrl = "{0}/{1}" -f $protocol, $url
+        $ncUrl = "{0}://{1}" -f $protocol, $url
         return $ncUrl
     }
     catch {
