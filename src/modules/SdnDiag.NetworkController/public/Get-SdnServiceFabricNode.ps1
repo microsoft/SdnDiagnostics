@@ -56,6 +56,6 @@ function Get-SdnServiceFabricNode {
         Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

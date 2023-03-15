@@ -35,6 +35,6 @@ function Stop-NetshTrace {
         return $object
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

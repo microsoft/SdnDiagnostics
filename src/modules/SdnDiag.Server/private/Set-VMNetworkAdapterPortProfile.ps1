@@ -37,7 +37,7 @@ function Set-VMNetworkAdapterPortProfile {
 
         $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
         if ($null -eq $vmNic) {
-            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Failure
+            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Exception
             return
         }
 
@@ -69,6 +69,6 @@ function Set-VMNetworkAdapterPortProfile {
         "Successfully created/added Port Profile for VM [{0})], Adapter [{1}], PortProfileId [{2}], ProfileData [{3}]" -f $vmNic.VMName, $vmNic.Name, $ProfileId.ToString(), $ProfileData | Trace-Output
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

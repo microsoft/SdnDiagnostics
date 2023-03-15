@@ -30,7 +30,7 @@ function Get-SdnVfpPortLayer {
         # due to how vfp handles not throwing a terminating error if port ID does not exist,
         # need to manually examine the response to see if it contains a failure
         if ($vfpLayers[0] -ilike "ERROR*") {
-            "{0}" -f $vfpLayers[0] | Trace-Output -Level:Failure
+            "{0}" -f $vfpLayers[0] | Trace-Output -Level:Exception
             return $null
         }
 
@@ -92,6 +92,6 @@ function Get-SdnVfpPortLayer {
         }
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

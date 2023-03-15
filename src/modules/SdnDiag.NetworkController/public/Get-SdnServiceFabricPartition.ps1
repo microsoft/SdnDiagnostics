@@ -81,6 +81,6 @@ function Get-SdnServiceFabricPartition {
         }
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

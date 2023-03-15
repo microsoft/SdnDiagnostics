@@ -4,12 +4,15 @@ When contributing to this project, ensure you:
 1. Return native .NET objects whenever possible.
 1. Rarely should you return from a function with format-table, format-list, etc.. If they do, they should use the PowerShell verb `Show`.
 1. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
-1. Leverage `$Global:SdnDiagnostics` for caching when appropriate.
 1. Use [PowerShell Approved Verbs](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands) when creating functions.
 1. Provide detailed function synopsis, description, parameters and examples. The build pipeline leverages platyPS to auto-generate documentation for the exported functions and publishes to the project wiki.
 
 # Getting started
 
+## Understanding the framework
+The SdnDiagnostics module is composed of smaller sub-modules that are generated during the build process. Functions are stored under the appropriate \modules\SdnDiag.{Name} folder directory under either private or public folders.
+
+During the build process, the individual ps1 files are merged into a single SdnDiag.{Name}.psm1 file that exists for each sub-module folder.
 
 ## Creating core functions
 When creating core functions:

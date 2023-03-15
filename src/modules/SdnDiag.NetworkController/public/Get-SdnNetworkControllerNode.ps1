@@ -69,7 +69,7 @@ function Get-SdnNetworkControllerNode {
             }
         }
         catch {
-            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Failure
+            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
             $result = Get-NetworkControllerNodeInfoFromClusterManifest  -NetworkController $NetworkController -Credential $Credential
         }
 
@@ -86,6 +86,6 @@ function Get-SdnNetworkControllerNode {
 
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

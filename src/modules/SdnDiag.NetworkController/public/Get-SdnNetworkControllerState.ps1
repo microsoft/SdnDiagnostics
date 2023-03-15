@@ -47,12 +47,13 @@ function Get-SdnNetworkControllerState {
         }
 
         $scriptBlock = {
+            param([Parameter(Position = 0)][String]$param1)
             try {
-                if (Test-Path -Path $using:netControllerStatePath.FullName -PathType Container) {
-                    Get-Item -Path $using:netControllerStatePath.FullName | Remove-Item -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
+                if (Test-Path -Path $param1 -PathType Container) {
+                    Get-Item -Path $param1 | Remove-Item -Recurse -Confirm:$false -Force -ErrorAction SilentlyContinue
                 }
 
-                $null = New-Item -Path $using:netControllerStatePath.FullName -ItemType Container -Force
+                $null = New-Item -Path $param1 -ItemType Container -Force
             }
             catch {
                 $_ | Write-Error
@@ -61,7 +62,7 @@ function Get-SdnNetworkControllerState {
 
         $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         # invoke scriptblock to clean up any stale NetworkControllerState files
-        Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -ScriptBlock $scriptBlock -Credential $Credential
+        Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $netControllerStatePath.FullName
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the Network Controllers defined to collect the files
@@ -73,6 +74,6 @@ function Get-SdnNetworkControllerState {
         }
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }

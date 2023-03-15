@@ -48,7 +48,7 @@ function Invoke-SdnServiceFabricCommand {
 
             $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
             if (!$session) {
-                "No session could be established to {0}" -f $controller | Trace-Output -Level:Failure
+                "No session could be established to {0}" -f $controller | Trace-Output -Level:Exception
                 break
             }
 
@@ -59,14 +59,14 @@ function Invoke-SdnServiceFabricCommand {
                 } -ErrorAction Stop
             }
             catch {
-                "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Failure
+                "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Exception
                 "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
                 Get-PSSession -Id $session.Id | Remove-PSSession
             }
         }
 
         if (!$connection) {
-            "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Failure
+            "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Exception
             continue
         }
 

@@ -3,8 +3,10 @@
 
 @{
     Name = "LoadBalancerMux"
-    WindowsFeature = "SoftwareLoadBalancer"
-    RequiredModules = @{}
+    WindowsFeature = @(
+        "SoftwareLoadBalancer"
+    )
+    RequiredModules = @()
     Properties = @{
         CommonPaths = @{}
         EventLogProperties = @(
@@ -12,10 +14,10 @@
             "Microsoft-Windows-SlbMux*"
         )
         RegKeyPaths = @(
-            "HKLM:\\Software\\Microsoft\\NetworkController"
-            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\NcHostAgent"
-            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SlbMux"
-            "HKLM:\\SYSTEM\\CurrentControlSet\\Services\\SlbMuxDriver"
+            "HKLM:\Software\Microsoft\NetworkController"
+            "HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent"
+            "HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux"
+            "HKLM:\SYSTEM\CurrentControlSet\Services\SlbMuxDriver"
         )
         Services = @{
             SlbMux = @{

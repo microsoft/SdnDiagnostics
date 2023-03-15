@@ -8,7 +8,7 @@ function Initialize-DataCollection {
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MB')]
-        [String]$Role,
+        [SdnDiag.Common.Helper.SdnRoles]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
@@ -24,15 +24,15 @@ function Initialize-DataCollection {
     # ensure that the appropriate windows feature is installed and ensure module is imported
     if ($Role) {
         $config = Get-SdnModuleConfiguration -Role $Role
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.WindowsFeature
         if (-NOT ($confirmFeatures)) {
-            "Required feature is missing: {0}" -f ($config.windowsFeature -join ', ') | Trace-Output -Level:Failure
+            "Required feature is missing: {0}" -f ($config.WindowsFeature -join ', ') | Trace-Output -Level:Exception
             return $false
         }
 
         $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
         if (-NOT ($confirmModules)) {
-            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ')| Trace-Output -Level:Failure
+            "Required module is not loaded: {0}" -f ($config.requiredModules -join ', ')| Trace-Output -Level:Exception
             return $false
         }
     }
@@ -55,7 +55,7 @@ function Initialize-DataCollection {
     }
 
     if (-NOT ($diskSpace)) {
-        "Insufficient disk space detected." | Trace-Output -Level:Failure
+        "Insufficient disk space detected." | Trace-Output -Level:Exception
         return $false
     }
 

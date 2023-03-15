@@ -40,7 +40,7 @@
                 }
             }
         }
-        EtwTraceProviders =@{
+        EtwTraceProviders = @{
             nchostagent = @{
                 isOptional = $false
                 Providers = @(

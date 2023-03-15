@@ -75,16 +75,16 @@ function Copy-FileToRemoteComputerSMB {
             }
             catch [System.IO.IOException] {
                 if ($_.Exception.Message -ilike "*used by another process*") {
-                    "{0}\{1} is in use by another process" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Failure
+                    "{0}\{1} is in use by another process" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
                     continue
                 }
 
                 if ($_.Exception.Message -ilike "*already exists*") {
-                    "{0}\{1} already exists" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Failure
+                    "{0}\{1} already exists" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
                     continue
                 }
 
-                $_ | Trace-Output -Level:Failure
+                $_ | Trace-Output -Level:Exception
             }
         }
     }

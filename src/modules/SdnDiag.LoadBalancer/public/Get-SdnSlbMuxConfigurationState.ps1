@@ -41,7 +41,7 @@ function Get-SdnSlbMuxConfigurationState {
         Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVipConfig' -FileType json
     }
     catch {
-        $_ | Trace-Exception
+        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 
     $ProgressPreference = 'Continue'
