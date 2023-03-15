@@ -20,6 +20,6 @@
 		<file src="README.md" target = "SdnDiagnostics\docs" />
 
         <!-- restore package dependencies -->
-        <file src=".packages\Get-NetView.*\**" target="SdnDiagnostics\packages" />
+        <file src=".packages\Get-NetView.*\**" target="SdnDiagnostics\externalPackages" />
 	</files>
 </package>

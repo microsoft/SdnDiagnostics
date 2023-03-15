@@ -41,22 +41,24 @@ function Copy-ServiceFabricManifestToNetworkController {
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
-            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
-                $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
-                $xml = [xml](get-content $fabricPkgFile)
+            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1)
+                $fabricPkgFile = Join-Path -Path $param1 -ChildPath "Fabric.Package.current.xml"
+                $xml = [xml](Get-Content -Path $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
                 return $version
-            } -Credential $Credential
+            } -ArgumentList $fabricFolder
 
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
 
-            Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
-                Set-ItemProperty -Path "$using:fabricFolder\ClusterManifest.current.xml" -Name IsReadOnly -Value $false | Out-Null
-                Set-ItemProperty -Path "$using:fabricFolder\Fabric.Data\InfrastructureManifest.xml" -Name IsReadOnly -Value $false | Out-Null
-                Set-ItemProperty -Path $using:settingsFile -Name IsReadOnly -Value $false | Out-Null
+            Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1)
+                Set-ItemProperty -Path (Join-Path -Path $param1 -ChildPath "ClusterManifest.current.xml") -Name IsReadOnly -Value $false | Out-Null
+                Set-ItemProperty -Path (Join-Path -Path $param1 -ChildPath "Fabric.Data\InfrastructureManifest.xml") -Name IsReadOnly -Value $false | Out-Null
+                Set-ItemProperty -Path $param2 -Name IsReadOnly -Value $false | Out-Null
 
-            } -Credential $Credential
+            } -ArgumentList @($fabricFolder, $settingsFile)
 
             Copy-FileToRemoteComputer -Path "$ManifestFolder\ClusterManifest.current.xml" -Destination "$fabricFolder\ClusterManifest.current.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
             Copy-FileToRemoteComputer -Path "$ManifestFolder\InfrastructureManifest.xml" -Destination "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential

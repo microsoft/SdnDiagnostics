@@ -39,14 +39,15 @@ function Wait-ServiceFabricClusterHealthy {
                 $currentNcNode = $ncNode
             }
 
-            Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                if($using:Restart){
+            Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][Switch]$param1)
+                if ($param) {
                     Stop-Service -Name 'FabricHostSvc' -Force
                     Start-Sleep -Seconds 5
                 }
 
                 Start-Service -Name 'FabricHostSvc'
-            } -Credential $Credential
+            } -ArgumentList $Restart
         }
 
         Trace-Output "Sleeping 60s to wait for Serice Fabric Service to be ready"

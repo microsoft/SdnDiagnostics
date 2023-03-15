@@ -16,8 +16,8 @@ function Test-ServiceFabricPartitionDatabaseSize {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$NetworkController,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -42,8 +42,13 @@ function Test-ServiceFabricPartitionDatabaseSize {
                 "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
             }
 
-            $ncAppWorkDir = (Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential `
-                -ScriptBlock {Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $using:node.NodeName}).WorkDirectory
+            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1)
+                Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
+            } -ArgumentList $node.NodeName
+
+            $ncAppWorkDir = $ncApp.WorkDirectory
+
             if($null -eq $ncAppWorkDir){
                 throw New-Object System.NullReferenceException("Unable to retrieve working directory path")
             }
@@ -54,15 +59,15 @@ function Test-ServiceFabricPartitionDatabaseSize {
             foreach ($ncService in $ncServices){
                 $replica = Get-SdnServiceFabricReplica -NetworkController $NetworkController -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
                 $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
-                $session = New-PSRemotingSession -ComputerName $node.NodeName -Credential $Credential
-                $imosStoreFile = Invoke-Command -Session $session -ScriptBlock {
-                    if(Test-Path $using:imosStorePath){
-                        return Get-Item $using:imosStorePath
+                $imosStoreFile = Invoke-PSRemoteCommand $node.NodeName -Credential $Credential -ScriptBlock {
+                    param([Parameter(Position = 0)][String]$param1)
+                    if(Test-Path -Path $param1){
+                        return Get-Item $param1
                     }
                     else {
                         return $null
                     }
-                }
+                } -ArgumentList $imosStorePath
 
                 if($null -ne $imosStoreFile){
                     $imosInfo = [PSCustomObject]@{

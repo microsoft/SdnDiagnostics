@@ -68,33 +68,37 @@ function Copy-CertificateToFabric {
 
                         "[REST CERT] Installing self-signed certificate to southbound devices" | Trace-Output
                         Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
-                            if (-NOT (Test-Path -Path $using:importCert.CerFileInfo.Directory.FullName -PathType Container)) {
-                                $null = New-Item -Path $using:importCert.CerFileInfo.Directory.FullName -ItemType Directory -Force
+                            param([Parameter(Position = 0)][String]$param1)
+                            if (-NOT (Test-Path -Path $param1 -PathType Container)) {
+                                $null = New-Item -Path $param1 -ItemType Directory -Force
                             }
-                        }
+                        } -ArgumentList $importCert.CerFileInfo.Directory.FullName
 
                         foreach ($sbNode in $southBoundNodes) {
                             "[REST CERT] Installing self-signed certificate to {0}" -f $sbNode | Trace-Output
                             Copy-FileToRemoteComputer -ComputerName $sbNode -Credential $Credential -Path $importCert.CerFileInfo.FullName -Destination $importCert.CerFileInfo.FullName
                             $null = Invoke-PSRemoteCommand -ComputerName $sbNode -Credential $Credential -ScriptBlock {
-                                Import-SdnCertificate -FilePath $using:importCert.CerFileInfo.FullName -CertStore 'Cert:\LocalMachine\Root'
-                            } -ErrorAction Stop
+                                param([Parameter(Position = 0)][String]$param1,[Parameter(Position = 1)][String]$param2)
+                                Import-SdnCertificate -FilePath $param1 -CertStore $param2
+                            } -ArgumentList @($importCert.CerFileInfo.FullName, 'Cert:\LocalMachine\Root') -ErrorAction Stop
                         }
                     }
                 }
                 else {
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
                     $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        if (-NOT (Test-Path -Path $using:certFileInfo.Directory.FullName -PathType Container)) {
-                            New-Item -Path $using:certFileInfo.Directory.FullName -ItemType Directory -Force
+                        param([Parameter(Position = 0)][String]$param1)
+                        if (-NOT (Test-Path -Path $param1 -PathType Container)) {
+                            New-Item -Path $param1 -ItemType Directory -Force
                         }
-                    }
+                    } -ArgumentList $certFileInfo.Directory.FullName
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
                     $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword -CertStore 'Cert:\LocalMachine\My'
-                    }
+                        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
+                        Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
+                    } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\My')
                 }
             }
         }
@@ -117,16 +121,18 @@ function Copy-CertificateToFabric {
 
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
                     $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        if (-NOT (Test-Path -Path $using:certFileInfo.Directory.FullName -PathType Container)) {
-                            New-Item -Path $using:certFileInfo.Directory.FullName -ItemType Directory -Force
+                        param([Parameter(Position = 0)][String]$param1)
+                        if (-NOT (Test-Path -Path $param1 -PathType Container)) {
+                            New-Item -Path $param1 -ItemType Directory -Force
                         }
-                    }
+                    } -ArgumentList $certFileInfo.Directory.FullName
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
                     $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertPassword $using:CertPassword -CertStore 'Cert:\LocalMachine\Root'
-                    } -ErrorAction Stop
+                        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
+                        Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
+                    } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\Root') -ErrorAction Stop
                 }
 
                 else {

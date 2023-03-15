@@ -28,14 +28,16 @@ function Update-NetworkControllerCertificateAcl {
 
         foreach ($ncNode in $NcNodeList) {
             $ncNodeCertThumbprint = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-            Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:NcRestCertThumbprint
-            } -Credential $Credential
+            Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                Set-SdnCertificateAcl -Path $param1 -Thumbprint $param2
+            } -ArgumentList @('Cert:\LocalMachine\My', $NcRestCertThumbprint)
 
             if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
-                Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                    Set-SdnCertificateAcl -Path 'Cert:\LocalMachine\My' -Thumbprint $using:ncNodeCertThumbprint
-                } -Credential $Credential
+                Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                    param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                    Set-SdnCertificateAcl -Path $param1 -Thumbprint $param2
+                } -ArgumentList @('Cert:\LocalMachine\My', $ncNodeCertThumbprint)
             }
         }
     }

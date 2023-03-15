@@ -44,12 +44,13 @@ function Copy-ServiceFabricManifestFromNetworkController {
         $NcNodeList | ForEach-Object {
             $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
-            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -ScriptBlock {
-                $fabricPkgFile = "$using:fabricFolder\Fabric.Package.current.xml"
-                $xml = [xml](get-content $fabricPkgFile)
+            $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1)
+                $fabricPkgFile = Join-Path -Path $param1 -ChildPath "Fabric.Package.current.xml"
+                $xml = [xml](Get-Content -Path $fabricPkgFile)
                 $version = $xml.ServicePackage.DigestedConfigPackage.ConfigPackage.Version
                 return $version
-            } -Credential $Credential
+            } -ArgumentList $fabricFolder
 
             $fabricConfigDir = Join-Path -Path $fabricFolder -ChildPath $("Fabric.Config." + $version)
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"

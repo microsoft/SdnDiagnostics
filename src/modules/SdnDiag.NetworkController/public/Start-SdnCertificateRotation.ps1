@@ -170,14 +170,22 @@ function Start-SdnCertificateRotation {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
             $newSelfSignedCert = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
-                -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
+            -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
+
             $selfSignedRestCertFile = $newSelfSignedCert.FileInfo
 
             if ($rotateNCNodeCerts) {
                 $null = Invoke-PSRemoteCommand -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ScriptBlock {
-                    New-SdnNetworkControllerNodeCertificate -NotAfter $using:NotAfter -CertPassword $using:CertPassword `
-                        -Credential $using:Credential -Path $using:CertPath.FullName -FabricDetails $sdnFabricDetails
-                }
+                    param(
+                        [Parameter(Position = 0)][DateTime]$param1,
+                        [Parameter(Position = 1)][SecureString]$param2,
+                        [Parameter(Position = 2)][SecureString]$param3,
+                        [Parameter(Position = 3)][String]$param4,
+                        [Parameter(Position = 4)][System.Object]$param5
+                    )
+
+                    New-SdnNetworkControllerNodeCertificate -NotAfter $param1 -CertPassword $param2 -Credential $param3 -Path $param4 -FabricDetails $param5
+                } -ArgumentList @($NotAfter, $CertPassword, $Credential, $CertPath.FullName, $sdnFabricDetails)
             }
 
             $CertRotateConfig = New-SdnCertificateRotationConfig -Credential $Credential
@@ -235,8 +243,9 @@ function Start-SdnCertificateRotation {
                 }
 
                 $newNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
-                    Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:nodeCertThumbprint
-                }
+                    param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                    Get-SdnCertificate -Path $param1 -Thumbprint $param2
+                } -ArgumentList @('Cert:\LocalMachine\My', $nodeCertThumbprint)
 
                 "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
                     -f $currentNodeCert.Subject, $currentNodeCert.Thumbprint, $currentNodeCert.NotAfter, `
@@ -349,8 +358,9 @@ function Start-SdnCertificateRotation {
                     [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
                     Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedRestCertFile.FullName -Destination $remoteFilePath
                     $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
-                        Import-SdnCertificate -FilePath $using:remoteFilePath -CertStore 'Cert:\LocalMachine\Root'
-                    } -ErrorAction Stop
+                        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                        Import-SdnCertificate -FilePath $param1 -CertStore $param2
+                    } -ArgumentList @($remoteFilePath, 'Cert:\LocalMachine\Root') -ErrorAction Stop
                 }
             }
         }

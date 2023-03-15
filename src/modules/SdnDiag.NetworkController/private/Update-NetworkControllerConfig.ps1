@@ -53,9 +53,11 @@ function Update-NetworkControllerConfig {
 
         $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
         if($null -ne $certProperty){
-            $nodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock{
-                return Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCertThumbprint
-            }
+            $nodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock{
+                param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                return Get-SdnCertificate -Path $param1 -Thumbprint $param2
+            } -ArgumentList @('Cert:\LocalMachine\My', $nodeCertThumbprint)
+
             "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
             Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name -Value $nodeCert.GetRawCertData()
         }

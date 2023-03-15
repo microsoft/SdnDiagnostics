@@ -40,8 +40,9 @@ function Invoke-CertRotateCommand {
     else {
         $params.Add('ComputerName', $NetworkController)
         $cert = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-            Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $using:Thumbprint
-        }
+            param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+            Get-SdnCertificate -Path $param1 -Thumbprint $param2
+        } -ArgumentList @('Cert:\LocalMachine\My', $Thumbprint)
     }
 
     if ($null -eq $cert) {
