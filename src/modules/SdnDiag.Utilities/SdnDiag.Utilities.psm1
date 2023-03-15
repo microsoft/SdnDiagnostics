@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+Using module .\..\SdnDiag.Common\SdnDiag.Common.Helper.psm1
 Using module .\SdnDiag.Utilities.Helper.psm1
 
 # create local variable to store configuration data
@@ -15,4 +16,4 @@ New-Variable -Name 'SdnDiagnostics_Utilities' -Scope 'Script' -Force -Value @{
     Config = $configurationData
 }
 
-##### AUTO-GENERATED BELOW THIS LINE #####
+##### FUNCTIONS AUTO-POPULATED BELOW THIS LINE DURING BUILD #####

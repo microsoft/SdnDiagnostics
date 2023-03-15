@@ -68,7 +68,9 @@ function Test-NetworkControllerCertCredential {
             if ($null -ne $credObj) {
                 $thumbPrint = $credObj.properties.value
                 $scriptBlock = {
-                    if (-NOT (Test-Path -Path Cert:\LocalMachine\My\$using:thumbPrint)) {
+                    param([Parameter(Position = 0)][String]$param1)
+
+                    if (-NOT (Test-Path -Path Cert:\LocalMachine\My\$param1)) {
                         return $false
                     }
                     else {
@@ -79,7 +81,7 @@ function Test-NetworkControllerCertCredential {
                 # invoke command on each NC seperately so to record which NC missing certificate
                 foreach ($nc in $NetworkController) {
                     "Validating certificate [{0}] on NC {1}" -f $thumbPrint, $nc | Trace-Output -Level:Verbose
-                    $result = Invoke-PSRemoteCommand -ComputerName $nc -ScriptBlock $scriptBlock -Credential $Credential
+                    $result = Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $thumbPrint
                     if ($result -ne $true) {
                         # if any NC missing certificate, it indicate issue detected
                         $sdnHealthObject.Result = 'FAIL'
@@ -100,6 +102,6 @@ function Test-NetworkControllerCertCredential {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

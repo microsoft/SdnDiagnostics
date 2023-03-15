@@ -28,14 +28,6 @@ function Clear-SdnWorkingDirectory {
     [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.String[]]$ComputerName,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [System.String[]]$Path = (Get-WorkingDirectory),
 
@@ -45,39 +37,65 @@ function Clear-SdnWorkingDirectory {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    function Clear-WorkingDirectory {
+        [CmdletBinding()]
+        param (
+            [System.String[]]$Path,
+            [bool]$Recurse,
+            [bool]$Force
+        )
+
+        $filteredPaths = @()
+        foreach($obj in $Path) {
+
+            # if the path does not exist, lets skip
+            if (-NOT (Test-Path -Path $obj)) {
+                continue
+            }
+
+            # enumerate through the allowed folder paths for cleanup to make sure the paths specified can be cleaned up
+            foreach ($allowedFolderPath in $Script:SdnDiagnostics_Utilities.Config.FolderPathsAllowedForCleanup) {
+                if ($obj -ilike $allowedFolderPath) {
+                    $filteredPaths += $obj
+                }
+            }
+        }
+
+        if ($filteredPaths) {
+            "Cleaning up: {0}" -f ($filteredPaths -join ', ') | Trace-Output -Level:Verbose
+            Remove-Item -Path $filteredPaths -Exclude $Script:SdnDiagnostics_Utilities.Cache.FilesExcludedFromCleanup -Force:$Force -Recurse:$Recurse -ErrorAction Continue
+        }
+    }
+
+    $params = @{
+        Path = $Path
+        Recurse = $Recurse.IsPresent
+        Force = $Force.IsPresent
+    }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
-                Clear-SdnWorkingDirectory -Path $using:Path -Recurse:($using:Recurse.IsPresent) -Force:($using:Force.IsPresent)
-            }
+                param([Parameter(Position = 1)]$Path, [Parameter(Position = 2)]$Recurse, [Parameter(Position = 3)]$Force)
+                Clear-SdnWorkingDirectory -Path $Path -Recurse:$Recurse -Force:$Force
+            } -ArgumentList @($params.Path, $params.Recurse, $params.Force)
         }
         else {
-            foreach ($object in $Path) {
-                # enumerate through the allowed folder paths for cleanup to make sure the paths specified can be cleaned up
-                $pathAllowed = $false
-                foreach ($allowedFolderPath in $Script:SdnDiagnostics_Utilities.Config.FolderPathsAllowedForCleanup) {
-                    if ($object -ilike $allowedFolderPath) {
-                        $pathAllowed = $true
-                    }
-                }
-
-                # once validated that the path can be removed then perform test to make sure path exists before attempting to remove
-                if ($pathAllowed) {
-                    if (Test-Path -Path $object) {
-                        "Remove {0}" -f $object | Trace-Output -Level:Verbose
-                        Remove-Item -Path $object -Exclude $Script:SdnDiagnostics_Utilities.Cache.FilesExcludedFromCleanup -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Continue
-                    }
-                }
-                else {
-                    "{0} is not defined as an allowed path for cleanup. Skipping" -f $object | Trace-Output -Level:Warning
-                }
-            }
+            Clear-WorkingDirectory @params
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

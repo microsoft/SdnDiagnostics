@@ -36,7 +36,11 @@ function Test-ProviderNetwork {
         }
 
         if ($providerAddresses) {
-            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Test-SdnProviderAddressConnectivity -ProviderAddress $using:providerAddresses}
+            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {
+                param([Parameter(Position = 0)][String[]]$param1)
+                Test-SdnProviderAddressConnectivity -ProviderAddress $param1
+            } -ArgumentList $providerAddresses
+
             foreach($computer in $connectivityResults | Group-Object PSComputerName){
                 foreach($destinationAddress in $computer.Group){
                     if($destinationAddress.Status -ine 'Success'){
@@ -69,6 +73,6 @@ function Test-ProviderNetwork {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

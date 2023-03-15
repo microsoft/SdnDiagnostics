@@ -27,21 +27,13 @@ function Start-SdnNetshTrace {
 
     [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.String[]]$ComputerName,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
         [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
         [SdnRoles]$Role,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.IO.FileInfo]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
+        [System.String]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
@@ -65,35 +57,67 @@ function Start-SdnNetshTrace {
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [ValidateSet("Default", "Optional", "All")]
-        [string]$Providers = "All"
+        [string]$Providers = "All",
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $params = @{
+        OutputDirectory = $OutputDirectory
+        MaxTraceSize = $MaxTraceSize
+        Capture = $Capture
+        Overwrite = $Overwrite
+        Report = $Report
+    }
+
+    $scriptBlock = {
+        param(
+            [Parameter(Position = 0)][SdnRoles]$Role,
+            [Parameter(Position = 1)][String]$OutputDirectory,
+            [Parameter(Position = 2)][int]$MaxTraceSize,
+            [Parameter(Position = 3)][String]$Capture,
+            [Parameter(Position = 4)][String]$Overwrite,
+            [Parameter(Position = 5)][String]$Report,
+            [Parameter(Position = 6)][String]$Providers
+        )
+
+        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
+        -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Providers $Providers
+    }
+
     try {
-        if ($PSCmdlet.ParameterSetName -eq 'Local') {
-            $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
-            if ($null -eq $traceProviderString -and $Capture -eq 'No') {
-                $Capture = 'Yes'
-                "No default trace providers found for role {0}. Setting capture to {1}" -f $Role, $Capture | Trace-Output
-            }
-
-            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory.FullName -MinimumMB ($MaxTraceSize*1.5) )) {
-                "Unable to initialize environment for data collection" | Trace-Output -Level:Error
-                return
-            }
-        }
-
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
-                Start-SdnNetshTrace -Role $using:Role -OutputDirectory $using:OutputDirectory.FullName `
-                -Capture $using:Capture -Overwrite $using:Overwrite -Report $using:Report -MaxTraceSize $using:MaxTraceSize -Providers $using:Providers
-            }
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
+            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $Providers)
         }
         else {
-            Start-NetshTrace -OutputDirectory $OutputDirectory.FullName -TraceProviderString $traceProviderString `
-            -Capture $Capture -Overwrite $Overwrite -Report $Report -MaxTraceSize $MaxTraceSize
+            $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
+            if ($traceProviderString) {
+                $params.Add('TraceProviderString', $traceProviderString)
+            }
+            elseif ($null -eq $traceProviderString) {
+                "No default trace providers found for role {0}." | Trace-Output
+                if ($params.Capture -eq 'No') {
+                    $params.Capture = 'Yes'
+                    "Setting capture to {1}" -f $Role, $params.Capture | Trace-Output
+                }
+            }
+
+            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
+                "Unable to initialize environment for data collection" | Trace-Output -Level:Failure
+                return
+            }
+
+            Start-NetshTrace @params
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Exception
+        $_ | Trace-Exception
     }
 }

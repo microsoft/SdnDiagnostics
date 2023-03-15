@@ -27,8 +27,8 @@ function Get-SdnGatewayConfigurationState {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
+        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose
@@ -50,10 +50,10 @@ function Get-SdnGatewayConfigurationState {
         }
 
         # for ipsec fast path, there is a new service w/ new cmdlets to get the tunnels and routing domains
-        if ((Get-Service -Name GatewayService).Status -ieq 'Running') {
+        if ((Get-Service -Name 'GatewayService').Status -ieq 'Running') {
             "GatewayService is enabled. Getting GatewayService configuration details" | Trace-Output -Level:Verbose
             $gatewayServicePath = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'GatewayService') -ItemType Directory -Force
-            Get-Service -Name GatewayService | Export-ObjectToFile -FilePath $gatewayServicePath.FullName -Prefix 'GatewayService' -Name 'Get-Service' -FileType txt -Format List
+            Get-Service -Name 'GatewayService' | Export-ObjectToFile -FilePath $gatewayServicePath.FullName -Prefix 'GatewayService' -Name 'Get-Service' -FileType txt -Format List
             Get-GatewayConfiguration | Export-ObjectToFile -FilePath $gatewayServicePath.FullName -Name 'Get-GatewayConfiguration' -FileType txt -Format List
             Get-GatewayRoutingDomain | Export-ObjectToFile -FilePath $gatewayServicePath.FullName -Name 'Get-GatewayRoutingDomain' -FileType txt -Format List
             Get-GatewayTunnel | Export-ObjectToFile -FilePath $gatewayServicePath.FullName -Name 'Get-GatewayTunnel' -FileType txt -Format List
@@ -68,11 +68,9 @@ function Get-SdnGatewayConfigurationState {
                 Get-BgpCustomRoute -RoutingDomain $routingDomain.RoutingDomain | Export-ObjectToFile -FilePath $routingDomainPath.FullName -Name 'Get-BgpCustomRoute' -FileType txt -Format List
             }
         }
-
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

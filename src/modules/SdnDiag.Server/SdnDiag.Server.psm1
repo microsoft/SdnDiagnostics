@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 Using module .\SdnDiag.Server.Helper.psm1
+Import-Module $PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
 # create local variable to store configuration data
@@ -10,4 +11,4 @@ New-Variable -Name 'SdnDiagnostics_Server' -Scope 'Local' -Force -Value @{
     Config = $configurationData
 }
 
-##### AUTO-GENERATED BELOW THIS LINE #####
+##### FUNCTIONS AUTO-POPULATED BELOW THIS LINE DURING BUILD #####

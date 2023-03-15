@@ -65,7 +65,7 @@ function Copy-FileFromRemoteComputerSMB {
         foreach ($subPath in $Path) {
             $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $subPath
             if (-NOT (Test-Path -Path $remotePath)) {
-                "Unable to find {0}" -f $remotePath | Trace-Output -Level:Exception
+                "Unable to find {0}" -f $remotePath | Trace-Output -Level:Failure
             }
             else {
                 $params.Path = $remotePath
@@ -76,16 +76,16 @@ function Copy-FileFromRemoteComputerSMB {
                 }
                 catch [System.IO.IOException] {
                     if ($_.Exception.Message -ilike "*used by another process*") {
-                        "{0}\{1} is in use by another process" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
+                        "{0}\{1} is in use by another process" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Failure
                         continue
                     }
 
                     if ($_.Exception.Message -ilike "*already exists*") {
-                        "{0}\{1} already exists" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Exception
+                        "{0}\{1} already exists" -f $remotePath, $_.CategoryInfo.TargetName | Trace-Output -Level:Failure
                         continue
                     }
 
-                    $_ | Trace-Output -Level:Exception
+                    $_ | Trace-Output -Level:Failure
                 }
             }
         }

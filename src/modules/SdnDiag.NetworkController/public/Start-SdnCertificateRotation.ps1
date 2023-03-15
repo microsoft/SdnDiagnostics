@@ -148,7 +148,7 @@ function Start-SdnCertificateRotation {
             $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME
             if ($healthState.AggregatedHealthState -ine 'Ok') {
                 "Service Fabric AggregatedHealthState is currently reporting {0}. Please address underlying health before proceeding with certificate rotation" `
-                    -f $healthState.AggregatedHealthState | Trace-Output -Level:Exception
+                    -f $healthState.AggregatedHealthState | Trace-Output -Level:Failure
 
                 if (!$Force) {
                     $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? Enter N to abort and address the underlying health. Enter Y to force continue:"
@@ -358,6 +358,6 @@ function Start-SdnCertificateRotation {
         "Certificate rotation has completed" | Trace-Output
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

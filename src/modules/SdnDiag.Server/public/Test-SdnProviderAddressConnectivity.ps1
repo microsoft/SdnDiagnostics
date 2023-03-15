@@ -26,13 +26,13 @@ function Test-SdnProviderAddressConnectivity {
 
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
-            "No provider addresses returned on {0}" -f $env:COMPUTERNAME | Trace-Output -Level:Exception
+            "No provider addresses returned on {0}" -f $env:COMPUTERNAME | Trace-Output -Level:Failure
             return
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
         if ($null -eq $compartmentId) {
-            "No compartment returned on {0} that matches description PAhostVNic" -f $env:COMPUTERNAME | Trace-Output -Level:Exception
+            "No compartment returned on {0} that matches description PAhostVNic" -f $env:COMPUTERNAME | Trace-Output -Level:Failure
             return
         }
 
@@ -58,6 +58,6 @@ function Test-SdnProviderAddressConnectivity {
         return $arrayList
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

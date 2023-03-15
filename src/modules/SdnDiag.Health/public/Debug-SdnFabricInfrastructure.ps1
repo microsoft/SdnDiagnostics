@@ -30,7 +30,7 @@ function Debug-SdnFabricInfrastructure {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server')
+        [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server')
     )
 
     $objectArray = @()
@@ -111,6 +111,6 @@ function Debug-SdnFabricInfrastructure {
         return $Global:SdnDiagnostics.Cache.FabricHealth
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

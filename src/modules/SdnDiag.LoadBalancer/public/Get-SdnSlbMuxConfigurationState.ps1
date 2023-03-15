@@ -27,8 +27,8 @@ function Get-SdnSlbMuxConfigurationState {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
+        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose
@@ -39,11 +39,9 @@ function Get-SdnSlbMuxConfigurationState {
         Get-SdnMuxStats | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxStats' -FileType json
         Get-SdnMuxVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVip' -FileType json
         Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnMuxVipConfig' -FileType json
-
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

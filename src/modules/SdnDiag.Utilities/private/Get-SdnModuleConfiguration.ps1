@@ -9,7 +9,7 @@ function Get-SdnModuleConfiguration {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role
+        [SdnDiag.Common.Helper.SdnRoles]$Role
     )
 
     switch ($Role) {

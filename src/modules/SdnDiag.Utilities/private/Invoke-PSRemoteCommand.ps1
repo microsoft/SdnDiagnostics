@@ -28,12 +28,26 @@ function Invoke-PSRemoteCommand {
         [int]$ExecutionTimeout = 600
     )
 
+    $params = @{
+        ScriptBlock = $ScriptBlock
+    }
+
     $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
     if ($session) {
+        $params.Add('Session', $session)
         "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+        if ($ArgumentList) {
+            $params.Add('ArgumentList', $ArgumentList)
+            "ArgumentList: {0}" -f ($ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+        }
 
         if ($AsJob) {
-            $result = Invoke-Command -Session $session -ScriptBlock $ScriptBlock -AsJob -JobName $([guid]::NewGuid().Guid) -ArgumentList $ArgumentList
+            $params += @{
+                AsJob = $true
+                JobName = $([guid]::NewGuid().Guid)
+            }
+
+            $result = Invoke-Command @params
             if ($PassThru) {
                 if ($Activity) {
                     $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
@@ -46,7 +60,7 @@ function Invoke-PSRemoteCommand {
             return $result
         }
         else {
-            return (Invoke-Command -Session $session -ScriptBlock $ScriptBlock -ArgumentList $ArgumentList)
+            return (Invoke-Command @params)
         }
     }
 }

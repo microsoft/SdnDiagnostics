@@ -12,11 +12,11 @@ function Test-SdnCertificateRotationConfig {
 
     param (
         [Parameter(Mandatory = $true)]
-        [PSCustomObject[]]
-        $NcNodeList,
+        [PSCustomObject[]]$NcNodeList,
+
         [Parameter(Mandatory = $true)]
-        [hashtable]
-        $CertRotateConfig,
+        [hashtable]$CertRotateConfig,
+
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -26,7 +26,7 @@ function Test-SdnCertificateRotationConfig {
     try {
 
         if ([string]::IsNullOrEmpty($CertRotateConfig["NcRestCert"])) {
-            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Exception
+            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Failure
             return $false
         }
 
@@ -35,12 +35,13 @@ function Test-SdnCertificateRotationConfig {
             if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
                 $nodeCert = $CertRotateConfig[$ncNode.NodeName.ToLower()]
                 if ([string]::IsNullOrEmpty($nodeCert)) {
-                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Exception
+                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Failure
                     return $false
                 }
                 else {
-                    $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                        $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:nodeCert
+                    $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$param1)
+                        $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $param1
                         if ($null -eq $nodeCertObj) {
                             return $false
                         }
@@ -50,17 +51,18 @@ function Test-SdnCertificateRotationConfig {
                             }
                         }
                         return $true
-                    }
+                    } -ArgumentList $nodeCert
 
                     if (!$certValid) {
-                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Exception
+                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Failure
                         return $false
                     }
                 }
             }
 
-            $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock {
-                $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $using:ncRestCert
+            $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1)
+                $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $param1
                 if ($null -eq $ncRestCertObj) {
                     return $false
                 }
@@ -70,16 +72,16 @@ function Test-SdnCertificateRotationConfig {
                     }
                 }
                 return $true
-            }
+            } -ArgumentList $ncRestCert
 
             if (!$certValid) {
-                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Exception
+                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Failure
                 return $false
             }
         }
         return $true
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

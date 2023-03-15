@@ -28,8 +28,8 @@ function Get-SdnNetworkControllerConfigurationState {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
+        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "C:\Windows\NetworkController" -Directory
@@ -37,11 +37,9 @@ function Get-SdnNetworkControllerConfigurationState {
             [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
             Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
         }
-
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

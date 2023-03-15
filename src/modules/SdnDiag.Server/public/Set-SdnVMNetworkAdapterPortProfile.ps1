@@ -34,7 +34,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [System.Int16]$ProfileData = 1,
+        [Int]$ProfileData = 1,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [System.String]$HyperVHost,
@@ -49,8 +49,9 @@ function Set-SdnVMNetworkAdapterPortProfile {
         switch ($PSCmdlet.ParameterSetName) {
             'Remote' {
                 Invoke-PSRemoteCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
-                    Set-VMNetworkAdapterPortProfile -VMName $using:VMName -MacAddress $using:MacAddress -ProfileId $using:ProfileId -ProfileData $using:ProfileData
-                }
+                    param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2, [Parameter(Position = 2)][Guid]$param3, [Parameter(Position = 3)][Int]$param4)
+                    Set-VMNetworkAdapterPortProfile -VMName $param1 -MacAddress $param2 -ProfileId $param3 -ProfileData $param4
+                } -ArgumentList $VMName, $MacAddress, $ProfileId, $ProfileData
             }
             'Local' {
                 Set-VMNetworkAdapterPortProfile -VMName $VMName -MacAddress $MacAddress -ProfileId $ProfileId -ProfileData $ProfileData
@@ -58,6 +59,6 @@ function Set-SdnVMNetworkAdapterPortProfile {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

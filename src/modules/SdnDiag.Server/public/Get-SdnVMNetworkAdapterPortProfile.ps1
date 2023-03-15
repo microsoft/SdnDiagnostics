@@ -76,6 +76,6 @@ function Get-SdnVMNetworkAdapterPortProfile {
         return ($arrayList | Sort-Object -Property Name)
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

@@ -50,7 +50,7 @@ function Get-SdnVfpPortGroup {
         # due to how vfp handles not throwing a terminating error if port ID does not exist,
         # need to manually examine the response to see if it contains a failure
         if ($vfpGroups[0] -ilike "ERROR*") {
-            "{0}" -f $vfpGroups[0] | Trace-Output -Level:Exception
+            "{0}" -f $vfpGroups[0] | Trace-Output -Level:Failure
             return $null
         }
 
@@ -159,6 +159,6 @@ function Get-SdnVfpPortGroup {
         return ($arrayList | Sort-Object -Property Priority)
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

@@ -48,14 +48,15 @@ function Get-SdnVMNetworkAdapter {
 
     try {
         $scriptBlock = {
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq [String]$using:VmState }
+            param([Parameter(Position = 0)][String]$VmState)
+            $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState }
             $virtualMachines | Get-VMNetworkAdapter
         }
 
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock $scriptBlock -Credential $Credential `
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $VmState`
             -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

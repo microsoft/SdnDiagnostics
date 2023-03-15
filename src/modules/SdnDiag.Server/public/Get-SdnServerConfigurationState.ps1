@@ -27,8 +27,8 @@ function Get-SdnServerConfigurationState {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
-        # dump out the regkey properties
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
+        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose
@@ -80,11 +80,9 @@ function Get-SdnServerConfigurationState {
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format Table
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format Table
         Get-VMSystemSwitchExtensionPortFeature -FeatureId "9940cd46-8b06-43bb-b9d5-93d50381fd56" | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSystemSwitchExtensionPortFeature' -FileType json
-
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

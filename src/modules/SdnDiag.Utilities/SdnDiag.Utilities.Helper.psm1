@@ -3,7 +3,7 @@
 
 enum TraceLevel {
     Error
-    Exception
+    Failure
     Information
     Success
     Verbose

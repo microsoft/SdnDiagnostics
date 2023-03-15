@@ -115,7 +115,14 @@ function Start-SdnDataCollection {
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 10)) {
+        if ($IncludeLogs) {
+            $minGB = 10
+        }
+        else {
+            $minGB = 5
+        }
+
+        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minGB)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 
@@ -188,9 +195,7 @@ function Start-SdnDataCollection {
             }
 
             "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
-            Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-            } -Credential $Credential -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
+            Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $dataNodes -Credential $Credential
 
             # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
             # to account for if filtering was applied
@@ -199,15 +204,17 @@ function Start-SdnDataCollection {
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
             switch ($group.Name) {
                 'Gateway' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnGatewayConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnGatewayConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory)
+                        Get-SdnGatewayConfigurationState -OutputDirectory $OutputDirectory
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnGatewayConfigurationState'
                 }
 
                 'NetworkController' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory)
+                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $OutputDirectory
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
 
                     Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
                     Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
@@ -217,9 +224,10 @@ function Start-SdnDataCollection {
                 }
 
                 'Server' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnServerConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory)
+                        Get-SdnServerConfigurationState -OutputDirectory $OutputDirectory
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
 
                     Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
@@ -232,9 +240,10 @@ function Start-SdnDataCollection {
                 }
 
                 'LoadBalancerMux' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnSlbMuxConfigurationState -OutputDirectory $using:tempDirectory.FullName
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory)
+                        Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
 
                     $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
                     $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
@@ -243,13 +252,13 @@ function Start-SdnDataCollection {
 
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
-            Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                [System.IO.FileInfo]$networkTraceDir = "$($using:workingDirectory)\NetworkTraces"
-                if (Test-Path -Path $networkTraceDir.FullName -PathType Container) {
+            Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                param ([Parameter(Position = 0)][String]$NetworkTraceDir, [Parameter(Position = 1)][String]$TempDirectory, [Parameter(Position = 2)]$ConvertETW)
+                if (Test-Path -Path $NetworkTraceDir -PathType Container) {
 
                     # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
-                    if ($using:ConvertETW) {
-                        $convertFile = Get-Item -Path "$($networkTraceDir.FullName)\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
+                    if ($ConvertETW) {
+                        $convertFile = Get-Item -Path "$NetworkTraceDir\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
                         if ($convertFile) {
                             $null = Convert-SdnEtwTraceToTxt -FileName $convertFile.FullName -Overwrite 'Yes'
                         }
@@ -257,21 +266,22 @@ function Start-SdnDataCollection {
 
                     # move the entire directory
                     try {
-                        Move-Item -Path "$($using:workingDirectory.FullName)\NetworkTraces" -Destination $using:tempDirectory.FullName -Force -ErrorAction Stop
+                        Move-Item -Path $NetworkTraceDir -Destination $TempDirectory -Force -ErrorAction Stop
                     }
                     catch {
-                        "Unable to move {0} to {1}`n`t{2}" -f $networkTraceDir.FullName, $using:tempDirectory.FullName, $_.Exception | Write-Warning
+                        "Unable to move {0} to {1}`n`t{2}" -f $NetworkTraceDir, $TempDirectory, $_.Exception | Write-Warning
                     }
                 }
-            }
+            } -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", $tempDirectory.FullName, $ConvertETW)
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
                 if ($group.Name -ieq 'NetworkController') {
                     "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                        Get-SdnServiceFabricLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
-                    } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate)
+                        Get-SdnServiceFabricLog -OutputDirectory $OutputDirectory -FromDate $FromDate
+                    } -ArgumentList @($tempDirectory.FullName, $FromDate) -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
                 }
 
                 if ($group.Name -ieq 'Server') {
@@ -280,26 +290,29 @@ function Start-SdnDataCollection {
                 }
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnDiagnosticLog -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate -ConvertETW $using:ConvertETW
-                } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate, [Parameter(Position = 2)]$ConvertETW)
+                    Get-SdnDiagnosticLog -OutputDirectory $OutputDirectory -FromDate $FromDate -ConvertETW $ConvertETW
+                } -ArgumentList @($tempDirectory.FullName, $FromDate, $ConvertETW) -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
 
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -ScriptBlock {
-                    Get-SdnEventLog -Role $using:group.Name -OutputDirectory $using:tempDirectory.FullName -FromDate $using:FromDate
-                } -Credential $Credential -AsJob -PassThru -Activity 'Get-SdnEventLog'
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String]$Role, [Parameter(Position =2)][DateTime]$FromDate)
+                    Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate
+                } -ArgumentList @($tempDirectory.FullName, $group.Name, $FromDate) -AsJob -PassThru -Activity 'Get-SdnEventLog'
             }
         }
 
         if ($IncludeNetView) {
             "Collect Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
-            $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
-                Invoke-SdnGetNetView -OutputDirectory $using:tempDirectory.FullName `
+            $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$OutputDirectory)
+                Invoke-SdnGetNetView -OutputDirectory $OutputDirectory `
                     -SkipAdminCheck `
                     -SkipNetshTrace `
                     -SkipVM `
                     -SkipCounters
-            } -Credential $Credential -AsJob -PassThru -Activity 'Invoke-SdnGetNetView'
+            } -ArgumentList @($tempDirectory.FullName) -AsJob -PassThru -Activity 'Invoke-SdnGetNetView'
         }
 
         foreach ($node in $filteredDataCollectionNodes) {
@@ -314,13 +327,11 @@ function Start-SdnDataCollection {
         }
 
         "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
-        Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -ScriptBlock {
-            Clear-SdnWorkingDirectory -Path $using:tempDirectory.FullName -Force -Recurse
-        } -Credential $Credential -AsJob -PassThru -Activity 'Clear-SdnTempWorkingDirectory'
+        Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
         "Data collection completed" | Trace-Output
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

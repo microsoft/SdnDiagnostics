@@ -34,8 +34,10 @@ function Test-GatewayServiceState {
         "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
 
         $scriptBlock = {
+            param([Parameter(Position = 0)][System.Object]$param1)
+
             $serviceArrayList = [System.Collections.ArrayList]::new()
-            foreach($service in $($using:config.properties.services.name)){
+            foreach($service in $($param1.properties.services.name)){
                 $result = Get-Service -Name $service -ErrorAction SilentlyContinue
                 if($result){
                     [void]$serviceArrayList.Add($result)
@@ -45,7 +47,7 @@ function Test-GatewayServiceState {
             return $serviceArrayList
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock
+        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $config
         foreach($result in $serviceStateResults){
             if($result.Status -ine 'Running'){
                 [void]$arrayList.Add($result)
@@ -62,6 +64,6 @@ function Test-GatewayServiceState {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }
