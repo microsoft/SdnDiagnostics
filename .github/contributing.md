@@ -9,26 +9,18 @@ When contributing to this project, ensure you:
 
 # Getting started
 
-## Understanding the framework
-The SdnDiagnostics module is composed of smaller sub-modules that are generated during the build process. Functions are stored under the appropriate \modules\SdnDiag.{Name} folder directory under either private or public folders.
-
-During the build process, the individual ps1 files are merged into a single SdnDiag.{Name}.psm1 file that exists for each sub-module folder.
-
-## Creating core functions
-When creating core functions:
+## Creating functions
+When creating functions:
 
 1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`.
-    - Function name should match the file name.
-    - Limit one function per file.
-
 1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SdnDiagnostics.psd1` under `FunctionsToExport`.
 
 # Build validation and testing
-1. To generate a local build of the module, run `.\.build\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`.
-    - Recommend to leverage elevated PowerShell or Cmd console and not use the terminal included in VSCode due to odd issues with the PSM1 generation.
+1. To generate a local build of the module, run `.\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`.
 1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
     - Remove any existing modules if they are present.
 1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
+    - If you have already imported the `SdnDiagnostics` module and need to re-import, you first must `Remove-Module -Name SdnDiagnostics` and then perform the `Import-Module` operation. This will ensure that the nested modules, classes and enums are loaded correctly.
 1. Install the modules to the SDN nodes in the dataplane.
 ```powershell
 $environmentDetails = Get-SdnInfrastructureInfo -NetworkController 'NC01'
