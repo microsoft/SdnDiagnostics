@@ -6,7 +6,7 @@ function Get-SdnRole {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline)]
         [System.String]$ComputerName,
 
         [Parameter(Mandatory = $true)]

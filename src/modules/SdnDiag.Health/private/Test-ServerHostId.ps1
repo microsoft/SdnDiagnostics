@@ -20,11 +20,11 @@ function Test-ServerHostId {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

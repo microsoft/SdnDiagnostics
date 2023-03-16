@@ -16,8 +16,8 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

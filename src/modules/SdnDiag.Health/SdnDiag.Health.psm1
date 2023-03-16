@@ -5,6 +5,7 @@ Using module .\..\SdnDiag.Common\SdnDiag.Common.Helper.psm1
 Using module .\SdnDiag.Health.Helper.psm1
 
 Import-Module $PSScriptRoot\SdnDiag.Health.Helper.psm1
+Import-Module $PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
 # create local variable to store configuration data

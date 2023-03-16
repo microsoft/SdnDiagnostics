@@ -18,7 +18,7 @@ function Test-SdnKINetworkInterfacePlacement {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]

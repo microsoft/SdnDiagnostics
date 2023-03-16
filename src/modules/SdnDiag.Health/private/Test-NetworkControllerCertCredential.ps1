@@ -18,11 +18,11 @@ function Test-NetworkControllerCertCredential {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$NetworkController,
 
-        [Parameter(Mandatory = $false)]
-        [Uri]$NcUri = $Global:SdnDiagnostics.EnvironmentInfo.NcUrl,
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

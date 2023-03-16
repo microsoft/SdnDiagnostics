@@ -1,21 +1,19 @@
-function Test-ServerServiceState {
+function Test-ServiceState {
     <#
     .SYNOPSIS
-        Confirms that critical services for load balancer muxes are running
+        Confirms that critical services for gateway are running
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
-    .EXAMPLE
-        PS> Test-ServerServiceState
-    .EXAMPLE
-        PS> Test-ServerServiceState -ComputerName 'Server01','Server02'
-    .EXAMPLE
-        PS> Test-ServerServiceState -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    .PARAMETER Service
     #>
 
     [CmdletBinding()]
     param (
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$Name,
+
         [Parameter(Mandatory = $true)]
         [System.String[]]$ComputerName,
 
@@ -28,29 +26,26 @@ function Test-ServerServiceState {
     $sdnHealthObject = [SdnHealth]::new()
     $sdnHealthObject.Result = 'PASS'
     $arrayList = [System.Collections.ArrayList]::new()
+    $serviceStateResults = @()
 
     try {
-        $config = Get-SdnModuleConfiguration -Role:Server
-        "Validating that {0} service is running for {1} role" -f ($config.properties.services.properties.displayName -join ', '), $config.Name | Trace-Output
+        "Validating {0} service state for {1}" -f ($Name -join ', '), ($ComputerName -join ', ') | Trace-Output
 
         $scriptBlock = {
-            param([Parameter(Position = 0)][System.Object]$param1)
+            param([Parameter(Position = 0)][String]$param1)
 
-            $serviceArrayList = [System.Collections.ArrayList]::new()
-            foreach($service in $($param1.properties.services.name)){
-                $result = Get-Service -Name $service -ErrorAction SilentlyContinue
-                if($result){
-                    [void]$serviceArrayList.Add($result)
-                }
-            }
-
-            return $serviceArrayList
+            $result = Get-Service -Name $param1 -ErrorAction SilentlyContinue
+            return $result
         }
 
-        $serviceStateResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $config
+        foreach ($service in $Name) {
+            $serviceStateResults += Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $service
+        }
+
         foreach($result in $serviceStateResults){
+            [void]$arrayList.Add($result)
+
             if($result.Status -ine 'Running'){
-                [void]$arrayList.Add($result)
                 $sdnHealthObject.Result = 'FAIL'
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning

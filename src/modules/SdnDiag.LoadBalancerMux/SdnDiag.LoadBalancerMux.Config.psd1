@@ -38,4 +38,5 @@
             }
         }
     }
+    ResourceName = "LoadBalancerMuxes"
 }

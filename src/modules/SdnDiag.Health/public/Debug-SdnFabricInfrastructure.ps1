@@ -16,23 +16,30 @@ function Debug-SdnFabricInfrastructure {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.String]$NetworkController = $(HostName),
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ComputerName')]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
+        [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server'),
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server')
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $script:SdnDiagnostics_Health.Cache = $null
     $objectArray = @()
     $restApiParams = @{
         NcRestCredential = $NcRestCredential
@@ -53,62 +60,87 @@ function Debug-SdnFabricInfrastructure {
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
         }
 
-        $restApiParams.Add('NcUri', $environmentInfo.NcUrl)
-
-        foreach ($object in $Role) {
-            switch ($object) {
-                'Gateway' {
-                    $gwyParams = @{
-                        Credential = $Credential
-                        ComputerName = $environmentInfo.Gateway
-                    }
-
-                    $objectArray += @(
-                        Test-GatewayConfigState @restApiParams
-                        Test-GatewayServiceState @gwyParams
-                    )
-                }
-                'LoadBalancerMux' {
-                    $lbmParams = @{
-                        Credential = $Credential
-                        ComputerName = $environmentInfo.LoadBalancerMux
-                    }
-
-                    $objectArray += @(
-                        Test-LoadBalancerMuxConfigState @restApiParams
-                        Test-LoadBalancerMuxServiceState @lbmParams
-                    )
-                }
-                'NetworkController' {
-                    $ncParams = @{
-                        Credential = $Credential
-                        ComputerName = $environmentInfo.NetworkController
-                    }
-
-                    $objectArray += @(
-                        Test-NetworkControllerServiceState @ncParams
-                    )
-                }
-                'Server' {
-                    $serverParams = @{
-                        Credential = $Credential
-                        ComputerName = $environmentInfo.Server
-                    }
-
-                    $objectArray += @(
-                        Test-EncapOverhead @serverParams
-                        Test-ProviderNetwork @serverParams
-                        Test-ServerConfigState @restApiParams
-                        Test-ServerServiceState @serverParams
-                    )
+        # if we opted to specify the ComputerName rather than Role, we need to determine which role
+        # the computer names are associated with
+        if ($PSCmdlet.ParameterSetName -ieq 'ComputerName') {
+            $Role = @()
+            $ComputerName | ForEach-Object {
+                $computerRole = $_ | Get-SdnRole -EnvironmentInfo $environmentInfo
+                if ($computerRole) {
+                    $Role += $computerRole
                 }
             }
         }
 
-        $Global:SdnDiagnostics.Cache.FabricHealth = $objectArray
+        $restApiParams.Add('NcUri', $environmentInfo.NcUrl)
+        $resourceParams = $restApiParams
+        $resourceParams.Add('Resource', $null)
 
-        "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureHealth' to examine the results." | Trace-Output
-        return $Global:SdnDiagnostics.Cache.FabricHealth
+        $Role = $Role | Sort-Object -Unique
+        foreach ($object in $Role) {
+            $config = Get-SdnModuleConfiguration -Role $object.ToString()
+            [string[]]$services = $config.Properties.Services.Keys
+            $svcStateParams = @{
+                Credential = $Credential
+                ComputerName = $null
+                Name = $services
+            }
+
+            if ($ComputerName) {
+                $svcStateParams.ComputerName = $ComputerName
+            }
+            else {
+                $svcStateParams.ComputerName = $environmentInfo[$object.ToString()]
+            }
+
+            $resourceParams.Resource = $config.ResourceName
+
+            switch ($object) {
+                'Gateway' {
+                    $objectArray += @{
+                        Gateway = @(
+                            Test-ResourceConfigurationState @resourceParams
+                            Test-ServiceState @svcStateParams
+                        )
+                    }
+                }
+                'LoadBalancerMux' {
+                    $objectArray += @{
+                        LoadBalancerMux = @(
+                            Test-ResourceConfigurationState @resourceParams
+                            Test-ServiceState @svcStateParams
+                        )
+                    }
+                }
+                'NetworkController' {
+                    $objectArray += @{
+                        NetworkController = @(
+                            Test-ServiceState @svcStateParams
+                        )
+                    }
+                }
+                'Server' {
+                    $serverParams = @{
+                        Credential = $Credential
+                        ComputerName = $environmentInfo[$object.ToString()]
+                    }
+
+                    $objectArray += @{
+                        Server = @(
+                            Test-EncapOverhead @serverParams
+                            Test-ProviderNetwork @serverParams
+                            Test-ResourceConfigurationState @resourceParams
+                            Test-ServiceState @svcStateParams
+                        )
+                    }
+                }
+            }
+        }
+
+        $script:SdnDiagnostics_Health.Cache = $objectArray
+
+        "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
+        return $script:SdnDiagnostics_Health.Cache
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

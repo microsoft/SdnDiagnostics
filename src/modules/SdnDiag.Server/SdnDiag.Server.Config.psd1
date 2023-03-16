@@ -34,11 +34,6 @@
                     DisplayName = "Software Load Balancer Host Agent"
                 }
             }
-            DnsProxy = @{
-                Properties = @{
-                    DisplayName = "Dns Proxy"
-                }
-            }
         }
         EtwTraceProviders = @{
             nchostagent = @{
@@ -81,4 +76,5 @@
             }
         }
     }
+    ResourceName = "Servers"
 }

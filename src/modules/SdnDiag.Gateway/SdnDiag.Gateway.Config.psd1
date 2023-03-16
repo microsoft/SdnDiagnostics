@@ -53,4 +53,5 @@
             }
         }
     }
+    ResourceName = "Gateways"
 }

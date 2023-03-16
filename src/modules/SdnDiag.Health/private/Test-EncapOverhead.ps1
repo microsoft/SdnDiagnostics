@@ -11,8 +11,8 @@ function Test-EncapOverhead {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [System.String[]]$ComputerName = $global:SdnDiagnostics.EnvironmentInfo.Server,
+        [Parameter(Mandatory = $true)]
+        [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

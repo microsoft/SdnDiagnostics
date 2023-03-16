@@ -64,7 +64,7 @@
         'Get-SdnCertificate',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog',
-        'Get-SdnFabricInfrastructureHealth',
+        'Get-SdnFabricInfrastructureResult',
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
