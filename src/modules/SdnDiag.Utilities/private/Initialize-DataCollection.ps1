@@ -8,7 +8,7 @@ function Initialize-DataCollection {
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MB')]
-        [SdnDiag.Common.Helper.SdnRoles]$Role,
+        [SdnModules]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]

@@ -64,7 +64,7 @@ if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.Bas
         }
     }
     catch {
-        "Failed to update the module manifest for $($modManifest.BaseName)" | Write-Error
+        "Failed to update the module manifest for $($modManifest.BaseName)`n{0}" -f $_.Exception | Write-Error
         exit 1
     }
 }

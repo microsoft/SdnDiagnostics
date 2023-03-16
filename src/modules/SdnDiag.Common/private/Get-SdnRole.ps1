@@ -1,22 +1,17 @@
 function Get-SdnRole {
     <#
-        .SYNOPSIS
+    .SYNOPSIS
         Retrieve the SDN Role for a given computername
-
-        .PARAMETER ComputerName
-        Type the NetBIOS name or a fully qualified domain name of a computer.
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String]$ComputerName
-    )
+        [System.String]$ComputerName,
 
-    if ($null -eq $Global:SdnDiagnostics.EnvironmentInfo.NetworkController) {
-        "Unable to enumerate data from EnvironmentInfo. Please run 'Get-SdnInfrastructureInfo' to populate infrastructure details." | Trace-Output -Level:Warning
-        return
-    }
+        [Parameter(Mandatory = $true)]
+        [System.Object]$EnvironmentInfo
+    )
 
     # we know Windows has some strict requirements around NetBIOS/DNS name of the computer
     # so we can safely make some assumptions that if period (.) exists, then assume the ComputerName being passed into function
@@ -41,8 +36,12 @@ function Get-SdnRole {
 
     # enumerate the objects for each of the available SDN roles to find a match
     # once match is found, return the role name as string back to calling function
-    foreach ($role in ($Global:SdnDiagnostics.EnvironmentInfo.Keys | Where-Object {$_ -iin $Global:SdnDiagnostics.Config.Keys})) {
-        foreach ($object in $Global:SdnDiagnostics.EnvironmentInfo[$role]) {
+    foreach ($role in $EnvironmentInfo.Keys) {
+        if ($role -ieq 'FabricNodes') {
+            continue
+        }
+
+        foreach ($object in $EnvironmentInfo[$role]) {
             if ($object -ieq $computerNameNetBIOS -or $object -ieq $computerNameFQDN) {
                 return $role.ToString()
             }

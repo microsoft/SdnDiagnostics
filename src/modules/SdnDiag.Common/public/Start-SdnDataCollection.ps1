@@ -152,21 +152,16 @@ function Start-SdnDataCollection {
             }
 
             'Computer' {
-                $keyLookup= @('Gateway','NetworkController','Server','LoadBalancerMux')
-                foreach ($value in $ComputerName) {
-                    foreach ($key in $sdnFabricDetails.Keys) {
-                        if ($key -iin $keyLookup) {
-                            "Scanning {0} for {1}" -f $key, $value | Trace-Output -Level:Verbose
-                            if ($sdnFabricDetails[$key.ToString()].Contains($value)) {
-                                $object = [PSCustomObject]@{
-                                    Role = $key
-                                    Name = $value
-                                }
-
-                                "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
-                                $dataCollectionNodes += $object
-                            }
+                foreach ($computer in $ComputerName) {
+                    $computerRole = Get-SdnRole -ComputerName $computer -EnvironmentInfo $sdnFabricDetails
+                    if ($computerRole) {
+                        $object = [PSCustomObject]@{
+                            Role = $computerRole
+                            Name = $computer
                         }
+
+                        "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        $dataCollectionNodes += $object
                     }
                 }
             }
@@ -201,6 +196,12 @@ function Start-SdnDataCollection {
             # to account for if filtering was applied
             $filteredDataCollectionNodes += $dataNodes
 
+            $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
+            $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
+            Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
+            Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
+
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
             switch ($group.Name) {
                 'Gateway' {
@@ -215,12 +216,6 @@ function Start-SdnDataCollection {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $OutputDirectory
                     } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
-
-                    Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
-                    Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
-                        -Credential $Credential -NcRestCredential $NcRestCredential
-                    Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName `
-                        -Credential $Credential
                 }
 
                 'Server' {
@@ -244,9 +239,6 @@ function Start-SdnDataCollection {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
                     } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
-
-                    $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
-                    $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
                 }
             }
 

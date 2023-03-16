@@ -71,7 +71,7 @@ function Debug-SdnFabricInfrastructure {
                 'LoadBalancerMux' {
                     $lbmParams = @{
                         Credential = $Credential
-                        ComputerName = $environmentInfo.Gateway
+                        ComputerName = $environmentInfo.LoadBalancerMux
                     }
 
                     $objectArray += @(

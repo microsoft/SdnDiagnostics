@@ -31,10 +31,10 @@ function Copy-ServiceFabricManifestToNetworkController {
 
         Trace-Output "Stopping Service Fabric Service"
         foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
-            Invoke-PSRemoteCommand -ComputerName $nc -ScriptBlock {
+            Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock {
                 Write-Host "[$(HostName)] Stopping Service Fabric Service"
                 Stop-Service FabricHostSvc -Force
-            } -Credential $Credential
+            }
         }
 
 

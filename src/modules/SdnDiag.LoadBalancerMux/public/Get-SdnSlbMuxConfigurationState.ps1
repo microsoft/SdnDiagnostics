@@ -17,13 +17,13 @@ function Get-SdnSlbMuxConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnModuleConfiguration -Role:SoftwareLoadBalancer
+        $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role:SoftwareLoadBalancer -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             throw New-Object System.Exception("Unable to initialize environment for data collection")
         }
 

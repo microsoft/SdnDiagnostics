@@ -15,6 +15,6 @@ enum SdnModules {
     Gateway
     NetworkController
     Server
-    SoftwareLoadBalancer
+    LoadBalancerMux
     Utilities
 }
