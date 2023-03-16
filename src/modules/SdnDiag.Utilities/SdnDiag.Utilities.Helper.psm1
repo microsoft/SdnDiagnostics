@@ -9,3 +9,12 @@ enum TraceLevel {
     Verbose
     Warning
 }
+
+enum SdnModules {
+    Common
+    Gateway
+    NetworkController
+    Server
+    SoftwareLoadBalancer
+    Utilities
+}

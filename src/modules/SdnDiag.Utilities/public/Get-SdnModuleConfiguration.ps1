@@ -9,25 +9,13 @@ function Get-SdnModuleConfiguration {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnDiag.Common.Helper.SdnRoles]$Role
+        [SdnModules]$Role
     )
 
-    switch ($Role) {
-        'Gateway' {
-            $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\..\SdnDiag.Gateway\SdnDiag.Gateway.Config.psd1"
-        }
-
-        'LoadBalancerMux' {
-            $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\..\SdnDiag.LoadBalancer\SdnDiag.LoadBalancer.Config.psd1"
-        }
-
-        'NetworkController' {
-            $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\..\SdnDiag.NetworkController\SdnDiag.NetworkController.Config.psd1"
-        }
-
-        'Server' {
-            $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\..\SdnDiag.Server\SdnDiag.Server.Config.psd1"
-        }
+    $path = "SdnDiag.{0}\SdnDiag.{0}.Config.psd1" -f $Role
+    $moduleConfig = Get-Item -Path $PSScriptRoot\..\$path -ErrorAction SilentlyContinue
+    if ($moduleConfig) {
+        $configurationData = Import-PowerShellDataFile -Path $moduleConfig.FullName
     }
 
     return $configurationData

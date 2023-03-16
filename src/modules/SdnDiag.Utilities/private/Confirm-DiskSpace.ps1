@@ -21,21 +21,27 @@ function Confirm-DiskSpace {
         $freeSpace = Format-ByteSize -Bytes $drive.Free
         switch ($PSCmdlet.ParameterSetName) {
             'GB' {
-                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output
+                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Verbose
                 if ([float]$freeSpace.GB -gt [float]$MinimumGB) {
                     return $true
                 }
+
+                # if we do not have enough disk space, we want to provide what was required vs what was available
+                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Exception
+                return $false
             }
 
             'MB' {
-                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output
+                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output -Level:Verbose
                 if ([float]$freeSpace.MB -gt [float]$MinimumMB) {
                     return $true
                 }
+
+                # if we do not have enough disk space, we want to provide what was required vs what was available
+                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output -Level:Exception
+                return $false
             }
         }
-
-        return $false
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

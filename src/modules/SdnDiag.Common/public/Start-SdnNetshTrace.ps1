@@ -100,6 +100,7 @@ function Start-SdnNetshTrace {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
             if ($traceProviderString) {
                 $params.Add('TraceProviderString', $traceProviderString)
+                "Trace providers configured: {0}" -f $traceProviderString | Trace-Output
             }
             elseif ($null -eq $traceProviderString) {
                 "No default trace providers found for role {0}." | Trace-Output

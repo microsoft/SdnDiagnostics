@@ -5,7 +5,7 @@ Import-Module $PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
 # create local variable to store configuration data
-$configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.LoadBalancer.Config.psd1"
+$configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.SoftwareLoadBalancer.Config.psd1"
 New-Variable -Name 'SdnDiagnostics_SLB' -Scope 'Script' -Force -Value @{
     Config = $configurationData
 }

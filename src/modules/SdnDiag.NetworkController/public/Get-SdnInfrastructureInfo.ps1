@@ -61,7 +61,7 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
             $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
             $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.RasGateway = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         }

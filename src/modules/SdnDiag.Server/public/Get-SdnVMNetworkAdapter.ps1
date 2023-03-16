@@ -53,7 +53,7 @@ function Get-SdnVMNetworkAdapter {
             $virtualMachines | Get-VMNetworkAdapter
         }
 
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $VmState`
+        Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $VmState `
             -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
     }
     catch {
