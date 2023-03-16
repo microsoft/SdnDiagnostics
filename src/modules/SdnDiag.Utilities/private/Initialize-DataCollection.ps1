@@ -23,7 +23,7 @@ function Initialize-DataCollection {
 
     # ensure that the appropriate windows feature is installed and ensure module is imported
     if ($Role) {
-        $config = Get-SdnModuleConfiguration -Role $Role
+        $config = Get-SdnModuleConfiguration -Role $Role.ToString()
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.WindowsFeature
         if (-NOT ($confirmFeatures)) {
             "Required feature is missing: {0}" -f ($config.WindowsFeature -join ', ') | Trace-Output -Level:Exception

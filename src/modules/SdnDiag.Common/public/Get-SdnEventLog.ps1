@@ -31,7 +31,7 @@ function Get-SdnEventLog {
 
         "Collect event logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
 
-        $config = Get-SdnModuleConfiguration -Role $Role
+        $config = Get-SdnModuleConfiguration -Role $Role.ToString()
         $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
         if (-NOT $confirmFeatures) {
             throw New-Object System.Exception("Required feature is missing")

@@ -1,10 +1,9 @@
 param (
-    [String]$Version
+    [String]$Version = $env:SdnDiagCustomBuildNumber
 )
 
 $currentErrorPref = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
-
 
 $outDir = "$PSScriptRoot\..\out\build"
 if (-NOT (Test-Path -Path $outDir -PathType Container)) {
