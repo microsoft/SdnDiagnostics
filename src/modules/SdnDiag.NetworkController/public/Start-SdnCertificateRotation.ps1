@@ -179,7 +179,7 @@ function Start-SdnCertificateRotation {
                     param(
                         [Parameter(Position = 0)][DateTime]$param1,
                         [Parameter(Position = 1)][SecureString]$param2,
-                        [Parameter(Position = 2)][SecureString]$param3,
+                        [Parameter(Position = 2)][PSCredential]$param3,
                         [Parameter(Position = 3)][String]$param4,
                         [Parameter(Position = 4)][System.Object]$param5
                     )
