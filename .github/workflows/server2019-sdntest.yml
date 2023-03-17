@@ -6,7 +6,7 @@ name: Server2019SDN
 on:
   # Triggers the workflow on push request events but only for the main branch
   push:
-    branches: 
+    branches:
       - main
     paths:
       - 'src/**'
@@ -27,19 +27,18 @@ jobs:
         run: |
           Remove-Item -Path .\* -Recurse -Force -Verbose
         shell: powershell
-      
+
       # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
       - name: Checkout SdnDiagnostics repo
         uses: actions/checkout@v2
-        with: 
+        with:
           ref: main
 
       # Runs a single command using the runners shell
       - name: Build SdnDiagnostics module
-        run: |
-          .\.build\build.ps1
+        run: .\build.ps1
         shell: powershell
-    
+
       - name: Run online validation tests
         run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
         shell: powershell
