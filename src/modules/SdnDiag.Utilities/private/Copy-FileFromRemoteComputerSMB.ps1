@@ -85,7 +85,7 @@ function Copy-FileFromRemoteComputerSMB {
                         continue
                     }
 
-                    $_ | Trace-Output -Level:Exception
+                    throw $_
                 }
             }
         }
