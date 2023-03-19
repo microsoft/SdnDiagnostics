@@ -2,22 +2,16 @@ function Test-VfpDuplicatePort {
     <#
     .SYNOPSIS
         Validate there are no ports within VFP layer that may have duplicate MAC addresses.
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
 		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
-    .EXAMPLE
-        PS> Test-VfpDuplicatePort
-    .EXAMPLE
-        PS> Test-VfpDuplicatePort -NcUri "https://nc.contoso.com" -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -31,16 +25,16 @@ function Test-VfpDuplicatePort {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validate no duplicate MAC addresses for ports within Virtual Filtering Platform (VFP)" | Trace-Output
 
-        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
+        $servers = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
         $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential -AsJob -PassThru
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
-            [void]$arrayList.Add($duplicateObjects)
+            $array += $duplicateObjects
             $sdnHealthObject.Result = 'FAIL'
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
@@ -54,7 +48,7 @@ function Test-VfpDuplicatePort {
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

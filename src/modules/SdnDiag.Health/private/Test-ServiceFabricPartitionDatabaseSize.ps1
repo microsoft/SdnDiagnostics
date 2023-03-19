@@ -2,22 +2,14 @@ function Test-ServiceFabricPartitionDatabaseSize {
     <#
     .SYNOPSIS
         Validate the Service Fabric partition size for each of the services running on Network Controller.
-    .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .EXAMPLE
-        PS> Test-ServiceFabricPartitionDatabaseSize
-    .EXAMPLE
-        PS> Test-ServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02'
-    .EXAMPLE
-        PS> Test-ServiceFabricPartitionDatabaseSize -NetworkController 'NC01','NC02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$NetworkController,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -26,12 +18,12 @@ function Test-ServiceFabricPartitionDatabaseSize {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }
@@ -74,16 +66,18 @@ function Test-ServiceFabricPartitionDatabaseSize {
                         Service = $ncService.ServiceName
                         ImosSize = $($imosStoreFile.Length/1MB)
                     }
+
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
                     if([float]$($imosStoreFile.Length/1MB) -gt 4096){
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Warning
 
                         $sdnHealthObject.Result = 'FAIL'
-                        [void]$arrayList.Add($imosInfo)
                     }
                     else {
                         "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Verbose
                     }
+
+                    $array += $imosInfo
                 }
                 else {
                     "No ImosStore file for service {0} found on node {1} from {2}" -f $ncService.ServiceName, $node.NodeName, $imosStorePath | Trace-Output -Level:Warning
@@ -91,7 +85,7 @@ function Test-ServiceFabricPartitionDatabaseSize {
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

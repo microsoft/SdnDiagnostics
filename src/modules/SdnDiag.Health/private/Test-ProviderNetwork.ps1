@@ -15,7 +15,7 @@ function Test-ProviderNetwork {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -24,18 +24,18 @@ function Test-ProviderNetwork {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validating Provider Address network has connectivity across the SDN dataplane" | Trace-Output
 
-        $providerAddresses = (Get-SdnProviderAddress -ComputerName $ComputerName -Credential $Credential).ProviderAddress
+        $providerAddresses = (Get-SdnProviderAddress -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential).ProviderAddress
         if ($null -eq $providerAddresses){
             "No provider addresses were found on the hosts specified. This may be expected if tenant workloads have not yet been deployed." | Trace-Output -Level:Warning
         }
 
         if ($providerAddresses) {
-            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {
+            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {
                 param([Parameter(Position = 0)][String[]]$param1)
                 Test-SdnProviderAddressConnectivity -ProviderAddress $param1
             } -ArgumentList $providerAddresses
@@ -61,14 +61,13 @@ function Test-ProviderNetwork {
                                 -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
                         }
 
-                        $destinationAddress | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $computer.Name
-                        [void]$arrayList.Add($destinationAddress)
+                        $array += $destinationAddress
                     }
                 }
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

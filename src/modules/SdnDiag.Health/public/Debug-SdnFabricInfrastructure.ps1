@@ -40,10 +40,6 @@ function Debug-SdnFabricInfrastructure {
     )
 
     $script:SdnDiagnostics_Health.Cache = $null
-    $objectArray = @()
-    $restApiParams = @{
-        NcRestCredential = $NcRestCredential
-    }
 
     try {
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
@@ -72,65 +68,74 @@ function Debug-SdnFabricInfrastructure {
             }
         }
 
-        $restApiParams.Add('NcUri', $environmentInfo.NcUrl)
-        $resourceParams = $restApiParams
-        $resourceParams.Add('Resource', $null)
-
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
+            $sdnFabricDetails = [SdnFabricHealthObject]::new()
+            $sdnFabricDetails.NcUri = $environmentInfo.NcUrl
+
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
-            [string[]]$services = $config.Properties.Services.Keys
-            $svcStateParams = @{
-                Credential = $Credential
-                ComputerName = $null
-                Name = $services
-            }
+            $sdnFabricDetails.Role = $config
 
             if ($ComputerName) {
-                $svcStateParams.ComputerName = $ComputerName
+                $sdnFabricDetails.ComputerName = $ComputerName
             }
             else {
-                $svcStateParams.ComputerName = $environmentInfo[$object.ToString()]
+                $sdnFabricDetails.ComputerName = $environmentInfo[$object.ToString()]
             }
 
-            $resourceParams.Resource = $config.ResourceName
+            $defaultParams = @{
+                SdnEnvironmentObject = $sdnFabricDetails
+            }
 
+            $restApiParams = $defaultParams
+            $restApiParams.Add('NcRestCredential', $NcRestCredential)
+
+            $computerCredParams = $defaultParams
+            $computerCredParams.Add('Credential', $Credential)
+
+            $computerCredAndRestApiParams = $defaultParams
+            $computerCredAndRestApiParams.Add('NcRestCredential', $NcRestCredential)
+            $computerCredAndRestApiParams.Add('Credential', $Credential)
+
+            # perform the health validations for the appropriate roles that were specified directly
+            # or determined via which ComputerNames were defined
             switch ($object) {
                 'Gateway' {
                     $objectArray += @{
                         Gateway = @(
-                            Test-ResourceConfigurationState @resourceParams
-                            Test-ServiceState @svcStateParams
+                            Test-ResourceConfigurationState @restApiParams
+                            Test-ServiceState @computerCredParams
                         )
                     }
                 }
+
                 'LoadBalancerMux' {
                     $objectArray += @{
                         LoadBalancerMux = @(
-                            Test-ResourceConfigurationState @resourceParams
-                            Test-ServiceState @svcStateParams
+                            Test-ResourceConfigurationState @restApiParams
+                            Test-ServiceState @computerCredParams
                         )
                     }
                 }
+
                 'NetworkController' {
                     $objectArray += @{
                         NetworkController = @(
-                            Test-ServiceState @svcStateParams
+                            Test-ServiceState @computerCredParams
+                            Test-ServiceFabricPartitionDatabaseSize @computerCredParams
                         )
                     }
                 }
-                'Server' {
-                    $serverParams = @{
-                        Credential = $Credential
-                        ComputerName = $environmentInfo[$object.ToString()]
-                    }
 
+                'Server' {
                     $objectArray += @{
                         Server = @(
-                            Test-EncapOverhead @serverParams
-                            Test-ProviderNetwork @serverParams
-                            Test-ResourceConfigurationState @resourceParams
-                            Test-ServiceState @svcStateParams
+                            Test-EncapOverhead @computerCredParams
+                            Test-ProviderNetwork @computerCredParams
+                            Test-ResourceConfigurationState @restApiParams
+                            Test-ServiceState @computerCredParams
+                            Test-ServerHostId @computerCredAndRestApiParams
+                            Test-VfpDuplicatePort @computerCredAndRestApiParams
                         )
                     }
                 }

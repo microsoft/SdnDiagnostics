@@ -12,7 +12,7 @@ function Test-EncapOverhead {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -23,12 +23,12 @@ function Test-EncapOverhead {
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
 
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
+        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
         if($null -eq $encapOverheadResults){
             throw New-Object System.NullReferenceException("No encap overhead results found")
         }
@@ -53,12 +53,11 @@ function Test-EncapOverhead {
                     $sdnHealthObject.Result = 'FAIL'
                 }
 
-                $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
-                [void]$arrayList.Add($interface)
+                $array += $interface
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

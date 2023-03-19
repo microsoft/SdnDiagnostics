@@ -11,10 +11,7 @@ function Test-ResourceConfigurationState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $true)]
-        [String]$Resource,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -23,12 +20,12 @@ function Test-ResourceConfigurationState {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validating configuration and provisioning state of {0}" -f $Resource | Trace-Output
 
-        $sdnResources = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource $Resource -Credential $NcRestCredential
+        $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
         foreach($object in $sdnResources){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 if($object.properties.configurationState.status -ieq 'Uninitialized'){

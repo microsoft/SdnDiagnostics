@@ -12,10 +12,7 @@ function Test-ServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$Name,
-
-        [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -24,11 +21,12 @@ function Test-ServiceState {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
     $serviceStateResults = @()
 
     try {
-        "Validating {0} service state for {1}" -f ($Name -join ', '), ($ComputerName -join ', ') | Trace-Output
+        [string[]]$services = $SdnEnvironmentObject.Role.Properties.Services.Keys
+        "Validating {0} service state for {1}" -f ($services -join ', '), ($SdnEnvironmentObject.ComputerName -join ', ') | Trace-Output
 
         $scriptBlock = {
             param([Parameter(Position = 0)][String]$param1)
@@ -37,12 +35,12 @@ function Test-ServiceState {
             return $result
         }
 
-        foreach ($service in $Name) {
-            $serviceStateResults += Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $service
+        foreach ($service in $services) {
+            $serviceStateResults += Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $service
         }
 
         foreach($result in $serviceStateResults){
-            [void]$arrayList.Add($result)
+            $array += $result
 
             if($result.Status -ine 'Running'){
                 $sdnHealthObject.Result = 'FAIL'
@@ -54,7 +52,7 @@ function Test-ServiceState {
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

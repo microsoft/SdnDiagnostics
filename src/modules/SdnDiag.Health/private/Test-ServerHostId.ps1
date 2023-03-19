@@ -2,29 +2,16 @@ function Test-ServerHostId {
     <#
     .SYNOPSIS
         Queries the NCHostAgent HostID registry key value across the hypervisor hosts to ensure the HostID matches known InstanceID results from NC Servers API.
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
-    .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
-    .EXAMPLE
-        PS> Test-ServerHostId
-    .EXAMPLE
-        PS> Test-ServerHostId -Credential (Get-Credential) -NcRestCredential (Get-Credential)
-    .EXAMPLE
-        PS> Test-ServerHostId -ComputerName 'Server01','Server02' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -38,7 +25,7 @@ function Test-ServerHostId {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validating Server HostID registry matches known InstanceIDs from Network Controller Servers API." | Trace-Output
@@ -48,8 +35,8 @@ function Test-ServerHostId {
             return $result.HostID
         }
 
-        $servers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource Servers -Credential $NcRestCredential
-        $hostId = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
+        $servers = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
+        $hostId = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach($id in $hostId){
             if($id -inotin $servers.instanceId){
                 "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Warning
@@ -60,14 +47,14 @@ function Test-ServerHostId {
                     Computer = $id.PSComputerName
                 }
 
-                [void]$arrayList.Add($object)
+                $array += $object
             }
             else {
                 "{0}'s HostID {1} matches known InstanceID in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Verbose
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {
