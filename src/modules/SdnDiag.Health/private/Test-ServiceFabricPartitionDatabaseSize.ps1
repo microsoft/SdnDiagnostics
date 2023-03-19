@@ -26,7 +26,6 @@ function Test-ServiceFabricPartitionDatabaseSize {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $sdnHealthObject.Result = 'PASS'
     $arrayList = [System.Collections.ArrayList]::new()
 
     try {

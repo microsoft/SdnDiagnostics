@@ -9,7 +9,7 @@ enum SdnHealthResult {
 
 class SdnHealth {
     [String]$Name = (Get-PSCallStack)[1].Command
-    [SdnHealthResult]$Result
+    [SdnHealthResult]$Result = 'PASS'
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
     [String]$Remediation

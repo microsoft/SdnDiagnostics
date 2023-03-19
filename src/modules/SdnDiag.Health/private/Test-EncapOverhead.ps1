@@ -23,7 +23,6 @@ function Test-EncapOverhead {
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthObject = [SdnHealth]::new()
-    $sdnHealthObject.Result = 'PASS'
     $arrayList = [System.Collections.ArrayList]::new()
 
     try {
@@ -40,15 +39,22 @@ function Test-EncapOverhead {
 
                 if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
                     "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-
-                    if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
-                        "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                        $sdnHealthObject.Result = 'FAIL'
-
-                        $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
-                        [void]$arrayList.Add($interface)
-                    }
+                    $encapDisabled = $true
                 }
+
+                if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
+                    "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
+                    $jumboPacketDisabled = $true
+                }
+
+                # if both encapoverhead and jumbo packets are not set, this is indication the physical network cannot support VXLAN encapsulation
+                # and as such, environment would experience intermittent packet loss
+                if ($encapDisabled -and $jumboPacketDisabled) {
+                    $sdnHealthObject.Result = 'FAIL'
+                }
+
+                $interface | Add-Member -NotePropertyName "ComputerName" -NotePropertyValue $object.Name
+                [void]$arrayList.Add($interface)
             }
         }
 
