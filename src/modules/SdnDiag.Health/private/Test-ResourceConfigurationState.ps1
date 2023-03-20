@@ -19,23 +19,30 @@ function Test-ResourceConfigurationState {
     $array = @()
 
     try {
-        "Validating configuration and provisioning state of {0}" -f $Resource | Trace-Output
+        "Validating configuration and provisioning state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
 
         $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
         foreach($object in $sdnResources){
-            if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
+            # examine the provisioning state of the resources and display errors to the screen
+            if ($object.properties.provisioningState -ine 'Succeeded') {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation = 'Examine the Network Controller logs to determine why resource provisioning failed and take corrective measures.'
+
+                "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState | Trace-Output -Level:Exception
+            }
+
+            # examine the configuration state of the resources and display errors to the screen
+            elseif($object.properties.configurationState.status -ine 'Success'){
+
+                # gateways leverage an Uninitialized for when a gateway is passive and not hosting any virtual gateways
+                # in this scenario, we can skip this status event
                 if($object.properties.configurationState.status -ieq 'Uninitialized'){
-                    # do nothing as Uninitialized is an indication the gateway is passive and not hosting any virtual gateways
                     continue
                 }
 
                 $sdnHealthObject.Result = 'FAIL'
-                "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
-                    -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Warning
-            }
-            else {
-                "{0} is reporting configurationState status: {1} and provisioningState: {2}" `
-                    -f $object.resourceRef, $object.properties.configurationState.Status, $object.properties.provisioningState | Trace-Output -Level:Verbose
+                $sdnHealthObject.Remediation = 'Examine the detailedInfo property and take corrective action.'
+                "{0} is reporting configurationState status: {1}" -f $object.resourceRef, $object.properties.configurationState.Status | Trace-Output -Level:Exception
             }
 
             $details = [PSCustomObject]@{

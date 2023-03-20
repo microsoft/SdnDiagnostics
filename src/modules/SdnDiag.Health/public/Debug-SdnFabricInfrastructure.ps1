@@ -24,11 +24,11 @@ function Debug-SdnFabricInfrastructure {
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.String]$NetworkController = $(HostName),
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'ComputerName')]
-        [System.String[]]$ComputerName,
-
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server'),
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ComputerName')]
+        [System.String[]]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
@@ -155,10 +155,12 @@ function Debug-SdnFabricInfrastructure {
             }
         }
 
-        $script:SdnDiagnostics_Health.Cache = $objectArray
+        if ($objectArray) {
+            $script:SdnDiagnostics_Health.Cache = $objectArray
 
-        "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
-        return $script:SdnDiagnostics_Health.Cache
+            "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
+            return $script:SdnDiagnostics_Health.Cache
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

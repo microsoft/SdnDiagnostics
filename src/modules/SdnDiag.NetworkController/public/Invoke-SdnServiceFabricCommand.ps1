@@ -34,6 +34,9 @@ function Invoke-SdnServiceFabricCommand {
     $params = @{
         ScriptBlock = $ScriptBlock
     }
+    if ($ArgumentList) {
+        $params.Add('ArgumentList', $ArgumentList)
+    }
 
     if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
@@ -74,27 +77,34 @@ function Invoke-SdnServiceFabricCommand {
             }
         }
 
+        # if we were not able to create a connection
+        # we want to continue the foreach statement to connect to another network controller node (if provided)
         if (!$connection) {
             "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Exception
             continue
         }
 
+        # if we have the session created, we can then construct the remainder of the parameters for splatting purposes
+        # and write some verbose details to the log for tracking purposes
         if ($session) {
-            $params.Add('Session', $session)
-
-            "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
-            if ($ArgumentList) {
-                $params.Add('ArgumentList', $ArgumentList)
-                "ArgumentList: {0}" -f ($ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+            if (-NOT ($params.ContainsKey('Session'))) {
+                $params.Add('Session', $session)
+            }
+            else {
+                $params.Session = $session
             }
 
-            $sfResults = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
-        }
+            "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+            if ($params.ArgumentList) {
+                "ArgumentList: {0}" -f ($params.ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+            }
 
-
-        # if we get results from service fabric, then we want to break out of the loop
-        if ($sfResults) {
-            break
+            # if we get results from service fabric, then we want to break out of the loop
+            # otherwise we will try again to see if state issue with service fabric or the particular node
+            $sfResults = Invoke-Command @params
+            if ($sfResults) {
+                break
+            }
         }
     }
 

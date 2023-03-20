@@ -30,7 +30,7 @@ function Test-ServiceFabricPartitionDatabaseSize {
             $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)
                 Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
-            } -ArgumentList $node.NodeName
+            } -ArgumentList @($node.NodeName.ToString())
 
             $ncAppWorkDir = $ncApp.WorkDirectory
             if($null -eq $ncAppWorkDir){
