@@ -27,7 +27,7 @@ function Confirm-DiskSpace {
                 }
 
                 # if we do not have enough disk space, we want to provide what was required vs what was available
-                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Exception
+                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Exception
                 return $false
             }
 

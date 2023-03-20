@@ -2,26 +2,12 @@ function Test-HostRootStoreNonRootCert {
     <#
     .SYNOPSIS
         Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
-    .DESCRIPTION
-        Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist. Non Root Cert is the cert that Issuer not equal to Subject
-    .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
-    .EXAMPLE
-        PS> Test-HostRootStoreNonRootCert
-    .EXAMPLE
-        PS> Test-HostRootStoreNonRootCert -ComputerName 'Server01','Server02'
-    .EXAMPLE
-        PS> Test-HostRootStoreNonRootCert -ComputerName 'Server01','Server02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$ComputerName,
+        [SdnFabricHealthObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -51,7 +37,7 @@ function Test-HostRootStoreNonRootCert {
             return $nonRootCerts
         }
 
-        foreach($node in $ComputerName){
+        foreach($node in $SdnEnvironmentObject.ComputerName){
             $nonRootCerts = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock $scriptBlock -PassThru
             # If any node have Non Root Certs in Trusted Root Store. Issue detected.
             if($nonRootCerts.Count -gt 0){

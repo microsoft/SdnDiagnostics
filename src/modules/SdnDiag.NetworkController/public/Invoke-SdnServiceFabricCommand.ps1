@@ -3,7 +3,9 @@ function Invoke-SdnServiceFabricCommand {
     .SYNOPSIS
         Connects to the service fabric ring that is used by Network Controller.
     .PARAMETER ScriptBlock
-        A script block containing the service fabric commands to invoke.
+        Specifies the commands to run. Enclose the commands in braces ({ }) to create a script block. When using Invoke-Command to run a command remotely, any variables in the command are evaluated on the remote computer.
+    .PARAMETER ArgumentList
+        Supplies the values of parameters for the scriptblock. The parameters in the script block are passed by position from the array value supplied to ArgumentList. This is known as array splatting.
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates.
     .PARAMETER Credential
@@ -23,8 +25,15 @@ function Invoke-SdnServiceFabricCommand {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $true)]
-        [ScriptBlock]$ScriptBlock
+        [ScriptBlock]$ScriptBlock,
+
+        [Parameter(Mandatory = $false)]
+        [Object[]]$ArgumentList = $null
     )
+
+    $params = @{
+        ScriptBlock = $ScriptBlock
+    }
 
     if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
@@ -70,8 +79,18 @@ function Invoke-SdnServiceFabricCommand {
             continue
         }
 
-        "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
-        $sfResults = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
+        if ($session) {
+            $params.Add('Session', $session)
+
+            "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+            if ($ArgumentList) {
+                $params.Add('ArgumentList', $ArgumentList)
+                "ArgumentList: {0}" -f ($ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+            }
+
+            $sfResults = Invoke-Command -Session $session -ScriptBlock $ScriptBlock
+        }
+
 
         # if we get results from service fabric, then we want to break out of the loop
         if ($sfResults) {

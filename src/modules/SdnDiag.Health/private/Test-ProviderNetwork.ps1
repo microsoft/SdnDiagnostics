@@ -2,14 +2,6 @@ function Test-ProviderNetwork {
     <#
     .SYNOPSIS
         Performs ICMP tests across the computers defined to confirm that jumbo packets are able to successfully traverse between the provider addresses on each host
-    .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .EXAMPLE
-        PS> Test-ProviderNetwork
-    .EXAMPLE
-        PS> Test-ProviderNetwork -ComputerName 'Server01','Server02' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -42,27 +34,33 @@ function Test-ProviderNetwork {
 
             foreach($computer in $connectivityResults | Group-Object PSComputerName){
                 foreach($destinationAddress in $computer.Group){
+                    $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
+                    $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
+
                     if($destinationAddress.Status -ine 'Success'){
                         $sdnHealthObject.Result = 'FAIL'
 
-                        $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
-                        $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
-
                         # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
                         if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
-                            "Cannot ping to {0} from {1} using {2}. Investigate the physical connection." `
-                                -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
+                            $sdnHealthObject.Remediation = "Ensure ICMP enabled. If issue persists, investigate network connectivity."
+                            "Cannot ping {0} from {1} ({2})." `
+                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
                         }
 
                         # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
                         # either on the physical nic or within the physical switches between the provider addresses
                         if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
-                            "Cannot send jumbo packets to {0} from {1} using {2}. Physical switch ports or network interface may not be configured to support jumbo packets." `
-                                -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Warning
+                            $sdnHealthObject.Remediation = "Ensure physical switch ports and network interfaces support 1660 byte payload using Jumbo Packets or EncapOverhead"
+                            "Cannot send jumbo packets to {0} from {1} ({2})." `
+                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
                         }
-
-                        $array += $destinationAddress
                     }
+                    else {
+                        "Successfully sent jumbo packet to {0} from {1} ({2})" `
+                        -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output
+                    }
+
+                    $array += $destinationAddress
                 }
             }
         }

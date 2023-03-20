@@ -327,7 +327,7 @@ function Start-SdnCertificateRotation {
         $null = Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -Credential $NcRestCredential `
             -NewRestCertThumbprint $CertRotateConfig["NcRestCert"] -ErrorAction Stop
 
-        "Certificate rotation completed successfully" | Trace-Output
+        "Southbound certificate rotation completed" | Trace-Output
 
         #####################################
         #

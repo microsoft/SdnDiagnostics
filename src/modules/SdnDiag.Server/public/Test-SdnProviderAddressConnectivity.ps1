@@ -26,27 +26,27 @@ function Test-SdnProviderAddressConnectivity {
 
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
-            "No provider addresses returned on {0}" -f $env:COMPUTERNAME | Trace-Output -Level:Exception
+            "No provider addresses returned on {0}" -f $env:COMPUTERNAME | Trace-Output -Level:Warning
             return
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
         if ($null -eq $compartmentId) {
-            "No compartment returned on {0} that matches description PAhostVNic" -f $env:COMPUTERNAME | Trace-Output -Level:Exception
+            "No compartment returned on {0} that matches description PAhostVNic" -f $env:COMPUTERNAME | Trace-Output -Level:Warning
             return
         }
 
         foreach ($srcAddress in $sourceProviderAddress) {
             if ($srcAddress -ilike "169.*") {
                 # if the PA address is an APIPA, it's an indication that host has been added to SDN data plane, however no tenant workloads have yet been provisioned onto the host
-                "Skipping validation of {0} as it's an APIPA address" -f $srcAddress | Trace-Output -Level:Warning
+                "Skipping validation of {0} as it's an APIPA address" -f $srcAddress | Trace-Output
                 continue
             }
 
             foreach ($dstAddress in $ProviderAddress) {
                 if ($dstAddress -ilike "169.*") {
                     # if the PA address is an APIPA, it's an indication that host has been added to SDN data plane, however no tenant workloads have yet been provisioned onto the host
-                    "Skipping validation of {0} as it's an APIPA address" -f $dstAddress | Trace-Output -Level:Warning
+                    "Skipping validation of {0} as it's an APIPA address" -f $dstAddress | Trace-Output
                     continue
                 }
 

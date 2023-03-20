@@ -4,6 +4,10 @@ function Debug-SdnFabricInfrastructure {
         Executes a series of fabric validation tests to validate the state and health of the underlying components within the SDN fabric.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Role
+        The specific SDN role(s) to perform tests and validations for. If ommitted, defaults to all roles.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
 	.PARAMETER NcRestCredential
@@ -23,7 +27,7 @@ function Debug-SdnFabricInfrastructure {
         [Parameter(Mandatory = $true, ParameterSetName = 'ComputerName')]
         [System.String[]]$ComputerName,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server'),
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
@@ -70,8 +74,9 @@ function Debug-SdnFabricInfrastructure {
 
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
+            "Processing tests for {0} role" -f $object | Trace-Output
             $sdnFabricDetails = [SdnFabricHealthObject]::new()
-            $sdnFabricDetails.NcUri = $environmentInfo.NcUrl
+            $sdnFabricDetails.NcUrl = $environmentInfo.NcUrl
 
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
             $sdnFabricDetails.Role = $config
@@ -87,15 +92,21 @@ function Debug-SdnFabricInfrastructure {
                 SdnEnvironmentObject = $sdnFabricDetails
             }
 
-            $restApiParams = $defaultParams
-            $restApiParams.Add('NcRestCredential', $NcRestCredential)
+            $restApiParams = @{
+                SdnEnvironmentObject    = $sdnFabricDetails
+                NcRestCredential        = $NcRestCredential
+            }
 
-            $computerCredParams = $defaultParams
-            $computerCredParams.Add('Credential', $Credential)
+            $computerCredParams = @{
+                SdnEnvironmentObject    = $sdnFabricDetails
+                Credential              = $Credential
+            }
 
-            $computerCredAndRestApiParams = $defaultParams
-            $computerCredAndRestApiParams.Add('NcRestCredential', $NcRestCredential)
-            $computerCredAndRestApiParams.Add('Credential', $Credential)
+            $computerCredAndRestApiParams = @{
+                SdnEnvironmentObject    = $sdnFabricDetails
+                NcRestCredential        = $NcRestCredential
+                Credential              = $Credential
+            }
 
             # perform the health validations for the appropriate roles that were specified directly
             # or determined via which ComputerNames were defined
@@ -123,6 +134,7 @@ function Debug-SdnFabricInfrastructure {
                         NetworkController = @(
                             Test-ServiceState @computerCredParams
                             Test-ServiceFabricPartitionDatabaseSize @computerCredParams
+                            Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
                         )
                     }
                 }
@@ -135,7 +147,8 @@ function Debug-SdnFabricInfrastructure {
                             Test-ResourceConfigurationState @restApiParams
                             Test-ServiceState @computerCredParams
                             Test-ServerHostId @computerCredAndRestApiParams
-                            Test-VfpDuplicatePort @computerCredAndRestApiParams
+                            Test-VfpDuplicatePort @computerCredParams
+                            Test-VMNetAdapterDuplicateMacAddress @computerCredParams
                         )
                     }
                 }

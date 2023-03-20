@@ -2,10 +2,6 @@ function Test-ResourceConfigurationState {
     <#
     .SYNOPSIS
         Validate that the configurationState and provisioningState is Success
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
-	.PARAMETER NcRestCredential
-		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -25,7 +21,7 @@ function Test-ResourceConfigurationState {
     try {
         "Validating configuration and provisioning state of {0}" -f $Resource | Trace-Output
 
-        $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
+        $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
         foreach($object in $sdnResources){
             if($object.properties.configurationState.status -ine 'Success' -or $object.properties.provisioningState -ine 'Succeeded'){
                 if($object.properties.configurationState.status -ieq 'Uninitialized'){
@@ -48,10 +44,10 @@ function Test-ResourceConfigurationState {
                 configurationState = $object.properties.configurationState
             }
 
-            [void]$arrayList.Add($details)
+            $array += $details
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

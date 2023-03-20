@@ -2,8 +2,10 @@ function Get-SdnFabricInfrastructureResult {
     <#
         .SYNOPSIS
             Returns the results that have been saved to cache as part of running Debug-SdnFabricInfrastructure.
+        .PARAMETER Role
+            The name of the SDN role that you want to return test results from within the cache.
         .PARAMETER Name
-            The name of the known issue test.
+            The name of the test results you want to examine.
         .EXAMPLE
             PS> Get-SdnFabricInfrastructureResult
         .EXAMPLE
@@ -11,7 +13,6 @@ function Get-SdnFabricInfrastructureResult {
         .EXAMPLE
             PS> Get-SdnFabricInfrastructureResult -Role Server -Name 'Test-ServiceState'
     #>
-
 
     [CmdletBinding()]
     param (

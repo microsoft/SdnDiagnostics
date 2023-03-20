@@ -2,8 +2,6 @@ function Test-ServiceFabricPartitionDatabaseSize {
     <#
     .SYNOPSIS
         Validate the Service Fabric partition size for each of the services running on Network Controller.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -29,52 +27,49 @@ function Test-ServiceFabricPartitionDatabaseSize {
         }
 
         foreach($node in $ncNodes){
-            if($node.NodeStatus -ine 'Up'){
-                "{0} is reporting status {1}" -f $node.NodeName, $node.NodeStatus | Trace-Output -Level:Warning
-            }
-
-            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {
+            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)
                 Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
             } -ArgumentList $node.NodeName
 
             $ncAppWorkDir = $ncApp.WorkDirectory
-
             if($null -eq $ncAppWorkDir){
                 throw New-Object System.NullReferenceException("Unable to retrieve working directory path")
             }
 
             # Only stateful service have the database file
-            $ncServices = Get-SdnServiceFabricService -NetworkController $NetworkController -Credential $Credential | Where-Object {$_.ServiceKind -eq "Stateful"}
+            $ncServices = Get-SdnServiceFabricService -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential | Where-Object {$_.ServiceKind -eq "Stateful"}
 
             foreach ($ncService in $ncServices){
-                $replica = Get-SdnServiceFabricReplica -NetworkController $NetworkController -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
+                $replica = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
                 $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
-                $imosStoreFile = Invoke-PSRemoteCommand $node.NodeName -Credential $Credential -ScriptBlock {
+                $imosStoreFile = Invoke-PSRemoteCommand -ComputerName $node.NodeName -Credential $Credential -ScriptBlock {
                     param([Parameter(Position = 0)][String]$param1)
-                    if(Test-Path -Path $param1){
-                        return Get-Item $param1
+                    if (Test-Path -Path $param1) {
+                        return (Get-Item -Path $param1)
                     }
                     else {
                         return $null
                     }
-                } -ArgumentList $imosStorePath
+                } -ArgumentList @($imosStorePath)
 
                 if($null -ne $imosStoreFile){
+                    $formatedByteSize = Format-ByteSize -Bytes $imosStoreFile.Length
+
                     $imosInfo = [PSCustomObject]@{
                         Node = $node.NodeName
                         Service = $ncService.ServiceName
-                        ImosSize = $($imosStoreFile.Length/1MB)
+                        ImosSize = $formatedByteSize.GB
                     }
 
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
-                    if([float]$($imosStoreFile.Length/1MB) -gt 4096){
-                        "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Warning
+                    if([float]$formatedByteSize.GB -gt 4){
+                        "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Warning
 
                         $sdnHealthObject.Result = 'FAIL'
                     }
                     else {
-                        "[{0}] Service {1} is reporting {2} MB in size" -f $node.NodeName, $ncService.ServiceName, $($imosStoreFile.Length/1MB) | Trace-Output -Level:Verbose
+                        "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Verbose
                     }
 
                     $array += $imosInfo

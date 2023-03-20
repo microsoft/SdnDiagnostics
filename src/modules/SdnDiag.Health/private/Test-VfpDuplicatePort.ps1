@@ -2,10 +2,6 @@ function Test-VfpDuplicatePort {
     <#
     .SYNOPSIS
         Validate there are no ports within VFP layer that may have duplicate MAC addresses.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
-	.PARAMETER NcRestCredential
-		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]
@@ -16,12 +12,7 @@ function Test-VfpDuplicatePort {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $sdnHealthObject = [SdnHealth]::new()
@@ -30,8 +21,7 @@ function Test-VfpDuplicatePort {
     try {
         "Validate no duplicate MAC addresses for ports within Virtual Filtering Platform (VFP)" | Trace-Output
 
-        $servers = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ManagementAddressOnly -Credential $NcRestCredential
-        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential -AsJob -PassThru
+        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential
         $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
         if($duplicateObjects){
             $array += $duplicateObjects

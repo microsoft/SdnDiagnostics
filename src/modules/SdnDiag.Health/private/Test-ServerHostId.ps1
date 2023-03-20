@@ -2,10 +2,6 @@ function Test-ServerHostId {
     <#
     .SYNOPSIS
         Queries the NCHostAgent HostID registry key value across the hypervisor hosts to ensure the HostID matches known InstanceID results from NC Servers API.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
     #>
 
     [CmdletBinding()]

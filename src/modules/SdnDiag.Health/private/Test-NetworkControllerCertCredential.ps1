@@ -2,18 +2,6 @@ function Test-NetworkControllerCertCredential {
     <#
     .SYNOPSIS
         Query the NC Cert credential used to connect to SDN Servers, ensure cert exist.
-    .PARAMETER NetworkController
-        Specifies the name or IP address of the network controller node on which this cmdlet operates.
-    .PARAMETER NcUri
-        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
-    .EXAMPLE
-        PS> Test-NetworkControllerCertCredential
-    .EXAMPLE
-        PS> Test-NetworkControllerCertCredential -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]

@@ -3,10 +3,6 @@ function Test-EncapOverhead {
     .SYNOPSIS
         Retrieves the VMSwitch across servers in the dataplane to confirm that the network interfaces support EncapOverhead or JumboPackets
         and that the settings are configured as expected
-    .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]

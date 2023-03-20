@@ -2,11 +2,6 @@ function Test-ServiceState {
     <#
     .SYNOPSIS
         Confirms that critical services for gateway are running
-    .PARAMETER ComputerName
-        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER Service
     #>
 
     [CmdletBinding()]
@@ -44,6 +39,7 @@ function Test-ServiceState {
 
             if($result.Status -ine 'Running'){
                 $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation = 'Start the service(s).'
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
             }

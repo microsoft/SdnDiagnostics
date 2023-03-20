@@ -31,7 +31,7 @@ function Update-NetworkControllerCredentialResource {
 
     $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
     foreach ($object in $servers) {
-        "Processing X509 connections for {0}" -f $object | Trace-Output
+        "Processing X509 connections for {0}" -f $object.resourceRef | Trace-Output
         foreach ($connection in $servers.properties.connections | Where-Object {$_.credentialType -ieq 'X509Certificate'}) {
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
@@ -39,7 +39,7 @@ function Update-NetworkControllerCredentialResource {
 
             # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
             if ($cred.properties.value -ieq $NewRestCertThumbprint) {
-                "{0} has already been configured to {1}" -f $cred.resourceRef, $NewRestCertThumbprint | Trace-Output -Level:Verbose
+                "{0} has already updated to {1}" -f $cred.resourceRef, $NewRestCertThumbprint | Trace-Output
                 continue
             }
 
