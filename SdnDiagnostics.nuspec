@@ -18,6 +18,7 @@
         <!-- package root module -->
         <file src="out\build\SdnDiagnostics\**" target="SdnDiagnostics" />
 		<file src="README.md" target = "SdnDiagnostics\docs" />
+		<file src="LICENSE" target = "SdnDiagnostics\LICENSE" />
 
         <!-- restore package dependencies -->
         <file src=".packages\Get-NetView.*\**" target="SdnDiagnostics\externalPackages" />
