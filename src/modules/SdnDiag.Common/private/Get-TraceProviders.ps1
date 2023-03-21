@@ -21,23 +21,34 @@ function Get-TraceProviders {
         [Switch]$AsString
     )
 
+    $traceProvidersArray = @()
+
     try {
         $config = Get-SdnModuleConfiguration -Role $Role.ToString()
-        $traceProvidersArray = [System.Collections.ArrayList]::new()
-        foreach ($traceProviders in $config.properties.etwTraceProviders) {
+        foreach ($key in $config.properties.EtwTraceProviders.Keys) {
+            $traceProvider = $config.properties.EtwTraceProviders[$key]
             switch ($Providers) {
                 "Default" {
-                    if ($traceProviders.isOptional -ne $true) {
-                        [void]$traceProvidersArray.Add($traceProviders)
+                    if ($traceProvider.isOptional -ne $true) {
+                        $traceProvidersArray += [PSCustomObject]@{
+                            Name = $key
+                            Properties = $traceProvider
+                        }
                     }
                 }
                 "Optional" {
-                    if ($traceProviders.isOptional -eq $true) {
-                        [void]$traceProvidersArray.Add($traceProviders)
+                    if ($traceProvider.isOptional -eq $true) {
+                        $traceProvidersArray += [PSCustomObject]@{
+                            Name = $key
+                            Properties = $traceProvider
+                        }
                     }
                 }
                 "All" {
-                    [void]$traceProvidersArray.Add($traceProviders)
+                    $traceProvidersArray += [PSCustomObject]@{
+                        Name = $key
+                        Properties = $traceProvider
+                    }
                 }
             }
         }
@@ -47,7 +58,7 @@ function Get-TraceProviders {
         if ($PSBoundParameters.ContainsKey('AsString') -and $traceProvidersArray) {
             [string]$formattedString = $null
             foreach ($traceProvider in $traceProvidersArray) {
-                foreach ($provider in $traceProvider.Providers) {
+                foreach ($provider in $traceProvider.Properties.Providers) {
                     $formattedString += "$(Format-NetshTraceProviderAsString -Provider $provider -Level $traceProvider.level -Keywords $traceProvider.keywords) "
                 }
             }

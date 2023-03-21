@@ -17,14 +17,15 @@ function Get-SdnGatewayConfigurationState {
     $ProgressPreference = 'SilentlyContinue'
 
     try {
-        $config = Get-SdnModuleConfiguration -Role:Gateway
+        $config = Get-SdnModuleConfiguration -Role 'Gateway'
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
         [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role:Gateway -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
-            throw New-Object System.Exception("Unable to initialize environment for data collection")
+        if (-NOT (Initialize-DataCollection -Role 'Gateway' -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName

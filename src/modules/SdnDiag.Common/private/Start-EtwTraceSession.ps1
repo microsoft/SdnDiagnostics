@@ -34,11 +34,6 @@ function Start-EtwTraceSession {
     )
 
     try {
-        # ensure that the directory exists for file path
-        if (!(Test-Path -Path (Split-Path -Path $TraceFile.FullName -Parent) -PathType Container)) {
-            $null = New-Item -Path (Split-Path -Path $TraceFile.FullName -Parent) -ItemType Directory -Force
-        }
-
         $logmanCmd = "logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets"
         $result = Invoke-Expression -Command $logmanCmd
 

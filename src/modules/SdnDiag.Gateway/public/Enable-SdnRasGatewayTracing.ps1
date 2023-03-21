@@ -6,10 +6,10 @@ function Enable-SdnRasGatewayTracing {
 
     try {
         # ensure that the appropriate windows feature is installed and ensure module is imported
-        $config = Get-SdnModuleConfiguration -Role:Gateway
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
-            throw New-Object System.Exception("Required feature is missing")
+        $config = Get-SdnModuleConfiguration -Role 'Gateway'
+        if (-NOT (Initialize-DataCollection -Role 'Gateway' -FilePath $config.properties.commonPaths.rasGatewayTraces -MinimumMB 250)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         # remove any previous or stale logs

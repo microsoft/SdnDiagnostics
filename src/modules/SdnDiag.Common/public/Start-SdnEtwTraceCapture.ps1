@@ -13,37 +13,30 @@ function Start-SdnEtwTraceCapture {
         [Parameter(Mandatory = $true)]
         [SdnRoles]$Role,
 
-        [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory,
+        [Parameter(Mandatory = $false)]
+        [System.String]$OutputDirectory = (Get-WorkingDirectory),
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Default", "Optional", "All")]
         [string]$Providers = "Default"
     )
 
+    # this is the default trace size that we will limit each etw trace session to
+    $maxTraceSize = 1024
+
     try {
-        $config = Get-SdnModuleConfiguration -Role $Role.ToString()
-        # ensure that the appropriate windows feature is installed and ensure module is imported
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if(!$confirmFeatures){
-            throw New-Object System.Exception("Required feature is missing")
-        }
+        $traceProvidersArray = Get-TraceProviders -Role $Role.ToString() -Providers $Providers
 
-        $confirmModules = Confirm-RequiredModulesLoaded -Name $config.requiredModules
-        if(!$confirmModules){
-            throw New-Object System.Exception("Required module is not loaded")
+        # we want to calculate the max size on number of factors to ensure sufficient disk space is available
+        $diskSpaceRequired = $maxTraceSize*($traceProvidersArray.Count)*1.5
+        if (-NOT (Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB $diskSpaceRequired)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
-
-        # create the OutputDirectory if does not already exist
-        if(!(Test-Path -Path $OutputDirectory.FullName -PathType Container)){
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
-        }
-
-        $traceProvidersArray = Get-TraceProviders -Role $Role -Providers $Providers
 
         foreach ($traceProviders in $traceProvidersArray) {
             "Starting trace session {0}" -f $traceProviders.name | Trace-Output -Level:Verbose
-            Start-EtwTraceSession -TraceName $traceProviders.name -TraceProviders $traceProviders.providers -TraceFile "$OutputDirectory\$($traceProviders.name).etl" -MaxTraceSize 1024
+            Start-EtwTraceSession -TraceName $traceProviders.name -TraceProviders $traceProviders.properties.providers -TraceFile "$OutputDirectory\$($traceProviders.name).etl" -MaxTraceSize $maxTraceSize
         }
     }
     catch {

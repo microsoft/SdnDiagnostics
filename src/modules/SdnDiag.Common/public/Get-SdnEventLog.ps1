@@ -31,14 +31,9 @@ function Get-SdnEventLog {
 
         "Collect event logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
 
-        $config = Get-SdnModuleConfiguration -Role $Role.ToString()
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (-NOT $confirmFeatures) {
-            throw New-Object System.Exception("Required feature is missing")
-        }
-
-        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
-            throw New-Object System.Exception("Unable to initialize environment for data collection")
+        if (-NOT (Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         $eventLogProviders = $config.properties.eventLogProviders

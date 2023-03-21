@@ -37,7 +37,8 @@ function Get-SdnServiceFabricLog {
         $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
         # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minimumDiskSpace)) {
-            throw New-Object System.Exception("Unable to initialize environment for data collection")
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         # copy the log files from the default log directory to the output directory

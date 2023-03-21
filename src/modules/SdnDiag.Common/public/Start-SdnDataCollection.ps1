@@ -123,7 +123,8 @@ function Start-SdnDataCollection {
         }
 
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minGB)) {
-            throw New-Object System.Exception("Unable to initialize environment for data collection")
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         "Results will be saved to {0}" -f $OutputDirectory.FullName | Trace-Output

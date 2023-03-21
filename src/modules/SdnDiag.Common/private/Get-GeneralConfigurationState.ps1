@@ -17,7 +17,8 @@ function Get-GeneralConfigurationState {
 
         "Collect general configuration state details" | Trace-Output
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
-            throw New-Object System.Exception("Unable to initialize environment for data collection")
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            return
         }
 
         # Gather general configuration details from all nodes

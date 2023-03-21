@@ -87,20 +87,20 @@ function Start-SdnNetshTrace {
             [Parameter(Position = 6)][String]$Providers
         )
 
-        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
+        Start-SdnNetshTrace -Role $Role.ToString() -OutputDirectory $OutputDirectory `
         -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Providers $Providers
     }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $Providers)
+            -ArgumentList @($Role.ToString(), $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $Providers)
         }
         else {
-            $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
+            $traceProviderString = Get-TraceProviders -Role $Role.ToString() -Providers $Providers -AsString
             if ($traceProviderString) {
                 $params.Add('TraceProviderString', $traceProviderString)
-                "Trace providers configured: {0}" -f $traceProviderString | Trace-Output
+                "Trace providers configured: {0}" -f $traceProviderString | Trace-Output -Level:Verbose
             }
             elseif ($null -eq $traceProviderString) {
                 "No default trace providers found for role {0}." | Trace-Output
@@ -110,7 +110,7 @@ function Start-SdnNetshTrace {
                 }
             }
 
-            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
+            if (-NOT ( Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
                 "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
                 return
             }
