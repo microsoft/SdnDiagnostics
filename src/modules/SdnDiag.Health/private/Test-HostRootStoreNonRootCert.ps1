@@ -16,13 +16,13 @@ function Test-HostRootStoreNonRootCert {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
+    $array = @()
 
     try {
         "Validating Certificates under Root CA Store" | Trace-Output
 
         $scriptBlock = {
-            $nonRootCerts = [System.Collections.ArrayList]::new()
+            $nonRootCerts = @()
             $rootCerts = Get-ChildItem Cert:LocalMachine\Root
             foreach ($rootCert in $rootCerts) {
                 if ($rootCert.Subject -ne $rootCert.Issuer) {
@@ -31,7 +31,8 @@ function Test-HostRootStoreNonRootCert {
                         Subject    = $rootCert.Subject
                         Issuer     = $rootCert.Issuer
                     }
-                    [void]$nonRootCerts.Add($certInfo)
+
+                    $nonRootCerts += $certInfo
                 }
             }
             return $nonRootCerts
@@ -48,11 +49,11 @@ function Test-HostRootStoreNonRootCert {
                     NonRootCerts = $nonRootCerts
                 }
 
-                [void]$arrayList.Add($object)
+                $array += $object
             }
         }
 
-        $sdnHealthObject.Properties = $arrayList
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

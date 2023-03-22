@@ -88,10 +88,6 @@ function Debug-SdnFabricInfrastructure {
                 $sdnFabricDetails.ComputerName = $environmentInfo[$object.ToString()]
             }
 
-            $defaultParams = @{
-                SdnEnvironmentObject = $sdnFabricDetails
-            }
-
             $restApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
                 NcRestCredential        = $NcRestCredential
@@ -149,6 +145,7 @@ function Debug-SdnFabricInfrastructure {
                             Test-ServerHostId @computerCredAndRestApiParams
                             Test-VfpDuplicatePort @computerCredParams
                             Test-VMNetAdapterDuplicateMacAddress @computerCredParams
+                            Test-HostRootStoreNonRootCert @computerCredParams
                         )
                     }
                 }
