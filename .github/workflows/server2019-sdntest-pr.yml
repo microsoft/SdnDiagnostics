@@ -37,6 +37,7 @@ jobs:
       # Runs a single command using the runners shell
       - name: Build SdnDiagnostics Module and Nuget Package
         run: |
+          nuget.exe update -self
           .\build.ps1
         shell: powershell
 
