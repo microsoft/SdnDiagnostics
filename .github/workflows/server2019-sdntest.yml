@@ -39,6 +39,16 @@ jobs:
         run: .\build.ps1
         shell: powershell
 
+      # Extract the nuget package
+      - name: Extract the SdnDiagnostics module
+        run: |
+          $nuGet = Get-Item -Path ".\out\packages\SdnDiagnostics*.nupkg"
+          $zipFolder = Rename-Item -Path $nuGet.FullName -NewName "SdnDiagnostics.zip" -Force -PassThru
+          Expand-Archive -Path $zipFolder.FullName -Destination (Split-Path -Path $zipFolder.FullName -Parent)
+          Import-Module -Name "$(Split-Path -Path $zipFolder.FullName -Parent)\SdnDiagnostics" -Force
+        shell: powershell
+
+      # Run the test configuration file that is locally on the test environment
       - name: Run online validation tests
         run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
         shell: powershell
