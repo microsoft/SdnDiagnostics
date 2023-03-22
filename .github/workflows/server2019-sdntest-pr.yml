@@ -35,7 +35,7 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Runs a single command using the runners shell
-      - name: - name: 'Build SdnDiagnostics Module and Nuget Package'
+      - name: Build SdnDiagnostics Module and Nuget Package
         run: |
           .\build.ps1
         shell: powershell
