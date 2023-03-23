@@ -40,14 +40,7 @@
     )
 
     # Modules that must be imported into the global environment prior to importing this module
-    RequiredModules = @(
-        'CimCmdlets',
-        'DnsClient',
-        'Microsoft.PowerShell.Archive',
-        'NetSecurity',
-        'NetTCPIP',
-        'SmbShare'
-    )
+    RequiredModules = @()
 
     # Cmdlets to export from this module
     CmdletsToExport = @()
@@ -161,6 +154,11 @@
 
             # A URL to the license for this module.
             LicenseUri = 'https://microsoft.mit-license.org/'
+
+            # External dependent modules of this module
+            ExternalModuleDependencies = @(
+                'CimCmdlets', 'DnsClient', 'Microsoft.PowerShell.Archive', 'NetSecurity', 'NetTCPIP', 'SmbShare'
+            )
         }
     }
 }
