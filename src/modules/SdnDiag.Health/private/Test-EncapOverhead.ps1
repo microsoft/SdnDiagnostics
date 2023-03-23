@@ -26,34 +26,35 @@ function Test-EncapOverhead {
 
         $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
         if($null -eq $encapOverheadResults){
-            throw New-Object System.NullReferenceException("No encap overhead results found")
-        }
-
-        foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName)){
-            foreach($interface in $object.Group){
-                "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
-
-                if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
-                    "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                    $encapDisabled = $true
+            $sdnHealthObject.Result = 'FAIL'
+        }else{
+            foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName)){
+                foreach($interface in $object.Group){
+                    "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
+    
+                    if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
+                        "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
+                        $encapDisabled = $true
+                    }
+    
+                    if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
+                        "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
+                        $jumboPacketDisabled = $true
+                    }
+    
+                    # if both encapoverhead and jumbo packets are not set, this is indication the physical network cannot support VXLAN encapsulation
+                    # and as such, environment would experience intermittent packet loss
+                    if ($encapDisabled -and $jumboPacketDisabled) {
+                        $sdnHealthObject.Result = 'FAIL'
+                    }
+    
+                    $array += $interface
                 }
-
-                if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
-                    "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
-                    $jumboPacketDisabled = $true
-                }
-
-                # if both encapoverhead and jumbo packets are not set, this is indication the physical network cannot support VXLAN encapsulation
-                # and as such, environment would experience intermittent packet loss
-                if ($encapDisabled -and $jumboPacketDisabled) {
-                    $sdnHealthObject.Result = 'FAIL'
-                }
-
-                $array += $interface
             }
+    
+            $sdnHealthObject.Properties = $array
         }
 
-        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {
