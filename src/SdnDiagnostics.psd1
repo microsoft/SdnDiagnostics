@@ -8,7 +8,7 @@
     RootModule = 'SdnDiagnostics.psm1'
 
     # Author of this module
-    Author = 'Adam Rudell'
+    Author = 'Adam Rudell, Luyao Feng'
 
     # Company or vendor of this module
     CompanyName = 'Microsoft Corporation'
@@ -16,20 +16,38 @@
     # Copyright statement for this module
     Copyright = '(c) Microsoft Corporation. All rights reserved.'
 
+    # ID used to uniquely identify this module
+    GUID = 'c6cd3002-c6b1-4798-b532-2f939f527599'
+
     # Description of the functionality provided by this module
     Description = 'SdnDiagnostics is a tool used to simplify the data collection and diagnostics of Windows Software Defined Networking.'
 
     # Version number of this module.
-    ModuleVersion = '1.0.0.0'
+    ModuleVersion = '0.0.0.0'
 
     # Minimum version of the PowerShell engine required by this module
     PowerShellVersion = '5.1'
 
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
-    NestedModules = @()
+    NestedModules = @(
+        'modules\SdnDiag.Common\SdnDiag.Common.psm1'
+        'modules\SdnDiag.Gateway\SdnDiag.Gateway.psm1'
+        'modules\SdnDiag.Health\SdnDiag.Health.psm1'
+        'modules\SdnDiag.LoadBalancerMux\SdnDiag.LoadBalancerMux.psm1'
+        'modules\SdnDiag.NetworkController\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.Server\SdnDiag.Server.psm1'
+        'modules\SdnDiag.Utilities\SdnDiag.Utilities.psm1'
+    )
 
     # Modules that must be imported into the global environment prior to importing this module
-    RequiredModules = @()
+    RequiredModules = @(
+        'CimCmdlets',
+        'DnsClient',
+        'Microsoft.PowerShell.Archive',
+        'NetSecurity',
+        'NetTCPIP',
+        'SmbShare'
+    )
 
     # Cmdlets to export from this module
     CmdletsToExport = @()
@@ -46,11 +64,11 @@
         'Get-SdnCertificate',
         'Get-SdnDiagnosticLog',
         'Get-SdnEventLog',
-        'Get-SdnFabricInfrastructureHealth',
+        'Get-SdnFabricInfrastructureResult',
         'Get-SdnGateway',
         'Get-SdnGatewayConfigurationState',
         'Get-SdnInfrastructureInfo',
-        'Get-SdnKnownIssue',
+        'Get-SdnModuleConfiguration',
         'Get-SdnMuxDistributedRouterIP',
         'Get-SdnMuxState',
         'Get-SdnMuxStatefulVip',
@@ -119,39 +137,23 @@
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
-        'Test-SdnKIHostRootStoreNonRootCert',
-        'Test-SdnKINetworkControllerCertCredential',
-        'Test-SdnKINetworkInterfaceAPIDuplicateMacAddress',
-        'Test-SdnKINetworkInterfacePlacement',
-        'Test-SdnKIServerHostId',
-        'Test-SdnKIServiceFabricPartitionDatabaseSize',
-        'Test-SdnKIVfpDuplicatePort',
-        'Test-SdnKIVMNetAdapterDuplicateMacAddress',
-        'Test-SdnEncapOverhead',
-        'Test-SdnGatewayConfigState',
-        'Test-SdnGatewayServiceState',
-        'Test-SdnKnownIssue',
-        'Test-SdnLoadBalancerMuxConfigState',
-        'Test-SdnLoadBalancerMuxServiceState',
-        'Test-SdnNetworkControllerServiceState',
-        'Test-SdnProviderAddressConnectivity',
-        'Test-SdnProviderNetwork',
-        'Test-SdnServerConfigState',
-        'Test-SdnServerServiceState'
+        'Test-SdnProviderAddressConnectivity'
     )
 
     # Variables to export from this module
     VariablesToExport = @()
 
     # Aliases to export from this module
-    AliasesToExport = @()
+    AliasesToExport = @(
+        'Get-SdnEnvironmentInfo'
+    )
 
     # Private data to pass to the module specified in RootModule/ModuleToProcess. This may also contain a PSData hashtable with additional module metadata used by PowerShell.
     PrivateData = @{
         PSData = @{
             # Tags applied to this module. These help with module discovery in online galleries.
             Tags = @(
-                'MSFTNet', 'Networking','Sdn'
+                'MSFTNet','Microsoft','Windows','Network','Networking','SDN','Diagnostics'
             )
 
             # A URL to the main website for this project.
@@ -159,11 +161,6 @@
 
             # A URL to the license for this module.
             LicenseUri = 'https://microsoft.mit-license.org/'
-
-            # External dependent modules of this module
-            ExternalModuleDependencies = @(
-                'CimCmdlets', 'DnsClient', 'Microsoft.PowerShell.Archive', 'NetSecurity', 'NetTCPIP', 'SmbShare'
-            )
         }
     }
 }

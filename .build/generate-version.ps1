@@ -6,5 +6,5 @@ $patch = ([DateTime]::UtcNow - $referenceDate).Days # days since reference date
 $revision = "{0:d2}{1:d2}{2:d2}" -f ([DateTime]::UtcNow.Hour),([DateTime]::UtcNow.Minute),([DateTime]::UtcNow.Second) # creates revision based on hour, minute and second
 $buildNumber = "{0}.{1}.{2}.{3}" -f $major, $minor, $patch, $revision
 
-[Environment]::SetEnvironmentVariable("SdnDiagCustomBuildNumber", $buildNumber)  # This will allow you to use it from env var in later steps of the same phase
 Write-Host "Generating build version: $($buildNumber)"  # This will update build number on your build
+return $buildNumber

@@ -8,7 +8,7 @@ on:
       - main
     paths:
       - 'src/**'
-    
+
 
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
@@ -21,50 +21,28 @@ jobs:
     runs-on: windows-latest
 
     # Steps represent a sequence of tasks that will be executed as part of the job
-    steps:          
-      - name: Checkout SdnDiagnostics
+    steps:
+      - name: 'Checkout SdnDiagnostics'
         uses: actions/checkout@v2
         with:
           path: main
 
-      - name: Build SdnDiagnostics Module
-        run: .\main\.build\build.ps1
-        shell: powershell
-    
-      - name: Publish to PowerShell Gallery
+      - name: 'Build SdnDiagnostics Module and Nuget Package'
         run: |
-          Copy-Item -Path ".\main\out\build\SdnDiagnostics" -Destination "C:\Program Files\WindowsPowerShell\Modules" -Recurse -Force
-          Import-Module -Name SdnDiagnostics
+          Set-Location -Path .\main
+          & .\build.ps1
+        shell: powershell
+
+      - name: 'Publish to Nuget Gallery'
+        run: |
+          nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.NUGET_AUTH_TOKEN }} -Source https://api.nuget.org/v3/index.json
+        shell: powershell
+
+      - name: 'Publish to PowerShell Gallery'
+        run: |
+          $nuGet = Get-Item -Path ".\main\out\packages\SdnDiagnostics*.nupkg"
+          $zipFolder = Rename-Item -Path $nuGet.FullName -NewName "SdnDiagnostics.zip" -Force -PassThru
+          Expand-Archive -Path $zipFolder.FullName -Destination (Split-Path -Path $zipFolder.FullName -Parent)
+          Import-Module -Name "$(Split-Path -Path $zipFolder.FullName -Parent)\SdnDiagnostics" -Force
           Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
         shell: powershell
-
-      - name: Generate Documentation for Functions
-        run: .\main\.build\utilities\generate-documentation.ps1
-        shell: powershell
-
-      - name: Checkout SdnDiagnostics.Wiki
-        uses: actions/checkout@v2
-        with:
-          repository: microsoft/SdnDiagnostics.wiki.git
-          ref: master
-          path: wiki
-
-      - name: Copy Documentation to SdnDiagnostics.Wiki
-        run: |
-          Remove-Item -Path .\wiki\functions\* -Force -Verbose
-          Copy-Item -Path ".\main\.documentation\functions\*" -Include *.md -Destination ".\wiki\functions" -Force -Verbose
-          Copy-Item -Path ".\main\.documentation\*" -Include *.md -Destination ".\wiki" -Force -Verbose
-        shell: powershell
-
-      - name: Commit to SdnDiagnostics.Wiki
-        run: |
-          cd ".\wiki"
-          git config user.name github-actions
-          git config user.email github-actions@github.com
-          git add .
-          git commit -m "Auto-Updated Function Documentation" --allow-empty
-      
-      - name: Push to SdnDiagnostics.Wiki
-        run: |
-          cd ".\wiki"
-          git push

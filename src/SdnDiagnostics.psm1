@@ -1,33 +1,11 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+Import-Module $PSScriptRoot\SdnDiagnostics.Helper.psm1
 
-# dot source the enums
-foreach($item in (Get-ChildItem -Path "$PSScriptRoot\enum" -Recurse -Include "*.ps1")){
-    . $item.FullName
+New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
+    Cache = @{}
+    EnvironmentInfo = @{
+        RestApiVersion = 'V1'
+    }
 }
-
-# dot source the classes
-foreach($item in (Get-ChildItem -Path "$PSScriptRoot\classes" -Recurse -Include "*.ps1")){
-    . $item.FullName
-}
-
-# dot source the modules scripts
-foreach($item in Get-ChildItem -Path "$PSScriptRoot\modules" -Recurse -Include "*.ps1"){
-    . $item.FullName
-}
-
-# dot source the health scripts
-foreach($item in Get-ChildItem -Path "$PSScriptRoot\health" -Recurse -Include "*.ps1"){
-    . $item.FullName
-}
-
-# dot source the known issue scripts
-foreach($item in Get-ChildItem -Path "$PSScriptRoot\knownIssues" -Recurse -Include "*.ps1"){
-    . $item.FullName
-}
-
-. "$PSScriptRoot\config\settings.ps1"
-. "$PSScriptRoot\config\ArgumentCompleters.ps1"
-
-$ErrorActionPreference = 'Continue'

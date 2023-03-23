@@ -6,7 +6,7 @@ name: Server2019SDNPullRequest
 on:
   # Triggers the workflow on pull request events but only for the main branch
   pull_request:
-    branches: 
+    branches:
       - main
     paths:
       - 'src/**'
@@ -35,11 +35,13 @@ jobs:
           ref: ${{ github.event.pull_request.head.sha }}
 
       # Runs a single command using the runners shell
-      - name: Build SdnDiagnostics module
+      - name: Build SdnDiagnostics Module and Nuget Package
         run: |
-          .\.build\build.ps1
+          nuget.exe update -self
+          .\build.ps1
         shell: powershell
 
+      # Run the test configuration file that is locally on the test environment
       - name: Run online validation tests
         run: .\tests\online\RunTests.ps1 -ConfigurationFile "..\SdnDiagnosticsTestConfig.psd1"
         shell: powershell
