@@ -43,6 +43,5 @@ jobs:
           $nuGet = Get-Item -Path ".\main\out\packages\SdnDiagnostics*.nupkg"
           $zipFolder = Rename-Item -Path $nuGet.FullName -NewName "SdnDiagnostics.zip" -Force -PassThru
           Expand-Archive -Path $zipFolder.FullName -Destination (Split-Path -Path $zipFolder.FullName -Parent)
-          Import-Module -Name "$(Split-Path -Path $zipFolder.FullName -Parent)\SdnDiagnostics" -Force
-          Publish-Module -Name "SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
+          Publish-Module -Path "$(Split-Path -Path $zipFolder.FullName -Parent)\SdnDiagnostics" -NuGetApiKey ${{ secrets.PSGALLERY_AUTH_TOKEN }} -SkipAutomaticTags
         shell: powershell

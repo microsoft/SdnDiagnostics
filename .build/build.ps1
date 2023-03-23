@@ -68,13 +68,4 @@ if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.Bas
     }
 }
 
-# lets try to import the module before proceeding. If there is a missing comma or syntax error in the psd1 we will fail
-$moduleManifest = Get-Item -Path (Join-Path -Path $outDir -ChildPath "SDNDiagnostics\SDNDiagnostics.psd1")
-"Importing module {0}" -f $moduleManifest.FullName | Write-Host
-Import-Module $moduleManifest.FullName -Global -Force
-
-if(!$?){
-    $Error | Out-String | Write-Error
-}
-
 $ErrorActionPreference = $currentErrorPref
