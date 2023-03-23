@@ -39,7 +39,13 @@ function Get-SdnNetworkControllerRestURL {
             $url = $result.RestName
         }
         elseif ($result.RestIPAddress) {
-            $url = $result.RestIPAddress
+            # if the RestIPAddress contains a CIDR format, then split the string and return first object
+            if ($result.RestIPAddress.Contains('/')) {
+                $url = ($result.RestIPAddress).Split('/')[0]
+            }
+            else {
+                $url = $result.RestIPAddress
+            }
         }
         else {
             throw New-Object System.NullReferenceException("Unable to determine REST URL")
