@@ -16,7 +16,7 @@ function Get-NetworkControllerNodeInfoFromClusterManifest {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    "Attempting to retrieve NetworkControllerNode information via ClusterManifest and other methods" | Trace-Output
+    "Attempting to retrieve NetworkControllerNode information via ClusterManifest" | Trace-Output
     $array = @()
 
     $clusterManifest = [xml](Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential)
