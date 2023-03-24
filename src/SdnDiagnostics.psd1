@@ -87,6 +87,7 @@
         'Get-SdnOvsdbPhysicalPortTable',
         'Get-SdnOvsdbUcastMacRemoteTable',
         'Get-SdnProviderAddress',
+        'Get-SdnPublicIPPoolUsageSummary',
         'Get-SdnResource',
         'Get-SdnServer',
         'Get-SdnServerConfigurationState',
