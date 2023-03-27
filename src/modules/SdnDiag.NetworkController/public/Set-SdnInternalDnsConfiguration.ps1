@@ -74,11 +74,7 @@ function Set-SdnInternalDnsConfiguration {
     $iDnsObject = @{
         ResourceId = 'configuration'
         Properties = @{
-            Connections = @{
-                Credential = $null
-                CredentialType = $null
-                ManagementAddresses = $DnsForwarderAddress
-            }
+            Connections = $null
             Zone = $ZoneName
         }
     }
@@ -115,30 +111,40 @@ function Set-SdnInternalDnsConfiguration {
     try {
         $discovery = Get-SdnDiscovery -NcUri $NcUri -Credential $NcRestCredential
 
+        # check to see if the DnsForwarderAddress is IP address(es)
+        # if they are an IP address, we will need to configure the WinRM TrustedHosts on the NC nodes
+        # otherwise the PUT operation to provision the iDNSServer/configuration will fail
+
+
         # perform the PUT operation to NC to create the credential object that will be used by NC to perform updates to DNS
         "Creating the iDnsUser credential object in Network Controller" | Trace-Output
-        $credentialEndpoint = Get-SdnApiEndpoint -NcUri -ResourceName 'credentials' -ApiVersion $discovery.properties.currentRestVersion
+        $credentialEndpoint = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef "/credentials/$($iDnsCredentialObject.ResourceId)" -ApiVersion $discovery.properties.currentRestVersion
         $splat.Body = ($iDnsCredentialObject | ConvertTo-Json -Depth 10)
         $splat.Uri = $credentialEndpoint
         Invoke-RestMethodWithRetry @splat
         $credential = Get-SdnResource -NcUri $NcUri -Resource 'Credentials' -ResourceId 'iDnsUser' -Credential $NcRestCredential
         if ($null -ieq $credential) {
-            throw System.NullReferenceException("Unable to locate credential for iDnsUser")
+            throw New-Object System.NullReferenceException("Unable to locate credential for iDnsUser")
         }
 
         # update the idnsobject to include the credential object that was created in the previous step
-        $iDnsObject.Properties.Connections.Credential = $credential
-        $iDnsObject.Properties.Connections.CredentialType = $credential.properties.Type
+        $connectionsObject = [Object]@{
+            Credential = $credential
+            CredentialType = $credential.properties.Type
+            ManagementAddresses = $DnsForwarderAddress
+        }
+
+        $iDnsObject.Properties.Connections = $connectionsObject
 
         # perform PUT operation to NC to create the iDNS server configuration
         "Configuring the iDNS Server configuration within Network Controller" | Trace-Output
-        $iDnsEndpoint = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef '/iDnsServer' -ApiVersion $discovery.properties.currentRestVersion
+        $iDnsEndpoint = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef '/iDnsServer/configuration' -ApiVersion $discovery.properties.currentRestVersion
         $splat.Body = ($iDnsObject | ConvertTo-Json -Depth 10)
         $splat.Uri = $iDnsEndpoint
         Invoke-RestMethodWithRetry @splat
         $iDnsConfig = Get-SdnResource -NcUri $NcUri -Resource 'IDNSServerConfig' -Credential $NcRestCredential
         if ($null -ieq $iDnsConfig) {
-            throw System.NullReferenceException("Unable to locate iDNS configuration")
+            throw New-Object System.NullReferenceException("Unable to locate iDNS configuration")
         }
 
         # once all the control plane has been configured, we need to push the registry settings to each of the hosts within the SDN fabric

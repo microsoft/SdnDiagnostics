@@ -120,6 +120,7 @@
         'New-SdnNetworkControllerNodeCertificate',
         'New-SdnNetworkControllerRestCertificate',
         'Set-SdnCertificateAcl',
+        'Set-SdnInternalDnsConfiguration',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Show-SdnVfpPortConfig',
