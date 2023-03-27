@@ -52,9 +52,15 @@ function Set-SdnInternalDnsConfiguration {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $headers = @{"Accept"="application/json"}
-    $content = "application/json; charset=UTF-8"
-    $timeout = 30
+    $splat = @{
+        Uri = $null
+        Body = $null
+        Method = 'Put'
+        Credential = $NcRestCredential
+        Headers = @{"Accept"="application/json"}
+        ContentType = "application/json; charset=UTF-8"
+        TimeoutInSec = 30
+    }
 
     $iDnsCredentialObject = @{
         ResourceId = 'iDnsUser'
@@ -112,9 +118,9 @@ function Set-SdnInternalDnsConfiguration {
         # perform the PUT operation to NC to create the credential object that will be used by NC to perform updates to DNS
         "Creating the iDnsUser credential object in Network Controller" | Trace-Output
         $credentialEndpoint = Get-SdnApiEndpoint -NcUri -ResourceName 'credentials' -ApiVersion $discovery.properties.currentRestVersion
-        $iDnsCredentialObjectBody = $iDnsCredentialObject | ConvertTo-Json -Depth 10
-        Invoke-RestMethodWithRetry -Uri $credentialEndpoint -Method 'PUT' -Body $iDnsCredentialObjectBody -Headers $headers -ContentType $content -Credential $NcRestCredential -TimeoutInSec $timeout
-
+        $splat.Body = ($iDnsCredentialObject | ConvertTo-Json -Depth 10)
+        $splat.Uri = $credentialEndpoint
+        Invoke-RestMethodWithRetry @splat
         $credential = Get-SdnResource -NcUri $NcUri -Resource 'Credentials' -ResourceId 'iDnsUser' -Credential $NcRestCredential
         if ($null -ieq $credential) {
             throw System.NullReferenceException("Unable to locate credential for iDnsUser")
@@ -127,7 +133,9 @@ function Set-SdnInternalDnsConfiguration {
         # perform PUT operation to NC to create the iDNS server configuration
         "Configuring the iDNS Server configuration within Network Controller" | Trace-Output
         $iDnsEndpoint = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef '/iDnsServer' -ApiVersion $discovery.properties.currentRestVersion
-        Invoke-RestMethodWithRetry -Uri $iDnsEndpoint -Method 'PUT' -Body $iDnsObjectBody -Headers $headers -ContentType $content -Credential $NcRestCredential -TimeoutInSec $timeout
+        $splat.Body = ($iDnsObject | ConvertTo-Json -Depth 10)
+        $splat.Uri = $iDnsEndpoint
+        Invoke-RestMethodWithRetry @splat
         $iDnsConfig = Get-SdnResource -NcUri $NcUri -Resource 'IDNSServerConfig' -Credential $NcRestCredential
         if ($null -ieq $iDnsConfig) {
             throw System.NullReferenceException("Unable to locate iDNS configuration")
