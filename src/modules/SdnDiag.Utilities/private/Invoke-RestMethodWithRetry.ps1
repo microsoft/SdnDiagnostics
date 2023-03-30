@@ -13,13 +13,13 @@ function Invoke-RestMethodWithRetry {
         [System.String]$ContentType,
 
         [Parameter(Mandatory = $false)]
-        [System.Object] $Body,
+        [System.Object]$Body,
 
         [Parameter(Mandatory = $false)]
-        [Switch] $DisableKeepAlive,
+        [Switch]$DisableKeepAlive,
 
         [Parameter(Mandatory = $false)]
-        [Switch] $UseBasicParsing,
+        [Switch]$UseBasicParsing,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
