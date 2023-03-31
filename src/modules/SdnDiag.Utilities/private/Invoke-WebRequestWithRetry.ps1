@@ -81,7 +81,7 @@ function Invoke-WebRequestWithRetry {
         }
         catch {
             if ($_.Exception.Response.StatusCode -eq "NotFound") {
-                "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Trace-Output -Level:Warning
+                "{0} ({1})" -f $_.Exception.Message, $Uri.AbsoluteUri | Trace-Output -Level:Warning
                 return $null
             }
             else {
