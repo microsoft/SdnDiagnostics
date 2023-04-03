@@ -26,33 +26,10 @@ function Get-SdnNetworkControllerRestURL {
             throw New-Object System.NullReferenceException("Unable to return information from Network Controller")
         }
 
-        # determine if we are using X509 authentication
-        if ($result.ServerCertificate) {
-            $protocol = 'https'
-        }
-        else {
-            $protocol = 'http'
-        }
+        # use the Subject of the ServerCertificate object back for the NB API
+        $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
+        $ncUrl = 'https://{0}' -f $endpoint
 
-        # determine if we are using FQDN or IP Address for our NC URL
-        if ($result.RestName) {
-            $url = $result.RestName
-        }
-        elseif ($result.RestIPAddress) {
-            # if the RestIPAddress contains a CIDR format, then split the string and return first object
-            if ($result.RestIPAddress.Contains('/')) {
-                $url = ($result.RestIPAddress).Split('/')[0]
-            }
-            else {
-                $url = $result.RestIPAddress
-            }
-        }
-        else {
-            throw New-Object System.NullReferenceException("Unable to determine REST URL")
-        }
-
-        # generate the url based on the values identified previously
-        $ncUrl = "{0}://{1}" -f $protocol, $url
         return $ncUrl
     }
     catch {
