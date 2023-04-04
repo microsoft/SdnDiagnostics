@@ -23,7 +23,7 @@ function Test-ScheduledTaskEnabled {
             $result = Get-ScheduledTask -TaskName 'SDN Diagnostics Task' -ErrorAction Stop
             return [PSCustomObject]@{
                 TaskName = $result.TaskName
-                State = $result.State
+                State = $result.State.ToString()
             }
         }
         catch {
@@ -37,7 +37,7 @@ function Test-ScheduledTaskEnabled {
     try {
         $scheduledTaskReady = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach ($result in $scheduledTaskReady) {
-            if ($result.State -ine 'Ready' -or $result.State -ine 'Running') {
+            if ($result.State -ine 'Ready' -and $result.State -ine 'Running') {
                 "SDN Diagnostics Task state is {0} on {1}, which may result in uncontrolled log growth" -f $result.State, $result.PSComputerName | Trace-Output -Level:Exception
                 $sdnHealthObject.Result = 'FAIL'
             }
