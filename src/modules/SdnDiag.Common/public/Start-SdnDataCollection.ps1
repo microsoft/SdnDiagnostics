@@ -105,7 +105,8 @@ function Start-SdnDataCollection {
             }
         }
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath (Get-FormattedDateTimeUTC)
+        [System.String]$childPath = 'DataCollection_{0}' -f (Get-FormattedDateTimeUTC)
+        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
 
@@ -178,6 +179,15 @@ function Start-SdnDataCollection {
         # ensure SdnDiagnostics installed across the data nodes and versions are the same
         Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Stop
 
+        # collect control plane information without regardless of roles defined
+        $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
+        $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
+        Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+        Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
+        Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
+        Get-SdnFabricInfrastructureResult | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType 'json'
+
+        # enumerate through each role and collect appropriate data
         foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
             if ($PSCmdlet.ParameterSetName -eq 'Role') {
                 if ($group.Group.Name.Count -ge $Limit) {
@@ -196,12 +206,6 @@ function Start-SdnDataCollection {
             # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
             # to account for if filtering was applied
             $filteredDataCollectionNodes += $dataNodes
-
-            $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
-            $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
-            Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
-            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
-            Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
 
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
             switch ($group.Name) {
@@ -322,7 +326,8 @@ function Start-SdnDataCollection {
         "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
         Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
-        "Data collection completed" | Trace-Output
+        Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
+        "`nData collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
