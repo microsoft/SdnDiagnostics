@@ -17,7 +17,6 @@ function Test-ScheduledTaskEnabled {
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
-    $serviceStateResults = @()
 
     $scriptBlock = {
         try {
@@ -41,13 +40,11 @@ function Test-ScheduledTaskEnabled {
             if ($result.State -ine 'Running') {
                 "SDN Diagnostics Task state is {1} on {1}, which may result in uncontrolled log growth" -f $result.State, $result.PSComputerName | Trace-Output -Level:Warning
                 $sdnHealthObject.Result = 'FAIL'
+            }
 
-                $object = [PSCustomObject]@{
-                    State = $result.State
-                    Computer = $result.PSComputerName
-                }
-
-                $array += $object
+            $array += [PSCustomObject]@{
+                State = $result.State
+                Computer = $result.PSComputerName
             }
         }
 
