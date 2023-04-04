@@ -105,7 +105,7 @@ function Start-SdnDataCollection {
             }
         }
 
-        [System.String]$childPath = 'DataCollection_{0}' -f (Get-FormattedDateTimeUTC)
+        [System.String]$childPath = 'SdnDataCollection_{0}' -f (Get-FormattedDateTimeUTC)
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
@@ -185,7 +185,11 @@ function Start-SdnDataCollection {
         Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
         Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
         Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
-        Get-SdnFabricInfrastructureResult | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType 'json'
+        $debugInfraHealthResults = Get-SdnFabricInfrastructureResult
+        if ($debugInfraHealthResults) {
+            $debugInfraHealthResults.Values | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult_Summary' -FileType 'txt' -Format 'table'
+            $debugInfraHealthResults | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType 'json'
+        }
 
         # enumerate through each role and collect appropriate data
         foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
@@ -327,7 +331,7 @@ function Start-SdnDataCollection {
         Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
         Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
-        "`nData collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
+        "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
