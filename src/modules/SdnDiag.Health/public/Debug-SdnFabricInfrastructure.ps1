@@ -112,6 +112,7 @@ function Debug-SdnFabricInfrastructure {
                         Gateway = @(
                             Test-ResourceConfigurationState @restApiParams
                             Test-ServiceState @computerCredParams
+                            Test-ScheduledTaskEnabled @computerCredParams
                         )
                     }
                 }
@@ -121,6 +122,7 @@ function Debug-SdnFabricInfrastructure {
                         LoadBalancerMux = @(
                             Test-ResourceConfigurationState @restApiParams
                             Test-ServiceState @computerCredParams
+                            Test-ScheduledTaskEnabled @computerCredParams
                         )
                     }
                 }
@@ -131,6 +133,7 @@ function Debug-SdnFabricInfrastructure {
                             Test-ServiceState @computerCredParams
                             Test-ServiceFabricPartitionDatabaseSize @computerCredParams
                             Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
+                            Test-ScheduledTaskEnabled @computerCredParams
                         )
                     }
                 }
@@ -146,6 +149,7 @@ function Debug-SdnFabricInfrastructure {
                             Test-VfpDuplicatePort @computerCredParams
                             Test-VMNetAdapterDuplicateMacAddress @computerCredParams
                             Test-HostRootStoreNonRootCert @computerCredParams
+                            Test-ScheduledTaskEnabled @computerCredParams
                         )
                     }
                 }

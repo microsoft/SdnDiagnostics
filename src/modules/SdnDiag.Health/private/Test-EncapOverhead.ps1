@@ -34,12 +34,12 @@ function Test-EncapOverhead {
                     "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
 
                     if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
-                        "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
+                        "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Verbose
                         $encapDisabled = $true
                     }
 
                     if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
-                        "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Warning
+                        "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Verbose
                         $jumboPacketDisabled = $true
                     }
 
@@ -47,6 +47,7 @@ function Test-EncapOverhead {
                     # and as such, environment would experience intermittent packet loss
                     if ($encapDisabled -and $jumboPacketDisabled) {
                         $sdnHealthObject.Result = 'FAIL'
+                        "EncapOverhead and JumboPacket for interface {0} on {1} are disabled or not configured correctly." -f $interface.NetworkInterface, $object.Name  | Trace-Output -Level:Exception
                     }
 
                     $array += $interface
