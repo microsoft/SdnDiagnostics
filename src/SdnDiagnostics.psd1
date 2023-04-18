@@ -85,6 +85,7 @@
         'Get-SdnOvsdbFirewallRuleTable',
         'Get-SdnOvsdbGlobalTable',
         'Get-SdnOvsdbPhysicalPortTable',
+        'Get-SdnOvsdbRouterTable',
         'Get-SdnOvsdbUcastMacRemoteTable',
         'Get-SdnProviderAddress',
         'Get-SdnPublicIPPoolUsageSummary',
