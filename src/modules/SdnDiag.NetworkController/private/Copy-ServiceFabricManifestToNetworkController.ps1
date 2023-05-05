@@ -53,11 +53,10 @@ function Copy-ServiceFabricManifestToNetworkController {
             $settingsFile = Join-Path -Path $fabricConfigDir -ChildPath "Settings.xml"
 
             Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
-                param([Parameter(Position = 0)][String]$param1)
+                param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
                 Set-ItemProperty -Path (Join-Path -Path $param1 -ChildPath "ClusterManifest.current.xml") -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path (Join-Path -Path $param1 -ChildPath "Fabric.Data\InfrastructureManifest.xml") -Name IsReadOnly -Value $false | Out-Null
                 Set-ItemProperty -Path $param2 -Name IsReadOnly -Value $false | Out-Null
-
             } -ArgumentList @($fabricFolder, $settingsFile)
 
             Copy-FileToRemoteComputer -Path "$ManifestFolder\ClusterManifest.current.xml" -Destination "$fabricFolder\ClusterManifest.current.xml" -ComputerName $_.IpAddressOrFQDN -Credential $Credential
