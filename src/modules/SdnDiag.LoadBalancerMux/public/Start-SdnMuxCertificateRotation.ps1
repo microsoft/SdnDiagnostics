@@ -154,7 +154,7 @@ function Start-SdnMuxCertificateRotation {
 
             if ($certsRemoved) {
                 foreach ($cert in $certsRemoved) {
-                    "Removed certificate matching subject {0} and thumbprint {1}" -f $cert.Subject, $cert.Thumbprint | Trace-Output
+                    "Removed certificate subject {0} and thumbprint {1}" -f $cert.Subject, $cert.Thumbprint | Trace-Output
                 }
             }
 
