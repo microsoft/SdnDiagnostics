@@ -45,7 +45,7 @@ function New-SdnServerCertificate {
             $CertPath = Get-Item -Path $Path
         }
 
-        $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent' -Name 'HostAgentCertificateCName'
+        $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
         $subjectName = "CN={0}" -f $serverCert
         $certificate = New-SdnCertificate -Subject $subjectName -NotAfter $NotAfter
 

@@ -77,7 +77,7 @@ function Start-SdnMuxCertificateRotation {
         }
 
         [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential -ErrorAction Stop
         $loadBalancerMuxes = Get-SdnLoadBalancerMux -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
