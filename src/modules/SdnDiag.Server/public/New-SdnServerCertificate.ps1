@@ -1,7 +1,7 @@
-function New-SdnMuxNodeCertificate {
+function New-SdnServerCertificate {
     <#
     .SYNOPSIS
-        Generate new Self-Signed Certificate to be used by Load Balancer Mux and distributes to the Network Controller(s) within the environment.
+        Generate new Self-Signed Certificate to be used by the Hyper-V host and distributes to the Network Controller(s) within the environment.
     .PARAMETER NotAfter
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
     .PARAMETER Credential
@@ -24,10 +24,10 @@ function New-SdnMuxNodeCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
+    $config = Get-SdnModuleConfiguration -Role 'Server'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a LoadBalancerMux, run this on LoadBalancerMux.")
+        throw New-Object System.NotSupportedException("The current machine is not a Server, run this on Server.")
     }
 
     # ensure that the module is running as local administrator
@@ -45,8 +45,8 @@ function New-SdnMuxNodeCertificate {
             $CertPath = Get-Item -Path $Path
         }
 
-        $muxCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux' -Name 'MuxCert'
-        $subjectName = "CN={0}" -f $muxCert
+        $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent' -Name 'HostAgentCertificateCName'
+        $subjectName = "CN={0}" -f $serverCert
         $certificate = New-SdnCertificate -Subject $subjectName -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
@@ -54,7 +54,7 @@ function New-SdnMuxNodeCertificate {
         [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -LoadBalancerMuxNodeCert -Credential $Credential
+        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -ServerNodeCert -Credential $Credential
 
         $certObject = [PSCustomObject]@{
             Certificate = $certificate
