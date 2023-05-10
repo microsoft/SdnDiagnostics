@@ -49,8 +49,8 @@ function New-SdnMuxCertificate {
         $subjectName = "CN={0}" -f $muxCert
         $certificate = New-SdnCertificate -Subject $subjectName -NotAfter $NotAfter
 
-        # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
-        # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
+        # after the certificate has been generated, we want to export the certificate and save the file to directory
+        # This allows the rest of the function to pick up these files and perform the steps as normal
         [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT

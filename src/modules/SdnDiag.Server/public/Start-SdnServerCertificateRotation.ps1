@@ -93,8 +93,8 @@ function Start-SdnServerCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'GenerateCertificate') {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
-            # retrieve the corresponding virtualserver reference for each loadbalancermux
-            # and invoke remote operation to the mux to generate the self-signed certificate that matches the managementAddress for x509 credentials
+            # retrieve the corresponding managementAddress from each of the server resources
+            # and invoke remote operation to the server to generate the self-signed certificate
             foreach ($server in $servers) {
                 $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate"}
                 $managementAddress = $serverConnection.managementAddresses[0]
