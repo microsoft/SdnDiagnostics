@@ -1,11 +1,17 @@
 function New-SdnMuxCertificate {
     <#
     .SYNOPSIS
-        Generate new Self-Signed Certificate to be used by Load Balancer Mux and distributes to the Network Controller(s) within the environment.
+        Generate new self-signed certificate to be used by Load Balancer Mux and distributes to the Network Controller(s) within the environment.
     .PARAMETER NotAfter
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
+    .PARAMETER Path
+        Specifies the file path location where a .cer file is exported automatically.
+    .PARAMETER FabricDetails
+        The SDN Fabric details derived from Get-SdnInfrastructureInfo.
     .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user
     .EXAMPLE
+        New-SdnMuxCertificate -NotAfter (Get-Date).AddYears(1) -FabricDetails $Global:SdnDiagnostics.EnvironmentInfo
     #>
 
     [CmdletBinding()]
