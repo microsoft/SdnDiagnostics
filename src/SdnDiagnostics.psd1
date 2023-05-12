@@ -48,6 +48,8 @@
     # Functions to export from this module
     FunctionsToExport = @(
         'Clear-SdnWorkingDirectory',
+        'Copy-SdnFileFromComputer',
+        'Copy-SdnFileToComputer',
         'Convert-SdnEtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
         'Disable-SdnRasGatewayTracing',
