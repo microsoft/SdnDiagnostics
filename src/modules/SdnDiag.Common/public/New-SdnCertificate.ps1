@@ -32,9 +32,11 @@ function New-SdnCertificate {
     )
 
     try {
+        "Generating certificate with subject {0} under {1}" -f $Subject, $CertStoreLocation | Trace-Output
+
         $selfSignedCert = New-SelfSignedCertificate -Type Custom -KeySpec KeyExchange -Subject $Subject `
             -KeyExportPolicy Exportable -HashAlgorithm sha256 -KeyLength 2048 `
-            -CertStoreLocation $CertStoreLocation -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2") `
+            -CertStoreLocation $CertStoreLocation -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,1.3.6.1.4.1.311.95.1.1.1") `
             -NotAfter $NotAfter
 
         if ($selfSignedCert) {

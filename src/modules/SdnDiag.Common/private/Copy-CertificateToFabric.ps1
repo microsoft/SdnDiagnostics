@@ -3,14 +3,20 @@ function Copy-CertificateToFabric {
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'LoadBalancerMuxNode')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ServerNode')]
         [System.String]$CertFile,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NetworkControllerRest')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NetworkControllerNode')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'LoadBalancerMuxNode')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ServerNode')]
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'LoadBalancerMuxNode')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ServerNode')]
         [System.Object]$FabricDetails,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
@@ -22,8 +28,16 @@ function Copy-CertificateToFabric {
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
         [Switch]$NetworkControllerNodeCert,
 
+        [Parameter(Mandatory = $true, ParameterSetName = 'LoadBalancerMuxNode')]
+        [Switch]$LoadBalancerMuxNodeCert,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'ServerNode')]
+        [Switch]$ServerNodeCert,
+
         [Parameter(Mandatory = $false, ParameterSetName = 'NetworkControllerRest')]
         [Parameter(Mandatory = $false, ParameterSetName = 'NetworkControllerNode')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'LoadBalancerMuxNode')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ServerNode')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
@@ -43,12 +57,57 @@ function Copy-CertificateToFabric {
     }
 
     $certFileInfo = Get-Item -Path $CertFile -ErrorAction Stop
-    if ($certFileInfo) {
-        "Retrieving PfxData for {0}" -f $certFileInfo.FullName | Trace-Output
-        $pfxData = Get-PfxData -FilePath $certFileInfo.FullName -Password $CertPassword -ErrorAction Stop
+    switch ($certFileInfo.Extension) {
+        '.pfx' {
+            if ($CertPassword) {
+                $certData = (Get-PfxData -FilePath $certFileInfo.FullName -Password $CertPassword).EndEntityCertificates
+            }
+            else {
+                $certData = Get-PfxCertificate -FilePath $certFileInfo.FullName
+            }
+        }
+
+        '.cer' {
+            $certData = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+            $certData.Import($certFileInfo)
+        }
+
+        default {
+            throw New-Object System.NotSupportedException("Unsupported certificate extension")
+        }
     }
 
     switch ($PSCmdlet.ParameterSetName) {
+        'LoadBalancerMuxNode' {
+            foreach ($controller in $FabricDetails.NetworkController) {
+                # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
+                # within the fabric and install under localmachine\root as appropriate
+                if ($certData.Subject -ieq $certData.Issuer) {
+                    "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
+                    $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
+
+                    [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$param1)
+                        if (-NOT (Test-Path -Path $param1 -PathType Container)) {
+                            New-Item -Path $param1 -ItemType Directory -Force
+                        }
+                    } -ArgumentList $certFileInfo.Directory.FullName
+
+                    Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
+
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
+                        Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
+                    } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\Root') -ErrorAction Stop
+                }
+
+                else {
+                    "No action required for {0}" -f $certData.Thumbprint | Trace-Output -Level:Verbose
+                }
+            }
+        }
+
         'NetworkControllerRest' {
             # copy the pfx certificate for the rest certificate to all network controllers within the cluster
             # and import to localmachine\my cert directory
@@ -56,7 +115,7 @@ function Copy-CertificateToFabric {
                 "Processing {0}" -f $controller | Trace-Output -Level:Verbose
 
                 "[REST CERT] Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
-                $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
                 if (Test-ComputerNameIsLocal -ComputerName $controller) {
                     $importCert = Import-SdnCertificate -FilePath $certFileInfo.FullName -CertPassword $CertPassword -CertStore 'Cert:\LocalMachine\My'
@@ -95,7 +154,7 @@ function Copy-CertificateToFabric {
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
-                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
                         Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
                     } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\My')
@@ -106,18 +165,12 @@ function Copy-CertificateToFabric {
         'NetworkControllerNode' {
             foreach ($controller in $FabricDetails.NetworkController) {
                 "Processing {0}" -f $controller | Trace-Output -Level:Verbose
-                # if controller is self, then skip as the cert would have been installed into localmachine\my previously
-                # and if was self-signed, would have already been added to localmachine\root
-                if (Test-ComputerNameIsLocal -ComputerName $controller) {
-                    "{0} is local. Skipping" -f $controller | Trace-Output -Level:Verbose
-                    continue
-                }
 
                 # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
                 # within the fabric and install under localmachine\root as appropriate
-                if ($pfxData.EndEntityCertificates.Subject -ieq $pfxData.EndEntityCertificates.Issuer) {
-                    "[NODE CERT] Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
-                    $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint, $controller | Trace-Output
+                if ($certData.Subject -ieq $certData.Issuer) {
+                    "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
+                    $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
                     $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
@@ -129,14 +182,46 @@ function Copy-CertificateToFabric {
 
                     Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
 
-                    $importCert = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
                         Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
                     } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\Root') -ErrorAction Stop
                 }
 
                 else {
-                    "No action required for {0}" -f $pfxData.EndEntityCertificates.Thumbprint | Trace-Output -Level:Verbose
+                    "No action required for {0}" -f $certData.Thumbprint | Trace-Output -Level:Verbose
+                }
+            }
+        }
+
+        # for ServerNodes, we must distribute the server certificate and install to the cert:\localmachine\root directory on each of the
+        # network controller nodes
+        'ServerNode' {
+            foreach ($controller in $FabricDetails.NetworkController) {
+                # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
+                # within the fabric and install under localmachine\root as appropriate
+                if ($certData.Subject -ieq $certData.Issuer) {
+                    "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
+                    $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
+
+                    [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$param1)
+                        if (-NOT (Test-Path -Path $param1 -PathType Container)) {
+                            New-Item -Path $param1 -ItemType Directory -Force
+                        }
+                    } -ArgumentList $certFileInfo.Directory.FullName
+
+                    Copy-FileToRemoteComputer -ComputerName $controller -Credential $Credential -Path $certFileInfo.FullName -Destination $remoteFilePath
+
+                    $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][SecureString]$param2, [Parameter(Position = 2)][String]$param3)
+                        Import-SdnCertificate -FilePath $param1 -CertPassword $param2 -CertStore $param3
+                    } -ArgumentList @($remoteFilePath, $CertPassword, 'Cert:\LocalMachine\Root') -ErrorAction Stop
+                }
+
+                else {
+                    "No action required for {0}" -f $certData.Thumbprint | Trace-Output -Level:Verbose
                 }
             }
         }
