@@ -51,6 +51,7 @@ function Get-SdnOvsdbFirewallRule {
         }
 
         if ($PSBoundParameters.ContainsKey('VirtualNicId')) {
+            # convert the GUID to a string in the format of 32 digits separated by hyphens, enclosed in braces to align with the format of the table data
             # refer to https://learn.microsoft.com/en-us/dotnet/api/system.guid.tostring for the format of the string
             $results = $results | Where-Object { $_.VirtualNicId -eq $VirtualNicId.ToString("B") }
         }
