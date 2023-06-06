@@ -4,9 +4,9 @@ function Get-VfpVMSwitchPort {
         Returns a list of ports from within VFP.
     #>
 
-    try {
-        $arrayList = [System.Collections.ArrayList]::new()
+    $arrayList = [System.Collections.ArrayList]::new()
 
+    try {
         $vfpResults = vfpctrl /list-vmswitch-port
         if ($null -eq $vfpResults) {
             $msg = "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_
@@ -43,7 +43,7 @@ function Get-VfpVMSwitchPort {
                         [void]$arrayList.Add($object)
                     }
 
-                    $object = New-Object -TypeName PSObject
+                    $object = New-Object -TypeName 'PSCustomObject'
                     $object | Add-Member -MemberType NoteProperty -Name 'PortName' -Value $value
 
                     continue

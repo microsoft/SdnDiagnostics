@@ -18,19 +18,20 @@ function Get-OvsdbPhysicalPortTable {
 
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $portTable.data) {
-            $result = New-Object PSObject -Property @{
-                uuid        = $obj[0][1]
-                description = $obj[1]
-                name        = $obj[2].Trim('{', '}')
+            $physicalPort = [OvsdbPhysicalPort]@{
+                UUID        = $obj[0][1]
+                Description = $obj[1]
+                Name        = $obj[2].Trim('{', '}')  # remove the curly braces from the name
             }
+
             # there are numerous key/value pairs within this object with some having different properties
-            # enumerate through the properties and add property and value for each on that exist
+            # enumerate through the properties and add property and value for each
             foreach ($property in $obj[4][1]) {
-                $result | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
+                $physicalPort | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
             }
 
             # add the psobject to array
-            [void]$arrayList.Add($result)
+            [void]$arrayList.Add($physicalPort)
         }
 
         return $arrayList

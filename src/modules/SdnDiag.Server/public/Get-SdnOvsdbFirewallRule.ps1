@@ -20,18 +20,22 @@ function Get-SdnOvsdbFirewallRule {
         PS> Get-SdnOvsdbFirewallRule -VirtualNicId '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName 'Server01'
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RuleId')]
         [GUID]$RuleId,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VirtualNicId')]
         [GUID]$VirtualNicId,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RuleId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VirtualNicId')]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RuleId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VirtualNicId')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
@@ -46,17 +50,11 @@ function Get-SdnOvsdbFirewallRule {
         }
 
         # filter the results to only return the rules that match the specified parameters
-        if ($PSBoundParameters.ContainsKey('RuleId')) {
-            $results = $results | Where-Object { $_.RuleId -eq $RuleId }
+        switch ($PSCmdlet.ParameterSetName) {
+            'RuleId' { return ($results | Where-Object { $_.RuleId -eq $RuleId }) }
+            'VirtualNicId' { return ($results | Where-Object { $_.VirtualNicId -eq $VirtualNicId }) }
+            default { return $results }
         }
-
-        if ($PSBoundParameters.ContainsKey('VirtualNicId')) {
-            # convert the GUID to a string in the format of 32 digits separated by hyphens, enclosed in braces to align with the format of the table data
-            # refer to https://learn.microsoft.com/en-us/dotnet/api/system.guid.tostring for the format of the string
-            $results = $results | Where-Object { $_.VirtualNicId -eq $VirtualNicId.ToString("B") }
-        }
-
-        return $results
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

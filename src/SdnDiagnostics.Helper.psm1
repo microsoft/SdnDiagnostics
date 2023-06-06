@@ -61,6 +61,8 @@ $scriptBlocks = @{
 $fabricNodeParamCommands = (
     'Invoke-Command',
     'Invoke-SdnCommand',
+    'New-PSSession',
+    'Enter-PSSession',
     'Start-SdnDataCollection',
     'Start-SdnNetshTrace',
     'Stop-SdnNetshTrace'

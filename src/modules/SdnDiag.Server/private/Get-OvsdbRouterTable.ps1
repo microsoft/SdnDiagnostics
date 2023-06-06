@@ -18,7 +18,7 @@ function Get-OvsdbRouterTable {
 
         # enumerate the json results and add to psobject
         foreach ($obj in $routerTable.data) {
-            $staticroute = ""
+            $staticroute = @()
             if($obj[5][1].count -gt 0){
                 foreach($route in $obj[5][1]){
                     if(![string]::IsNullOrEmpty(($staticroute))){
@@ -28,22 +28,24 @@ function Get-OvsdbRouterTable {
                 }
             }
 
-            $switchbinding = ""
+            $switchbinding = @()
             if($obj[6][1].count -gt 0){
                 foreach($switch in $obj[6][1]){
                     if(![string]::IsNullOrEmpty(($switchbinding))){
                         $switchbinding += ', '
                     }
+
                     $switchbinding += "$($switch[0])=$($switch[1][1])"
                 }
             }
-            $result = New-Object PSObject -Property @{
-                #uuid     = $obj[0][1]
-                description  = $obj[1]
-                enable = $obj[2]
-                vnetid = $obj[3]
-                staticroutes = $staticroute
-                switchbinding = $switchbinding
+
+            $result = [OvsdbRouter]@{
+                uuid     = $obj[0][1]
+                Description  = $obj[1]
+                EnableLogicalRouter = $obj[2]
+                VirtualNetworkId = $obj[3]
+                StaticRoutes = $staticroute
+                SwitchBinding = $switchbinding
             }
             # add the psobject to array
             [void]$arrayList.Add($result)

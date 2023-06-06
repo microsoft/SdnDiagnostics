@@ -21,24 +21,24 @@ function Get-OvsdbAddressMapping {
         # enumerate the json rules for each of the tables and create psobject for the mappings
         # unfortunately these values do not return in key/value pair and need to manually map each property
         foreach ($caMapping in $caMappingTable.Data) {
-            $mac = $caMapping[0]
-            $uuid = $caMapping[1][1]
-            $ca = $caMapping[2]
+
+            # create the object
+            $addressMapping = [OvsdbAddressMapping]@{
+                UUID            = $caMapping[1][1]
+                CustomerAddress = $caMapping[2]
+                MacAddress      = $caMapping[0]
+                MappingType     = $caMapping[5]
+            }
+
             $locator = $caMapping[3][1]
             $logicalSwitch = $caMapping[4][1]
-            $mappingType = $caMapping[5]
-
-            $pa = [string]::Empty
-            $encapType = [string]::Empty
-            $rdid = [string]::Empty
-            $vsid = 0
 
             # Get PA from locator table
             foreach ($paMapping in $paMappingTable.Data) {
                 $curLocator = $paMapping[0][1]
                 if ($curLocator -eq $locator) {
-                    $pa = $paMapping[3]
-                    $encapType = $paMapping[4]
+                    $addressMapping.ProviderAddress = $paMapping[3]
+                    $addressMapping.EncapType = $paMapping[4]
                     break
                 }
             }
@@ -47,26 +47,14 @@ function Get-OvsdbAddressMapping {
             foreach ($switch in $logicalSwitchTable.Data) {
                 $curSwitch = $switch[0][1]
                 if ($curSwitch -eq $logicalSwitch) {
-                    $rdid = $switch[1]
-                    $vsid = $switch[3]
+                    $addressMapping.RoutingDomainId = $switch[1]
+                    $addressMapping.VirtualSwitchId = $switch[3]
                     break
                 }
             }
 
-            # create the psobject now that we have all the mappings identified
-            $result = New-Object PSObject -Property @{
-                UUID            = $uuid
-                CustomerAddress = $ca
-                ProviderAddress = $pa
-                MAC             = $mac
-                RoutingDomainID = $rdid
-                VirtualSwitchID = $vsid
-                MappingType     = $mappingType
-                EncapType       = $encapType
-            }
-
-            # add the psobject to the array
-            [void]$arrayList.Add($result)
+            # add the object to the array
+            [void]$arrayList.Add($addressMapping)
         }
 
         return $arrayList

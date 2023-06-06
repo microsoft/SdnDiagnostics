@@ -61,28 +61,15 @@ function Get-SdnOvsdbPhysicalPort {
 
         # once we have the results, filter based on the parameter set
         switch ($PSCmdlet.ParameterSetName) {
-            'PortId' {
-                return ($result | Where-Object { $_.PortId -eq $PortId })
-            }
-
-            'InstanceId' {
-                return ($result | Where-Object { $_.InstanceId -eq $InstanceId })
-            }
-
-            'VMName' {
-                return ($result | Where-Object { $_.VMName -eq $VMName })
-            }
-
+            'PortId' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortId }) }
+            'InstanceId' { return ($result | Where-Object { $_.name -eq $InstanceId }) }
+            'VMName' { return ($result | Where-Object { $_.vm_nic_vm_name -eq $VMName }) }
             'MacAddress' {
                 $macAddresswithDashes = Format-MacAddressWithDashes -MacAddress $MacAddress
                 $macAddressnoDashes = Format-MacAddressNoDashes -MacAddress $MacAddress
-                return ($result | Where-Object { $_.MacAddress -eq $macAddresswithDashes -or $_.MacAddress -eq $macAddressnoDashes })
+                return ($result | Where-Object { $_.vm_nic_macaddress -eq $macAddresswithDashes -or $_.vm_nic_macaddress -eq $macAddressnoDashes })
             }
-
-            default {
-                # no filtering required
-                return $result
-            }
+            default { return $result }
         }
     }
     catch {

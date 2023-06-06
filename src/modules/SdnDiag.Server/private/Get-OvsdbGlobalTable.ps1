@@ -18,12 +18,13 @@ function Get-OvsdbGlobalTable {
 
         # enumerate the json results and add to psobject
         foreach ($obj in $globalTable.data) {
-            $result = New-Object PSObject -Property @{
+            $result = [OvsdbGlobalTable]@{
                 uuid     = $obj[0][1]
-                cur_cfg  = $obj[1]
-                next_cfg = $obj[4]
-                switches = $obj[6][1]
+                CurrentConfig  = $obj[1]
+                NextConfig = $obj[4]
+                Switches = $obj[6][1]
             }
+
             # add the psobject to array
             [void]$arrayList.Add($result)
         }
