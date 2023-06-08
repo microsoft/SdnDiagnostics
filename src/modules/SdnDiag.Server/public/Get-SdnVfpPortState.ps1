@@ -17,28 +17,34 @@ function Get-SdnVfpPortState {
     )
 
     try {
-        $object = New-Object -TypeName PSObject
+        $object = [VfpPortState]::new()
 
         $vfpPortState = vfpctrl.exe /get-port-state /port $PortId
-        if ($null -eq $vfpPortState) {
+        if([string]::IsNullOrEmpty($vfpPortState)) {
             $msg = "Unable to locate port ID {0} from vfpctrl`n{1}" -f $PortId, $_
-            throw New-Object System.NullReferenceException($msg)
+            return $null
         }
 
         foreach ($line in $vfpPortState) {
-            $trimmedLine = $line.Replace(':','').Trim()
-
-            # look for true/false and then seperate out the key/value pairs
-            # we will convert the true/false values to boolean when adding to the object
-            if ($trimmedLine -match '(.*)\s+(True|False)') {
-                $object | Add-Member -MemberType NoteProperty -Name $Matches.1 -Value ([System.Convert]::ToBoolean($Matches.2))
+            # skip if the line is empty or null
+            if([string]::IsNullOrEmpty($line)) {
                 continue
             }
 
-            # look for enabled/disabled and then seperate out the key/value pairs
-            if ($trimmedLine -match '(.*)\s+(Enabled|Disabled)') {
-                $object | Add-Member -MemberType NoteProperty -Name $Matches.1 -Value $Matches.2
+            # skip these as they are not properties we need
+            if($line -like "*Port State*" -or $line -ilike "Command get-port-state*"  -or $line -ilike "*====*" -or $line -ilike "*Item List*") {
                 continue
+            }
+
+            # split the line by the colon and trim the spaces
+            # then add to the object which should align with the class properties
+            # for anything that cannot be split, will index into a string array
+            $subValue = $line.Split(':').Trim().Replace(' ','')
+            if ($subValue.Count -eq 2) {
+                $object.($subValue[0].ToString()) = ($subValue[1])
+            }
+            else {
+                $object.Properties += $subValue
             }
         }
 

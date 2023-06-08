@@ -5,7 +5,7 @@ function Get-SdnOvsdbFirewallRule {
     .PARAMETER RuleId
         The rule ID of the firewall rule to return. This is the InstanceID of the rule associated with accessControlLists from Network Controller.
     .PARAMETER VirtualNicId
-        The virtual NIC ID of the firewall rule to return. This is the InstanceID of the ipConfiguration associated with networkInterfaces from Network Controller.
+        The virtual NIC ID of the firewall rule to return. This is the InstanceID of the Network Interface object from Network Controller.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
 	.PARAMETER Credential

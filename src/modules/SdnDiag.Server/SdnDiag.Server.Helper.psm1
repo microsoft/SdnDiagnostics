@@ -75,7 +75,7 @@ class OvsdbAddressMapping : OvsdbCore {
 }
 
 class OvsdbRouter : OvsdbCore {
-    [guid]$Description #maps to the description property of the Logical_Router table of ms_vtep database
+    [string]$Description #maps to the description property of the Logical_Router table of ms_vtep database
     [string]$EnableLogicalRouter # maps to the enable_logical_router property of the Logical_Router table of ms_vtep database
     [guid]$VirtualNetworkId # maps to the name property of the Logical_Switch table of ms_vtep database
     [string[]]$StaticRoutes # maps to the static_routes property of the Logical_Router table of ms_vtep database
@@ -85,4 +85,14 @@ class OvsdbRouter : OvsdbCore {
 class OvsdbPhysicalPort : OvsdbCore {
     [string]$Description
     [string]$Name
+}
+
+class VfpPortState {
+    [boolean]$Enabled
+    [boolean]$Blocked
+    [boolean]$BlockedOnRestore
+    [boolean]$BlockedLayerCreation
+    [boolean]$PreservingVlan
+    [boolean]$VMContextSet
+    [string[]]$Properties
 }

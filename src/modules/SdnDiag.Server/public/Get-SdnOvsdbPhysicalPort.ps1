@@ -4,8 +4,8 @@ function Get-SdnOvsdbPhysicalPort {
         Gets the physical port table results from OVSDB MS_VTEP database.
     .PARAMETER PortId
         The port ID of the physical port to return.
-    .PARAMETER InstanceId
-        The instance ID of the physical port to return. This is the InstanceID of the port associated with networkInterface from Network Controller.
+    .PARAMETER Name
+        The name of the physical port to return. This is the InstanceID the Network Interface object from Network Controller.
     .PARAMETER VMName
         The name of the virtual machine to return the physical port(s) for.
     .PARAMETER MacAddress
@@ -25,8 +25,8 @@ function Get-SdnOvsdbPhysicalPort {
         [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
         [GUID]$PortId,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceId')]
-        [GUID]$InstanceId,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
+        [GUID]$Name,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [System.String]$VMName,
@@ -35,14 +35,14 @@ function Get-SdnOvsdbPhysicalPort {
         [System.String]$MacAddress,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [string[]]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
@@ -62,7 +62,7 @@ function Get-SdnOvsdbPhysicalPort {
         # once we have the results, filter based on the parameter set
         switch ($PSCmdlet.ParameterSetName) {
             'PortId' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortId }) }
-            'InstanceId' { return ($result | Where-Object { $_.name -eq $InstanceId }) }
+            'Name' { return ($result | Where-Object { $_.Name -eq $Name }) }
             'VMName' { return ($result | Where-Object { $_.vm_nic_vm_name -eq $VMName }) }
             'MacAddress' {
                 $macAddresswithDashes = Format-MacAddressWithDashes -MacAddress $MacAddress
