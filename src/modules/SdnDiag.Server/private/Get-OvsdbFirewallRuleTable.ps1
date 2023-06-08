@@ -27,7 +27,7 @@ function Get-OvsdbFirewallRuleTable {
                 Logging            = $obj[5]
                 Priority           = $obj[6]
                 Protocols          = $obj[7]
-                Id                 = $obj[8]
+                RuleId             = $obj[8]
                 State              = $obj[9]
                 Type               = $obj[10]
                 SourceAddress      = $obj[11]
