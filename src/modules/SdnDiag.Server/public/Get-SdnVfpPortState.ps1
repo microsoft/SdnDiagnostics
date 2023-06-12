@@ -3,25 +3,25 @@ function Get-SdnVfpPortState {
     .SYNOPSIS
         Returns the current VFP port state for a particular port Id.
     .DESCRIPTION
-        Executes 'vfpctrl.exe /get-port-state /port $PortId' to return back the current state of the port specified.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+        Executes 'vfpctrl.exe /get-port-state /port $port' to return back the current state of the port specified.
+    .PARAMETER PortName
+        The port name to return the state for.
     .EXAMPLE
-        PS> Get-SdnVfpPortState -PortId 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
+        PS> Get-SdnVfpPortState -PortName 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId
+        [GUID]$PortName
     )
 
     try {
         $object = [VfpPortState]::new()
 
-        $vfpPortState = vfpctrl.exe /get-port-state /port $PortId
+        $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
         if([string]::IsNullOrEmpty($vfpPortState)) {
-            $msg = "Unable to locate port ID {0} from vfpctrl`n{1}" -f $PortId, $_
+            $msg = "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_
             return $null
         }
 
