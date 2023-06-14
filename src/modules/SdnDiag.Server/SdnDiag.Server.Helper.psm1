@@ -90,9 +90,123 @@ class OvsdbPhysicalPort : OvsdbCore {
 class VfpPortState {
     [boolean]$Enabled
     [boolean]$Blocked
-    [boolean]$BlockedOnRestore
-    [boolean]$BlockedLayerCreation
-    [boolean]$PreservingVlan
-    [boolean]$VMContextSet
-    [string[]]$Properties
+    [boolean]$BlockOnRestore
+    [boolean]$BlockLayerCreation
+    [boolean]$PreserveVlan
+    [boolean]$IsVmContextSet
+    [boolean]$VmqEnabled
+    $OffloadState = [OffLoadStateDetails]::new()
+    [boolean]$QosHardwareReservationsEnabled
+    [boolean]$QosHardwareCapsEnabled
+    [boolean]$GftOffloadEnabled
+    [boolean]$DtlsOffloadEnabled
+}
+
+class OffLoadStateDetails {
+    [boolean]$LsoV2Supported
+    [boolean]$LsoV2SupportedVxlan
+    [boolean]$RssSupported
+    [boolean]$RssSupportedVxlan
+    [boolean]$TransmitChecksumOffloadSupported
+    [boolean]$TransmitChecksumOffloadSupportedVxlan
+    [boolean]$ReceiveChecksumOffloadSupported
+    [boolean]$ReceiveChecksumOffloadSupportedVxlan
+    [boolean]$VmqSupported
+    [boolean]$VmqSupportedVxlan
+    [boolean]$InnerMacVmqEnabled
+}
+
+class VfpVmSwitchPort {
+    [guid]$PortName
+    [string]$PortFriendlyName
+    [guid]$SwitchName
+    [string]$SwitchFriendlyName
+    [int]$PortId
+    [int]$VMQWeight
+    [int]$VMQUsage
+    [int]$SRIOVWeight
+    [int]$SRIOVUsage
+    [string]$PortType
+    [string]$PortState
+    [string]$MacLearning
+    [string]$NicName
+    [string]$NicFriendlyName
+    [int]$MTU
+    [string]$MacAddress
+    [string]$VmName
+    [string]$VmId
+    [string]$NicState
+    [string]$VSCState
+    $NicStatistics = [NicStatistics]::new()
+    $VmNicStatistics = [VmNicStatistics]::new()
+}
+
+class NicStatistics {
+    [int64]$BytesSent
+    [int64]$BytesReceived
+    [int64]$PacketsSent
+    [int64]$PacketsReceived
+    [int64]$IngressPacketDrops
+    [int64]$EgressPacketDrops
+    [int64]$IngressVfpDrops
+    $IngressPacketDropType = [DropStatistics]::new()
+    [int64]$EgressVfpDrops
+    $EgressPacketDropType = [DropStatistics]::new()
+}
+
+class VmNicStatistics {
+    [int64]$InterruptsReceived
+    [int64]$PendingLinkChange
+    [int64]$RingBufferFullErrors
+    [int64]$PendingRoutedPackets
+    [int64]$InsufficientReceiveBuffers
+    [int64]$InsufficientSendBuffers
+    [int64]$InsufficientRndisOperations
+    [int64]$QuotaExceeded
+    [int64]$VspPaused
+    [int64]$SendBufferAllocationCount
+    [int64]$SendBufferAllocationSize
+    [int64]$ReceiveBufferAllocationCount
+    [int64]$ReceiveBufferAllocationSize
+}
+
+class DropStatistics {
+    [int64]$Unknown
+    [int64]$InvalidData
+    [int64]$InvalidPacket
+    [int64]$Resources
+    [int64]$NotReady
+    [int64]$Disconnected
+    [int64]$NotAccepted
+    [int64]$Busy
+    [int64]$Filtered
+    [int64]$FilteredVLAN
+    [int64]$UnauthorizedVLAN
+    [int64]$UnauthorizedMac
+    [int64]$FailedSecurityPolicy
+    [int64]$FailedPVLANSetting
+    [int64]$QoS
+    [int64]$IPsec
+    [int64]$MacSpoofing
+    [int64]$DhcpGuard
+    [int64]$RouterGuard
+    [int64]$BridgeReserved
+    [int64]$VirtualSubnetID
+    [int64]$VFPNotPresent
+    [int64]$InvalidConfig
+    [int64]$MTUMismatch
+    [int64]$NativeForwardingReq
+    [int64]$InvalidVLANFormat
+    [int64]$InvalidDestMAC
+    [int64]$InvalidSourceMAC
+    [int64]$FirstNBTooSmall
+    [int64]$WNV
+    [int64]$StormLimit
+    [int64]$InjectedICMP
+    [int64]$FailedDestListUpdate
+    [int64]$NICDisabled
+    [int64]$FailedPacketFilter
+    [int64]$SwitchDataDisabled
+    [int64]$FilteredIsoUntagged
+    [int64]$NA
 }

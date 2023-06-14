@@ -34,6 +34,8 @@ foreach ($folder in $folders) {
                     "`tProcessing: {0}" -f $File.FullName | Write-Host
                     $content = Get-Content -Path $file.FullName -Raw
                     $powershellFile | Add-Content -Value $content
+
+                    Start-Sleep -Milliseconds 200
                 }
             }
 

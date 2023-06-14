@@ -21,7 +21,7 @@ function Get-SdnVfpPortState {
 
         $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
         if([string]::IsNullOrEmpty($vfpPortState)) {
-            $msg = "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_
+            "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_ | Trace-Output -Level:Warning
             return $null
         }
 
@@ -31,20 +31,41 @@ function Get-SdnVfpPortState {
                 continue
             }
 
-            # skip these as they are not properties we need
-            if($line -like "*Port State*" -or $line -ilike "Command get-port-state*"  -or $line -ilike "*====*" -or $line -ilike "*Item List*") {
-                continue
-            }
-
             # split the line by the colon and trim the spaces
-            # then add to the object which should align with the class properties
-            # for anything that cannot be split, will index into a string array
-            $subValue = $line.Split(':').Trim().Replace(' ','')
+            $subValue = $line.Split(':').Trim()
             if ($subValue.Count -eq 2) {
-                $object.($subValue[0].ToString()) = ($subValue[1])
+                $propertyName = $subValue[0].Trim()
+                $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
+
+                switch ($propertyName) {
+                    'Enabled' { $object.Enabled = $propertyValue }
+                    'Blocked' { $object.Blocked = $propertyValue }
+                    'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
+                    'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
+                    'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
+                    'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
+                    'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
+                    'NVGRE Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupported = $propertyValue }
+                    'NVGRE VMQ Enabled' { $object.PortState.VmqSupported = $propertyValue }
+                    'VXLAN LSO Offload Enabled' { $object.PortState.LsoV2SupportedVxlan = $propertyValue }
+                    'VXLAN RSS Enabled' { $object.PortState.RssSupportedVxlan = $propertyValue }
+                    'VXLAN Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupportedVxlan = $propertyValue }
+                    'VXLAN Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
+                    'VXLAN VMQ Enabled' { $object.PortState.VmqSupportedVxlan = $propertyValue }
+                    'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
+                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
+                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
+                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
+                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
+                    'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
+                    'VM Context Set' { $object.IsVmContextSet = $propertyValue }
+                    default {
+                        "Unable to parse {0}" -f $subValue | Trace-Output -Level:Warning
+                    }
+                }
             }
             else {
-                $object.Properties += $subValue
+                continue
             }
         }
 
