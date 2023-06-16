@@ -37,126 +37,54 @@ function Get-SdnVfpPortGroup {
         [System.String]$Type,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
-        [System.String]$Name
+        [System.String]$Name,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [string[]]$ComputerName,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        $arrayList = [System.Collections.ArrayList]::new()
-        $vfpGroups = vfpctrl /list-group /port $PortId /layer $Layer
-        if ($null -eq $vfpGroups){
-            return $null
+        $params = @{
+            PortId = $PortId
+            Layer = $Layer
         }
 
-        # due to how vfp handles not throwing a terminating error if port ID does not exist,
-        # need to manually examine the response to see if it contains a failure
-        if ($vfpGroups[0] -ilike "ERROR*") {
-            "{0}" -f $vfpGroups[0] | Trace-Output -Level:Exception
-            return $null
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
+                param ([guid]$arg0, [string]$arg1)
+                Get-VfpPortGroup -PortId $arg0 -Layer $arg1
+            } -ArgumentList @params
+        }
+        else {
+            $results = Get-VfpPortGroup @params
         }
 
-        foreach ($line in $vfpGroups) {
-            $line = $line.Trim()
 
-            if ($line -like 'ITEM LIST' -or $line -ilike '==========='){
-                continue
+        switch ($PSCmdlet.ParameterSetName) {
+            'Name' {
+                return ($results | Where-Object { $_.Group -eq $Name })
             }
 
-            if ([string]::IsNullOrEmpty($line)) {
-                continue
-            }
-
-            # in situations where the value might be nested in another line we need to do some additional data processing
-            # subkey is declared below if the value is null after the split
-            if ($subKey) {
-                if($null -eq $subObject){
-                    $subObject = New-Object -TypeName PSObject
+            'Default' {
+                if ($Type) {
+                    $results = $results | Where-Object {$_.Type -ieq $Type}
                 }
-                if ($null -eq $subArrayList) {
-                    $subArrayList = [System.Collections.ArrayList]::new()
+                if ($Direction) {
+                    $results = $results | Where-Object {$_.Direction -ieq $Direction}
                 }
 
-                switch ($subKey) {
-                    'Conditions' {
-                        # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
-                        # we also see common pattern that Match type is the next property after Conditions, so we can use that to determine when
-                        # no further processing is needed for this sub value
-                        if ($line.Contains('Match type')) {
-                            $object | Add-Member -NotePropertyMembers @{Conditions = $subObject}
-
-                            $subObject = $null
-                            $subKey = $null
-                        }
-
-                        # if <none> is defined for conditions, we can also assume there is nothing to define and will just add
-                        elseif ($line.Contains('<none>')) {
-                            $object | Add-Member -MemberType NoteProperty -Name $subKey -Value 'None'
-
-                            $subObject = $null
-                            $subKey = $null
-                        }
-
-                        elseif ($line.Contains(':')) {
-                            [System.String[]]$subResults = $line.Split(':').Trim()
-                            $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
-                        }
-                    }
-                }
-            }
-
-            # lines in the VFP output that contain : contain properties and values
-            # need to split these based on count of ":" to build key and values
-            if ($line.Contains(':')) {
-                [System.String[]]$results = $line.Split(':').Trim()
-                if ($results.Count -eq 2) {
-                    [System.String]$key = $results[0].Trim()
-                    [System.String]$value = $results[1].Trim()
-
-                    # all groups begin with this property and value so need to create a new psobject when we see these keys
-                    if ($key -ieq 'Group') {
-                        if ($object) {
-                            [void]$arrayList.Add($object)
-                        }
-
-                        $object = New-Object -TypeName PSObject
-                        $object | Add-Member -MemberType NoteProperty -Name 'Group' -Value $value
-
-                        continue
-                    }
-
-                    if ($key -ieq 'Conditions') {
-                        $subKey = $key
-                        continue
-                    }
-
-                    # if the key is priority, we want to declare the value as an int value so we can properly sort the results
-                    if ($key -ieq 'Priority') {
-                        [int]$value = $results[1]
-                    }
-
-                    # add the line values to the object
-                    $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                }
-            }
-            elseif ($line.Contains('Command list-group succeeded!')) {
-                if ($object) {
-                    [void]$arrayList.Add($object)
-                }
+                return ($results | Sort-Object -Property Priority)
             }
         }
 
-        if ($Name) {
-            return ($arrayList | Where-Object { $_.Group -ieq $Name })
-        }
-
-        if ($Direction) {
-            $arrayList = $arrayList | Where-Object {$_.Direction -ieq $Direction}
-        }
-
-        if ($Type) {
-            $arrayList = $arrayList | Where-Object {$_.Type -ieq $Type}
-        }
-
-        return ($arrayList | Sort-Object -Property Priority)
+        return $results
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

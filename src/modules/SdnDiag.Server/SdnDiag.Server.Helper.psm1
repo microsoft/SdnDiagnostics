@@ -87,6 +87,55 @@ class OvsdbPhysicalPort : OvsdbCore {
     [string]$Name
 }
 
+class CommonVfp {
+    hidden [string]$FriendlyName
+    [int]$Priority
+}
+
+class VfpLayer : CommonVfp {
+    [string]$Layer
+    [string]$Flags
+}
+
+class VfpGroup : CommonVfp {
+    [string]$Group
+    [string]$Direction
+    [string]$Type
+    [string[]]$Conditions
+    [string]$MatchType
+}
+
+class VfpRule : CommonVfp {
+    [string]$Rule
+    [string]$Type
+    [string[]]$Conditions
+    [int]$FlowTTL
+    [string]$MatchType
+    [string]$Flags
+    [string]$FlagsEx
+    hidden [string[]]$Properties
+}
+
+class VfpMeterRule : VfpRule {
+    [boolean]$CounterOffloaded
+    [string]$MeterInfo
+}
+
+class VfpEncapRule : VfpRule {
+    [string]$EncapType
+    [string[]]$EncapDestination
+    [string]$EncapSourceIP
+    [string[]]$RuleData
+    [int]$GREKey
+}
+
+class VfpFirewallRule : VfpRule {}
+
+class VfpVnetRule : VfpRule {
+    [string]$Transposition
+    [string[]]$Modify
+}
+
 class VfpPortState {
     [boolean]$Enabled
     [boolean]$Blocked
