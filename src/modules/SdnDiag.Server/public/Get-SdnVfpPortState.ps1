@@ -64,7 +64,7 @@ function Get-SdnVfpPortState {
                     'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
 
                     default {
-                        "Unable to parse {0}" -f $subValue | Trace-Output -Level:Warning
+                        "Unable to parse {0}" -f $propertyName  | Trace-Output -Level:Warning
                     }
                 }
             }
