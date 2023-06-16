@@ -10,6 +10,32 @@ if (-NOT (Test-Path -Path $outDir -PathType Container)) {
     $null = New-Item -ItemType:Directory -Path $outDir -Force
 }
 
+function WaitOnMutex {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$MutexId
+    )
+
+    try {
+        $MutexInstance = New-Object System.Threading.Mutex($false, $MutexId)
+        if ($MutexInstance.WaitOne(3000)) {
+            return $MutexInstance
+        }
+        else {
+            throw New-Object -TypeName System.TimeoutException("Failed to acquire Mutex")
+        }
+    }
+
+    catch [System.Threading.AbandonedMutexException] {
+        $MutexInstance = New-Object System.Threading.Mutex($false, $MutexId)
+        return (Wait-OnMutex -MutexId $MutexId)
+    }
+    catch {
+        $MutexInstance.ReleaseMutex()
+        $_ | Write-Error
+    }
+}
+
 $folders = Get-ChildItem -Path $PSScriptRoot\..\src -Directory
 foreach ($folder in $folders) {
 
@@ -33,9 +59,15 @@ foreach ($folder in $folders) {
                 foreach ($file in (Get-ChildItem -Path $moduleDir.FullName -Recurse -Include '*.ps1')) {
                     "`tProcessing: {0}" -f $File.FullName | Write-Host
                     $content = Get-Content -Path $file.FullName -Raw
-                    $powershellFile | Add-Content -Value $content
 
-                    Start-Sleep -Milliseconds 200
+                    $mutexInstance = WaitOnMutex -MutexId $powerShellFile.BaseName -ErrorAction Continue
+                    if ($mutexInstance) {
+                        $powershellFile | Add-Content -Value $content
+                    }
+                }
+
+                if ($mutexInstance) {
+                    $mutexInstance.ReleaseMutex()
                 }
             }
 
