@@ -38,10 +38,19 @@ function Get-SdnVfpPortState {
                 $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
 
                 switch ($propertyName) {
+                    # update the VfpPortState properties
                     'Enabled' { $object.Enabled = $propertyValue }
                     'Blocked' { $object.Blocked = $propertyValue }
                     'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
                     'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
+                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
+                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
+                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
+                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
+                    'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
+                    'VM Context Set' { $object.IsVmContextSet = $propertyValue }
+
+                    # update the OffLoadStateDetails properties
                     'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
                     'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
                     'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
@@ -53,12 +62,7 @@ function Get-SdnVfpPortState {
                     'VXLAN Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
                     'VXLAN VMQ Enabled' { $object.PortState.VmqSupportedVxlan = $propertyValue }
                     'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
-                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
-                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
-                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
-                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
-                    'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
-                    'VM Context Set' { $object.IsVmContextSet = $propertyValue }
+
                     default {
                         "Unable to parse {0}" -f $subValue | Trace-Output -Level:Warning
                     }

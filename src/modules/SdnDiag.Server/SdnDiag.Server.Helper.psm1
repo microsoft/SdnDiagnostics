@@ -144,18 +144,22 @@ class VfpVmSwitchPort {
 class NicStatistics {
     [int64]$BytesSent
     [int64]$BytesReceived
-    [int64]$PacketsSent
-    [int64]$PacketsReceived
     [int64]$IngressPacketDrops
     [int64]$EgressPacketDrops
     [int64]$IngressVfpDrops
-    $IngressPacketDropType = [DropStatistics]::new()
+    $IngressDropReason = [DropStatistics]::new()
     [int64]$EgressVfpDrops
-    $EgressPacketDropType = [DropStatistics]::new()
+    $EgressDropReason = [DropStatistics]::new()
 }
 
 class VmNicStatistics {
+    [int64]$PacketsSent
+    [int64]$PacketsReceived
     [int64]$InterruptsReceived
+    [int64]$SendBufferAllocationCount
+    [int64]$SendBufferAllocationSize
+    [int64]$ReceiveBufferAllocationCount
+    [int64]$ReceiveBufferAllocationSize
     [int64]$PendingLinkChange
     [int64]$RingBufferFullErrors
     [int64]$PendingRoutedPackets
@@ -164,10 +168,6 @@ class VmNicStatistics {
     [int64]$InsufficientRndisOperations
     [int64]$QuotaExceeded
     [int64]$VspPaused
-    [int64]$SendBufferAllocationCount
-    [int64]$SendBufferAllocationSize
-    [int64]$ReceiveBufferAllocationCount
-    [int64]$ReceiveBufferAllocationSize
 }
 
 class DropStatistics {

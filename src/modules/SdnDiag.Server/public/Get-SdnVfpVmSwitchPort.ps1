@@ -8,6 +8,8 @@ function Get-SdnVfpVmSwitchPort {
         The Name of the Virtual Machine
     .PARAMETER VMID
         The ID of the Virtual Machine
+    .PARAMETER MacAddress
+        The MacAddress of the interface
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
 	.PARAMETER Credential
@@ -24,25 +26,30 @@ function Get-SdnVfpVmSwitchPort {
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $false, Position = 1, ParameterSetName = 'Port')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Port')]
         [System.String]$PortName,
 
-        [Parameter(Mandatory = $false, Position = 2, ParameterSetName = 'VMID')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMID')]
         [System.String]$VMID,
 
-        [Parameter(Mandatory = $false, Position = 3, ParameterSetName = 'VMName')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'Port')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'VMID')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'VMName')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
+        [System.String]$MacAddress,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Port')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMID')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, Position = 5, ParameterSetName = 'Port')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'VMID')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'VMName')]
-        [Parameter(Mandatory = $false, Position = 4, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Port')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMID')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
@@ -60,6 +67,11 @@ function Get-SdnVfpVmSwitchPort {
             'Port' { return ($results | Where-Object {$_.PortName -ieq $PortName}) }
             'VMID' { return ($results | Where-Object {$_.VMID -ieq $VMID}) }
             'VMName' { return ($results | Where-Object {$_.VMName -ieq $VMName}) }
+            'MacAddress' {
+                $MacAddress = Format-MacAddressWithDashes -MacAddress $MacAddress
+                return ($results | Where-Object {$_.MacAddress -ieq $MacAddress})
+            }
+
             default { return $results }
         }
     }
