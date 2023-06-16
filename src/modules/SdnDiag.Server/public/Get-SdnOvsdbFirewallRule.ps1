@@ -8,8 +8,8 @@ function Get-SdnOvsdbFirewallRule {
         The virtual NIC ID of the firewall rule to return. This is the InstanceID of the Network Interface object from Network Controller.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnOvsdbFirewallRule -ComputerName 'Server01','Server02'
     .EXAMPLE

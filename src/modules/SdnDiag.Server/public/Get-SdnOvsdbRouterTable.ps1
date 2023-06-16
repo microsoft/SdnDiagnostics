@@ -4,8 +4,8 @@ function Get-SdnOvsdbRouterTable {
         Gets the logical router table results from OVSDB.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnOvsdbRouterTable -ComputerName 'Server01','Server02'
     .EXAMPLE

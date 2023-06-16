@@ -12,8 +12,8 @@ function Get-SdnOvsdbPhysicalPort {
         The MAC address of the network interface to return the physical port(s) for.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnOvsdbPhysicalPort -ComputerName 'Server01','Server02'
     .EXAMPLE
