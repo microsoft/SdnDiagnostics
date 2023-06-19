@@ -18,13 +18,13 @@ function Get-OvsdbUcastMacRemoteTable {
 
         # enumerate the json objects and create psobject for each port
         foreach ($obj in $ucastMacsRemoteTable.data) {
-            $result = New-Object PSObject -Property @{
-                uuid           = $obj[1][1]
-                mac            = $obj[0]
-                ipaddr         = $obj[2]
-                locator        = $obj[3][1]
-                logical_switch = $obj[4][1]
-                mapping_type   = $obj[5]
+            $result = [OvsdbUcastMacRemote]@{
+                UUID            = $obj[1][1]
+                MacAddress      = $obj[0]
+                CustomerAddress = $obj[2]
+                Locator         = $obj[3][1]
+                LogicalSwitch   = $obj[4][1]
+                MappingType     = $obj[5]
             }
 
             [void]$arrayList.Add($result)
