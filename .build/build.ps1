@@ -64,10 +64,10 @@ foreach ($folder in $folders) {
                     if ($mutexInstance) {
                         $powershellFile | Add-Content -Value $content
                     }
-                }
 
-                if ($mutexInstance) {
-                    $mutexInstance.ReleaseMutex()
+                    if ($mutexInstance) {
+                        $mutexInstance.ReleaseMutex()
+                    }
                 }
             }
 
