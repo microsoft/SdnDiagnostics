@@ -123,6 +123,7 @@ function Debug-SdnFabricInfrastructure {
                             Test-ResourceConfigurationState @restApiParams
                             Test-ServiceState @computerCredParams
                             Test-ScheduledTaskEnabled @computerCredParams
+                            Test-MuxBgpConnectionState @computerCredAndRestApiParams
                         )
                     }
                 }
