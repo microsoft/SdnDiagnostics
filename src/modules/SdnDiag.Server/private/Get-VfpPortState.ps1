@@ -67,7 +67,7 @@ function Get-VfpPortState {
                         $object.$propertyName = $propertyValue
                     }
                     catch {
-                        "Unable to add {0} to object. Failing back to use NoteProperty." -f $propertyName | Trace-Output -Level:Verbose
+                        "Unable to add {0} to object. Failing back to use NoteProperty." -f $propertyName | Trace-Output -Level:Warning
                         $object | Add-Member -MemberType NoteProperty -Name $propertyName -Value $propertyValue
                         continue
                     }

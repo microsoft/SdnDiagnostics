@@ -69,7 +69,7 @@ class OvsdbAddressMapping : OvsdbCore {
     [string]$ProviderAddress # maps to the dst_ip property of the Physical_Locator table of ms_vtep database
     [string]$MacAddress # maps to the MAC property of the Ucast_Macs_Remote table of ms_vtep database
     [guid]$RoutingDomainId # maps to the description property of the Logical_Switch table of ms_vtep database
-    [string]$VirtualSwitchId # maps to the name property of the Logical_Switch table of ms_vtep database
+    [string]$VSwitchID # maps to the name property of the Logical_Switch table of ms_vtep database
     [string]$MappingType # maps to the mapping_type property of the Ucast_Macs_Remote table of ms_vtep database
     [string]$EncapType # maps to the encapsulation_type property of the Physical_Locator table of ms_vtep database
 }
@@ -80,6 +80,14 @@ class OvsdbRouter : OvsdbCore {
     [guid]$VirtualNetworkId # maps to the name property of the Logical_Switch table of ms_vtep database
     [string[]]$StaticRoutes # maps to the static_routes property of the Logical_Router table of ms_vtep database
     [string[]]$SwitchBinding # maps to the switch_binding property of the Logical_Router table of ms_vtep database
+}
+
+class OvsdbUcastMacRemote : OvsdbCore {
+    [string]$MacAddress # maps to the MAC property of the Ucast_Macs_Remote table of ms_vtep database
+    [string]$CustomerAddress # maps to the ipaddr property of the Ucast_Macs_Remote table of ms_vtep database
+    [string]$LogicalSwitch # maps to the logical_switch property of the Logical_Switch table of ms_vtep database
+    [string]$Locator # maps to the locator property of the Ucast_Macs_Remote table of ms_vtep database
+    [string]$MappingType # maps to the mapping_type property of the Ucast_Macs_Remote table of ms_vtep database
 }
 
 class OvsdbPhysicalPort : OvsdbCore {

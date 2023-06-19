@@ -205,7 +205,7 @@ function Get-VfpPortRule {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Verbose
+                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }

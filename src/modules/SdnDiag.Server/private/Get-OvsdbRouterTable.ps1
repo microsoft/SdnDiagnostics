@@ -47,6 +47,7 @@ function Get-OvsdbRouterTable {
                 StaticRoutes = $staticroute
                 SwitchBinding = $switchbinding
             }
+
             # add the psobject to array
             [void]$arrayList.Add($result)
         }

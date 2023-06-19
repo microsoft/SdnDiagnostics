@@ -48,7 +48,7 @@ function Get-OvsdbAddressMapping {
                 $curSwitch = $switch[0][1]
                 if ($curSwitch -eq $logicalSwitch) {
                     $addressMapping.RoutingDomainId = $switch[1]
-                    $addressMapping.VirtualSwitchId = $switch[3]
+                    $addressMapping.VSwitchID = $switch[3]
                     break
                 }
             }

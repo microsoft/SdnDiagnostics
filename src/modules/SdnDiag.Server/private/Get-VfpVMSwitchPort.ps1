@@ -90,10 +90,13 @@ function Get-VfpVMSwitchPort {
                         # which will align to the class property names
                         default {
                             try {
-                                $object.$($key.Replace(' ','').Trim()) = $value
+                                $key = $key.Replace(' ','').Trim()
+                                $object.$key = $value
                             }
                             catch {
-                                "Unable to add {0} to object`n{1}" -f $key, $_ | Trace-Output -Level:Warning
+                                "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
+                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                                continue
                             }
                         }
                     }
