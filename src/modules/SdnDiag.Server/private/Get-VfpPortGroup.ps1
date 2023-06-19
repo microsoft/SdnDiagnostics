@@ -1,4 +1,9 @@
 function Get-VfpPortGroup {
+    <#
+    .SYNOPSIS
+        Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
+
+    #>
 
     [CmdletBinding()]
     param (
@@ -91,6 +96,7 @@ function Get-VfpPortGroup {
                     'Match type' { $object.MatchType = $value }
                     'Conditions' { $subKey = $key }
                     'Priority' { $object.Priority = $value}
+
                     default {
                         try {
                             $object.$key = $value

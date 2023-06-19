@@ -10,6 +10,10 @@ function Get-SdnVfpPortRule {
         Specify the group layer.
     .PARAMETER Name
         Returns the specific rule name. If omitted, will return all rules within the VFP group.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnVfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE
@@ -31,7 +35,7 @@ function Get-SdnVfpPortRule {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$ComputerName,
+        [string]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

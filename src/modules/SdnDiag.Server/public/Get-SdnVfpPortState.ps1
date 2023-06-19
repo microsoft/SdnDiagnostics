@@ -6,6 +6,10 @@ function Get-SdnVfpPortState {
         Executes 'vfpctrl.exe /get-port-state /port $port' to return back the current state of the port specified.
     .PARAMETER PortName
         The port name to return the state for.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnVfpPortState -PortName 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
     #>
@@ -13,67 +17,33 @@ function Get-SdnVfpPortState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortName
+        [GUID]$PortName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $params = @{
+        PortName = $PortName
+    }
+
     try {
-        $object = [VfpPortState]::new()
-
-        $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
-        if([string]::IsNullOrEmpty($vfpPortState)) {
-            "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_ | Trace-Output -Level:Warning
-            return $null
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
+                param ([guid]$arg0)
+                Get-VfpPortState -PortName $arg0
+            } -ArgumentList $params
+        }
+        else {
+            $results = Get-VfpPortState @params
         }
 
-        foreach ($line in $vfpPortState) {
-            # skip if the line is empty or null
-            if([string]::IsNullOrEmpty($line)) {
-                continue
-            }
-
-            # split the line by the colon and trim the spaces
-            $subValue = $line.Split(':').Trim()
-            if ($subValue.Count -eq 2) {
-                $propertyName = $subValue[0].Trim()
-                $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
-
-                switch ($propertyName) {
-                    # update the VfpPortState properties
-                    'Enabled' { $object.Enabled = $propertyValue }
-                    'Blocked' { $object.Blocked = $propertyValue }
-                    'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
-                    'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
-                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
-                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
-                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
-                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
-                    'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
-                    'VM Context Set' { $object.IsVmContextSet = $propertyValue }
-
-                    # update the OffLoadStateDetails properties
-                    'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
-                    'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
-                    'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
-                    'NVGRE Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupported = $propertyValue }
-                    'NVGRE VMQ Enabled' { $object.PortState.VmqSupported = $propertyValue }
-                    'VXLAN LSO Offload Enabled' { $object.PortState.LsoV2SupportedVxlan = $propertyValue }
-                    'VXLAN RSS Enabled' { $object.PortState.RssSupportedVxlan = $propertyValue }
-                    'VXLAN Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupportedVxlan = $propertyValue }
-                    'VXLAN Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
-                    'VXLAN VMQ Enabled' { $object.PortState.VmqSupportedVxlan = $propertyValue }
-                    'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
-
-                    default {
-                        "Unable to parse {0}" -f $propertyName  | Trace-Output -Level:Warning
-                    }
-                }
-            }
-            else {
-                continue
-            }
-        }
-
-        return $object
+        return $results
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

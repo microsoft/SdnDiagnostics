@@ -6,10 +6,16 @@ function Get-SdnVfpPortLayer {
         The Port ID GUID for the network interface
     .PARAMETER Name
         Returns the specific layer name. If omitted, will return all layers within VFP.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnVfpPortLayer
     .EXAMPLE
         PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
+    .EXAMPLE
+        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName SDN-HOST01 -Credential (Get-Credential)
     #>
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
@@ -20,7 +26,7 @@ function Get-SdnVfpPortLayer {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [string[]]$ComputerName,
+        [string]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

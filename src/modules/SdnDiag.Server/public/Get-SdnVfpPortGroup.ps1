@@ -12,10 +12,22 @@ function Get-SdnVfpPortGroup {
         Specifies an array of IP address families. The cmdlet gets the configuration that matches the address families
     .PARAMETER Name
         Returns the specific group name. If omitted, will return all groups within the VFP layer.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
     .EXAMPLE
         PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
+    .EXAMPLE
+        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN'
+    .EXAMPLE
+        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Type 'IPv4'
+    .EXAMPLE
+        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN' -Type 'IPv4'
+    .EXAMPLE
+        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -ComputerName 'RemoteComputer' -Credential (Get-Credential)
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -41,7 +53,7 @@ function Get-SdnVfpPortGroup {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [string[]]$ComputerName,
+        [string]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]

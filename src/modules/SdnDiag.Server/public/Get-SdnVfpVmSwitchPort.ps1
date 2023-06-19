@@ -12,12 +12,12 @@ function Get-SdnVfpVmSwitchPort {
         The MacAddress of the interface
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnVfpVmSwitchPort -ComputerName 'Server01','Server02'
     .EXAMPLE
-        PS> Get-SdnVfpVmSwitchPort -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+        PS> Get-SdnVfpVmSwitchPort -ComputerName 'RemoteComputer' -Credential (Get-Credential)
     .EXAMPLE
         PS> Get-SdnVfpVmSwitchPort -VMName 'SDN-MUX01'
     .EXAMPLE
