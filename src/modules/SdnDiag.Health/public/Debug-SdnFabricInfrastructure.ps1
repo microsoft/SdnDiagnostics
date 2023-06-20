@@ -44,6 +44,7 @@ function Debug-SdnFabricInfrastructure {
     )
 
     $script:SdnDiagnostics_Health.Cache = $null
+    $aggregateHealthReport = @()
 
     try {
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
@@ -74,12 +75,17 @@ function Debug-SdnFabricInfrastructure {
 
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
-            "Processing tests for {0} role" -f $object | Trace-Output
-            $sdnFabricDetails = [SdnFabricHealthObject]::new()
-            $sdnFabricDetails.NcUrl = $environmentInfo.NcUrl
-
+            "Processing tests for {0} role" -f $object.ToString() | Trace-Output
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
-            $sdnFabricDetails.Role = $config
+
+            $roleHealthReport = [SdnFabricHealthReport]@{
+                Role = $object.ToString()
+            }
+
+            $sdnFabricDetails = [SdnFabricHealthObject]@{
+                NcUrl = $environmentInfo.NcUrl
+                Role  = $config
+            }
 
             if ($ComputerName) {
                 $sdnFabricDetails.ComputerName = $ComputerName
@@ -108,57 +114,66 @@ function Debug-SdnFabricInfrastructure {
             # or determined via which ComputerNames were defined
             switch ($object) {
                 'Gateway' {
-                    $objectArray += @{
-                        Gateway = @(
-                            Test-ResourceConfigurationState @restApiParams
-                            Test-ServiceState @computerCredParams
-                            Test-ScheduledTaskEnabled @computerCredParams
-                        )
-                    }
+                    $roleHealthReport.HealthValidation += @(
+                        Test-ResourceConfigurationState @restApiParams
+                        Test-ServiceState @computerCredParams
+                        Test-ScheduledTaskEnabled @computerCredParams
+                    )
                 }
 
                 'LoadBalancerMux' {
-                    $objectArray += @{
-                        LoadBalancerMux = @(
-                            Test-ResourceConfigurationState @restApiParams
-                            Test-ServiceState @computerCredParams
-                            Test-ScheduledTaskEnabled @computerCredParams
-                            Test-MuxBgpConnectionState @computerCredAndRestApiParams
-                        )
-                    }
+                    $roleHealthReport.HealthValidation += @(
+                        Test-ResourceConfigurationState @restApiParams
+                        Test-ServiceState @computerCredParams
+                        Test-ScheduledTaskEnabled @computerCredParams
+                        Test-MuxBgpConnectionState @computerCredAndRestApiParams
+                    )
                 }
 
                 'NetworkController' {
-                    $objectArray += @{
-                        NetworkController = @(
-                            Test-ServiceState @computerCredParams
-                            Test-ServiceFabricPartitionDatabaseSize @computerCredParams
-                            Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
-                            Test-ScheduledTaskEnabled @computerCredParams
-                        )
-                    }
+                    $roleHealthReport.HealthValidation += @(
+                        Test-ServiceState @computerCredParams
+                        Test-ServiceFabricPartitionDatabaseSize @computerCredParams
+                        Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
+                        Test-ScheduledTaskEnabled @computerCredParams
+                    )
                 }
 
                 'Server' {
-                    $objectArray += @{
-                        Server = @(
-                            Test-EncapOverhead @computerCredParams
-                            Test-ProviderNetwork @computerCredParams
-                            Test-ResourceConfigurationState @restApiParams
-                            Test-ServiceState @computerCredParams
-                            Test-ServerHostId @computerCredAndRestApiParams
-                            Test-VfpDuplicatePort @computerCredParams
-                            Test-VMNetAdapterDuplicateMacAddress @computerCredParams
-                            Test-HostRootStoreNonRootCert @computerCredParams
-                            Test-ScheduledTaskEnabled @computerCredParams
-                        )
-                    }
+                    $roleHealthReport.HealthValidation += @(
+                        Test-EncapOverhead @computerCredParams
+                        Test-ProviderNetwork @computerCredParams
+                        Test-ResourceConfigurationState @restApiParams
+                        Test-ServiceState @computerCredParams
+                        Test-ServerHostId @computerCredAndRestApiParams
+                        Test-VfpDuplicatePort @computerCredParams
+                        Test-VMNetAdapterDuplicateMacAddress @computerCredParams
+                        Test-HostRootStoreNonRootCert @computerCredParams
+                        Test-ScheduledTaskEnabled @computerCredParams
+                    )
                 }
             }
+
+            # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
+            # if any of the tests completed with Warning, we will set the aggregate result to Warning
+            # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+            # we will skip tests with PASS, as that is the default value
+            foreach ($healthStatus in $roleHealthReport.HealthValidation) {
+                if ($healthStatus.Result -eq 'Warning') {
+                    $roleHealthReport.Result = $healthStatus.Result
+                }
+                elseif ($healthStatus.Result -eq 'FAIL') {
+                    $roleHealthReport.Result = $healthStatus.Result
+                    break
+                }
+            }
+
+            # add the individual role health report to the aggregate report
+            $aggregateHealthReport += $roleHealthReport
         }
 
-        if ($objectArray) {
-            $script:SdnDiagnostics_Health.Cache = $objectArray
+        if ($aggregateHealthReport) {
+            $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
 
             "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
             return $script:SdnDiagnostics_Health.Cache

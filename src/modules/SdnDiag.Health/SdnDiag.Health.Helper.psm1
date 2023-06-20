@@ -20,3 +20,10 @@ class SdnFabricHealthObject {
     [Uri]$NcUrl
     [Object]$Role
 }
+
+class SdnFabricHealthReport {
+    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
+    [String]$Role
+    [SdnHealthResult]$Result = 'PASS'
+    [Object[]]$HealthValidation
+}
