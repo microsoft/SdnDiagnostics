@@ -173,6 +173,13 @@ function Debug-SdnFabricInfrastructure {
         }
 
         if ($aggregateHealthReport) {
+            $aggregateHealthReport.HealthValidation | ForEach-Object {
+                if ($_.Result -ine 'PASS') {
+                    Write-HealthValidationInfo -Name $_.Name
+                }
+            }
+
+            # save the aggregate health report to cache so we can use it for further analysis
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
 
             "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output

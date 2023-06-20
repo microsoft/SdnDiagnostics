@@ -40,7 +40,7 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
                     | Select-Object @{n="ResourceRef";e={"`t$($_.resourceRef)"}} `
                     | Select-Object -ExpandProperty ResourceRef `
                     | Out-String `
-                ) | Trace-Output -Level:Warning
+                ) | Trace-Output -Level:Exception
             }
         }
 

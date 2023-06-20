@@ -3,20 +3,70 @@
 
 @{
     HealthValidations = @{
-        DuplicateMacAddressVfp = @{
-            Description = "Duplicate MAC address detected within Virtual Filtering Platform (VFP)."
-            Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
-            Remediation = "Remove the offending network interface or adapter from the Hyper-v host."
+        'Test-EncapOverhead' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
         }
-        DuplicateMacAddressApi = @{
+        'Test-HostRootStoreNonRootCert' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-MuxBgpConnectionState' = @{
+            Description = "One or more Load Balancer Muxes do not have an active BGP connection via TCP port 179 to the switch."
+            Impact = "Public IP addresses may not be routable as Load Balancer Muxes are not advertising the public IP addresses to the switch."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
+        }
+        'Test-NetworkControllerCertCredential' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-NetworkInterfaceAPIDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected within the API."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. Network Interfaces reporting configurationState failure will not be routable."
-            Remediation = "Locate the offending Network Interface(s) within Network Controller and remove. Typically the Network Interface reporting configurationState success will be the valid Network Interface All remaining Network Interfaces should be removed or assigned new MAC address."
+            PublicDocUrl = ""
         }
-        DuplicateMacAddress = @{
+        'Test-ProviderNetwork' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ResourceConfigurationState' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ScheduledTaskEnabled' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ServerHostId' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ServiceFabricPartitionDatabaseSize' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ServiceState' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-VfpDuplicatePort' = @{
+            Description = "Duplicate MAC address detected within Virtual Filtering Platform (VFP)."
+            Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
+            PublicDocUrl = ""
+        }
+        'Test-VMNetAdapterDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected with the data plane on the Hyper-V host(s)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted for the interfaces that are duplicated."
-            Remediation = "Remove the offending VM network adapter from Hyper-v host(s)."
+            PublicDocUrl = ""
         }
     }
 }

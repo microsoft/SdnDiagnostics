@@ -34,7 +34,7 @@ function Test-VfpDuplicatePort {
                     | Select-Object @{n="Portname";e={"`t$($_.Portname)"}} `
                     | Select-Object -ExpandProperty Portname `
                     | Out-String `
-                ) | Trace-Output -Level:Warning
+                ) | Trace-Output -Level:Exception
             }
         }
 

@@ -41,7 +41,7 @@ function Test-ServiceState {
                 $sdnHealthObject.Result = 'FAIL'
                 $sdnHealthObject.Remediation = 'Start the service(s).'
 
-                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
+                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Exception
             }
             else {
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Verbose

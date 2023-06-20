@@ -35,7 +35,7 @@ function Test-ServerHostId {
         $hostId = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach($id in $hostId){
             if($id -inotin $servers.instanceId){
-                "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Warning
+                "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Exception
                 $sdnHealthObject.Result = 'FAIL'
 
                 $object = [PSCustomObject]@{

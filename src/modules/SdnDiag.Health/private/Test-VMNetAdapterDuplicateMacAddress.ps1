@@ -34,7 +34,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
                     | Select-Object @{n="VMName";e={"`t$($_.VMName)"}} `
                     | Select-Object -ExpandProperty VMName `
                     | Out-String `
-                ) | Trace-Output -Level:Warning
+                ) | Trace-Output -Level:Exception
             }
         }
 
