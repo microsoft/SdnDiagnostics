@@ -19,8 +19,8 @@
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
         }
         'Test-NetworkControllerCertCredential' = @{
-            Description = ""
-            Impact = ""
+            Description = "Network Controller does not have the x509 certificate installed for southbound device(s)."
+            Impact = "Network Controller will have issues communicating with the southbound device(s)."
             PublicDocUrl = ""
         }
         'Test-NetworkInterfaceAPIDuplicateMacAddress' = @{

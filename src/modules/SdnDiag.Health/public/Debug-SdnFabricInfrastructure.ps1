@@ -136,6 +136,7 @@ function Debug-SdnFabricInfrastructure {
                         Test-ServiceFabricPartitionDatabaseSize @computerCredParams
                         Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
                         Test-ScheduledTaskEnabled @computerCredParams
+                        Test-NetworkControllerCertCredential @computerCredAndRestApiParams
                     )
                 }
 
