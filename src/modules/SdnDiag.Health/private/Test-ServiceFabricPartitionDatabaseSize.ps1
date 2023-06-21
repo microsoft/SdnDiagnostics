@@ -67,6 +67,7 @@ function Test-ServiceFabricPartitionDatabaseSize {
                         "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Warning
 
                         $sdnHealthObject.Result = 'FAIL'
+                        $sdnHealthObject.Remediation = "Engage Microsoft CSS for further support"
                     }
                     else {
                         "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Verbose

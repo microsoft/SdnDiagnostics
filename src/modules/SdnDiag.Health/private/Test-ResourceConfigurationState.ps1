@@ -26,7 +26,7 @@ function Test-ResourceConfigurationState {
             # examine the provisioning state of the resources and display errors to the screen
             if ($object.properties.provisioningState -ine 'Succeeded') {
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Examine the Network Controller logs to determine why resource provisioning failed and take corrective measures.'
+                $sdnHealthObject.Remediation += "Examine the Network Controller logs to determine why $($object.resourceRef) provisioning failed."
 
                 "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState | Trace-Output -Level:Exception
             }
@@ -41,7 +41,7 @@ function Test-ResourceConfigurationState {
                 }
 
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Examine the detailedInfo property and take corrective action.'
+                $sdnHealthObject.Remediation += "Examine the configurationState details for $($object.resourceRef) and take corrective action."
                 "{0} is reporting configurationState status: {1}" -f $object.resourceRef, $object.properties.configurationState.Status | Trace-Output -Level:Exception
             }
 

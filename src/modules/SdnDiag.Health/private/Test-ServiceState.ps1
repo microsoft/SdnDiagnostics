@@ -39,7 +39,7 @@ function Test-ServiceState {
 
             if($result.Status -ine 'Running'){
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Start the service(s).'
+                $sdnHealthObject.Remediation += "Start $($result.Name) service on $($result.PSComputerName)"
 
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Exception
             }

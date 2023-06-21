@@ -32,6 +32,8 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
+                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within Network Controller Network Interfaces"
+
                 $duplicateInterfaces = $networkInterfaces | Where-Object {$_.properties.privateMacAddress -eq $obj.Name}
                 $array += $duplicateInterfaces
 

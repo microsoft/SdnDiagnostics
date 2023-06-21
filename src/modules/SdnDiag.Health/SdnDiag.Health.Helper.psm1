@@ -12,7 +12,7 @@ class SdnHealth {
     [SdnHealthResult]$Result = 'PASS'
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
-    [String]$Remediation
+    [String[]]$Remediation
 }
 
 class SdnFabricHealthObject {

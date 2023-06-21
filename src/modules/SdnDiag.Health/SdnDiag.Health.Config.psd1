@@ -4,9 +4,9 @@
 @{
     HealthValidations = @{
         'Test-EncapOverhead' = @{
-            Description = ""
-            Impact = ""
-            PublicDocUrl = ""
+            Description = "EncapOverhead/JumboPacket is not configured properly on the Hyper-V Hosts"
+            Impact = "Intermittent packet loss may occur under certain conditions when routing traffic within the logical network."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
         }
         'Test-HostRootStoreNonRootCert' = @{
             Description = ""
@@ -29,24 +29,24 @@
             PublicDocUrl = ""
         }
         'Test-ProviderNetwork' = @{
-            Description = ""
-            Impact = ""
-            PublicDocUrl = ""
+            Description = "Logical network does not support VXLAN or NVGRE encapsulated traffic"
+            Impact = "Intermittent packet loss may occur under certain conditions when routing traffic within the logical network."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
         }
         'Test-ResourceConfigurationState' = @{
-            Description = ""
-            Impact = ""
-            PublicDocUrl = ""
+            Description = "Infrastructure resource is not in a healthy state."
+            Impact = "SDN services and functionality will be impacted."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
         'Test-ScheduledTaskEnabled' = @{
-            Description = ""
-            Impact = ""
+            Description = "Scheduled task is not enabled on the SDN infrastructure node(s)."
+            Impact = "Unconstrained log files may grow and consume disk space."
             PublicDocUrl = ""
         }
         'Test-ServerHostId' = @{
-            Description = ""
-            Impact = ""
-            PublicDocUrl = ""
+            Description = "HostID is not configured properly on the Hyper-V Hosts"
+            Impact = "Mismatch of HostId between Hyper-V host(s) and Network Controller will result in policy configuration failures."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-for-corresponding-hostids-and-certificates-between-network-controller-and-each-hyper-v-host"
         }
         'Test-ServiceFabricPartitionDatabaseSize' = @{
             Description = ""
@@ -54,8 +54,8 @@
             PublicDocUrl = ""
         }
         'Test-ServiceState' = @{
-            Description = ""
-            Impact = ""
+            Description = "Identified service is not running on the SDN infrastructure node(s)."
+            Impact = "SDN services and functionality will be impacted without the service running."
             PublicDocUrl = ""
         }
         'Test-VfpDuplicatePort' = @{

@@ -44,6 +44,7 @@ function Test-MuxBgpConnectionState {
                 if (-NOT $connectionExists) {
                     "{0} is not connected to {1}" -f $virtualServerConnection, $router | Trace-Output -Level:Exception
                     $sdnHealthObject.Result = 'FAIL'
+                    $sdnHealthObject.Remediation += "Fix BGP Peering between $($virtualServerConnection) and $($router)."
 
                     $object = [PSCustomObject]@{
                         LoadBalancerMux = $virtualServerConnection

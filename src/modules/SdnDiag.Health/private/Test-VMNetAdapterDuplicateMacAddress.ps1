@@ -29,6 +29,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
+                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within Hyper-V"
                 "Located {0} virtual machines associated with MAC address {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
                     ($obj.Group `
                     | Select-Object @{n="VMName";e={"`t$($_.VMName)"}} `

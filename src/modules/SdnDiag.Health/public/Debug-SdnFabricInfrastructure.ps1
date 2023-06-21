@@ -173,9 +173,23 @@ function Debug-SdnFabricInfrastructure {
         }
 
         if ($aggregateHealthReport) {
-            $aggregateHealthReport.HealthValidation | ForEach-Object {
+
+            # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
+            $aggregateHealthReport | ForEach-Object {
                 if ($_.Result -ine 'PASS') {
-                    Write-HealthValidationInfo -Name $_.Name
+                    $role = $_.Role
+
+                    # enumerate all the individual role tests performed so we can determine if any completed that are not PASS
+                    $_.HealthValidation | ForEach-Object {
+                        if ($_.Result -ine 'PASS') {
+                            # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
+                            # otherwise if we pass it directly, it will be treated as a single string
+                            $remediationList = [System.Collections.ArrayList]::new()
+                            $_.Remediation | ForEach-Object { [void]$remediationList.Add($_)}
+
+                            Write-HealthValidationInfo -Role $([string]$role) -Name $_.Name -Remediation $remediationList
+                        }
+                    }
                 }
             }
 

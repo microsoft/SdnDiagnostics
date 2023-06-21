@@ -2,20 +2,34 @@ function Write-HealthValidationInfo {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [String]$Name
+        [String]$Role,
+
+        [Parameter(Mandatory = $true)]
+        [String]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [String[]]$Remediation
     )
 
     $details = Get-HealthValidationDetail -Id $Name
 
-    $outputString = $Name
+    $outputString = "[$Role] $Name"
     $outputString += "`r`n`r`n"
     $outputString += "--------------------------`r`n"
     $outputString += "Description:`t$($details.Description)`r`n"
     $outputString += "Impact:`t`t`t$($details.Impact)`r`n"
-    $outputString += "`r`n"
-    $outputString += "Additional information can be found at:`t$($details.PublicDoc)`r`n"
-    $outputString += "--------------------------`r`n"
+
+    if (-NOT [string]::IsNullOrEmpty($Remediation)) {
+        $outputString += "Remediation:`r`n`t -$($Remediation -join "`r`n`t -")`r`n"
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
+        $outputString += "`r`n"
+        $outputString += "Additional information can be found at $($details.PublicDocUrl).`r`n"
+    }
+
+    $outputString += "`r`n--------------------------`r`n"
     $outputString += "`r`n"
 
-    $outputString | Write-Host
+    $outputString | Write-Host -ForegroundColor Yellow
 }

@@ -37,6 +37,7 @@ function Test-ServerHostId {
             if($id -inotin $servers.instanceId){
                 "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Exception
                 $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Update the HostId registry key on $($id.PSComputerName) to match the InstanceId of the Server resource in Network Controller"
 
                 $object = [PSCustomObject]@{
                     HostID = $id
