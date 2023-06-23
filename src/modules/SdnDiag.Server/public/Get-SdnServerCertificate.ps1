@@ -10,7 +10,7 @@ function Get-SdnServerCertificate {
     try {
         $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
         $subjectName = "CN={0}" -f $serverCert
-        $certificate = Get-SdnCertificate -Subject $subjectName
+        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My'
         return $certificate
     }
     catch {
