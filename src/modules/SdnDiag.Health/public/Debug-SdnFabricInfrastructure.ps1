@@ -85,6 +85,7 @@ function Debug-SdnFabricInfrastructure {
             $sdnFabricDetails = [SdnFabricEnvObject]@{
                 NcUrl = $environmentInfo.NcUrl
                 Role  = $config
+                EnvironmentInfo = $environmentInfo
             }
 
             if ($ComputerName) {
@@ -127,6 +128,7 @@ function Debug-SdnFabricInfrastructure {
                         Test-ServiceState @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
                         Test-MuxBgpConnectionState @computerCredAndRestApiParams
+                        Test-SlbManagerConnectionToMux @computerCredAndRestApiParams
                     )
                 }
 
