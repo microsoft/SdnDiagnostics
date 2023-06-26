@@ -15,7 +15,7 @@ class SdnHealth {
     [String[]]$Remediation
 }
 
-class SdnFabricHealthObject {
+class SdnFabricEnvObject {
     [String[]]$ComputerName
     [Uri]$NcUrl
     [Object]$Role

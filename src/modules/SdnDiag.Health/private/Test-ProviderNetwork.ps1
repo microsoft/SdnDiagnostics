@@ -7,7 +7,7 @@ function Test-ProviderNetwork {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

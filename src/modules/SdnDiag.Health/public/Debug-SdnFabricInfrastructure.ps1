@@ -82,7 +82,7 @@ function Debug-SdnFabricInfrastructure {
                 Role = $object.ToString()
             }
 
-            $sdnFabricDetails = [SdnFabricHealthObject]@{
+            $sdnFabricDetails = [SdnFabricEnvObject]@{
                 NcUrl = $environmentInfo.NcUrl
                 Role  = $config
             }
