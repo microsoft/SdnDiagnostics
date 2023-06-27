@@ -7,7 +7,7 @@ function Test-ProviderNetwork {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -42,7 +42,9 @@ function Test-ProviderNetwork {
 
                         # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
                         if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
-                            $sdnHealthObject.Remediation = "Ensure ICMP enabled. If issue persists, investigate network connectivity."
+                            $remediationMsg = "Ensure ICMP enabled on {0} and {1}. If issue persists, investigate physical network." -f $destinationAddress[0].DestinationAddress, $destinationAddress[0].SourceAddress
+                            $sdnHealthObject.Remediation += $remediationMsg
+
                             "Cannot ping {0} from {1} ({2})." `
                             -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
                         }
@@ -50,7 +52,10 @@ function Test-ProviderNetwork {
                         # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
                         # either on the physical nic or within the physical switches between the provider addresses
                         if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
-                            $sdnHealthObject.Remediation = "Ensure physical switches and network interfaces support 1660 byte payload using Jumbo Packets or EncapOverhead"
+                            $remediationMsg += "Ensure the physical network between {0} and {1} configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660." `
+                            -f $destinationAddress[0].DestinationAddress, $destinationAddress[0].SourceAddress
+                            $sdnHealthObject.Remediation += $remediationMsg
+
                             "Cannot send jumbo packets to {0} from {1} ({2})." `
                             -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
                         }

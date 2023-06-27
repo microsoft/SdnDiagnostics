@@ -12,11 +12,19 @@ class SdnHealth {
     [SdnHealthResult]$Result = 'PASS'
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
-    [String]$Remediation
+    [String[]]$Remediation
 }
 
-class SdnFabricHealthObject {
+class SdnFabricEnvObject {
     [String[]]$ComputerName
     [Uri]$NcUrl
     [Object]$Role
+    [Object]$EnvironmentInfo
+}
+
+class SdnFabricHealthReport {
+    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
+    [String]$Role
+    [SdnHealthResult]$Result = 'PASS'
+    [Object[]]$HealthValidation
 }

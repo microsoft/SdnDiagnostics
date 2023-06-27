@@ -7,10 +7,7 @@ function Test-NetworkControllerCertCredential {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.String[]]$NetworkController,
-
-        [Parameter(Mandatory = $true)]
-        [Uri]$NcUri,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -27,10 +24,10 @@ function Test-NetworkControllerCertCredential {
     $arrayList = [System.Collections.ArrayList]::new()
 
     try {
-        "Validate Cert Credential resource of SDN Servers. Ensure Cert exist on each of the Network Controller " | Trace-Output
+        "Validate cert credential resource of SDN Servers. Ensure certificate exists on each of the Network Controller " | Trace-Output
 
         # enumerate each server's conection->credential object into the array
-        $servers = Get-SdnServer -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential
+        $servers = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential
         $serverCredentialRefs = [System.Collections.Hashtable]::new()
         foreach ($server in $servers) {
             # find the first connection with credential type of X509Certificate
@@ -51,7 +48,7 @@ function Test-NetworkControllerCertCredential {
 
         # iterate the credential object to validate certificate on each NC
         foreach ($credRef in $serverCredentialRefs.Keys) {
-            $credObj = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Credential $NcRestCredential -ResourceRef $credRef
+            $credObj = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential -ResourceRef $credRef
             if ($null -ne $credObj) {
                 $thumbPrint = $credObj.properties.value
                 $scriptBlock = {
@@ -66,12 +63,13 @@ function Test-NetworkControllerCertCredential {
                 }
 
                 # invoke command on each NC seperately so to record which NC missing certificate
-                foreach ($nc in $NetworkController) {
+                foreach ($nc in $SdnEnvironmentObject.ComputerName) {
                     "Validating certificate [{0}] on NC {1}" -f $thumbPrint, $nc | Trace-Output -Level:Verbose
                     $result = Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $thumbPrint
                     if ($result -ne $true) {
                         # if any NC missing certificate, it indicate issue detected
                         $sdnHealthObject.Result = 'FAIL'
+                        $sdnHealthObject.Remediation += "Install certificate [$thumbPrint] on Network Controller [$nc]"
                         $object = [PSCustomObject]@{
                             NetworkController  = $nc
                             CertificateMissing = $thumbPrint

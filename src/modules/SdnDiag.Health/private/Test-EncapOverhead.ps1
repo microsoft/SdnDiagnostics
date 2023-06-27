@@ -8,7 +8,7 @@ function Test-EncapOverhead {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -47,6 +47,8 @@ function Test-EncapOverhead {
                     # and as such, environment would experience intermittent packet loss
                     if ($encapDisabled -and $jumboPacketDisabled) {
                         $sdnHealthObject.Result = 'FAIL'
+                        $sdnHealthObject.Remediation += "Ensure EncapOverhead and JumboPacket for interface {0} on {1} are enabled and configured correctly." -f $interface.NetworkInterface, $object.Name
+
                         "EncapOverhead and JumboPacket for interface {0} on {1} are disabled or not configured correctly." -f $interface.NetworkInterface, $object.Name  | Trace-Output -Level:Exception
                     }
 

@@ -7,7 +7,7 @@ function Test-ServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -39,9 +39,9 @@ function Test-ServiceState {
 
             if($result.Status -ine 'Running'){
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Start the service(s).'
+                $sdnHealthObject.Remediation += "Start $($result.Name) service on $($result.PSComputerName)"
 
-                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Warning
+                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Exception
             }
             else {
                 "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Verbose

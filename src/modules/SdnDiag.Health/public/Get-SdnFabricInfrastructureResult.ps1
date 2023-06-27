@@ -17,7 +17,7 @@ function Get-SdnFabricInfrastructureResult {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [SdnDiag.Common.Helper.SdnRoles]$Role,
+        [String]$Role,
 
         [Parameter(Mandatory = $false)]
         [System.String]$Name
@@ -27,13 +27,13 @@ function Get-SdnFabricInfrastructureResult {
 
     if ($PSBoundParameters.ContainsKey('Role')) {
         if ($cacheResults) {
-            $cacheResults = $cacheResults.$($Role.ToString())
+            $cacheResults = $cacheResults | Where-Object {$_.Role -eq $Role.ToString()}
         }
     }
 
     if ($PSBoundParameters.ContainsKey('Name')) {
         if ($cacheResults) {
-            $cacheResults = $cacheResults | Where-Object {$_.Name -eq $Name}
+            $cacheResults = $cacheResults.HealthValidation | Where-Object {$_.Name -eq $Name}
         }
     }
 
