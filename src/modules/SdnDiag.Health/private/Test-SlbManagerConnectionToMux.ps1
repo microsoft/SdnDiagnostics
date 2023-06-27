@@ -22,7 +22,7 @@ function Test-SlbManagerConnectionToMux {
 
     $sdnHealthObject = [SdnHealth]::new()
     $netConnectionExistsScriptBlock = {
-        $tcpConnection = Get-NetTCPConnection -RemotePort 8560 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
+        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
         if ($tcpConnection) {
             return $true
         }
