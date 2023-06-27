@@ -19,6 +19,7 @@ class SdnFabricEnvObject {
     [String[]]$ComputerName
     [Uri]$NcUrl
     [Object]$Role
+    [Object]$EnvironmentInfo
 }
 
 class SdnFabricHealthReport {
