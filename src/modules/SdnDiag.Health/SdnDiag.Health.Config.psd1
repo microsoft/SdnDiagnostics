@@ -109,7 +109,7 @@
         }
         'HostNotConnectedToController' = @{
             Message = 'The Host is not yet connected to the Network Controller'
-            Action = 'Port Profile not applied on the host or the host is not reachable from the Network Controller. Validate that HostID registry key matches the Instance ID of the server resource'
+            Action = 'Validate that Host is online and operational, NCHostAgent service is started and HostID registry key matches the Instance ID of the server resource'
         }
         'MultipleVfpEnabledSwitches' = @{
             Message = 'There are multiple VFp enabled Switches on the host'
