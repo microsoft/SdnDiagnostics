@@ -153,7 +153,14 @@ function Start-SdnServerCertificateRotation {
             $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
             $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl  -ResourceRef $server.resourceRef
-            $server.properties.certificate = $encoding
+            if ($server.properties.certificate) {
+                $server.properties.certificate = $encoding
+            }
+            else {
+                # in instances where the certificate property does not exist, we will need to add it
+                # this typically will occur if converting from CA issued certificate to self-signed certificate
+                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding
+            }
             $jsonBody = $server | ConvertTo-Json -Depth 100
 
             $null = Invoke-RestMethodWithRetry -Method 'Put' -UseBasicParsing -Uri $endpoint -Headers $headers -ContentType $content -Body $jsonBody -Credential $NcRestCredential
