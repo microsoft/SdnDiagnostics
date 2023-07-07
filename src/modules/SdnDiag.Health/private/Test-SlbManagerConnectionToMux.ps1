@@ -55,19 +55,19 @@ function Test-SlbManagerConnectionToMux {
             $virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {
-                "{0} is not connected to SlbManager of Network Controller" -f $virtualServerConnection | Trace-Output -Level:Exception
+                "{0} is not connected to SlbManager of Network Controller" -f $mux.resourceRef | Trace-Output -Level:Exception
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Fix connectivity between $($primaryReplicaNode.ReplicaAddress) and $($virtualServerConnection)."
+                $sdnHealthObject.Remediation += "Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($mux.resourceRef)."
 
                 $object = [PSCustomObject]@{
-                    LoadBalancerMux = $virtualServerConnection
+                    LoadBalancerMux = $mux.resourceRef
                     SlbManagerPrimaryReplica = $primaryReplicaNode.ReplicaAddress
                 }
 
                 $sdnHealthObject.Properties += $object
             }
             else {
-                "{0} is connected to {1}" -f $virtualServerConnection, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
+                "{0} is connected to {1}" -f $mux.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
             }
         }
     }

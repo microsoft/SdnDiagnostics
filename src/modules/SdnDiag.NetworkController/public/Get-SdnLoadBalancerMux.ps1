@@ -34,14 +34,15 @@ function Get-SdnLoadBalancerMux {
             }
 
             if($ManagementAddressOnly){
-                $managementAddresses = [System.Collections.ArrayList]::new()
+                $managementAddress = @()
                 foreach ($resource in $result) {
                     $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
-                    [void]$managementAddresses.Add($virtualServerMgmtAddress)
+                    $managementAddress += $virtualServerMgmtAddress
                 }
-                return $managementAddresses
+
+                return ($managementAddress | Sort-Object -Unique)
             }
-            else {
+            else{
                 return $result
             }
         }

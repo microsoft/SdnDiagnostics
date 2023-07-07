@@ -153,6 +153,7 @@ function Debug-SdnFabricInfrastructure {
                         Test-VMNetAdapterDuplicateMacAddress @computerCredParams
                         Test-HostRootStoreNonRootCert @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
+                        Test-NcHostAgentConnectionToApiService @computerCredAndRestApiParams
                     )
                 }
             }

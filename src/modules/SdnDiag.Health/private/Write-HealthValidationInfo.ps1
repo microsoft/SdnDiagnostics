@@ -11,7 +11,7 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation
     )
 
-    $details = Get-HealthValidationDetail -Id $Name
+    $details = Get-HealthData -Property 'HealthValidations' -Id $Name
 
     $outputString = "[$Role] $Name"
     $outputString += "`r`n`r`n"
@@ -20,7 +20,7 @@ function Write-HealthValidationInfo {
     $outputString += "Impact:`t`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        $outputString += "Remediation:`r`n`t -$($Remediation -join "`r`n`t -")`r`n"
+        $outputString += "Remediation:`r`n`t -`t$($Remediation -join "`r`n`t -`t")`r`n"
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
