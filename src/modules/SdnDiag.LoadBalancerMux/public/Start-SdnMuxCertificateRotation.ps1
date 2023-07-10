@@ -154,7 +154,14 @@ function Start-SdnMuxCertificateRotation {
             $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
             $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl  -ResourceRef $virtualServer.resourceRef
-            $virtualServer.properties.certificate = $encoding
+            if ($virtualServer.properties.certificate) {
+                $virtualServer.properties.certificate = $encoding
+            }
+            else {
+                # in instances where the certificate property does not exist, we will need to add it
+                # this typically will occur if converting from CA issued certificate to self-signed certificate
+                $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding
+            }
             $jsonBody = $virtualServer | ConvertTo-Json -Depth 100
 
             $null = Invoke-RestMethodWithRetry -Method 'Put' -UseBasicParsing -Uri $endpoint -Headers $headers -ContentType $content -Body $jsonBody -Credential $NcRestCredential
