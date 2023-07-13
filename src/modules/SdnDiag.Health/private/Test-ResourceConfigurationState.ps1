@@ -53,10 +53,18 @@ function Test-ResourceConfigurationState {
                     'Error' {
                         $traceLevel = 'Exception'
                     }
+                    'Uninitialized' {
+                        # in scenarios where state is redundant, we will not fail the test
+                        # as this is expected to be uninitialized
+                        if ($object.properties.state -ieq 'Redundant') {
+                            continue
+                        }
+                        else {
+                            $traceLevel = 'Exception'
+                        }
+                    }
                     default {
-                        # for all other statuses, we will log to verbose
-                        # gateways leverage an Uninitialized for when a gateway is passive and not hosting any virtual gateways, so we will ignore this
-                        continue
+                        $traceLevel = 'Information'
                     }
                 }
 

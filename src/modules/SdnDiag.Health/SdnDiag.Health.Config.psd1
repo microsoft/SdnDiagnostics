@@ -48,6 +48,21 @@
             Impact = "Mismatch of HostId between Hyper-V host(s) and Network Controller will result in policy configuration failures."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-for-corresponding-hostids-and-certificates-between-network-controller-and-each-hyper-v-host"
         }
+        'Test-ServiceFabricApplicationHealth' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ServiceFabricClusterHealth' = @{
+            Description = ""
+            Impact = ""
+            PublicDocUrl = ""
+        }
+        'Test-ServiceFabricNodeStatus' = @{
+            Description = "Service Fabric node(s) are offline and not participating in the cluster."
+            Impact = "Minimum amount of nodes are required to maintain quorum and cluster availability. Services will be in read-only state if quorum is lost and may result in data loss."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure/service-fabric/service-fabric-disaster-recovery"
+        }
         'Test-ServiceFabricPartitionDatabaseSize' = @{
             Description = ""
             Impact = ""
