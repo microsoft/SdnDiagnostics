@@ -16,7 +16,6 @@ function Test-ServiceFabricApplicationHealth {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
 
     try {
         "Validating the Service Fabric Application Health for Network Controller" | Trace-Output
@@ -29,9 +28,9 @@ function Test-ServiceFabricApplicationHealth {
         $applicationHealth = Get-SdnServiceFabricApplicationHealth -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential
         if ($applicationHealth.AggregatedHealthState -ine 'Ok') {
             $sdnHealthObject.Result = 'FAIL'
+            $sdnHealthObject.Remediation += "Examine the Service Fabric Application Health for Network Controller to determine why the health is not OK."
         }
 
-        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {

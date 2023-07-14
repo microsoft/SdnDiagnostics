@@ -49,13 +49,13 @@
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-for-corresponding-hostids-and-certificates-between-network-controller-and-each-hyper-v-host"
         }
         'Test-ServiceFabricApplicationHealth' = @{
-            Description = ""
-            Impact = ""
+            Description = "Network Controller application with Service Fabric is not healthy."
+            Impact = "Network Controller services and functionality may be impacted."
             PublicDocUrl = ""
         }
         'Test-ServiceFabricClusterHealth' = @{
-            Description = ""
-            Impact = ""
+            Description = "Service Fabric cluster for Network Controller is not healthy."
+            Impact = "Network Controller services and functionality may be impacted."
             PublicDocUrl = ""
         }
         'Test-ServiceFabricNodeStatus' = @{

@@ -16,7 +16,6 @@ function Test-ServiceFabricNodeStatus {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
 
     try {
         "Validating the Service Fabric Nodes for Network Controller" | Trace-Output
@@ -29,7 +28,7 @@ function Test-ServiceFabricNodeStatus {
         foreach ($node in $ncNodes) {
             if ($node.NodeStatus -ine 'Up') {
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Fix the Service Fabric Cluster'
+                $sdnHealthObject.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
             }
         }
 

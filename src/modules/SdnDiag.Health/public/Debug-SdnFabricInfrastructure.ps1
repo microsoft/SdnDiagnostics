@@ -136,6 +136,9 @@ function Debug-SdnFabricInfrastructure {
                     $roleHealthReport.HealthValidation += @(
                         Test-ServiceState @computerCredParams
                         Test-ServiceFabricPartitionDatabaseSize @computerCredParams
+                        Test-ServiceFabricClusterHealth @computerCredParams
+                        Test-ServiceFabricApplicationHealth @computerCredParams
+                        Test-ServiceFabricNodeStatus @computerCredParams
                         Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
                         Test-ScheduledTaskEnabled @computerCredParams
                         Test-NetworkControllerCertCredential @computerCredAndRestApiParams
