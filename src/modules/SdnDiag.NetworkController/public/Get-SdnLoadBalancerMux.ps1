@@ -4,28 +4,74 @@ function Get-SdnLoadBalancerMux {
         Returns a list of load balancer muxes from network controller
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER ResourceId
+        Specifies the unique identifier for the resource.
+    .PARAMETER ResourceRef
+        Specifies the resource reference for the resource.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+    .EXAMPLE
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [String]$ResourceId,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [String]$ResourceRef,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [switch]$ManagementAddressOnly
     )
 
+    $params = @{
+        NcUri = $NcUri
+        Resource = 'Servers'
+        Credential = $Credential
+    }
+
+    switch ($PSCmdlet.ParameterSetName()) {
+        'ResourceId' {
+            $params.Add('ResourceId', $ResourceId)
+        }
+        'ResourceRef' {
+            $params.Add('ResourceRef', $ResourceRef)
+        }
+        default {
+            # do nothing
+        }
+    }
+
     try {
-        $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:LoadBalancerMuxes -Credential $Credential
+        $result = Get-SdnResource @params
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){
