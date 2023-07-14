@@ -41,6 +41,10 @@ function Test-ResourceConfigurationState {
 
                 $sdnHealthObject.Result = 'FAIL'
                 $sdnHealthObject.Remediation += "Examine the Network Controller logs to determine why $($object.resourceRef) provisioning failed."
+
+                # we can continue to the next object at this point
+                # as we do not care about the configurationState at this point if the provisioningState is not success
+                continue
             }
 
             # examine the configuration state of the resources and display errors to the screen
