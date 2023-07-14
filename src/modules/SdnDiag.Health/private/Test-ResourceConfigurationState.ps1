@@ -23,6 +23,8 @@ function Test-ResourceConfigurationState {
 
         $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
         foreach($object in $sdnResources){
+            $skipValidation = $false
+
             # examine the provisioning state of the resources and display errors to the screen
             if ($object.properties.provisioningState -ine 'Succeeded') {
                 $msg = "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState
@@ -34,9 +36,17 @@ function Test-ResourceConfigurationState {
                         $msg | Trace-Output -Level:Exception
                     }
                     default {
-                        # for all other statuses, we will log to verbose
-                        $msg | Trace-Output -Level:Verbose
+                        # for all other statuses, we will log as normal
+                        # and skip the validation of the configurationState
+                        $skipValidation = $true
+                        $msg | Trace-Output -Level:Information
                     }
+                }
+
+                # if we are skipping validation, we will continue to the next object
+                # as we do not expect configurationState to be accurate if provisioningState is not Success
+                if ($skipValidation) {
+                    continue
                 }
 
                 $sdnHealthObject.Result = 'FAIL'
@@ -61,7 +71,7 @@ function Test-ResourceConfigurationState {
                         # in scenarios where state is redundant, we will not fail the test
                         # as this is expected to be uninitialized
                         if ($object.properties.state -ieq 'Redundant') {
-                            continue
+                            $skipValidation = $true
                         }
                         else {
                             $traceLevel = 'Exception'
@@ -70,6 +80,11 @@ function Test-ResourceConfigurationState {
                     default {
                         $traceLevel = 'Information'
                     }
+                }
+
+                # if we are skipping validation, we will continue to the next object
+                if ($skipValidation) {
+                    continue
                 }
 
                 $sdnHealthObject.Result = 'FAIL'
@@ -102,7 +117,7 @@ function Test-ResourceConfigurationState {
                 $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" `
                 -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
 
-                $msg | Trace-Output -Level:$traceLevel
+                $msg | Trace-Output -Level $traceLevel.ToString()
             }
 
             $details = [PSCustomObject]@{

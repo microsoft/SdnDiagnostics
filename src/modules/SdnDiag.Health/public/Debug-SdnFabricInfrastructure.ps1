@@ -111,6 +111,9 @@ function Debug-SdnFabricInfrastructure {
                 Credential              = $Credential
             }
 
+            # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
+
             # perform the health validations for the appropriate roles that were specified directly
             # or determined via which ComputerNames were defined
             switch ($object) {

@@ -33,10 +33,10 @@ function Get-SdnGateway {
         [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceId')]
         [String]$ResourceId,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [String]$ResourceRef,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
@@ -54,19 +54,19 @@ function Get-SdnGateway {
 
     $params = @{
         NcUri = $NcUri
-        Resource = 'Servers'
         Credential = $Credential
     }
 
-    switch ($PSCmdlet.ParameterSetName()) {
+    switch ($PSCmdlet.ParameterSetName) {
         'ResourceId' {
+            $params.Add('Resource', 'Gateways')
             $params.Add('ResourceId', $ResourceId)
         }
         'ResourceRef' {
             $params.Add('ResourceRef', $ResourceRef)
         }
         default {
-            # do nothing
+            $params.Add('Resource', 'Gateways')
         }
     }
 
