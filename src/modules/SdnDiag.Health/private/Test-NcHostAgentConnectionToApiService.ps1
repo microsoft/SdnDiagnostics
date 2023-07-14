@@ -57,7 +57,7 @@ function Test-NcHostAgentConnectionToApiService {
             if (-NOT $connectionExists) {
                 "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Exception
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($server.resourceRef)."
+                $sdnHealthObject.Remediation += "Ensure NCHostAgent service is started. Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($server.resourceRef)."
 
                 $object = [PSCustomObject]@{
                     Server = $server.resourceRef
@@ -70,6 +70,8 @@ function Test-NcHostAgentConnectionToApiService {
                 "{0} is connected to {1}" -f $server.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
             }
         }
+
+        return $sdnHealthObject
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -64,12 +64,12 @@
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure/service-fabric/service-fabric-disaster-recovery"
         }
         'Test-ServiceFabricPartitionDatabaseSize' = @{
-            Description = ""
-            Impact = ""
+            Description = "Service Fabric partition database size has exceeded normal size expected."
+            Impact = "Performance of the Service Fabric Services may occur."
             PublicDocUrl = ""
         }
         'Test-ServiceState' = @{
-            Description = "Identified service is not running on the SDN infrastructure node(s)."
+            Description = "Identified service(s) are not running on the SDN infrastructure node(s)."
             Impact = "SDN services and functionality will be impacted without the service running."
             PublicDocUrl = ""
         }
@@ -86,6 +86,11 @@
         'Test-VMNetAdapterDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected with the data plane on the Hyper-V host(s)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted for the interfaces that are duplicated."
+            PublicDocUrl = ""
+        }
+        'Test-NcHostAgentConnectionToApiService' = @{
+            Description = "Network Controller Host Agent is not connected to the Network Controller API Service."
+            Impact = "Policy configuration may not be pushed to the Hyper-V host(s) if no southbound connectivity is available."
             PublicDocUrl = ""
         }
     }
