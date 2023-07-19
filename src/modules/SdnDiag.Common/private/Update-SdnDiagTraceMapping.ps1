@@ -22,10 +22,7 @@ function Update-SdnDiagTraceMapping {
         [string]$VmInternalId,
 
         [Parameter(Mandatory=$false)]
-        [string[]]$PrivateIpAddress,
-
-        [Parameter(Mandatory=$false)]
-        [string[]]$PublicIpAddress
+        [string[]]$PrivateIpAddress
     )
 
     $cacheName = 'TraceMapping'
