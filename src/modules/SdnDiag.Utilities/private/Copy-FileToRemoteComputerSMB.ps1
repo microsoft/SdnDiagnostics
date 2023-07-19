@@ -27,7 +27,7 @@ function Copy-FileToRemoteComputerSMB {
         [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Destination = (Get-WorkingDirectory),
+        [System.IO.FileInfo]$Destination = (Get-WorkingDirectory),
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [System.Management.Automation.PSCredential]
@@ -62,10 +62,25 @@ function Copy-FileToRemoteComputerSMB {
             throw New-Object System.Exception($msg)
         }
 
-        $remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination
-        $params.Destination = $remotePath
+        [System.IO.FileInfo]$remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
+        $params.Destination = $remotePath.FullName
     }
     process {
+
+        # ensure that the destination directory already exists
+        # we want to check to see if destination is meant to be a folder or file
+        # if its a file, then we want the parent directory of the file
+        if ($remotePath.Extension) {
+            $destinationRootDir = Split-Path -Path $params.Destination -Parent
+        }
+        else {
+            $destinationRootDir = $params.Destination
+        }
+
+        if (-NOT (Test-Path -Path $destinationRootDir -PathType Container)) {
+            $null = New-Item -Path $destinationRootDir -ItemType Directory
+        }
+
         foreach ($subPath in $Path) {
             $params.Path = $subPath
 

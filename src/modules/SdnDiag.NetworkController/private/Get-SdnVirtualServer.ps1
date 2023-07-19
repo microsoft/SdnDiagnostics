@@ -36,11 +36,15 @@ function Get-SdnVirtualServer {
         }
 
         if ($ManagementAddressOnly) {
+            $managementAddress = @()
+            foreach ($address in $result.properties.connections.managementAddresses) {
+                $managementAddress += $address
+            }
+
             # there might be multiple connection endpoints to each node so we will want to only return the unique results
             # this does not handle if some duplicate connections are listed as IPAddress with another record saved as NetBIOS or FQDN
             # further processing may be required by the calling function to handle that
-
-            return ($result.properties.connections.managementAddresses | Sort-Object -Unique)
+            return ($managementAddress | Sort-Object -Unique)
         }
         else {
             return $result

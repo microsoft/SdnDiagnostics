@@ -31,7 +31,7 @@ function Get-SdnVMNetworkAdapterPortProfile {
 
     try {
         if ($null -eq (Get-Module -Name Hyper-V)) {
-            Import-Module -Name Hyper-V -Force
+            Import-Module -Name Hyper-V -Force -ErrorAction Stop
         }
 
         $arrayList = [System.Collections.ArrayList]::new()
@@ -57,17 +57,14 @@ function Get-SdnVMNetworkAdapterPortProfile {
                 MacAddress  = $adapter.MacAddress
                 ProfileId   = $currentProfile.SettingData.ProfileId
                 ProfileData = $currentProfile.SettingData.ProfileData
+                PortId      = $null
             }
-
-            $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
 
             # we will typically see multiple port data values for each adapter, however the deviceid should be the same across all of the objects
             # defensive coding in place for situation where vm is not in proper state and this portdata is null
+            $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
             if ($portData) {
-                $object | Add-Member -MemberType NoteProperty -Name 'PortId' -Value $portData[0].data.deviceid
-            }
-            else {
-                $object | Add-Member -MemberType NoteProperty -Name 'PortId' -Value $null
+                $object.PortId = $portData[0].data.deviceid
             }
 
             [void]$arrayList.Add($object)

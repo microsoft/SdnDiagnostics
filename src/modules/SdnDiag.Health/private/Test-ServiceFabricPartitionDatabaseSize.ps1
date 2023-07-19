@@ -7,7 +7,7 @@ function Test-ServiceFabricPartitionDatabaseSize {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -63,10 +63,12 @@ function Test-ServiceFabricPartitionDatabaseSize {
                     }
 
                     # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
-                    if([float]$formatedByteSize.GB -gt 4){
+                    # need to perform InvariantCulture to ensure that the decimal separator is a period
+                    if([float]::Parse($formatedByteSize.GB, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture) -gt 4){
                         "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Warning
 
                         $sdnHealthObject.Result = 'FAIL'
+                        $sdnHealthObject.Remediation = "Engage Microsoft CSS for further support"
                     }
                     else {
                         "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Verbose

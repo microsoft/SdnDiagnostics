@@ -1,9 +1,9 @@
 function Import-SdnCertificate {
     <#
     .SYNOPSIS
-        Imports certificates and private keys from a Personal Information Exchange (PFX) file to the destination store.
+        Imports certificates (CER) and private keys from a Personal Information Exchange (PFX) file to the destination store.
     .PARAMETER FilePath
-        Specifies the full path to the PFX file of the secured file.
+        Specifies the full path to the PFX or CER file.
     .PARAMETER CertStore
         Specifies the path of the store to which certificates will be imported. If paramater is not specified, defaults to Cert:\LocalMachine\Root.
     .PARAMETER CertPassword
@@ -35,21 +35,34 @@ function Import-SdnCertificate {
         CerFileInfo = $null
     }
 
-    if ($CertPassword) {
-        $pfxData = (Get-PfxData -FilePath $fileInfo.FullName -Password $CertPassword).EndEntityCertificates
-    }
-    else {
-        $pfxData = Get-PfxCertificate -FilePath $fileInfo.FullName
+    switch ($fileInfo.Extension) {
+        '.pfx' {
+            if ($CertPassword) {
+                $certData = (Get-PfxData -FilePath $fileInfo.FullName -Password $CertPassword).EndEntityCertificates
+            }
+            else {
+                $certData = Get-PfxCertificate -FilePath $fileInfo.FullName
+            }
+        }
+
+        '.cer' {
+            $certData = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+            $certData.Import($fileInfo)
+        }
+
+        default {
+            throw New-Object System.NotSupportedException("Unsupported certificate extension")
+        }
     }
 
-    $certExists = Get-ChildItem -Path $CertStore | Where-Object {$_.Thumbprint -ieq $pfxData.Thumbprint}
+    $certExists = Get-ChildItem -Path $CertStore | Where-Object {$_.Thumbprint -ieq $certData.Thumbprint}
     if ($certExists) {
         "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output -Level:Verbose
         $certObject.CertInfo = $certExists
     }
     else {
-        "Importing {0} to {1}" -f $pfxData.Thumbprint, $CertStore | Trace-Output
-        if ($pfxData.HasPrivateKey) {
+        "Importing {0} to {1}" -f $certData.Thumbprint, $CertStore | Trace-Output
+        if ($certData.HasPrivateKey) {
             $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
             Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
         }

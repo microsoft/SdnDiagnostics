@@ -7,7 +7,7 @@ function Test-VfpDuplicatePort {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -29,12 +29,14 @@ function Test-VfpDuplicatePort {
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
+                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within VFP"
+
                 "Located {0} VFP ports associated with {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
                     ($obj.Group `
                     | Select-Object @{n="Portname";e={"`t$($_.Portname)"}} `
                     | Select-Object -ExpandProperty Portname `
                     | Out-String `
-                ) | Trace-Output -Level:Warning
+                ) | Trace-Output -Level:Exception
             }
         }
 

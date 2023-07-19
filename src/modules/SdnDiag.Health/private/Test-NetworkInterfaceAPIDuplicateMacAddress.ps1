@@ -7,7 +7,7 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -32,6 +32,8 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
 
             # since there can be multiple grouped objects, we need to enumerate each duplicate group
             foreach($obj in $duplicateObjects){
+                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within Network Controller Network Interfaces"
+
                 $duplicateInterfaces = $networkInterfaces | Where-Object {$_.properties.privateMacAddress -eq $obj.Name}
                 $array += $duplicateInterfaces
 
@@ -40,7 +42,7 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
                     | Select-Object @{n="ResourceRef";e={"`t$($_.resourceRef)"}} `
                     | Select-Object -ExpandProperty ResourceRef `
                     | Out-String `
-                ) | Trace-Output -Level:Warning
+                ) | Trace-Output -Level:Exception
             }
         }
 

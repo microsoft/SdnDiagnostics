@@ -41,8 +41,17 @@ function Get-SdnNetworkControllerClusterInfo {
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerNode } -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerNode" -FileType txt
 
+        Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerCluster } -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerCluster" -FileType txt
+
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerReplica } -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerReplica" -FileType txt
+
+        Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri GlobalConfiguration} -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerGlobalConfiguration" -FileType txt -Format Table
+
+        Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri ClusterConfiguration} -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerClusterConfiguration" -FileType txt -Format Table
 
         Get-SdnServiceFabricClusterHealth -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricClusterHealth" -FileType txt
