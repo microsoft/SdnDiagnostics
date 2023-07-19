@@ -61,21 +61,21 @@ function Export-ObjectToFile {
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
             switch($FileType){
                 "json" {
-                    $arrayList | ConvertTo-Json -Depth 10 | Out-File -FilePath $fileName
+                    $arrayList | ConvertTo-Json -Depth 10 | Out-File -FilePath $fileName -Force
                 }
                 "csv" {
-                    $arrayList | Export-Csv -NoTypeInformation -Path $fileName
+                    $arrayList | Export-Csv -NoTypeInformation -Path $fileName -Force
                 }
                 "txt" {
                     switch($Format){
                         'Table' {
-                            $arrayList | Format-Table -AutoSize | Out-String -Width 4096 | Out-File -FilePath $fileName
+                            $arrayList | Format-Table -AutoSize | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
                         }
                         'List' {
-                            $arrayList | Format-List -Property * | Out-File -FilePath $fileName
+                            $arrayList | Format-List -Property * | Out-File -FilePath $fileName -Force
                         }
                         default {
-                            $arrayList | Out-File -FilePath $fileName
+                            $arrayList | Out-File -FilePath $fileName -Force
                         }
                     }
                 }
