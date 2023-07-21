@@ -54,6 +54,7 @@
         'Debug-SdnFabricInfrastructure',
         'Disable-SdnRasGatewayTracing',
         'Enable-SdnRasGatewayTracing',
+        'Enable-SdnVipTrace'
         'Get-SdnAuditLog',
         'Get-SdnApiEndpoint'
         'Get-SdnCertificate',
