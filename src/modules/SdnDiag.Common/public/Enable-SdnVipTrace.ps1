@@ -69,7 +69,14 @@ function Enable-SdnVipTrace {
         switch -Wildcard ($associatedResource.resourceRef) {
             "/loadBalancers/*" {
                 "{0} is associated with load balancer {1}" -f $VirtualIP, $associatedResource.resourceRef | Trace-Output
-                $ipConfigurations = $associatedResource.properties.backendAddressPools.properties.backendIPConfigurations.resourceRef
+
+                # depending on the environments, the associatedResource may come back as the parent load balancer object
+                # or may be the frontend IP configuration object so in either situation, we should just split the resourceRef string and query to get the
+                # parent load balancer object to ensure consistency
+                $parentResource = "{0}/{1}" -f $associatedResource.resourceRef.Split('/')[1], $associatedResource.resourceRef.Split('/')[2]
+                $loadBalancer = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -ResourceRef $parentResource
+
+                $ipConfigurations = $loadBalancer.properties.backendAddressPools.properties.backendIPConfigurations.resourceRef
             }
             "/networkInterfaces/*" {
                 "{0} is associated with network interface {1}" -f $VirtualIP, $associatedResource.resourceRef | Trace-Output
@@ -84,7 +91,11 @@ function Enable-SdnVipTrace {
         }
 
         $ipConfigurations | ForEach-Object {
-            $ipConfig = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -ResourceRef $_
+            $ipConfig = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -ResourceRef $_ -ErrorAction Stop
+            if ($null -ieq $ipConfig) {
+                throw "Unable to locate resource for $($_)"
+            }
+
             "Located associated resource {0} with DIP address {1}" -f $ipConfig.resourceRef, $ipconfig.properties.privateIPAddress | Trace-Output
 
             # we need the mac address of the network interface to locate the vfp switch port
