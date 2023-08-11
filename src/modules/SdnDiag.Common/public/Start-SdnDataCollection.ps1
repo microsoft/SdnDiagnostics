@@ -340,11 +340,12 @@ function Start-SdnDataCollection {
         "Performing cleanup of {0} across the SDN fabric" -f $tempDirectory.FullName | Trace-Output
         Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
-        $stopwatch.Stop()
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)
         $dataCollectionObject.OutputDirectory = $OutputDirectory.FullName
-        $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
         $dataCollectionObject.Role = $groupedObjectsByRole.Name
+
+        $stopwatch.Stop()
+        $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
         $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json
         "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
         Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
