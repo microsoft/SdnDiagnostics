@@ -1,4 +1,4 @@
-function Get-SdnDiagnosticLog {
+function Get-SdnDiagnosticLogFile {
     <#
     .SYNOPSIS
         Collect the default enabled logs from SdnDiagnostics folder.
@@ -9,13 +9,16 @@ function Get-SdnDiagnosticLog {
     .PARAMETER ConvertETW
         Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
     .EXAMPLE
-        PS> Get-SdnDiagnosticLog -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-SdnDiagnosticLogFile -OutputDirectory "C:\Temp\CSS_SDN"
     .EXAMPLE
-        PS> Get-SdnDiagnosticLog -OutputDirectory "C:\Temp\CSS_SDN" -FromDate (Get-Date).AddHours(-8)
+        PS> Get-SdnDiagnosticLogFile -OutputDirectory "C:\Temp\CSS_SDN" -FromDate (Get-Date).AddHours(-8)
     #>
 
     [CmdletBinding()]
     param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$LogDir,
+
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
@@ -23,24 +26,33 @@ function Get-SdnDiagnosticLog {
         [DateTime]$FromDate = (Get-Date).AddHours(-4),
 
         [Parameter(Mandatory = $false)]
+        [DateTime]$ToDate = (Get-Date),
+
+        [Parameter(Mandatory = $false)]
         [bool]$ConvertETW = $true
     )
 
+    $fromDateUTC = $FromDate.ToUniversalTime()
+    $toDateUTC = $ToDate.ToUniversalTime()
+
     try {
-        [System.IO.FileInfo]$logDir = $Script:SdnDiagnostics_Common.Config.DefaultLogDirectory
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnosticLogs"
-
-        "Collect diagnostic logs between {0} and {1} UTC" -f $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output
-
-        $logFiles = Get-ChildItem -Path $logDir.FullName -ErrorAction SilentlyContinue | Where-Object { $_.LastWriteTime -ge $FromDate }
-        if($null -eq $logFiles){
-            "No log files found under {0} between {1} and {2} UTC." -f $logDir.FullName, $FromDate.ToUniversalTime(), (Get-Date).ToUniversalTime() | Trace-Output -Level:Warning
+        "Collect diagnostic logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
+        $commonConfig = Get-SdnModuleConfiguration -Role 'Common'
+        # enumerate the log files in the log directory and filter based on the from and to date
+        if (-NOT (Test-Path -Path $LogDir)) {
+            "{0} does not exist" -f $LogDir | Trace-Output
             return
         }
 
-        $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
+        $logFiles = Get-ChildItem -Path "$LogDir\*" -Include $commonConfig.LogFileTypes -ErrorAction SilentlyContinue `
+        | Where-Object { $_.LastWriteTime.ToUniversalTime() -ge $fromDateUTC -and $_.LastWriteTime.ToUniversalTime() -le $toDateUTC }
+        if($null -eq $logFiles){
+            "No log files found under {0} between {1} and {2} UTC." -f $LogDir, $fromDateUTC, $toDateUTC | Trace-Output
+            return
+        }
 
         # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
+        $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minimumDiskSpace)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
             return
