@@ -64,7 +64,7 @@ function Get-SdnEventLog {
                 [void]$eventLogs.Add($eventLogsToAdd)
             }
             else {
-                "No events found for {0}" -f $provider | Trace-Output -Level:Warning
+                "No events found for {0}" -f $provider | Trace-Output
             }
         }
 
