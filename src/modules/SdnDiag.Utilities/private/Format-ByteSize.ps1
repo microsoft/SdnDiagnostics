@@ -5,8 +5,11 @@ function Format-ByteSize {
         [double]$Bytes
     )
 
+    $gb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $Bytes / 1GB)
+    $mb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $Bytes / 1MB)
+
     return ([PSCustomObject]@{
-        GB = "{0}" -f ($Bytes / 1GB)
-        MB = "{0}" -f ($Bytes / 1MB)
+        GB = $gb
+        MB = $mb
     })
 }
