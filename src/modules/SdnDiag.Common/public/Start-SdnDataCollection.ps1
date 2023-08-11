@@ -110,10 +110,10 @@ function Start-SdnDataCollection {
         Role = $null
         IncludeNetView = $IncludeNetView
         IncludeLogs = $IncludeLogs
-        FromDate = $FromDate
-        FromDateUTC = $FromDate.ToUniversalTime()
-        ToDate = $ToDate
-        ToDateUTC = $ToDate.ToUniversalTime()
+        FromDate = $FromDate.ToString()
+        FromDateUTC = $FromDate.ToUniversalTime().ToString()
+        ToDate = $ToDate.ToString()
+        ToDateUTC = $ToDate.ToUniversalTime().ToString()
     }
 
     $collectLogSB = {
