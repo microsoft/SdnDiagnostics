@@ -77,6 +77,10 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [DateTime]$ToDate = (Get-Date),
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
@@ -94,6 +98,11 @@ function Start-SdnDataCollection {
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
         [bool]$ConvertETW = $true
     )
+
+    $collectLogSB = {
+        param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4)
+        Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4
+    }
 
     try {
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
@@ -177,6 +186,7 @@ function Start-SdnDataCollection {
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
 
         # ensure SdnDiagnostics installed across the data nodes and versions are the same
+        Install-SdnDiagnostics -ComputerName $NetworkController -ErrorAction Stop
         Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Stop
 
         # collect control plane information without regardless of roles defined
@@ -217,21 +227,21 @@ function Start-SdnDataCollection {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnGatewayConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnGatewayConfigurationState'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Gateway Configuration'
                 }
 
                 'NetworkController' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnNetworkControllerConfigurationState'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Network Controller Configuration'
                 }
 
                 'Server' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnServerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnServerConfigurationState'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Server Configuration'
 
                     Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
@@ -247,42 +257,24 @@ function Start-SdnDataCollection {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get-SdnSlbMuxConfigurationState'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get SLB Configuration State'
                 }
             }
 
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
-            Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                param ([Parameter(Position = 0)][String]$NetworkTraceDir, [Parameter(Position = 1)][String]$TempDirectory, [Parameter(Position = 2)]$ConvertETW)
-                if (Test-Path -Path $NetworkTraceDir -PathType Container) {
-
-                    # convert the most recent etl trace file into human readable format without requirement of additional parsing tools
-                    if ($ConvertETW) {
-                        $convertFile = Get-Item -Path "$NetworkTraceDir\*" -Include '*.etl' | Sort-Object -Property LastWriteTime | Select-Object -Last 1
-                        if ($convertFile) {
-                            $null = Convert-SdnEtwTraceToTxt -FileName $convertFile.FullName -Overwrite 'Yes'
-                        }
-                    }
-
-                    # move the entire directory
-                    try {
-                        Move-Item -Path $NetworkTraceDir -Destination $TempDirectory -Force -ErrorAction Stop
-                    }
-                    catch {
-                        "Unable to move {0} to {1}`n`t{2}" -f $NetworkTraceDir, $TempDirectory, $_.Exception | Write-Warning
-                    }
-                }
-            } -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", $tempDirectory.FullName, $ConvertETW)
+            Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
+            -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", "$tempDirectory\NetworkTraces", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Collect Network Traces'
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
                 if ($group.Name -ieq 'NetworkController') {
+                    $ncConfig = Get-SdnModuleConfiguration -Role:NetworkController
+                    [String]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+
                     "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate)
-                        Get-SdnServiceFabricLog -OutputDirectory $OutputDirectory -FromDate $FromDate
-                    } -ArgumentList @($tempDirectory.FullName, $FromDate) -AsJob -PassThru -Activity 'Get-SdnServiceFabricLog'
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
+                    -ArgumentList @($sfLogDir, "$($tempDirectory.FullName)\ServiceFabricLogs", $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Service Fabric Logs'
                 }
 
                 if ($group.Name -ieq 'Server') {
@@ -291,16 +283,17 @@ function Start-SdnDataCollection {
                 }
 
                 "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate, [Parameter(Position = 2)]$ConvertETW)
-                    Get-SdnDiagnosticLog -OutputDirectory $OutputDirectory -FromDate $FromDate -ConvertETW $ConvertETW
-                } -ArgumentList @($tempDirectory.FullName, $FromDate, $ConvertETW) -AsJob -PassThru -Activity 'Get-SdnDiagnosticLog'
+                $commonConfig = Get-SdnModuleConfiguration -Role:Common
+                [String]$diagLogDir = $commonConfig.DefaultLogDirectory
+
+                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
+                -ArgumentList @($diagLogDir, "$($tempDirectory.FullName)\SdnDiagnosticLogs", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
 
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String]$Role, [Parameter(Position =2)][DateTime]$FromDate)
-                    Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate
-                } -ArgumentList @($tempDirectory.FullName, $group.Name, $FromDate) -AsJob -PassThru -Activity 'Get-SdnEventLog'
+                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
+                    Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
+                } -ArgumentList @($tempDirectory.FullName, $group.Name, $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Event Logs'
             }
         }
 
@@ -313,7 +306,7 @@ function Start-SdnDataCollection {
                     -SkipNetshTrace `
                     -SkipVM `
                     -SkipCounters
-            } -ArgumentList @($tempDirectory.FullName) -AsJob -PassThru -Activity 'Invoke-SdnGetNetView'
+            } -ArgumentList @($tempDirectory.FullName) -AsJob -PassThru -Activity 'Invoke Get-NetView'
         }
 
         foreach ($node in $filteredDataCollectionNodes) {
