@@ -29,7 +29,10 @@ function Get-SdnDiagnosticLogFile {
         [DateTime]$ToDate = (Get-Date),
 
         [Parameter(Mandatory = $false)]
-        [bool]$ConvertETW = $true
+        [bool]$ConvertETW = $true,
+
+        [Parameter(Mandatory = $false)]
+        [bool]$CleanUpFiles = $false
     )
 
     $fromDateUTC = $FromDate.ToUniversalTime()
@@ -75,7 +78,13 @@ function Get-SdnDiagnosticLogFile {
         "Compressing results to {0}" -f "$($OutputDirectory.FullName).zip" | Trace-Output -Level:Verbose
         Compress-Archive -Path "$($OutputDirectory.FullName)\*" -Destination $OutputDirectory.FullName -CompressionLevel Optimal -Force
         if (Test-Path -Path "$($OutputDirectory.FullName).zip" -PathType Leaf) {
-            Remove-Item -Path $OutputDirectory.FullName -Force -Recurse
+            Clear-SdnWorkingDirectory -Path $OutputDirectory.FullName -Force -Recurse
+        }
+
+        # if we opted to clean up the files, then proceed to do so now
+        if ($CleanUpFiles) {
+            "Cleaning up files" | Trace-Output -Level:Verbose
+            Clear-SdnWorkingDirectory -Path $logFiles.FullName -Force -Recurse
         }
     }
     catch {

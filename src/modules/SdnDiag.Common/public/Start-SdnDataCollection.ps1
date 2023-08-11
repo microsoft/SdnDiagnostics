@@ -100,8 +100,8 @@ function Start-SdnDataCollection {
     )
 
     $collectLogSB = {
-        param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4)
-        Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4
+        param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4,[Boolean]$arg5)
+        Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5
     }
 
     try {
@@ -227,21 +227,21 @@ function Start-SdnDataCollection {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnGatewayConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Gateway Configuration'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Gateway Configuration'
                 }
 
                 'NetworkController' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnNetworkControllerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Network Controller Configuration'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Network Controller Configuration'
                 }
 
                 'Server' {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnServerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get Server Configuration'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Server Configuration'
 
                     Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
@@ -257,14 +257,14 @@ function Start-SdnDataCollection {
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$OutputDirectory)
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Get SLB Configuration State'
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect SLB Configuration State'
                 }
             }
 
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-            -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", "$tempDirectory\NetworkTraces", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Collect Network Traces'
+            -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", "$tempDirectory\NetworkTraces", $FromDate, $ToDate, $ConvertETW, $true) -AsJob -PassThru -Activity 'Collect Network Traces'
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
@@ -320,7 +320,7 @@ function Start-SdnDataCollection {
             Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
         }
 
-        "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($filteredDataCollectionNodes -join ', ') | Trace-Output
+        "Performing cleanup of {0} across the SDN fabric" -f $tempDirectory.FullName | Trace-Output
         Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
         Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
