@@ -36,7 +36,7 @@ function Get-SdnDiagnosticLogFile {
     $toDateUTC = $ToDate.ToUniversalTime()
 
     try {
-        "Collect diagnostic logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
+        "Collect diagnostic logs in {0} between {1} and {2} UTC" -f $LogDir, $fromDateUTC, $toDateUTC | Trace-Output
         $commonConfig = Get-SdnModuleConfiguration -Role 'Common'
         # enumerate the log files in the log directory and filter based on the from and to date
         if (-NOT (Test-Path -Path $LogDir)) {
@@ -59,7 +59,7 @@ function Get-SdnDiagnosticLogFile {
         }
 
         # copy the log files from the default log directory to the output directory
-        "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output -Level:Verbose
+        "Copying {0} files to {1}" -f $logFiles.Count, $OutputDirectory.FullName | Trace-Output
         Copy-Item -Path $logFiles.FullName -Destination $OutputDirectory.FullName -Force
 
         # convert the most recent etl trace file into human readable format without requirement of additional parsing tools

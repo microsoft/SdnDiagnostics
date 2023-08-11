@@ -14,7 +14,9 @@ function Get-SdnSlbMuxConfigurationState {
         [System.IO.FileInfo]$OutputDirectory
     )
 
+    $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'SilentlyContinue'
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
@@ -46,4 +48,5 @@ function Get-SdnSlbMuxConfigurationState {
     }
 
     $ProgressPreference = 'Continue'
+    $ErrorActionPreference = $currentErrorActionPreference
 }
