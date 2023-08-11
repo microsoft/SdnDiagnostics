@@ -99,6 +99,21 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
+    $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+
+    $dataCollectionObject = [PSCustomObject]@{
+        DurationInMinutes = $null
+        TotalSize = $null
+        OutputDirectory = $null
+        Role = $null
+        IncludeNetView = $IncludeNetView
+        IncludeLogs = $IncludeLogs
+        FromDate = $FromDate
+        FromDateUTC = $FromDate.ToUniversalTime()
+        ToDate = $ToDate
+        ToDateUTC = $ToDate.ToUniversalTime()
+    }
+
     $collectLogSB = {
         param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4,[Boolean]$arg5)
         Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5
@@ -156,7 +171,7 @@ function Start-SdnDataCollection {
                             Name = $node
                         }
 
-                        "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
                         $dataCollectionNodes += $object
                     }
                 }
@@ -171,7 +186,7 @@ function Start-SdnDataCollection {
                             Name = $computer
                         }
 
-                        "Node {0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
                         $dataCollectionNodes += $object
                     }
                 }
@@ -323,10 +338,19 @@ function Start-SdnDataCollection {
         "Performing cleanup of {0} across the SDN fabric" -f $tempDirectory.FullName | Trace-Output
         Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
 
-        Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
+        $stopwatch.Stop()
+        $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)
+        $dataCollectionObject.OutputDirectory = $OutputDirectory.FullName
+        $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
+        $dataCollectionObject.Role = $groupedObjectsByRole.Name
+        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json
         "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
+        Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
+
+        return $dataCollectionObject
     }
     catch {
+        $stopwatch.Stop()
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
     }
 }
