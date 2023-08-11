@@ -7,7 +7,9 @@ function Get-SdnEventLog {
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .PARAMETER FromDate
-        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 1 day.
+        Determines the start time of what logs to collect. If omitted, defaults to the last 1 day.
+    .PARAMETER ToDate
+        Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
     .EXAMPLE
         PS> Get-SdnEventLog -OutputDirectory "C:\Temp\CSS_SDN"
     .EXAMPLE

@@ -5,13 +5,17 @@ function Get-SdnDiagnosticLogFile {
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .PARAMETER FromDate
-        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. Default is 4 hours.
+        Determines the start time of what logs to collect. If omitted, defaults to the last 4 hours.
+    .PARAMETER ToDate
+        Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
     .PARAMETER ConvertETW
         Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
     .EXAMPLE
-        PS> Get-SdnDiagnosticLogFile -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-SdnDiagnosticLogFile -LogDir "C:\Windows\Tracing\SdnDiagnostics" -OutputDirectory "C:\Temp\CSS_SDN"
     .EXAMPLE
-        PS> Get-SdnDiagnosticLogFile -OutputDirectory "C:\Temp\CSS_SDN" -FromDate (Get-Date).AddHours(-8)
+        PS> Get-SdnDiagnosticLogFile -LogDir "C:\Windows\Tracing\SdnDiagnostics" -FromDate (Get-Date).AddHours(-1)
+    .EXAMPLE
+        PS> Get-SdnDiagnosticLogFile -LogDir "C:\Windows\Tracing\SdnDiagnostics" -FromDate '2023-08-11 10:00:00 AM' -ToDate '2023-08-11 11:30:00 AM'
     #>
 
     [CmdletBinding()]

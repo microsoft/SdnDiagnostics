@@ -18,7 +18,9 @@ function Start-SdnDataCollection {
     .PARAMETER IncludeLogs
         If enabled, will collect the diagnostic logs from the Role(s) or ComputerName(s) defined. Works in conjunction with the FromDate parameter.
     .PARAMETER FromDate
-        Optional parameter that allows you to control how many hours worth of logs to retrieve from the system for the roles identified. If ommitted, defaults to 4 hours.
+        Determines the start time of what logs to collect. If omitted, defaults to the last 4 hours.
+    .PARAMETER ToDate
+        Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
@@ -34,7 +36,7 @@ function Start-SdnDataCollection {
     .EXAMPLE
         PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,Server,LoadBalancerMux -IncludeLogs -FromDate (Get-Date).AddHours(-1) -Credential (Get-Credential)
     .EXAMPLE
-        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role LoadBalancerMux -IncludeLogs -IncludeNetView
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role LoadBalancerMux -IncludeLogs -IncludeNetView -FromDate '2023-08-11 10:00:00 AM' -ToDate '2023-08-11 11:30:00 AM'
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
