@@ -14,7 +14,9 @@ function Get-SdnGatewayConfigurationState {
         [System.IO.FileInfo]$OutputDirectory
     )
 
+    $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'SilentlyContinue'
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'Gateway'
@@ -75,4 +77,5 @@ function Get-SdnGatewayConfigurationState {
     }
 
     $ProgressPreference = 'Continue'
+    $ErrorActionPreference = $currentErrorActionPreference
 }

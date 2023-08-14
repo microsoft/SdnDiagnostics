@@ -38,6 +38,7 @@ function Get-SdnNetworkControllerState {
         [int]$ExecutionTimeOut = 300
     )
     try {
+        "Collecting In Memory Object State (IMOS) for Network Controller" | Trace-Output
         $config = Get-SdnModuleConfiguration -Role:NetworkController
         [System.IO.FileInfo]$netControllerStatePath = $config.properties.netControllerStatePath
         [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetworkControllerState'

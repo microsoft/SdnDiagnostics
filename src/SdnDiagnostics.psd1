@@ -58,7 +58,7 @@
         'Get-SdnAuditLog',
         'Get-SdnApiEndpoint'
         'Get-SdnCertificate',
-        'Get-SdnDiagnosticLog',
+        'Get-SdnDiagnosticLogFile',
         'Get-SdnEventLog',
         'Get-SdnFabricInfrastructureResult',
         'Get-SdnGateway',
@@ -101,7 +101,6 @@
         'Get-SdnServiceFabricClusterConfig',
         'Get-SdnServiceFabricClusterHealth',
         'Get-SdnServiceFabricClusterManifest',
-        'Get-SdnServiceFabricLog',
         'Get-SdnServiceFabricNode',
         'Get-SdnServiceFabricPartition',
         'Get-SdnServiceFabricReplica',

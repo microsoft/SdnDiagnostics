@@ -14,7 +14,9 @@ function Get-SdnNetworkControllerConfigurationState {
         [System.IO.FileInfo]$OutputDirectory
     )
 
+    $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'SilentlyContinue'
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
@@ -44,4 +46,5 @@ function Get-SdnNetworkControllerConfigurationState {
     }
 
     $ProgressPreference = 'Continue'
+    $ErrorActionPreference = $currentErrorActionPreference
 }

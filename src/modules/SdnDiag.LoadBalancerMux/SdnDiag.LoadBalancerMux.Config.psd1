@@ -9,7 +9,7 @@
     RequiredModules = @()
     Properties = @{
         CommonPaths = @{}
-        EventLogProperties = @(
+        EventLogProviders = @(
             "Application"
             "Microsoft-Windows-SlbMux*"
         )

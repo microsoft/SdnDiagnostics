@@ -29,6 +29,8 @@ function Invoke-SdnNetworkControllerStateDump {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
 
+        # trigger IMOS dump
+        "Generate In Memory Object State (IMOS) dump by executing PUT operation against {0}" -f $uri | Trace-Output
         $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
         -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
 
@@ -48,7 +50,7 @@ function Invoke-SdnNetworkControllerStateDump {
         $stopWatch.Stop()
 
         if ($result.properties.provisioningState -ine 'Succeeded') {
-            $msg = "Unable to get NetworkControllerState. ProvisioningState: {0}" -f $result.properties.provisioningState
+            $msg = "Unable to generate IMOS dump. ProvisioningState: {0}" -f $result.properties.provisioningState
             throw New-Object System.Exception($msg)
         }
 
