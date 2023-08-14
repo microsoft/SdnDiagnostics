@@ -128,6 +128,7 @@
         'New-SdnNetworkControllerNodeCertificate',
         'New-SdnNetworkControllerRestCertificate',
         'New-SdnServerCertificate',
+        'Repair-SdnDiagnosticsScheduledTask',
         'Set-SdnCertificateAcl',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
