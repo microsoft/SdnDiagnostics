@@ -28,6 +28,12 @@ function Get-VfpPortState {
             continue
         }
 
+        # if we have an error, then capture error and exit out of the function
+        if ($line -ilike "ERROR:*") {
+            $msg = $line.Replace('ERROR:','').Trim()
+            throw $msg
+        }
+
         # split the line by the colon and trim the spaces
         $subValue = $line.Split(':').Trim()
         if ($subValue.Count -eq 2) {
