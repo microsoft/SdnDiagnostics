@@ -2,10 +2,10 @@ function Get-SdnDipProbeInfoFromHost {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [IPAddress]$HostIPAddress,
+        [IPAddress[]]$HostIPAddress,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$ProbeID
+        [System.String]$ProbeID = $null
     )
 
     $slbManager = Connect-SlbManager

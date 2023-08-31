@@ -65,20 +65,24 @@ function Get-SdnServiceFabricReplica {
         }
 
         if ($NetworkController) {
-            $replica = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
+            $replica = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential -ErrorAction Stop
         }
         else {
-            $replica = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential
+            $replica = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential -ErrorAction Stop
         }
 
         # as network controller only leverages stateful service fabric services, we will have Primary and ActiveSecondary replicas
         # if the -Primary switch was declared, we only want to return the primary replica for that particular service
-        if ($Primary) {
-            return ($replica | Where-Object { $_.ReplicaRole -ieq 'Primary' })
+        if ($replica) {
+            if ($Primary) {
+                return ($replica | Where-Object { $_.ReplicaRole -ieq 'Primary' })
+            }
+            else {
+                return $replica
+            }
         }
-        else {
-            return $replica
-        }
+
+        return $null
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -5,13 +5,22 @@ function Show-SdnVipState {
         [IPAddress]$VirtualIPAddress,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$SlbManagerPrimary = $env:COMPUTERNAME,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
         [Switch]$Detailed
     )
 
-    $slbManager = Connect-SlbManager -SlbManagerPrimary $SlbManagerPrimary
-    $consolidatedVipState = $slbManager.GetConsolidatedVipState($VirtualIPAddress, $Detailed)
-    return $consolidatedVipState
+    $slbManagerPrimary = Get-SdnServiceFabricReplica -ServiceTypeName 'SlbManagerService' -Primary -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
+    if ($slbManagerPrimary) {
+        $slbManagerPrimaryNodeName = $slbManagerPrimary.ReplicaAddress.Split(':')[0]
+        $slbManager = Connect-SlbManager -SlbManagerPrimary $slbManagerPrimaryNodeName
+        $consolidatedVipState = $slbManager.GetConsolidatedVipState($VirtualIPAddress, $Detailed)
+        return $consolidatedVipState
+    }
 }
