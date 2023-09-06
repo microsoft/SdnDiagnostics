@@ -12,6 +12,8 @@ function Start-NetshTrace {
         Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default is No.
     .PARAMETER Overwrite
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
+    .PARAMETER Correlation
+        Optional. Specifies whether related events will be correlated and grouped together. If unspecified, the default is No.
     .PARAMETER Report
         Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default is disabled.
     .EXAMPLE
@@ -46,7 +48,11 @@ function Start-NetshTrace {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('Enabled', 'Disabled')]
-        [System.String]$Report = 'Disabled'
+        [System.String]$Report = 'Disabled',
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Yes', 'No')]
+        [System.String]$Correlation = 'No'
     )
 
     try {
@@ -64,12 +70,12 @@ function Start-NetshTrace {
 
         # enable the network trace
         if ($TraceProviderString) {
-            $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5}" `
-                -f $Capture, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report
+            $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5} correlation={6}" `
+                -f $Capture, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
         }
         else {
-            $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}" `
-                -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report
+            $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}, correlation={5}" `
+                -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
         }
 
         "Starting netsh trace" | Trace-Output
