@@ -88,10 +88,19 @@ function Debug-SdnFabricInfrastructure {
                 EnvironmentInfo = $environmentInfo
             }
 
+            # check to see if we were provided a specific computer(s) to test against
+            # otherwise we will want to pick up the node name(s) from the environment info
             if ($ComputerName) {
                 $sdnFabricDetails.ComputerName = $ComputerName
             }
             else {
+                # in scenarios where there are not mux(es) or gateway(s) then we need to gracefully handle this
+                # and move to the next role for processing
+                if ($null -ieq $environmentInfo[$object.ToString()]) {
+                    "Unable to locate fabric nodes for {0}. Skipping health tests." -f $object.ToString() | Trace-Output -Level:Warning
+                    continue
+                }
+
                 $sdnFabricDetails.ComputerName = $environmentInfo[$object.ToString()]
             }
 
@@ -119,20 +128,32 @@ function Debug-SdnFabricInfrastructure {
             switch ($object) {
                 'Gateway' {
                     $roleHealthReport.HealthValidation += @(
-                        Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
                     )
+
+                    foreach ($node in $sdnFabricDetails.ComputerName) {
+                        $roleHealthReport.HealthValidation += @(
+                            Test-ResourceProvisioningState -ResourceName $node -NcRestCredential $NcRestCredential
+                            Test-ResourceConfigurationState -ResourceName $node -NcRestCredential $NcRestCredential
+                        )
+                    }
                 }
 
                 'LoadBalancerMux' {
                     $roleHealthReport.HealthValidation += @(
-                        Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
                         Test-MuxBgpConnectionState @computerCredAndRestApiParams
                         Test-SlbManagerConnectionToMux @computerCredAndRestApiParams
                     )
+
+                    foreach ($node in $sdnFabricDetails.ComputerName) {
+                        $roleHealthReport.HealthValidation += @(
+                            Test-ResourceProvisioningState -ResourceName $node -NcRestCredential $NcRestCredential
+                            Test-ResourceConfigurationState -ResourceName $node -NcRestCredential $NcRestCredential
+                        )
+                    }
                 }
 
                 'NetworkController' {
@@ -152,7 +173,6 @@ function Debug-SdnFabricInfrastructure {
                     $roleHealthReport.HealthValidation += @(
                         Test-EncapOverhead @computerCredParams
                         Test-ProviderNetwork @computerCredParams
-                        Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ServerHostId @computerCredAndRestApiParams
                         Test-VfpDuplicatePort @computerCredParams
@@ -161,6 +181,13 @@ function Debug-SdnFabricInfrastructure {
                         Test-ScheduledTaskEnabled @computerCredParams
                         Test-NcHostAgentConnectionToApiService @computerCredAndRestApiParams
                     )
+
+                    foreach ($node in $sdnFabricDetails.ComputerName) {
+                        $roleHealthReport.HealthValidation += @(
+                            Test-ResourceProvisioningState -ResourceName $node -NcRestCredential $NcRestCredential
+                            Test-ResourceConfigurationState -ResourceName $node -NcRestCredential $NcRestCredential
+                        )
+                    }
                 }
             }
 
