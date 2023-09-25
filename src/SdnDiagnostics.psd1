@@ -37,6 +37,7 @@
         'modules\SdnDiag.NetworkController\SdnDiag.NetworkController.psm1'
         'modules\SdnDiag.Server\SdnDiag.Server.psm1'
         'modules\SdnDiag.Utilities\SdnDiag.Utilities.psm1'
+        'modules\Test-SdnExpressBgp.psm1'
     )
 
     # Modules that must be imported into the global environment prior to importing this module
@@ -121,10 +122,12 @@
         'Move-SdnServiceFabricReplica',
         'New-SdnCertificate',
         'New-SdnCertificateRotationConfig',
+        'New-SdnExpressBgpHost',
         'New-SdnMuxCertificate',
         'New-SdnNetworkControllerNodeCertificate',
         'New-SdnNetworkControllerRestCertificate',
         'New-SdnServerCertificate',
+        'Remove-SdnExpressBgpHost',
         'Set-SdnCertificateAcl',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
@@ -138,6 +141,7 @@
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
+        'Test-SdnExpressBGP',
         'Test-SdnProviderAddressConnectivity'
     )
 

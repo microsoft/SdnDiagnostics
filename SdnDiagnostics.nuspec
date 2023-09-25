@@ -22,6 +22,5 @@
 
         <!-- restore package dependencies -->
         <file src=".packages\Get-NetView.*\**" target="SdnDiagnostics\externalPackages" />
-		<file src=".packages\test-sdnexpressbgp.*\*" target="SdnDiagnostics\externalPackages" />
 	</files>
 </package>
