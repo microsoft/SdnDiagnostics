@@ -21,6 +21,8 @@ function Test-NcHostAgentConnectionToApiService {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
+    $array = @()
+
     $netConnectionExistsScriptBlock = {
         $tcpConnection = Get-NetTCPConnection -RemotePort 6640 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
         if ($tcpConnection) {
@@ -64,13 +66,14 @@ function Test-NcHostAgentConnectionToApiService {
                     ApiPrimaryReplica = $primaryReplicaNode.ReplicaAddress
                 }
 
-                $sdnHealthObject.Properties += $object
+                $array += $object
             }
             else {
                 "{0} is connected to {1}" -f $server.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
             }
         }
 
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {
