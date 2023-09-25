@@ -34,10 +34,12 @@ foreach ($folder in $folders) {
                     "`tProcessing: {0}" -f $File.FullName | Write-Host
                     $content = Get-Content -Path $file.FullName -Raw
                     $powershellFile | Add-Content -Value $content
+
+                    Start-Sleep -Milliseconds 50
                 }
             }
 
-            Copy-Item -Path "$($folder.FullName)\*.ps1" -Destination "$outDir\SdnDiagnostics\modules\"
+            Copy-Item -Path "$($folder.FullName)\*.psm1" -Destination "$outDir\SdnDiagnostics\modules\"
         }
         default {
             Copy-Item -Path "$($folder.FullName)\*" -Destination $outDirFolder -Recurse -Force
