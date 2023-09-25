@@ -132,6 +132,7 @@
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Show-SdnVfpPortConfig',
+        'Show-SdnVipState',
         'Start-SdnCertificateRotation',
         'Start-SdnDataCollection',
         'Start-SdnEtwTraceCapture',
