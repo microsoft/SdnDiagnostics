@@ -7,7 +7,7 @@ function Test-ScheduledTaskEnabled {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnFabricHealthObject]$SdnEnvironmentObject,
+        [SdnFabricEnvObject]$SdnEnvironmentObject,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -19,27 +19,53 @@ function Test-ScheduledTaskEnabled {
     $array = @()
 
     $scriptBlock = {
+
+        $object = [PSCustomObject]@{
+            TaskName = 'SDN Diagnostics Task'
+            State = $null
+        }
+
         try {
+            # check to see if logging is enabled on the registry key
+            # if it is not, return the object with the state set to 'Logging Disabled'
+            $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled'
+            if (-NOT $isLoggingEnabled ) {
+                $object.State = 'Logging Disabled'
+                return $object
+            }
+
             $result = Get-ScheduledTask -TaskName 'SDN Diagnostics Task' -ErrorAction Stop
-            return [PSCustomObject]@{
-                TaskName = $result.TaskName
-                State = $result.State.ToString()
+            if ($result) {
+                $object.State = $result.State.ToString()
+                return $object
             }
         }
         catch {
-            return [PSCustomObject]@{
-                TaskName = 'SDN Diagnostics Task'
-                State = 'Not Available'
-            }
+            # if the scheduled task does not exist, return the object with the state set to 'Not Found'
+            $object.State = 'Not Found'
+            return $object
         }
     }
 
     try {
         $scheduledTaskReady = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
         foreach ($result in $scheduledTaskReady) {
-            if ($result.State -ine 'Ready' -and $result.State -ine 'Running') {
-                "SDN Diagnostics Task state is {0} on {1}, which may result in uncontrolled log growth" -f $result.State, $result.PSComputerName | Trace-Output -Level:Exception
-                $sdnHealthObject.Result = 'FAIL'
+            switch ($result.State) {
+                'Logging Disabled' {
+                    "SDN Diagnostics Task is not available on {0} because logging is disabled." -f $result.PSComputerName | Trace-Output -Level:Warning
+                }
+                'Not Found' {
+                    "Unable to locate SDN Diagnostics Task on {0}." -f $result.PSComputerName | Trace-Output -Level:Exception
+                    $sdnHealthObject.Result = 'FAIL'
+                }
+                'Disabled' {
+                    "SDN Diagnostics Task is disabled on {0}." -f $result.PSComputerName | Trace-Output -Level:Exception
+                    $sdnHealthObject.Result = 'FAIL'
+                    $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable the 'SDN Diagnostics Task' scheduled task on $($result.PSComputerName)."
+                }
+                default {
+                    "SDN Diagnostics Task is {0} on {1}." -f $result.State, $result.PSComputerName | Trace-Output -Level:Verbose
+                }
             }
 
             $array += [PSCustomObject]@{

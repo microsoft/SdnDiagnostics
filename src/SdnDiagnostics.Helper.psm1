@@ -61,6 +61,8 @@ $scriptBlocks = @{
 $fabricNodeParamCommands = (
     'Invoke-Command',
     'Invoke-SdnCommand',
+    'New-PSSession',
+    'Enter-PSSession',
     'Start-SdnDataCollection',
     'Start-SdnNetshTrace',
     'Stop-SdnNetshTrace'
@@ -90,9 +92,9 @@ Register-ArgumentCompleter -CommandName $networkControllerParamCommands -Paramet
 
 $serverParamCommands = (
     'Get-SdnOvsdbAddressMapping',
-    'Get-SdnOvsdbFirewallRuleTable',
+    'Get-SdnOvsdbFirewallRule',
     'Get-SdnOvsdbGlobalTable',
-    'Get-SdnOvsdbPhysicalPortTable',
+    'Get-SdnOvsdbPhysicalPort',
     'Get-SdnOvsdbUcastMacRemoteTable',
     'Get-SdnProviderAddress',
     'Get-SdnVfpVmSwitchPort',

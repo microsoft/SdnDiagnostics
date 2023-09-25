@@ -30,10 +30,6 @@ function Get-SdnPublicIPPoolUsageSummary {
         $publicIpAddresses = Get-SdnResource -NcUri $NcUri -Resource PublicIPAddresses -Credential $NcRestCredential
 
         foreach ($subnet in $logicalNetworks.properties.subnets) {
-            # write some details to screen regarding resource consumption
-            $usagePercentage = ($subnet.properties.usage.numberofIPAddressesAllocated/$subnet.properties.usage.numberOfIPAddresses).ToString("P")
-            "Logical subnet resource {0} is at {1} capacity" -f $subnet.resourceId, $usagePercentage | Trace-Output
-
             foreach ($ipPool in $subnet.properties.ipPools) {
                 # check to see if there was any loadbalancer frontend resources on the system and cross compare with the logical subnet ipPool
                 # if they address falls within the ipPool range, then add to the array

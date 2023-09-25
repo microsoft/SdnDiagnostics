@@ -18,21 +18,21 @@ function Get-OvsdbFirewallRuleTable {
         # enumerate the json rules and create object for each firewall rule returned
         # there is no nice way to generate this and requires manually mapping as only the values are return
         foreach ($obj in $firewallTable.data) {
-            $result = New-Object PSObject -Property @{
-                uuid             = $obj[0][1]
-                action           = $obj[1]
-                direction        = $obj[2]
-                dst_ip_addresses = $obj[3]
-                dst_ports        = $obj[4]
-                logging_state    = $obj[5]
-                priority         = $obj[6]
-                protocols        = $obj[7]
-                rule_id          = $obj[8]
-                rule_state       = $obj[9]
-                rule_type        = $obj[10]
-                src_ip_addresses = $obj[11]
-                src_ports        = $obj[12]
-                vnic_id          = $obj[13].Trim('{', '}')
+            $result = [OvsdbFirewallRule]@{
+                UUID               = $obj[0][1]
+                Action             = $obj[1]
+                Direction          = $obj[2]
+                DestinationAddress = $obj[3]
+                DestinationPort    = $obj[4]
+                Logging            = $obj[5]
+                Priority           = $obj[6]
+                Protocols          = $obj[7]
+                RuleId             = $obj[8]
+                State              = $obj[9]
+                Type               = $obj[10]
+                SourceAddress      = $obj[11]
+                SourcePort         = $obj[12]
+                VirtualNicId       = $obj[13]
             }
 
             # add the psobject to array list

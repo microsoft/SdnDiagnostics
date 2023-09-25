@@ -17,6 +17,8 @@ function Start-SdnNetshTrace {
         Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default is No.
     .PARAMETER Overwrite
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
+    .PARAMETER Correlation
+        Optional. Specifies whether related events will be correlated and grouped together. If unspecified, the default is No.
     .PARAMETER Report
         Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default is disabled.
     .EXAMPLE
@@ -51,6 +53,11 @@ function Start-SdnNetshTrace {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [ValidateSet('Yes', 'No')]
+        [System.String]$Correlation = 'No',
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [ValidateSet('Enabled', 'Disabled')]
         [System.String]$Report = 'Disabled',
 
@@ -74,6 +81,7 @@ function Start-SdnNetshTrace {
         Capture = $Capture
         Overwrite = $Overwrite
         Report = $Report
+        Correlation = $Correlation
     }
 
     $scriptBlock = {
@@ -84,17 +92,18 @@ function Start-SdnNetshTrace {
             [Parameter(Position = 3)][String]$Capture,
             [Parameter(Position = 4)][String]$Overwrite,
             [Parameter(Position = 5)][String]$Report,
-            [Parameter(Position = 6)][String]$Providers
+            [Parameter(Position = 6)][String]$Correlation,
+            [Parameter(Position = 7)][String]$Providers
         )
 
         Start-SdnNetshTrace -Role $Role.ToString() -OutputDirectory $OutputDirectory `
-        -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Providers $Providers
+        -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Correlation $Correlation -Providers $Providers
     }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role.ToString(), $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $Providers)
+            -ArgumentList @($Role.ToString(), $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers)
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role.ToString() -Providers $Providers -AsString

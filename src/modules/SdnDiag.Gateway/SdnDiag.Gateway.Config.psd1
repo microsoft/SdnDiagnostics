@@ -11,7 +11,7 @@
         CommonPaths = @{
             RasGatewayTraces = "C:\Windows\Tracing"
         }
-        EventLogProperties = @(
+        EventLogProviders = @(
             "Application"
             "Microsoft-Windows-RasAgileVpn*"
             "Microsoft-Windows-RemoteAccess*"

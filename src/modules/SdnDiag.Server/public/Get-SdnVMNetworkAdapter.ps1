@@ -24,37 +24,39 @@ function Get-SdnVMNetworkAdapter {
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'Local')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [System.String[]]$ComputerName,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [VMState]$VmState = 'Running',
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParametersetName = 'Remote')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Switch]$AsJob,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [Switch]$PassThru,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [int]$Timeout = 600
     )
 
     try {
-        $scriptBlock = {
-            param([Parameter(Position = 0)][String]$VmState)
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState }
-            $virtualMachines | Get-VMNetworkAdapter
+        if ($PSCmdlet.ParameterSetName -eq 'Local') {
+            $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState.ToString() }
+            return ($virtualMachines | Get-VMNetworkAdapter)
         }
-
-        Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $VmState `
+        else {
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Get-SdnVMNetworkAdapter } -ArgumentList @($VmState) `
             -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
