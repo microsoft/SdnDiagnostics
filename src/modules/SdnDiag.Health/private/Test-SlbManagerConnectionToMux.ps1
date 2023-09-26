@@ -21,6 +21,8 @@ function Test-SlbManagerConnectionToMux {
     )
 
     $sdnHealthObject = [SdnHealth]::new()
+    $array = @()
+
     $netConnectionExistsScriptBlock = {
         $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
         if ($tcpConnection) {
@@ -64,12 +66,15 @@ function Test-SlbManagerConnectionToMux {
                     SlbManagerPrimaryReplica = $primaryReplicaNode.ReplicaAddress
                 }
 
-                $sdnHealthObject.Properties += $object
+                $array += $object
             }
             else {
                 "{0} is connected to {1}" -f $mux.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
             }
         }
+
+        $sdnHealthObject.Properties = $array
+        return $sdnHealthObject
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

@@ -88,10 +88,19 @@ function Debug-SdnFabricInfrastructure {
                 EnvironmentInfo = $environmentInfo
             }
 
+            # check to see if we were provided a specific computer(s) to test against
+            # otherwise we will want to pick up the node name(s) from the environment info
             if ($ComputerName) {
                 $sdnFabricDetails.ComputerName = $ComputerName
             }
             else {
+                # in scenarios where there are not mux(es) or gateway(s) then we need to gracefully handle this
+                # and move to the next role for processing
+                if ($null -ieq $environmentInfo[$object.ToString()]) {
+                    "Unable to locate fabric nodes for {0}. Skipping health tests." -f $object.ToString() | Trace-Output -Level:Warning
+                    continue
+                }
+
                 $sdnFabricDetails.ComputerName = $environmentInfo[$object.ToString()]
             }
 

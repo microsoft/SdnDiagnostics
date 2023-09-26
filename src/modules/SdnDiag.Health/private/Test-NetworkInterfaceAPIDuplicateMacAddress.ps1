@@ -23,7 +23,9 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
 
         $networkInterfaces = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource:NetworkInterfaces -Credential $NcRestCredential
         if($null -eq $networkInterfaces){
-            throw New-Object System.NullReferenceException("No network interfaces returned from Network Controller")
+            # if there are no network interfaces, then there is nothing to validate
+            # pass back the health object to the caller
+            return $sdnHealthObject
         }
 
         $duplicateObjects = $networkInterfaces.properties | Group-Object -Property privateMacAddress | Where-Object {$_.Count -ge 2}

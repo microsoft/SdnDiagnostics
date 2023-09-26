@@ -31,8 +31,18 @@ function Get-VfpPortState {
         # split the line by the colon and trim the spaces
         $subValue = $line.Split(':').Trim()
         if ($subValue.Count -eq 2) {
-            $propertyName = $subValue[0].Trim()
-            $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
+
+
+            # due to some errors observed in environments, we need to wrap the conversion in a try/catch block
+            # that way we can continue processing the remaining properties and not fail the entire function
+            try {
+                $propertyName = $subValue[0].Trim()
+                $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
+            }
+            catch {
+                "Unable to process value {0} for {1}`r`n`t{2}" -f $subValue[1].Trim(), $propertyName, $_.Exception | Trace-Output -Level:Warning
+                continue
+            }
 
             switch ($propertyName) {
                 # update the VfpPortState properties
@@ -75,6 +85,7 @@ function Get-VfpPortState {
             }
         }
         else {
+            "Unable to process {0}" -f $line | Trace-Output -Level:Warning
             continue
         }
     }
