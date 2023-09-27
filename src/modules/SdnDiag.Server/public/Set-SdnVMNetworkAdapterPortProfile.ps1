@@ -17,7 +17,9 @@ function Set-SdnVMNetworkAdapterPortProfile {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E
+        Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -ProfileId <InstanceIDFromNC> -ProfileData 1
+    .EXAMPLE
+        Set-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -ProfileData 2
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Local')]
