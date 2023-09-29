@@ -107,6 +107,7 @@
         'Get-SdnServiceFabricService',
         'Get-SdnSlbMuxConfigurationState',
         'Get-SdnSlbStateInformation',
+        'Get-SdnVipConfig',
         'Get-SdnVfpVmSwitchPort',
         'Get-SdnVMNetworkAdapter',
         'Get-SdnVMNetworkAdapterPortProfile',

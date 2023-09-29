@@ -1,17 +1,19 @@
 function Connect-SlbManager {
     [CmdletBinding()]
-    param(
-        [Parameter(Mandatory = $false)]
-        [System.String]$SlbManagerPrimary = $env:COMPUTERNAME
-    )
-
-    if (Test-ComputerNameIsLocal -ComputerName $SlbManagerPrimary) {
-        $useLoopback = $true
-    }
+    param()
 
     $slbClient = Get-SlbClient -ErrorAction Stop
-    if ($null -ieq $slbClient) {
-        throw "Unable to connect to SlbClient"
+
+    # we need identify the current primary replica for the slbmanager service
+    # if the primary replica is on the local node, then we will use the loopback address
+    $slbManagerPrimary = Get-SdnServiceFabricReplica -ServiceTypeName 'SlbManagerService' -Primary -ErrorAction Stop
+    if ($null -ieq $slbManagerPrimary) {
+        throw "Unable to return primary replica of SlbManagerService"
+    }
+
+    $slbManagerPrimaryNodeName = $slbManagerPrimary.ReplicaAddress.Split(':')[0]
+    if (Test-ComputerNameIsLocal -ComputerName $slbManagerPrimaryNodeName) {
+        $useLoopback = $true
     }
 
     # if we have already detected that we are using the loopback address, then we can just use that
@@ -21,13 +23,13 @@ function Connect-SlbManager {
         $ipAddress = [System.Net.IPAddress]::Loopback
     }
     else {
-        $isIpAddress = ($SlbManagerPrimary -as [IPAddress]) -as [Bool]
+        $isIpAddress = ($slbManagerPrimaryNodeName -as [IPAddress]) -as [Bool]
         if (!$isIpAddress) {
-            [IPAddress]$ipAddress = [System.Net.Dns]::GetHostAddresses($SlbManagerPrimary)[0].IPAddressToString
-            "Resolved {0} to {1}" -f $SlbManagerPrimary, $ipAddress.IPAddressToString | Trace-Output -Level:Verbose
+            [IPAddress]$ipAddress = [System.Net.Dns]::GetHostAddresses($slbManagerPrimaryNodeName)[0].IPAddressToString
+            "Resolved {0} to {1}" -f $slbManagerPrimaryNodeName, $ipAddress.IPAddressToString | Trace-Output -Level:Verbose
         }
         else {
-            [IPAddress]$ipAddress = $SlbManagerPrimary
+            [IPAddress]$ipAddress = $slbManagerPrimaryNodeName
         }
     }
 

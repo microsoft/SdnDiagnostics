@@ -8,7 +8,9 @@ function Get-SdnDipProbeInfoFromHost {
         [System.String]$ProbeID = $null
     )
 
-    $slbManager = Connect-SlbManager
-    $dipProbeInfo = $slbManager.GetDipProbeInfoFromHost($HostIPAddress, $ProbeID)
-    return $dipProbeInfo
+    $slbManager = Connect-SlbManager -ErrorAction Stop
+    if ($slbManager) {
+        $dipProbeInfo = $slbManager.GetDipProbeInfoFromHost($HostIPAddress, $ProbeID)
+        return $dipProbeInfo
+    }
 }

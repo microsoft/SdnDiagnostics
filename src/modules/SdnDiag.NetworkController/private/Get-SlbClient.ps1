@@ -1,4 +1,6 @@
 function Get-SlbClient {
+    [CmdletBinding()]
+    param()
 
     # as we are dependent on the assemblies contained on Network Controller
     # we need to ensure we are running on Network Controller
