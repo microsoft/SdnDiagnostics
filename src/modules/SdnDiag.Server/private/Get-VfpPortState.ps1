@@ -32,7 +32,6 @@ function Get-VfpPortState {
         $subValue = $line.Split(':').Trim()
         if ($subValue.Count -eq 2) {
 
-
             # due to some errors observed in environments, we need to wrap the conversion in a try/catch block
             # that way we can continue processing the remaining properties and not fail the entire function
             try {
@@ -85,7 +84,7 @@ function Get-VfpPortState {
             }
         }
         else {
-            "Unable to process {0}" -f $line | Trace-Output -Level:Warning
+            # if the line does not have key/value pairs, then continue to next line
             continue
         }
     }
