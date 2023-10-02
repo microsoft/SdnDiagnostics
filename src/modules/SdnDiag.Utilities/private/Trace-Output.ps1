@@ -3,7 +3,7 @@ function Trace-Output {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
-        [System.String]$Message,
+        $Message,
 
         [Parameter(Mandatory = $false)]
         [TraceLevel]$Level
@@ -28,7 +28,18 @@ function Trace-Output {
             TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
             FunctionName = (Get-PSCallStack)[1].Command
             Level = $Level.ToString()
-            Message = $Message
+            Message = $null
+            ScriptStackTrace = $null
+        }
+
+        # process the message that was passed in based on the type
+        # if we were passed an ErrorRecord, then we need to extract the message from the exception
+        if ($Message.GetType().Name -eq 'ErrorRecord') {
+            $traceEvent.Message = $Message.Exception.Message
+            $traceEvent.ScriptStackTrace = $Message.ScriptStackTrace
+        }
+        else {
+            $traceEvent.Message = $Message
         }
 
         # write the message to the console
