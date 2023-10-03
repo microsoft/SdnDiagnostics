@@ -43,21 +43,6 @@ function Copy-FileFromRemoteComputerWinRM {
 
     $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
     if ($session) {
-        # ensure that the destination directory already exists
-        # we want to check to see if destination is meant to be a folder or file
-        # if its a file, then we want the parent directory of the file
-        if ($Destination.Extension) {
-            $destinationRootDir = Split-Path -Path $Destination.FullName -Parent
-        }
-        else {
-            $destinationRootDir = $Destination.FullName
-        }
-
-        # create the parent directory first to prevent copy file operation failures
-        if (-NOT (Test-Path -Path $destinationRootDir -PathType Container)) {
-            $null = New-Item -Path $destinationRootDir -ItemType Directory
-        }
-
         foreach ($subPath in $Path) {
             "Copying {0} to {1} using WinRM Session {2}" -f $subPath, $Destination.FullName, $session.Name | Trace-Output
             Copy-Item -Path $subPath -Destination $Destination.FullName -FromSession $session -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction:Continue
