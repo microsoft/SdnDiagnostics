@@ -42,6 +42,6 @@ function Remove-PSRemotingSession {
     }
     catch {
         $stopWatch.Stop()
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Output -Level:Error
     }
 }

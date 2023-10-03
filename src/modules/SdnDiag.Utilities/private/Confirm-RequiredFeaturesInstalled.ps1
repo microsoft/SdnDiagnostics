@@ -5,23 +5,18 @@ function Confirm-RequiredFeaturesInstalled {
         [System.String[]]$Name
     )
 
-    try {
-
-        if($null -eq $Name){
-            return $true
-        }
-        else {
-            foreach($obj in $Name){
-                if(!(Get-WindowsFeature -Name $obj).Installed){
-                    return $false
-                }
+    if($null -eq $Name){
+        return $true
+    }
+    else {
+        foreach($obj in $Name){
+            if(!(Get-WindowsFeature -Name $obj -ErrorAction SilentlyContinue).Installed){
+                return $false
             }
-
-            return $true
         }
+
+        return $true
     }
-    catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
-        return $false
-    }
+
+    return $false
 }

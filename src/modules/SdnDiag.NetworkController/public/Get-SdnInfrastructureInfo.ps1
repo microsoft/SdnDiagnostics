@@ -135,7 +135,7 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
         $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Output -Level:Error
     }
 }
 

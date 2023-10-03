@@ -99,6 +99,6 @@ function Get-SdnResource {
         return $result
     }
     catch {
-        "{0}`nAbsoluteUri:{1}`n{2}" -f $_.Exception, $_.TargetObject.Address.AbsoluteUri, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Output -Level:Error
     }
 }
