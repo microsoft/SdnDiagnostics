@@ -66,21 +66,6 @@ function Copy-FileToRemoteComputerSMB {
         $params.Destination = $remotePath.FullName
     }
     process {
-
-        # ensure that the destination directory already exists
-        # we want to check to see if destination is meant to be a folder or file
-        # if its a file, then we want the parent directory of the file
-        if ($remotePath.Extension) {
-            $destinationRootDir = Split-Path -Path $params.Destination -Parent
-        }
-        else {
-            $destinationRootDir = $params.Destination
-        }
-
-        if (-NOT (Test-Path -Path $destinationRootDir -PathType Container)) {
-            $null = New-Item -Path $destinationRootDir -ItemType Directory
-        }
-
         foreach ($subPath in $Path) {
             $params.Path = $subPath
 
