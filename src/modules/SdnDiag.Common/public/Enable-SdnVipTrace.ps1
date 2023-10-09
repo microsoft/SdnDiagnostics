@@ -10,6 +10,8 @@ function Enable-SdnVipTrace {
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER OutputDirectory
+        Optional. Specifies a specific path and folder in which to save the files.
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
     #>
@@ -27,6 +29,9 @@ function Enable-SdnVipTrace {
             return $true
         })]
         [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [System.String]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [System.Management.Automation.PSCredential]
@@ -136,8 +141,8 @@ function Enable-SdnVipTrace {
 
         # enable tracing on the infastructure
         $traceInfo = @()
-        $traceInfo += Start-SdnNetshTrace -ComputerName $loadBalancerMuxes -Role 'LoadBalancerMux' -Credential $Credential -MaxTraceSize $MaxTraceSize
-        $traceInfo += Start-SdnNetshTrace -ComputerName $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -Role 'Server' -Credential $Credential -MaxTraceSize $MaxTraceSize
+        $traceInfo += Start-SdnNetshTrace -ComputerName $loadBalancerMuxes -Role 'LoadBalancerMux' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+        $traceInfo += Start-SdnNetshTrace -ComputerName $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -Role 'Server' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
 
         "Tracing has been enabled on the SDN infrastructure nodes {0}" -f ($traceInfo.PSComputerName -join ', ') | Trace-Output
         # at this point, tracing should be enabled on the sdn fabric and we can wait for user input to disable
