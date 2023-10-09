@@ -10,20 +10,20 @@ function Get-SdnServer {
         Specifies the resource reference for the resource.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER ManagementAddressOnly
+    .PARAMETER ManagementAddress
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddress
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -49,7 +49,7 @@ function Get-SdnServer {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [switch]$ManagementAddressOnly
+        [switch]$ManagementAddress
     )
 
     $params = @{
@@ -79,7 +79,7 @@ function Get-SdnServer {
                 }
             }
 
-            if($ManagementAddressOnly){
+            if($ManagementAddress){
                 $managementAddress = @()
                 foreach ($address in $result.properties.connections.managementAddresses) {
                     $managementAddress += $address

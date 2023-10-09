@@ -56,12 +56,12 @@ function Enable-SdnVipTrace {
         }
 
         # get the load balancer muxes, as we will need to enable tracing on them
-        $loadBalancerMuxes = Get-SdnLoadBalancerMux -NcUri $NcUri -Credential $NcRestCredential -ManagementAddressOnly
+        $loadBalancerMuxes = Get-SdnLoadBalancerMux -NcUri $NcUri -Credential $NcRestCredential -ManagementAddress
         $networkTraceNodes += $loadBalancerMuxes
 
         # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
         # as we will use this reference to locate where the resources are located within the fabric
-        $servers = Get-SdnServer -NcUri $NcUri -Credential $NcRestCredential -ManagementAddressOnly
+        $servers = Get-SdnServer -NcUri $NcUri -Credential $NcRestCredential -ManagementAddress
         $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
 
         # determine the network interfaces associated with the public IP address

@@ -10,20 +10,20 @@ function Get-SdnGateway {
         Specifies the resource reference for the resource.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER ManagementAddressOnly
+    .PARAMETER ManagementAddress
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddress
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -49,7 +49,7 @@ function Get-SdnGateway {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [switch]$ManagementAddressOnly
+        [switch]$ManagementAddress
     )
 
     $params = @{
@@ -79,10 +79,10 @@ function Get-SdnGateway {
                 }
             }
 
-            if($ManagementAddressOnly){
+            if($ManagementAddress){
                 $managementAddress = @()
                 foreach ($resource in $result) {
-                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
+                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddress -Credential $Credential
                     $managementAddress += $virtualServerMgmtAddress
                 }
 

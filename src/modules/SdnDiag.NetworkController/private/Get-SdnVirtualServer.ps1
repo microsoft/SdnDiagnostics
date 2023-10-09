@@ -18,7 +18,7 @@ function Get-SdnVirtualServer {
         [String]$ResourceRef,
 
         [Parameter(Mandatory = $false)]
-        [switch]$ManagementAddressOnly,
+        [switch]$ManagementAddress,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -35,7 +35,7 @@ function Get-SdnVirtualServer {
             }
         }
 
-        if ($ManagementAddressOnly) {
+        if ($ManagementAddress) {
             $managementAddress = @()
             foreach ($address in $result.properties.connections.managementAddresses) {
                 $managementAddress += $address

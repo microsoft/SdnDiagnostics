@@ -94,17 +94,17 @@ function Get-SdnInfrastructureInfo {
 
         # get the load balancer muxes
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddress -Credential $NcRestCredential
         }
 
         # get the gateways
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddress -Credential $NcRestCredential
         }
 
         # get the hypervisor hosts
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Server)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer -NcUri $Global:SdnDiagnostics.EnvironmentInfo.NcUrl -ManagementAddress -Credential $NcRestCredential
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above

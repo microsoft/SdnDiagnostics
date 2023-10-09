@@ -54,7 +54,7 @@ function Test-NcHostAgentConnectionToApiService {
         # we expect the NCHostAgent to have an active connection to ApiService within Network Controller via port 6640, which informs
         # Network Controller that the host is operational and ready to receive policy configuration updates
         foreach ($server in $servers) {
-            [System.Array]$connectionAddress = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceId $server.resourceId -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$connectionAddress = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceId $server.resourceId -ManagementAddress -Credential $NcRestCredential
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $connectionAddress[0] -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {
                 "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Exception
