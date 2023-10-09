@@ -58,7 +58,7 @@ function New-PSRemotingSession {
                     # if we are already in a remote session and we do not have credentials defined
                     # we need to throw a warning and skip session creation for this computer
                     # as the credentials via the current session cannot be passed to the new session without CredSSP enabled
-                    if ($PSSenderInfo) {
+                    if ($PSSenderInfo -and !(Get-WSManCredSSPState)) {
                         "Credential parameter is required when already in a remote session" | Trace-Output -Level:Warning
                         continue
                     }
