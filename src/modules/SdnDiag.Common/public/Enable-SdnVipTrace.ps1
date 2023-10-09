@@ -136,7 +136,7 @@ function Enable-SdnVipTrace {
         # ensure that we have SdnDiagnostics installed to the nodes that we need to enable tracing for
         Install-SdnDiagnostics -ComputerName $networkTraceNodes -Credential $Credential
 
-        "Network traces will be enabled on`r`n`t - LoadBalancerMux: {0}`r`n`t - Server: {1}`r`n" `
+        "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Server: {1}`r`n" `
         -f ($loadBalancerMuxes -join ', '), ($Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -join ', ') | Trace-Output
 
         # enable tracing on the infastructure
