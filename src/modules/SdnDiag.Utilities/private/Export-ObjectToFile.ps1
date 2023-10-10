@@ -24,10 +24,17 @@ function Export-ObjectToFile {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Table","List")]
-        [System.String]$Format
+        [System.String]$Format = "Table"
     )
 
     begin {
+        # check the global configuration for the default file type
+        # if the default file type is not set to custom, then use whatever was passed in the command
+        # otherwise override with the global configuration value
+        if ($Global:SdnDiagnostics.Config.DefaultFileType -ine 'Custom') {
+            $FileType = $Global:SdnDiagnostics.Config.DefaultFileType
+        }
+
         $arrayList = [System.Collections.ArrayList]::new()
 
         # if object is null, then exit
