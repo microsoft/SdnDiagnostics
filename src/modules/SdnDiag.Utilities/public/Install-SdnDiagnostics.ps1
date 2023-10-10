@@ -20,11 +20,13 @@ function Install-SdnDiagnostics {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$ModuleRootDir = $Global:SdnDiagnostics.Config.ModuleRootDir,
+
+        [Parameter(Mandatory = $false)]
         [switch]$Force
     )
 
     try {
-        [System.IO.FileInfo]$moduleRootDir = "C:\Program Files\WindowsPowerShell\Modules"
         $filteredComputerName = [System.Collections.ArrayList]::new()
         $installNodes = [System.Collections.ArrayList]::new()
 
@@ -38,13 +40,13 @@ function Install-SdnDiagnostics {
         # since we may not know where the module was imported from we cannot accurately assume the $localModule.ModuleBase is correct
         # manually generate the destination path we want the module to be installed on remote nodes
         if ($localModule.ModuleBase -ilike "*$($localModule.Version.ToString())") {
-            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $moduleRootDir.FullName, 'SdnDiagnostics', $localModule.Version.ToString()
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $moduleRootDir, 'SdnDiagnostics', $localModule.Version.ToString()
         }
         else {
-            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}" -f $moduleRootDir.FullName, 'SdnDiagnostics'
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}" -f $moduleRootDir, 'SdnDiagnostics'
         }
 
-        "Current version of SdnDiagnostics is {0}" -f $localModule.Version.ToString() | Trace-Output
+        "Current version of SdnDiagnostics is {0}" -f $localModule.Version.ToString() | Trace-Output -Level:Verbose
 
         # make sure that in instances where we might be on a node within the sdn dataplane,
         # that we do not remove the module locally
@@ -70,10 +72,10 @@ function Install-SdnDiagnostics {
         }
         else {
             "Getting current installed version of SdnDiagnostics on {0}" -f ($filteredComputerName -join ', ') | Trace-Output
-            $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -ScriptBlock {
+            $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -SkipModuleImport -ScriptBlock {
                 try {
                     # Get the latest version of SdnDiagnostics Module installed
-                    $version = (Get-Module -Name SdnDiagnostics -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
+                    $version = (Get-Module -Name 'SdnDiagnostics' -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
                 }
                 catch {
                     # in some instances, the module will not be available and as such we want to skip the noise and return

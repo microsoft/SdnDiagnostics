@@ -10,8 +10,25 @@ function New-PSRemotingSession {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$ModulePath = (Join-Path -Path $Global:SdnDiagnostics.Config.ModuleRootDir -ChildPath 'SdnDiagnostics'),
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$SkipModuleImport,
+
+        [Parameter(Mandatory = $false)]
         [Switch]$Force
     )
+
+    $importModule = {
+        param([string]$arg0, $arg1)
+        try {
+            Import-Module $arg0 -ErrorAction Stop
+            $Global:SdnDiagnostics.Config = $arg1
+        }
+        catch {
+            throw $_
+        }
+    }
 
     $remoteSessions = [System.Collections.ArrayList]::new()
 
@@ -64,7 +81,11 @@ function New-PSRemotingSession {
                     }
 
                     "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US') -ErrorAction Stop
+
+                    if (!$SkipModuleImport) {
+                        Invoke-Command -Session $session -ScriptBlock $importModule -ArgumentList @($ModulePath, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                    }
                 }
 
                 "Created powershell session {0} to {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose

@@ -4,6 +4,9 @@ function Invoke-PSRemoteCommand {
         [Parameter(Mandatory = $true)]
         [System.String[]]$ComputerName,
 
+        [Parameter(Mandatory = $false)]
+        [Switch]$SkipModuleImport,
+
         [Parameter(Mandatory = $true)]
         [ScriptBlock]$ScriptBlock,
 
@@ -32,7 +35,7 @@ function Invoke-PSRemoteCommand {
         ScriptBlock = $ScriptBlock
     }
 
-    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential -SkipModuleImport:$SkipModuleImport
     if ($session) {
         $params.Add('Session', $session)
         "ComputerName: {0}, ScriptBlock: {1}" -f ($session.ComputerName -join ', '), $ScriptBlock.ToString() | Trace-Output -Level:Verbose
