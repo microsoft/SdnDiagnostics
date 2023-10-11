@@ -51,7 +51,7 @@ Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\Sd
 Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
 
 # setting the version of the module manifest
-$modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"
+$modManifest = Get-Item "$outDir\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction Stop
 if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
     try {
         $manifest = Test-ModuleManifest -Path $modManifest.FullName

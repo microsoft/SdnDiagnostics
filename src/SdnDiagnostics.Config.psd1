@@ -10,5 +10,5 @@
 
     # this defines where the module will be installed
     # if this is not set, the default location will be C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics
-    ModuleRootDir = 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics'
+    ModuleRootDir = 'C:\Program Files\WindowsPowerShell\Modules'
 }

@@ -20,6 +20,7 @@ function Install-SdnDiagnostics {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [ValidateNotNullOrEmpty()]
         [System.String]$ModuleRootDir = $Global:SdnDiagnostics.Config.ModuleRootDir,
 
         [Parameter(Mandatory = $false)]
@@ -34,16 +35,16 @@ function Install-SdnDiagnostics {
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
         $localModule = Get-Module -Name 'SdnDiagnostics'
         if ($localModule.Count -gt 1) {
-            throw New-Object System.ArgumentOutOfRangeException("Detected more than one module version of SdnDiagnostics. Remove existing modules and restart your PowerShell session.")
+            throw "Detected more than one module version of SdnDiagnostics. Remove all versions of module from runspace and re-import the module."
         }
 
-        # since we may not know where the module was imported from we cannot accurately assume the $localModule.ModuleBase is correct
-        # manually generate the destination path we want the module to be installed on remote nodes
+        # module should also be under $ModuleRootDir in a format of $ModuleRootDir\SdnDiagnostics\{version} when using PSGallery version of the module
+        # or possibly $ModuleRootDir\SdnDiagnostics if working with dev version of the module
         if ($localModule.ModuleBase -ilike "*$($localModule.Version.ToString())") {
-            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $moduleRootDir, 'SdnDiagnostics', $localModule.Version.ToString()
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $ModuleRootDir, 'SdnDiagnostics', $localModule.Version.ToString()
         }
         else {
-            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}" -f $moduleRootDir, 'SdnDiagnostics'
+            [System.IO.FileInfo]$destinationPathDir = $ModuleRootDir
         }
 
         "Current version of SdnDiagnostics is {0}" -f $localModule.Version.ToString() | Trace-Output -Level:Verbose
@@ -73,9 +74,10 @@ function Install-SdnDiagnostics {
         else {
             "Getting current installed version of SdnDiagnostics on {0}" -f ($filteredComputerName -join ', ') | Trace-Output
             $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -SkipModuleImport -ScriptBlock {
+                param ([string]$arg0)
                 try {
                     # Get the latest version of SdnDiagnostics Module installed
-                    $version = (Get-Module -Name 'SdnDiagnostics' -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
+                    $version = (Get-Module -Name $arg0 -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
                 }
                 catch {
                     # in some instances, the module will not be available and as such we want to skip the noise and return
@@ -84,7 +86,7 @@ function Install-SdnDiagnostics {
                 }
 
                 return $version
-            }
+            } -ArgumentList @("$ModuleRootDir\SdnDiagnostics")
 
             # enumerate the versions returned for each computer and compare with current module version to determine if we should perform an update
             foreach ($computer in ($remoteModuleVersion.PSComputerName | Sort-Object -Unique)) {
@@ -112,28 +114,27 @@ function Install-SdnDiagnostics {
             }
         }
 
-        if (-NOT $installNodes) {
+        if ($installNodes) {
+            # clean up the module directory on remote computers
+            "Cleaning up {0} in remote computers" -f "$ModuleRootDir\SdnDiagnostics" | Trace-Output
+            Invoke-PSRemoteCommand -ComputerName $installNodes -Credential $Credential -SkipModuleImport -ScriptBlock {
+                param ([string]$arg0)
+                if (Test-Path -Path $arg0 -PathType Container) {
+                    Remove-Item -Path $arg0 -Recurse -Force
+                }
+            } -ArgumentList @("$ModuleRootDir\SdnDiagnostics")
+
+            # copy the module base directory to the remote computers
+            # currently hardcoded to machine's module path. Use the discussion at https://github.com/microsoft/SdnDiagnostics/discussions/68 to get requirements and improvement
+            Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $installNodes -Destination $destinationPathDir.FullName -Credential $Credential -Recurse -Force
+        }
+        else {
             "All computers are up to date with version {0}. No update required" -f $localModule.Version.ToString() | Trace-Output
-            return
         }
-
-        # clean up the module directory on remote computers
-        "Cleaning up SdnDiagnostics in remote Windows PowerShell Module directory" | Trace-Output
-        Invoke-PSRemoteCommand -ComputerName $installNodes -Credential $Credential -ScriptBlock {
-            $modulePath = 'C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics'
-            if (Test-Path -Path $modulePath -PathType Container) {
-                Remove-Item -Path $modulePath -Recurse -Force
-            }
-        }
-
-        # copy the module base directory to the remote computers
-        # currently hardcoded to machine's module path. Use the discussion at https://github.com/microsoft/SdnDiagnostics/discussions/68 to get requirements and improvement
-        Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $installNodes -Destination $destinationPathDir.FullName -Credential $Credential -Recurse -Force
 
         # ensure that we destroy the current pssessions for the computer to prevent any caching issues
-        # we want to target all the original computers, as may be possible that we running on a node within the sdn fabric
-        # and have existing PSSession to itself from previous execution run
-        Remove-PSRemotingSession -ComputerName $ComputerName
+        # we will want to remove any existing PSSessions for the remote computers
+        Remove-PSRemotingSession
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
