@@ -11,9 +11,9 @@ function Get-SdnNetAdapterEncapOverheadConfig {
 
         # filter to only look at vSwitches where the Microsoft Azure VFP Switch Extension is installed
         # once we have the vSwitches, then need to then filter and only look at switches where VFP is enabled
-        $vfpSwitch = Get-VMSwitch | Where-Object {$_.Extensions.Id -ieq 'F74F241B-440F-4433-BB28-00F89EAD20D8'}
+        $vfpSwitch = Get-VMSwitch | Where-Object {$_.Extensions.Name -ieq 'Microsoft Azure VFP Switch Extension'}
         foreach ($switch in $vfpSwitch) {
-            $vfpExtension = $switch.Extensions | Where-Object {$_.Id -ieq 'F74F241B-440F-4433-BB28-00F89EAD20D8'}
+            $vfpExtension = $switch.Extensions | Where-Object {$_.Name -ieq 'Microsoft Azure VFP Switch Extension'}
             if ($vfpExtension.Enabled -ieq $false) {
                 continue
             }
