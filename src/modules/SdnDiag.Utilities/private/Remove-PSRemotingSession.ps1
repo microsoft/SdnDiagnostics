@@ -33,7 +33,7 @@ function Remove-PSRemotingSession {
                     continue
                 }
                 else {
-                    "Removing PSSession {0} for {1}" -f $session.Name, $session.ComputerName | Trace-Output
+                    "Removing PSSession {0} for {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Verbose
 
                     try {
                         $session | Remove-PSSession -ErrorAction Stop

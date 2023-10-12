@@ -6,5 +6,6 @@
         "C:\Windows\Tracing\SdnDiag"
         "C:\Windows\Tracing\SdnDiag\*"
     )
-    WorkingDirectory = "C:\Windows\Tracing\SdnDiag"
+    DefaultModuleDirectory = "$($env:ProgramFiles)\WindowsPowerShell\Modules"
+    WorkingDirectory = "$($env:SystemRoot)\Tracing\SdnDiag"
 }

@@ -45,7 +45,7 @@ function Invoke-SdnGetNetView {
     )
 
     try {
-        Copy-Item -Path "$PSScriptRoot\..\..\..\externalPackages\Get-NetView" -Destination "C:\Program Files\WindowsPowerShell\Modules\" -Force -Recurse
+        Copy-Item -Path "$PSScriptRoot\..\..\..\externalPackages\Get-NetView" -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules" -Force -Recurse
         Import-Module -Name 'Get-NetView' -Force
         "Using Get-NetView version {0}" -f (Get-Module -Name 'Get-NetView' -ErrorAction SilentlyContinue).Version.ToString() | Trace-Output -Level:Verbose
 

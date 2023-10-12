@@ -29,6 +29,7 @@ function Invoke-SdnResourceDump {
     )
 
     try {
+        "Generating resource dump for Network Controller NB API endpoints" | Trace-Output
         [System.IO.FileInfo]$outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'SdnApiResources'
         if (!(Test-Path -Path $outputDir.FullName -PathType Container)) {
             $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force

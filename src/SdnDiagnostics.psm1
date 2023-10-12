@@ -12,3 +12,10 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     }
     Config = $configurationData
 }
+
+# in some instances where powershell has been left open for a long time, we can leave behind sessions that are no longer valid
+# so we will want to clean up any SDN related sessions on module import
+Remove-PSRemotingSession
+
+# define this to prevent truncated results
+$FormatEnumerationLimit = -1

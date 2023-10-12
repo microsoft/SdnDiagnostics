@@ -10,10 +10,7 @@ function New-PSRemotingSession {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$ModulePath = (Join-Path -Path $Global:SdnDiagnostics.Config.ModuleRootDir -ChildPath 'SdnDiagnostics'),
-
-        [Parameter(Mandatory = $false)]
-        [Switch]$SkipModuleImport,
+        [bool]$ImportModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession,
 
         [Parameter(Mandatory = $false)]
         [Switch]$Force
@@ -62,7 +59,7 @@ function New-PSRemotingSession {
             try {
                 if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
                     "PSRemotingSession use provided credential {0}" -f $Credential.UserName | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US -IdleTimeout 86400000) -ErrorAction Stop
                 }
                 else {
                     # if we need to create a new remote session, need to check to ensure that if using an IP Address that credentials are specified
@@ -81,10 +78,10 @@ function New-PSRemotingSession {
                     }
 
                     "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US') -ErrorAction Stop
+                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US' -IdleTimeout 86400000) -ErrorAction Stop
 
-                    if (!$SkipModuleImport) {
-                        Invoke-Command -Session $session -ScriptBlock $importModule -ArgumentList @($ModulePath, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                    if ($ImportModuleOnRemoteSession) {
+                        Invoke-Command -Session $session -ScriptBlock $importModule -ArgumentList @($script:SdnDiagnostics_Utilities.Cache.RemoteModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
                     }
                 }
 

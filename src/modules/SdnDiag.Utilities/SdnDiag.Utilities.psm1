@@ -12,6 +12,7 @@ New-Variable -Name 'SdnDiagnostics_Utilities' -Scope 'Script' -Force -Value @{
         FilesExcludedFromCleanup = @()
         TraceFilePath = $null
         WorkingDirectory = $null
+        RemoteModuleName = $null
     }
     Config = $configurationData
 }
