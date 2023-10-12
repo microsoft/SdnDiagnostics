@@ -1,4 +1,4 @@
-function Get-ManagementAddress {
+function Get-ManagementAddressOnly {
     param (
         $ManagementAddress
     )

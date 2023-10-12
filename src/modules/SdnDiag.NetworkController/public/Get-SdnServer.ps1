@@ -15,15 +15,15 @@ function Get-SdnServer {
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddress
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -49,7 +49,7 @@ function Get-SdnServer {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [switch]$ManagementAddress
+        [switch]$ManagementAddressOnly
     )
 
     $params = @{
@@ -79,8 +79,8 @@ function Get-SdnServer {
                 }
             }
 
-            if($ManagementAddress){
-                $connections = (Get-ManagementAddress -ManagementAddress $result.properties.connections.managementAddresses)
+            if($ManagementAddressOnly){
+                $connections = (Get-ManagementAddressOnly -ManagementAddressOnly $result.properties.connections.managementAddresses)
                 return $connections
             }
             else {

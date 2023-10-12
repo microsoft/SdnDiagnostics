@@ -15,15 +15,15 @@ function Get-SdnGateway {
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddress
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
         PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddress
+        PS> Get-SdnGateway -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'gateways/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -49,7 +49,7 @@ function Get-SdnGateway {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [switch]$ManagementAddress
+        [switch]$ManagementAddressOnly
     )
 
     $params = @{
@@ -79,10 +79,10 @@ function Get-SdnGateway {
                 }
             }
 
-            if($ManagementAddress){
+            if($ManagementAddressOnly){
                 $connections = @()
                 foreach ($resource in $result) {
-                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddress -Credential $Credential
+                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
                     $connections += $virtualServerMgmtAddress
                 }
 

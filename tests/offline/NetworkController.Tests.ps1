@@ -4,8 +4,8 @@ Describe 'NetworkController test' {
             return $Global:PesterOfflineTests.SdnApiResources[$ResourceType.ToString()]
         }
     }
-    It "Get-SdnServer -ManagementAddress should return Server Address Only" {
-        $servers = Get-SdnServer "https://sdnexpnc" -ManagementAddress
+    It "Get-SdnServer -ManagementAddressOnly should return Server Address Only" {
+        $servers = Get-SdnServer "https://sdnexpnc" -ManagementAddressOnly
         $servers.Count | Should -BeGreaterThan 0
         $servers[0].GetType() | Should -Be "String"
     }

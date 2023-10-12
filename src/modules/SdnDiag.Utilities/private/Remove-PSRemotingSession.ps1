@@ -33,8 +33,15 @@ function Remove-PSRemotingSession {
                     continue
                 }
                 else {
-                    "Removing PSSession {0}" -f $session.Name | Trace-Output -Level:Verbose
-                    $session | Remove-PSSession -ErrorAction Continue
+                    "Removing PSSession {0} for {1}" -f $session.Name, $session.ComputerName | Trace-Output
+
+                    try {
+                        $session | Remove-PSSession -ErrorAction Stop
+                    }
+                    catch {
+                        "Unable to remove PSSession {0} for {1}. Error: {2}" -f $session.Name, $session.ComputerName, $_.Exception.Message | Trace-Output -Level:Warning
+                        continue
+                    }
                 }
             }
 
@@ -42,7 +49,6 @@ function Remove-PSRemotingSession {
         }
 
         $stopWatch.Stop()
-        "Successfully drained PSSessions for {0}" -f ($ComputerName -join ', ') | Trace-Output
     }
     catch {
         $stopWatch.Stop()

@@ -84,7 +84,6 @@ function Install-SdnDiagnostics {
                     # a string back to the remote call command which we can do proper comparison against
                     $version = '0.0.0.0'
                 }
-
                 return $version
             } -ArgumentList @("$ModuleRootDir\SdnDiagnostics")
 
