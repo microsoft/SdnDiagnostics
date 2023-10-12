@@ -10,7 +10,7 @@ function Get-SdnServer {
         Specifies the resource reference for the resource.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER ManagementAddress
+    .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
         PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
