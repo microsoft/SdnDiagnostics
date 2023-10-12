@@ -36,7 +36,7 @@ function Get-SdnVirtualServer {
         }
 
         if ($ManagementAddressOnly) {
-            $connections = (Get-ManagementAddressOnly -ManagementAddressOnly $result.properties.connections.managementAddresses)
+            $connections = (Get-ManagementAddress -ManagementAddress $result.properties.connections.managementAddresses)
             return $connections
         }
         else {
