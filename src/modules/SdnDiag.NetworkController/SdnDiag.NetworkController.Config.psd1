@@ -205,7 +205,7 @@
             }
         }
         CommonPaths = @{
-            serviceFabricLogDirectory = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
+            serviceFabricLogDirectory = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
         }
         EventLogProviders = @(
             "Application"
