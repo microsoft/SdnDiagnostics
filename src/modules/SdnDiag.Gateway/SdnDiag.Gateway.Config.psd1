@@ -9,7 +9,7 @@
     RequiredModules = @()
     Properties = @{
         CommonPaths = @{
-            RasGatewayTraces = $null # populated in SdnDiag.Gateway.psm1
+            RasGatewayTraces = "C:\Windows\Tracing"
         }
         EventLogProviders = @(
             "Application"

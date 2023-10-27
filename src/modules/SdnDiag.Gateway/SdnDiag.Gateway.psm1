@@ -10,7 +10,4 @@ New-Variable -Name 'SdnDiagnostics_Gateway' -Scope 'Script' -Force -Value @{
     Config = $configurationData
 }
 
-# due to limitations with defining dynamic value in psd1 file, need to populate the values here
-$Script:SdnDiagnostics.Config.Properties.CommonPaths.RasGatewayTraces = "$env:SystemRoot\Tracing"
-
 ##### FUNCTIONS AUTO-POPULATED BELOW THIS LINE DURING BUILD #####

@@ -205,7 +205,7 @@
             }
         }
         CommonPaths = @{
-            serviceFabricLogDirectory = $null # populated in SdnDiag.NetworkController.psm1
+            serviceFabricLogDirectory = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
         }
         EventLogProviders = @(
             "Application"
@@ -213,7 +213,7 @@
             "Microsoft-ServiceFabric*"
             "System"
         )
-        NetControllerStatePath = $null # populated in SdnDiag.NetworkController.psm1
+        NetControllerStatePath = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
         RegKeyPaths = @(
             "HKLM:\Software\Microsoft\NetworkController"
             "HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent"
