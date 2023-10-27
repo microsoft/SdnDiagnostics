@@ -21,7 +21,7 @@ function Install-SdnDiagnostics {
 
         [Parameter(Mandatory = $false)]
         [ValidateNotNullOrEmpty()]
-        [System.String]$ModuleRootDir = $script:SdnDiagnostics_Utilities.Config.DefaultModuleDirectory,
+        [System.String]$ModuleRootDir = $Global:SdnDiagnostics.Config.ModuleRootDirectory,
 
         [Parameter(Mandatory = $false)]
         [switch]$Force
@@ -30,14 +30,16 @@ function Install-SdnDiagnostics {
     try {
         # if we are not using the default directory then we need to use the full path to the module
         if ($ModuleRootDir -ine $script:SdnDiagnostics_Utilities.Config.DefaultModuleDirectory) {
-            $moduleName = Join-Path -Path $ModuleRootDir -ChildPath 'SdnDiagnostics'
+            if (-NOT (Split-Path -Path $ModuleRootDir -Leaf) -ieq 'SdnDiagnostics') {
+                $moduleName = Join-Path -Path $ModuleRootDir -ChildPath 'SdnDiagnostics'
+            }
+            else {
+                $moduleName = $ModuleRootDir
+            }
         }
         else {
             $moduleName = 'SdnDiagnostics'
         }
-
-        # configure this variable so that we can use it in the remote session
-        $script:SdnDiagnostics_Utilities.Cache.RemoteModuleName = $moduleName
 
         $filteredComputerName = [System.Collections.ArrayList]::new()
         $installNodes = [System.Collections.ArrayList]::new()

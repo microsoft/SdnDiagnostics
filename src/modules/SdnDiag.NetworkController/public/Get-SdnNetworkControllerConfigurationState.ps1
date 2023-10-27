@@ -35,7 +35,7 @@ function Get-SdnNetworkControllerConfigurationState {
         Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # enumerate dll binary version for NC application
-        $ncAppDirectories = Get-ChildItem -Path "C:\Windows\NetworkController" -Directory
+        $ncAppDirectories = Get-ChildItem -Path "$env:SystemRoot\NetworkController" -Directory
         foreach($directory in $ncAppDirectories){
             [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
             Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List

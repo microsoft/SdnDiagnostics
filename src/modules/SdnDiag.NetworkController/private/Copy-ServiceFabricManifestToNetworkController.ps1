@@ -39,7 +39,7 @@ function Copy-ServiceFabricManifestToNetworkController {
 
 
         $NcNodeList | ForEach-Object {
-            $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
+            $fabricFolder = "$env:ProgramData\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
             $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)

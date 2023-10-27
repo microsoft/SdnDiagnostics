@@ -37,12 +37,12 @@ function Copy-ServiceFabricManifestFromNetworkController {
         New-Item -Path $ManifestFolder -ItemType Directory -Force | Out-Null
         New-Item -Path $ManifestFolderNew -ItemType Directory -Force | Out-Null
 
-        $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($NcNodeList[0].NodeName)\Fabric"
+        $fabricFolder = "$env:ProgramData\Microsoft\Service Fabric\$($NcNodeList[0].NodeName)\Fabric"
         Copy-FileFromRemoteComputer -Path "$fabricFolder\ClusterManifest.current.xml" -ComputerName $($NcNodeList[0].IpAddressOrFQDN) -Destination $ManifestFolder -Credential $Credential
         Copy-FileFromRemoteComputer -Path "$fabricFolder\Fabric.Data\InfrastructureManifest.xml" -ComputerName $($NcNodeList[0].IpAddressOrFQDN) -Destination $ManifestFolder -Credential $Credential
 
         $NcNodeList | ForEach-Object {
-            $fabricFolder = "c:\programdata\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
+            $fabricFolder = "$env:ProgramData\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 
             $version = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)

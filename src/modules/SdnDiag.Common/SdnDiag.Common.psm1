@@ -10,7 +10,10 @@ $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Comm
 
 New-Variable -Name 'SdnDiagnostics_Common' -Scope 'Script' -Force -Value @{
     Cache = @{}
-    Config = $configurationData
+    Config = @{
+        DefaultLogDirectory = "$env:SystemRoot\Tracing\SDNDiagnostics\Logs"
+        LogFileTypes = @("*.log", "*.etl", "*.cab")
+    }
 }
 
 ##### FUNCTIONS AUTO-POPULATED BELOW THIS LINE DURING BUILD #####

@@ -13,10 +13,13 @@ function New-PSRemotingSession {
         [bool]$ImportModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$ModuleRootDir = $Global:SdnDiagnostics.Config.ModuleRootDirectory,
+
+        [Parameter(Mandatory = $false)]
         [Switch]$Force
     )
 
-    $importModule = {
+    $importRemoteModule = {
         param([string]$arg0, $arg1)
         try {
             Import-Module $arg0 -ErrorAction Stop
@@ -81,7 +84,7 @@ function New-PSRemotingSession {
                     $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US' -IdleTimeout 86400000) -ErrorAction Stop
 
                     if ($ImportModuleOnRemoteSession) {
-                        Invoke-Command -Session $session -ScriptBlock $importModule -ArgumentList @($script:SdnDiagnostics_Utilities.Cache.RemoteModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleRootDir, $Global:SdnDiagnostics.Config) -ErrorAction Stop
                     }
                 }
 
