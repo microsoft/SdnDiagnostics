@@ -17,7 +17,6 @@ function Get-SdnSlbMuxConfigurationState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
-    $FormatEnumerationLimit = -1
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'

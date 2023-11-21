@@ -13,7 +13,6 @@ function Get-GeneralConfigurationState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
-    $FormatEnumerationLimit = -1
 
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "General"

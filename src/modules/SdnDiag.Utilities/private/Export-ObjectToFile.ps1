@@ -70,9 +70,10 @@ function Export-ObjectToFile {
                     $arrayList | Export-Csv -NoTypeInformation -Path $fileName -Force
                 }
                 "txt" {
+                    $FormatEnumerationLimit = 500
                     switch($Format){
                         'Table' {
-                            $arrayList | Format-Table -AutoSize | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
+                            $arrayList | Format-Table -AutoSize -Wrap | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
                         }
                         'List' {
                             $arrayList | Format-List -Property * | Out-File -FilePath $fileName -Force
