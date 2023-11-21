@@ -20,30 +20,19 @@ function Install-SdnDiagnostics {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [ValidateNotNullOrEmpty()]
-        [System.String]$ModuleRootDir = $Global:SdnDiagnostics.Config.ModuleRootDirectory,
-
-        [Parameter(Mandatory = $false)]
         [switch]$Force
     )
 
+    # if we have configured automatic seeding of module to remote nodes, we will want to skip this operation
+    if ($Global:SdnDiagnostics.Config.DisableModuleSeeding) {
+        return
+    }
+
+    $moduleRootDir = $Script:SdnDiagnostics_Utilities.Config.DefaultModuleDirectory
+    $filteredComputerName = [System.Collections.ArrayList]::new()
+    $installNodes = [System.Collections.ArrayList]::new()
+
     try {
-        # if we are not using the default directory then we need to use the full path to the module
-        if ($ModuleRootDir -ine $script:SdnDiagnostics_Utilities.Config.DefaultModuleDirectory) {
-            if (-NOT (Split-Path -Path $ModuleRootDir -Leaf) -ieq 'SdnDiagnostics') {
-                $moduleName = Join-Path -Path $ModuleRootDir -ChildPath 'SdnDiagnostics'
-            }
-            else {
-                $moduleName = $ModuleRootDir
-            }
-        }
-        else {
-            $moduleName = 'SdnDiagnostics'
-        }
-
-        $filteredComputerName = [System.Collections.ArrayList]::new()
-        $installNodes = [System.Collections.ArrayList]::new()
-
         # if we have multiple modules installed on the current workstation,
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
         $localModule = Get-Module -Name 'SdnDiagnostics'
@@ -53,13 +42,13 @@ function Install-SdnDiagnostics {
 
         "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output
 
-        # module should also be under $ModuleRootDir in a format of $ModuleRootDir\SdnDiagnostics\{version} when using PSGallery version of the module
-        # or possibly $ModuleRootDir\SdnDiagnostics if working with dev version of the module
-        if ($localModule.ModuleBase -ilike "*\SdnDiagnostics\$($localModule.Version.ToString())") {
-            [string]$destinationPathDir = "{0}\{1}\{2}" -f $ModuleRootDir, 'SdnDiagnostics', $localModule.Version.ToString()
+        # since we may not know where the module was imported from we cannot accurately assume the $localModule.ModuleBase is correct
+        # manually generate the destination path we want the module to be installed on remote nodes
+        if ($localModule.ModuleBase -ilike "*$($localModule.Version.ToString())") {
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}\{2}" -f $moduleRootDir, 'SdnDiagnostics', $localModule.Version.ToString()
         }
         else {
-            [string]$destinationPathDir = Join-Path -Path $ModuleRootDir -ChildPath 'SdnDiagnostics'
+            [System.IO.FileInfo]$destinationPathDir = "{0}\{1}" -f $moduleRootDir, 'SdnDiagnostics'
         }
 
         # make sure that in instances where we might be on a node within the sdn dataplane,
@@ -98,7 +87,7 @@ function Install-SdnDiagnostics {
                     $version = '0.0.0.0'
                 }
                 return $version
-            } -ArgumentList @($moduleName)
+            } -ArgumentList @('SdnDiagnostics')
 
             # enumerate the versions returned for each computer and compare with current module version to determine if we should perform an update
             foreach ($computer in ($remoteModuleVersion.PSComputerName | Sort-Object -Unique)) {
@@ -127,22 +116,12 @@ function Install-SdnDiagnostics {
         }
 
         if ($installNodes) {
-            # we need to ensure we cleanup the remote working directory before we copy the module over
-            # this is due to how Copy-Item works as if .\SdnDiagnostics already exists, it will just copy into the folder and not overwrite
-            # resulting in structure then of .\SdnDiagnostics\SdnDiagnostics
-            Invoke-PSRemoteCommand -ComputerName $installNodes -Credential $Credential -ImportModuleOnRemoteSession:$false -ScriptBlock {
-                param ([string]$arg0)
-                if (Test-Path -Path $arg0 -PathType Container) {
-                    Remove-Item -Path $arg0 -Recurse -Force
-                }
-            } -ArgumentList @($destinationPathDir)
-
             Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $installNodes -Destination $destinationPathDir -Credential $Credential -Recurse -Force
-        }
 
-        # ensure that we destroy the current pssessions for the computer to prevent any caching issues
-        # we will want to remove any existing PSSessions for the remote computers
-        Remove-PSRemotingSession -ComputerName $installNodes
+            # ensure that we destroy the current pssessions for the computer to prevent any caching issues
+            # we will want to remove any existing PSSessions for the remote computers
+            Remove-PSRemotingSession -ComputerName $installNodes
+        }
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error

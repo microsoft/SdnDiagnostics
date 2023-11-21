@@ -12,8 +12,12 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
         # when creating remote sessions, the module will be imported automatically
         ImportModuleOnRemoteSession = $false
 
-        # reference https://learn.microsoft.com/en-us/powershell/module/powershellget/install-module?view=powershellget-2.
-        ModuleRootDirectory = "$env:ProgramFiles\WindowsPowerShell\Modules"
+        # determines from a global perspective if we should be disabling automatic seeding of module to remote nodes
+        DisableModuleSeeding = $false
+
+        # by default will just leverage the name of the module, however if using custom path not under default module directory
+        # can update this to be the full path name to module, which will be used on PSRemoteSessions
+        ModuleName = 'SdnDiagnostics'
 
         # defines if this module is running on Windows Server, Azure Stack HCI or Azure Stack Hub
         # supported values are 'WindowsServer', 'AzureStackHCI', 'AzureStackHub'

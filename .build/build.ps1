@@ -47,8 +47,8 @@ foreach ($folder in $folders) {
     }
 }
 
-Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
-Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
+Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.psd1" -Destination "$outDir\SdnDiagnostics\" -Force
+Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.psm1" -Destination "$outDir\SdnDiagnostics\" -Force
 
 # setting the version of the module manifest
 $modManifest = Get-Item "$outDir\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction Stop
