@@ -91,7 +91,7 @@ function New-PSRemotingSession {
                 "Created powershell session {0} to {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose
             }
             catch {
-                "Unable to create powershell session to {0}`n`t{1}" -f $obj, $_.Exception | Trace-Output -Level:Warning
+                "Unable to create powershell session to {0}`n`t{1}" -f $obj, $_.Exception.Message | Trace-Output -Level:Warning
                 continue
             }
         }
