@@ -17,7 +17,7 @@ function Write-HealthValidationInfo {
     $outputString += "`r`n`r`n"
     $outputString += "--------------------------`r`n"
     $outputString += "Description:`t$($details.Description)`r`n"
-    $outputString += "Impact:`t`t`t$($details.Impact)`r`n"
+    $outputString += "Impact:`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
         $outputString += "Remediation:`r`n`t -`t$($Remediation -join "`r`n`t -`t")`r`n"

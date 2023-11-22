@@ -39,7 +39,7 @@ function Test-NcUrlNameResolution {
             }
         }
 
-        "ApiService replica primary is hosted on {0} with an IP address of {1}" -f $ncApiReplicaPrimary.ReplicaAddress, $ncNodeIp | Trace-Output
+        "ApiService replica primary is hosted on {0} with an IP address of {1}" -f $ncApiReplicaPrimary.ReplicaAddress, $ncNodeIp.IPAddress | Trace-Output -Level:Verbose
         $dnsResult = Resolve-DnsName -Name $nbApiName -NoHostsFile -ErrorAction SilentlyContinue
         if ($null -ieq $dnsResult) {
             $sdnHealthObject.Result = 'FAIL'
@@ -47,11 +47,11 @@ function Test-NcUrlNameResolution {
             "Unable to resolve DNS name for {0}" -f $nbApiName | Trace-Output -Level:Warning
             return $sdnHealthObject
         }
-        elseif ($dnsResult[0].IPAddress -ine $ncNodeIp) {
+        elseif ($dnsResult[0].IPAddress -ine $ncNodeIp.IPAddress) {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation = 'Ensure that the DNS name for the Network Controller NB API URL resolves to the correct IP address.'
 
-            "DNS name for {0} resolves to {1} instead of {2}" -f $nbApiName, $dnsResult[0].IPAddress, $ncNodeIp | Trace-Output -Level:Warning
+            "DNS name for {0} resolves to {1} instead of {2}" -f $nbApiName, $dnsResult[0].IPAddress, $ncNodeIp.IPAddress | Trace-Output -Level:Warning
             return $sdnHealthObject
         }
     }
