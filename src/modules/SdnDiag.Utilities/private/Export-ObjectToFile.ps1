@@ -24,7 +24,10 @@ function Export-ObjectToFile {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Table","List")]
-        [System.String]$Format
+        [System.String]$Format,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$Depth = 2
     )
 
     begin {
@@ -61,15 +64,16 @@ function Export-ObjectToFile {
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
             switch($FileType){
                 "json" {
-                    $arrayList | ConvertTo-Json -Depth 10 | Out-File -FilePath $fileName -Force
+                    $arrayList | ConvertTo-Json -Depth $Depth | Out-File -FilePath $fileName -Force
                 }
                 "csv" {
                     $arrayList | Export-Csv -NoTypeInformation -Path $fileName -Force
                 }
                 "txt" {
+                    $FormatEnumerationLimit = 500
                     switch($Format){
                         'Table' {
-                            $arrayList | Format-Table -AutoSize | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
+                            $arrayList | Format-Table -AutoSize -Wrap | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
                         }
                         'List' {
                             $arrayList | Format-List -Property * | Out-File -FilePath $fileName -Force
