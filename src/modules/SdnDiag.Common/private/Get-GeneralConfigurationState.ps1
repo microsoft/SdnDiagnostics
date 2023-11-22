@@ -10,7 +10,9 @@ function Get-GeneralConfigurationState {
         [System.IO.FileInfo]$OutputDirectory
     )
 
+    $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'SilentlyContinue'
 
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "General"
@@ -36,9 +38,17 @@ function Get-GeneralConfigurationState {
 
         "Gathering network adapter properties" | Trace-Output -Level:Verbose
         Get-NetAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format Table
+        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterSriov' -FileType txt -Format Table
+        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterSriovVf' -FileType txt -Format Table
+        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterRsc' -FileType txt -Format Table
+        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format Table
+
         $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
         foreach($adapter in Get-NetAdapter){
             Get-NetAdapter -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapter' -FileType txt -Format List
+            Get-NetAdapterSriov -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterSriov' -FileType txt -Format List
+            Get-NetAdapterRsc -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterRsc' -FileType txt -Format List
+            Get-NetAdapterHardwareInfo -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format List
             Get-NetAdapterAdvancedProperty -Name $adapter.Name `
                 | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
         }
@@ -64,4 +74,5 @@ function Get-GeneralConfigurationState {
     }
 
     $ProgressPreference = 'Continue'
+    $ErrorActionPreference = $currentErrorActionPreference
 }
