@@ -35,7 +35,6 @@ function Install-SdnDiagnostics {
         return
     }
 
-    [System.String]$destinationPathDir = Join-Path $Path -ChildPath $localModule.Version.ToString()
     $moduleName = $Global:SdnDiagnostics.Config.ModuleName
     $filteredComputerName = [System.Collections.ArrayList]::new()
     $installNodes = [System.Collections.ArrayList]::new()
@@ -48,8 +47,15 @@ function Install-SdnDiagnostics {
             throw "Detected more than one module version of SdnDiagnostics. Remove all versions of module from runspace and re-import the module."
         }
 
+        # typically PowerShell modules will be installed in the following directory configuration:
+        #    $env:ProgramFiles\WindowsPowerShell\Modules\SdnDiagnostics\{version}
+        #    $env:USERPROFILE\Documents\WindowsPowerShell\Modules\SdnDiagnostics\{version}
+        # so we default to Leaf of the path being SdnDiagnostics as PSGet will handle the versioning so we only ever do import in the following format:
+        #    Import-Module SdnDiagnostics (if using default PowerShell module path)
+        #    Import-Module C:\{path}\SdnDiagnostics (if using custom PowerShell module path)
+        # so we need to ensure that we are copying the module to the correct path on the remote computer
+        [System.String]$destinationPathDir = Join-Path $Path -ChildPath $localModule.Version.ToString()
         "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output
-
 
         # make sure that in instances where we might be on a node within the sdn dataplane,
         # that we do not remove the module locally
