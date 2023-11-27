@@ -39,6 +39,12 @@ function Set-SdnNetworkController {
         $params.Add('Credential', $Credential)
     }
 
+    # we do not support this operation being executed from remote session
+    # unless we have explicitly specified the Credential parameter
+    if ($PSSenderInfo -and $null -eq $Credential) {
+        throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
+    }
+
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-NOT $elevated) {
@@ -46,7 +52,7 @@ function Set-SdnNetworkController {
     }
 
     # add disclaimer that this feature is currently under preview
-    "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues." | Trace-Output -Level:Warning
+    "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues." | Trace-Output -Level:Warning
     $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
     if (-NOT $confirm) {
         "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
@@ -121,7 +127,7 @@ function Set-SdnNetworkController {
                 # if we changing from RestName to RestIPAddress, then we need to remove the RestURL property and add the RestIPAddress property
                 # once we remove the RestUrl property, we need to insert a dummy CIDR value to ensure that the Set-NetworkController operation does not fail
                 else {
-                    "RestIPAddress is not configured. Operation will set RestIPAddress to {0}." -f $RestIpAddress | Trace-Output -Level:Warning
+                    "Operation will set RestIPAddress to {0}." -f $RestIpAddress | Trace-Output -Level:Warning
                     $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
                     if ($confirm) {
                         "Deleting the current RestURL property and inserting temporary RestIPAddress" | Trace-Output
