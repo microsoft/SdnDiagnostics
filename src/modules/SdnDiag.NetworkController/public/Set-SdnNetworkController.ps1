@@ -5,7 +5,7 @@ function Set-SdnNetworkController {
     .PARAMETER RestIPAddress
         Specifies the IP address on which network controller nodes communicate with the REST clients. This IP address must not be an existing IP address on any of the network controller nodes.
     .PARAMETER RestName
-        Specifies the DNS name of the Network Controller cluster. This must be specified if the Network Controller nodes are in different subnets. In this case, you must also enable dynamic registration of the RestName on the DNS servers.
+        Switch parameter to configure the network controller application to use the server certificate's subject name as the REST endpoint name.
     .PARAMETER Credential
         Specifies a user credential that has permission to perform this action. The default is the current user.
         Specify this parameter only if you run this cmdlet on a computer that is not part of the network controller cluster.
@@ -24,7 +24,7 @@ function Set-SdnNetworkController {
         [System.String]$RestIpAddress,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'RestName')]
-        [System.String]$RestName,
+        [Switch]$RestName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'RestIPAddress')]
         [Parameter(Mandatory = $false, ParameterSetName = 'RestName')]
@@ -32,6 +32,12 @@ function Set-SdnNetworkController {
         [System.Management.Automation.Credential()]
         $Credential
     )
+
+    $waitDuration = 30 # seconds
+    $params = @{}
+    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+        $params.Add('Credential', $Credential)
+    }
 
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -50,7 +56,12 @@ function Set-SdnNetworkController {
     try {
         $getNetworkController = Get-SdnNetworkController
         if ($null -eq $getNetworkController) {
-            throw New-Object System.Exception("Unable to retrieve network controller information.")
+            throw New-Object System.Exception("Unable to retrieve results from Get-SdnNetworkController.")
+        }
+
+        $certSubjectName = $getNetworkController.ServerCertificate.Subject.Split('=')[1].Trim()
+        if ($null -eq $certSubjectName) {
+            throw New-Object System.Exception("Unable to retrieve current ServerCertificate.Subject property")
         }
 
         Connect-ServiceFabricCluster | Out-Null
@@ -58,29 +69,24 @@ function Set-SdnNetworkController {
         $version = $param.ApplicationParameters["SDNAPIConfigVersion"].Value
         $client=[System.Fabric.FabricClient]::new()
 
-        switch ($PSBoundParameters.ParameterSetName) {
+        switch ($PSCmdlet.ParameterSetName) {
             'RestName' {
+                $params.Add('RestName', $certSubjectName)
+
                 if ($getNetworkController.RestName) {
-                    $currentRestName = $getNetworkController.ServerCertificate.Thumbprint.Split('=')[1].Trim()
-                    if ($currentRestName -ieq $RestName) {
-                        "RestName is already set to {0}. Aborting operation." -f $currentRestName | Trace-Output -Level:Warning
-                        return
-                    }
-                    else {
-                        "Set-SdnNetworkController does not support changing RestName. Please use Set-NetworkController instead to update the RestName." | Trace-Output -Level:Warning
-                        return
-                    }
+                    "Network Controller is already configured with RestName: {0}" -f $getNetworkController.RestName | Trace-Output -Level:Warning
+                    return
                 }
 
-                # if we changing from RestIPAddress to RestName, then we need to remove the RestIPAddress property and add the RestName property
                 else {
-                    "RestName is not configured. Configuring RestName to {0}. Operation will take several minutes." -f $RestName | Trace-Output -Level:Warning
+                    # if we changing from RestIPAddress to RestName, then we need to remove the RestIPAddress property and add the RestURL property
+                    # once we remove the RestIPAddress property, we can perform a PUT operation to set the RestURL property
+                    "Operation will set RestName to {0}." -f $certSubjectName | Trace-Output -Level:Warning
                     $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
                     if ($confirm) {
+                        "Deleting the current RestIPAddress property" | Trace-Output
                         $client.PropertyManager.DeletePropertyAsync("fabric:/NetworkController/GlobalConfiguration", "SDNAPI.$version.RestIPAddress")
-
-                        Start-Sleep -Seconds 30 # wait for the property to be deleted
-                        Set-NetworkController @PSBoundParameters
+                        $client.PropertyManager.PutPropertyAsync("fabric:/NetworkController/GlobalConfiguration", "SDNAPI.$version.RestURL", $certSubjectName)
                     }
                     else {
                         "User has opted to abort the operation. Terminating operation" | Trace-Output
@@ -90,6 +96,8 @@ function Set-SdnNetworkController {
             }
 
             'RestIPAddress' {
+                $params.Add('RestIPAddress', $RestIpAddress)
+
                 # check to see if the RestIPAddress is already configured, if so, then cross-compare the value currently configured with the new value
                 # if we are just changing from one IP to another, then we can just update the value using Set-NetworkController
                 if ($getNetworkController.RestIPAddress) {
@@ -98,11 +106,10 @@ function Set-SdnNetworkController {
                         return
                     }
                     else {
-                        "RestIPAddress is currently set to {0}. Changing to {1}." -f $getNetworkController.RestIPAddress, $RestIpAddress | Trace-Output -Level:Warning
+                        "RestIPAddress is currently set to {0}. Operation will set RestIPAddress to {1}." -f $getNetworkController.RestIPAddress, $RestIpAddress | Trace-Output -Level:Warning
                         $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
                         if ($confirm) {
-                            "Configuring RestIPAddress to {0}. Operation will take several minutes." -f $RestIpAddress | Trace-Output -Level:Verbose
-                            Set-NetworkController @PSBoundParameters
+                            # do nothing here directly, since we will be calling Set-NetworkController later on
                         }
                         else {
                             "User has opted to abort the operation. Terminating operation" | Trace-Output
@@ -111,17 +118,15 @@ function Set-SdnNetworkController {
                     }
                 }
 
-                # if we changing from RestName to RestIPAddress, then we need to remove the RestName property and add the RestIPAddress property
+                # if we changing from RestName to RestIPAddress, then we need to remove the RestURL property and add the RestIPAddress property
                 # once we remove the RestUrl property, we need to insert a dummy CIDR value to ensure that the Set-NetworkController operation does not fail
                 else {
-                    "RestIPAddress is not configured. Configuring RestIPAddress to {0}. Operation will take several minutes." -f $RestIpAddress | Trace-Output -Level:Warning
+                    "RestIPAddress is not configured. Operation will set RestIPAddress to {0}." -f $RestIpAddress | Trace-Output -Level:Warning
                     $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
                     if ($confirm) {
+                        "Deleting the current RestURL property and inserting temporary RestIPAddress" | Trace-Output
                         $client.PropertyManager.DeletePropertyAsync("fabric:/NetworkController/GlobalConfiguration", "SDNAPI.$version.RestURL")
                         $client.PropertyManager.PutPropertyAsync("fabric:/NetworkController/GlobalConfiguration", "SDNAPI.$version.RestIPAddress", "10.65.15.117/27")
-
-                        Start-Sleep -Seconds 30 # wait for the property to be deleted
-                        Set-NetworkController @PSBoundParameters
                     }
                     else {
                         "User has opted to abort the operation. Terminating operation" | Trace-Output
@@ -130,6 +135,12 @@ function Set-SdnNetworkController {
                 }
             }
         }
+
+        "Sleeping for {0} seconds" -f $waitDuration | Trace-Output
+        Start-Sleep -Seconds $waitDuration # wait for the property to be deleted
+
+        "Calling Set-NetworkController with params: {0}" -f ($params | ConvertTo-Json) | Trace-Output
+        Set-NetworkController @params
 
         return (Get-SdnNetworkController)
     }
@@ -140,5 +151,7 @@ function Set-SdnNetworkController {
         if ($client) {
             $client.Dispose()
         }
+
+        throw $_
     }
 }
