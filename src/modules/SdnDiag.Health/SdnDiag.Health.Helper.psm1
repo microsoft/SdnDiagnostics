@@ -46,7 +46,7 @@ $fabricInfraResultScriptBlock = @{
             return ($result.Name | Sort-Object -Unique)
         }
 
-        return $result.HealthValidation | Where-Object {$_.Name -like "*$wordToComplete*"} | Sort-Object
+        return $result.Name | Where-Object {$_.Name -like "*$wordToComplete*"} | Sort-Object
     }
 }
 

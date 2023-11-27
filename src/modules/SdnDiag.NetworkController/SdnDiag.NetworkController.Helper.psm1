@@ -69,7 +69,7 @@ $scriptBlocks = @{
             return ($serviceName | Sort-Object)
         }
 
-        return $serviceName | Where-Object {$_.ServiceName -like "*$wordToComplete*"} | Sort-Object
+        return $serviceName | Where-Object {$_ -ilike "*$wordToComplete*"} | Sort-Object
     }
 
     ServiceFabricServiceTypeName = {
@@ -92,7 +92,7 @@ $scriptBlocks = @{
             return ($serviceTypeName | Sort-Object)
         }
 
-        return $serviceTypeName | Where-Object {$_.ServiceTypeName -like "*$wordToComplete*"} | Sort-Object
+        return $serviceTypeName | Where-Object {$_ -ilike "*$wordToComplete*"} | Sort-Object
     }
 }
 
