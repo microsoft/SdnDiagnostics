@@ -151,7 +151,5 @@ function Set-SdnNetworkController {
         if ($client) {
             $client.Dispose()
         }
-
-        throw $_
     }
 }
