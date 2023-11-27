@@ -27,7 +27,7 @@ function Test-NcUrlNameResolution {
             return $sdnHealthObject
         }
 
-        $networkController = Get-SdnNetworkController -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential
+        $networkController = Get-SdnNetworkController -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
         if ($null -eq $networkController) {
             "Unable to retrieve results from Get-SdnNetworkController" | Trace-Output -Level:Warning
             return $sdnHealthObject
@@ -73,6 +73,8 @@ function Test-NcUrlNameResolution {
             "DNS name for {0} resolves to {1} instead of {2}" -f $nbApiName, $dnsResult[0].IPAddress, $expectedIPAddress | Trace-Output -Level:Warning
             return $sdnHealthObject
         }
+
+        return $sdnHealthObject
     }
     catch {
         "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
