@@ -68,6 +68,8 @@ $scriptBlocks = @{
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($serviceName | Sort-Object)
         }
+
+        return $serviceName | Where-Object {$_ -ilike "*$wordToComplete*"} | Sort-Object
     }
 
     ServiceFabricServiceTypeName = {
@@ -89,6 +91,8 @@ $scriptBlocks = @{
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($serviceTypeName | Sort-Object)
         }
+
+        return $serviceTypeName | Where-Object {$_ -ilike "*$wordToComplete*"} | Sort-Object
     }
 }
 
