@@ -54,7 +54,7 @@ function Invoke-SdnResourceDump {
             if ($minVersionInt -le $apiVersionInt) {
                 $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $value.uri -Credential $Credential
                 if ($sdnResource) {
-                    $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $key -FileType json
+                    $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $key -FileType json -Depth 10
                 }
             }
         }

@@ -346,7 +346,7 @@ function Start-SdnDataCollection {
 
         $stopwatch.Stop()
         $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
-        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json
+        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4
         "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
         Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
 
