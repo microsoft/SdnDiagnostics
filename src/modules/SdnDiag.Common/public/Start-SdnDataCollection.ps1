@@ -215,7 +215,7 @@ function Start-SdnDataCollection {
         $debugInfraHealthResults = Get-SdnFabricInfrastructureResult
         if ($debugInfraHealthResults) {
             $debugInfraHealthResults.Values | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult_Summary' -FileType 'txt' -Format 'table'
-            $debugInfraHealthResults | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType 'json'
+            $debugInfraHealthResults | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType json -Depth 5
         }
 
         # enumerate through each role and collect appropriate data

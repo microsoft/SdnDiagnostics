@@ -146,7 +146,7 @@ function Enable-SdnVipTrace {
         $null = Stop-SdnNetshTrace -ComputerName $networkTraceNodes -Credential $Credential
 
         "Tracing has been disabled on the SDN infrastructure. Saving configuration details to {0}\{1}_TraceMapping.json" -f (Get-WorkingDirectory), $VirtualIP | Trace-Output
-        $Script:SdnDiagnostics_Common.Cache['TraceMapping'] | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Prefix $VirtualIP -Name 'TraceMapping' -FileType 'json'
+        $Script:SdnDiagnostics_Common.Cache['TraceMapping'] | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Prefix $VirtualIP -Name 'TraceMapping' -FileType json -Depth 3
 
         $traceFileInfo = @()
         foreach ($obj in $traceInfo) {
