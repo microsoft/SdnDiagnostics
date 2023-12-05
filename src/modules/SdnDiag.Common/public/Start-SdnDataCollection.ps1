@@ -215,7 +215,7 @@ function Start-SdnDataCollection {
         $debugInfraHealthResults = Get-SdnFabricInfrastructureResult
         if ($debugInfraHealthResults) {
             $debugInfraHealthResults.Values | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult_Summary' -FileType 'txt' -Format 'table'
-            $debugInfraHealthResults | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType 'json'
+            $debugInfraHealthResults | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnFabricInfrastructureResult' -FileType json -Depth 5
         }
 
         # enumerate through each role and collect appropriate data
@@ -346,7 +346,7 @@ function Start-SdnDataCollection {
 
         $stopwatch.Stop()
         $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
-        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json
+        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4
         "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
         Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
 

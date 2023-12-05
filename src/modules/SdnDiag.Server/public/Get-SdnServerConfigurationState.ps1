@@ -55,7 +55,7 @@ function Get-SdnServerConfigurationState {
         }
 
         vfpctrl /list-vmswitch-port | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'vfpctrl_list-vmswitch-port' -FileType txt
-        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType json
+        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVfpVmSwitchPort' -FileType json -Depth 3
 
         # Gather OVSDB databases
         "Gathering ovsdb database output" | Trace-Output -Level:Verbose

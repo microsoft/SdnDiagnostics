@@ -93,6 +93,11 @@
             Impact = "Policy configuration may not be pushed to the Hyper-V host(s) if no southbound connectivity is available."
             PublicDocUrl = ""
         }
+        'Test-NcUrlNameResolution' = @{
+            Description = "Network Controller URL is not resolvable."
+            Impact = "Calls to Network Controller NB API will fail resulting in policy configuration failures and unable to manage SDN resources."
+            PublicDocUrl = ""
+        }
     }
     ConfigurationStateErrorCodes = @{
         'Unknown' = @{

@@ -133,6 +133,7 @@
         'Remove-SdnExpressBgpHost',
         'Repair-SdnDiagnosticsScheduledTask',
         'Set-SdnCertificateAcl',
+        'Set-SdnNetworkController',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Show-SdnVfpPortConfig',
