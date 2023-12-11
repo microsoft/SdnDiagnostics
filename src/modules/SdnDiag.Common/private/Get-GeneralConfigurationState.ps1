@@ -42,6 +42,7 @@ function Get-GeneralConfigurationState {
         Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterSriovVf' -FileType txt -Format Table
         Get-NetAdapterRsc | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterRsc' -FileType txt -Format Table
         Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format Table
+        Get-NetOffloadGlobalSetting | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetOffloadGlobalSetting' -FileType txt -Format Table
 
         $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
         foreach($adapter in Get-NetAdapter){
