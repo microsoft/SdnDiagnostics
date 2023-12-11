@@ -55,13 +55,13 @@ function Install-SdnDiagnostics {
         #    Import-Module C:\{path}\SdnDiagnostics (if using custom PowerShell module path)
         # so we need to ensure that we are copying the module to the correct path on the remote computer
         [System.String]$destinationPathDir = Join-Path $Path -ChildPath $localModule.Version.ToString()
-        "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output
+        "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output -Level:Verbose
 
         # make sure that in instances where we might be on a node within the sdn dataplane,
         # that we do not remove the module locally
         foreach ($computer in $ComputerName) {
             if (Test-ComputerNameIsLocal -ComputerName $computer) {
-                "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Warning
+                "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Verbose
                 continue
             }
 
@@ -76,7 +76,6 @@ function Install-SdnDiagnostics {
         # check to see if the current version is already present on the remote computers
         # else if we -Force defined, we can just move forward
         if ($Force) {
-            "{0} will be installed on all computers" -f $localModule.Version.ToString() | Trace-Output
             $installNodes = $filteredComputerName
         }
         else {
@@ -115,18 +114,21 @@ function Install-SdnDiagnostics {
                 }
 
                 if ($updateRequired) {
-                    "{0} will be updated to {1}" -f $computer, $localModule.Version.ToString() | Trace-Output
                     [void]$installNodes.Add($computer)
                 }
             }
         }
 
         if ($installNodes) {
+            "SdnDiagnostics {0} will be installed to {1}" -f $localModule.Version.ToString(), ($filteredComputerName -join ', ') | Trace-Output
             Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $installNodes -Destination $destinationPathDir -Credential $Credential -Recurse -Force
 
             # ensure that we destroy the current pssessions for the computer to prevent any caching issues
             # we will want to remove any existing PSSessions for the remote computers
             Remove-PSRemotingSession -ComputerName $installNodes
+        }
+        else {
+            "No update is required" | Trace-Output -Level:Verbose
         }
     }
     catch {
