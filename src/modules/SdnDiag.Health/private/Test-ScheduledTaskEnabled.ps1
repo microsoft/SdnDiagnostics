@@ -52,7 +52,7 @@ function Test-ScheduledTaskEnabled {
         foreach ($result in $scheduledTaskReady) {
             switch ($result.State) {
                 'Logging Disabled' {
-                    "SDN Diagnostics Task is not available on {0} because logging is disabled." -f $result.PSComputerName | Trace-Output -Level:Warning
+                    "SDN Diagnostics Task is not available on {0} because logging is disabled." -f $result.PSComputerName | Trace-Output -Level:Verbose
                 }
                 'Not Found' {
                     "Unable to locate SDN Diagnostics Task on {0}." -f $result.PSComputerName | Trace-Output -Level:Exception
