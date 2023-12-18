@@ -276,6 +276,13 @@ function Start-SdnDataCollection {
                         Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
                     } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect SLB Configuration State'
                 }
+
+                'Common' {
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
+                        param([Parameter(Position = 0)][String]$OutputDirectory)
+                        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory
+                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect SLB Configuration State'
+                }
             }
 
             # check to see if any network traces were captured on the data nodes previously

@@ -31,7 +31,7 @@ function Get-SdnSlbMuxConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose

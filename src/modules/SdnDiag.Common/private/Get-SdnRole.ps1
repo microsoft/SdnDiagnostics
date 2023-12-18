@@ -48,7 +48,7 @@ function Get-SdnRole {
         }
     }
 
-    # if we made it to here, we were unable to locate the appropriate role the computername is associated with
-    "Unable to determine SDN role for {0}" -f $ComputerName | Trace-Output -Level:Warning
-    return $null
+    # if we made it to here, we were unable to locate any specific SdnRole such as LoadBalancerMux, Gateway, etc.
+    # so instead we will return Common as the role
+    return ([string]"Common")
 }

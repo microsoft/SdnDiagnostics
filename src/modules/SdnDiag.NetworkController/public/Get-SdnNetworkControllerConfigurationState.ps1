@@ -32,7 +32,7 @@ function Get-SdnNetworkControllerConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "$env:SystemRoot\NetworkController" -Directory

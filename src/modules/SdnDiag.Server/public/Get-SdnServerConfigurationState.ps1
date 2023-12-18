@@ -31,7 +31,7 @@ function Get-SdnServerConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose

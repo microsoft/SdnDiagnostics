@@ -31,7 +31,7 @@ function Get-SdnGatewayConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
 
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose
