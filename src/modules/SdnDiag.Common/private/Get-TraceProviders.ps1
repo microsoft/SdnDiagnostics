@@ -11,7 +11,7 @@ function Get-TraceProviders {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role,
+        [SdnTraceRole]$Role,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Default", "Optional", "All")]
@@ -25,6 +25,10 @@ function Get-TraceProviders {
 
     try {
         $config = Get-SdnModuleConfiguration -Role $Role.ToString()
+        if ($null -eq $config.properties.EtwTraceProviders) {
+            return $null
+        }
+
         foreach ($key in $config.properties.EtwTraceProviders.Keys) {
             $traceProvider = $config.properties.EtwTraceProviders[$key]
             switch ($Providers) {

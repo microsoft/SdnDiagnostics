@@ -7,3 +7,11 @@ enum SdnRoles {
     Server
     LoadBalancerMux
 }
+
+enum SdnTraceRole {
+    Common
+    Gateway
+    NetworkController
+    Server
+    LoadBalancerMux
+}

@@ -31,7 +31,7 @@ function Start-SdnNetshTrace {
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
-        [SdnRoles]$Role,
+        [SdnTraceRole]$Role,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
