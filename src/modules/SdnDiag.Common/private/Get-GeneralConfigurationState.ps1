@@ -47,7 +47,7 @@ function Get-GeneralConfigurationState {
         foreach($adapter in Get-NetAdapter){
             Get-NetAdapter -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapter' -FileType txt -Format List
             Get-NetAdapterSriov -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterSriov' -FileType txt -Format List
-            Get-NetAdapterRsc -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterRsc' -FileType txt -Format List
+            Get-NetAdapterRsc -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterRsc' -FileType txt -Format List
             Get-NetAdapterHardwareInfo -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format List
             Get-NetAdapterAdvancedProperty -Name $adapter.Name `
                 | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
