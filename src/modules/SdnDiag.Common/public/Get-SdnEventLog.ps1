@@ -19,7 +19,8 @@ function Get-SdnEventLog {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRole]$Role,
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String]$Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,

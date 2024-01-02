@@ -11,7 +11,8 @@ function Start-SdnEtwTraceCapture {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRole]$Role,
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String]$Role,
 
         [Parameter(Mandatory = $false)]
         [System.String]$OutputDirectory = (Get-WorkingDirectory),
@@ -25,11 +26,11 @@ function Start-SdnEtwTraceCapture {
     $maxTraceSize = 1024
 
     try {
-        $traceProvidersArray = Get-TraceProviders -Role $Role.ToString() -Providers $Providers
+        $traceProvidersArray = Get-TraceProviders -Role $Role -Providers $Providers
 
         # we want to calculate the max size on number of factors to ensure sufficient disk space is available
         $diskSpaceRequired = $maxTraceSize*($traceProvidersArray.Count)*1.5
-        if (-NOT (Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB $diskSpaceRequired)) {
+        if (-NOT (Initialize-DataCollection -Role $Role -FilePath $OutputDirectory -MinimumMB $diskSpaceRequired)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
             return
         }
