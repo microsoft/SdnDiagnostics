@@ -19,7 +19,7 @@ function Get-CommonConfigState {
 
         "Collect general configuration state details" | Trace-Output
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -75,7 +75,7 @@ function Get-CommonConfigState {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

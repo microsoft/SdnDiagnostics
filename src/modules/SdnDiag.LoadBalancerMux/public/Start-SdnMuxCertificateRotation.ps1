@@ -201,6 +201,6 @@ function Start-SdnMuxCertificateRotation {
         "Certificate rotation for Load Balancer Muxes has completed" | Trace-Output -Level:Success
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

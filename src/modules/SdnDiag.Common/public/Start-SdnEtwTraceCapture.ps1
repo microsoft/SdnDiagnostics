@@ -30,7 +30,7 @@ function Start-SdnEtwTraceCapture {
         # we want to calculate the max size on number of factors to ensure sufficient disk space is available
         $diskSpaceRequired = $maxTraceSize*($traceProvidersArray.Count)*1.5
         if (-NOT (Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB $diskSpaceRequired)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -40,6 +40,6 @@ function Start-SdnEtwTraceCapture {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

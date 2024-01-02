@@ -120,7 +120,7 @@ function Start-SdnNetshTrace {
             }
 
             if (-NOT ( Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
-                "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+                "Unable to initialize environment for data collection" | Trace-Output -Level:Error
                 return
             }
 
@@ -128,6 +128,6 @@ function Start-SdnNetshTrace {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

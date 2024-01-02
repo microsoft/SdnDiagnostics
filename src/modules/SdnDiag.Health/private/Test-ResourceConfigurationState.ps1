@@ -33,7 +33,7 @@ function Test-ResourceConfigurationState {
                         $msg | Trace-Output -Level:Warning
                     }
                     'Error' {
-                        $msg | Trace-Output -Level:Exception
+                        $msg | Trace-Output -Level:Error
                     }
                     default {
                         # for all other statuses, we will log as normal
@@ -133,6 +133,6 @@ function Test-ResourceConfigurationState {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

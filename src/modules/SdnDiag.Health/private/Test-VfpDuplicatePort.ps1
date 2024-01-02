@@ -36,7 +36,7 @@ function Test-VfpDuplicatePort {
                     | Select-Object @{n="Portname";e={"`t$($_.Portname)"}} `
                     | Select-Object -ExpandProperty Portname `
                     | Out-String `
-                ) | Trace-Output -Level:Exception
+                ) | Trace-Output -Level:Error
             }
         }
 
@@ -44,6 +44,6 @@ function Test-VfpDuplicatePort {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

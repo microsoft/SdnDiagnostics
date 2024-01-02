@@ -153,7 +153,7 @@ function Set-SdnNetworkController {
         return (Get-SdnNetworkController)
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
     finally {
         if ($client) {

@@ -43,7 +43,7 @@ function Test-MuxBgpConnectionState {
             foreach ($router in $peerRouters) {
                 $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock -ArgumentList $router
                 if (-NOT $connectionExists) {
-                    "{0} is not connected to {1}" -f $virtualServerConnection, $router | Trace-Output -Level:Exception
+                    "{0} is not connected to {1}" -f $virtualServerConnection, $router | Trace-Output -Level:Error
                     $sdnHealthObject.Result = 'FAIL'
                     $sdnHealthObject.Remediation += "Fix BGP Peering between $($virtualServerConnection) and $($router)."
 
@@ -70,6 +70,6 @@ function Test-MuxBgpConnectionState {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

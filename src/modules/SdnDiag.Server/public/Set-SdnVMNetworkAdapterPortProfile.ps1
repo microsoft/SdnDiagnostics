@@ -87,7 +87,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
         }
 
         if ($null -eq $vmNic) {
-            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Exception
+            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Error
             return
         }
 
@@ -148,6 +148,6 @@ function Set-SdnVMNetworkAdapterPortProfile {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }
