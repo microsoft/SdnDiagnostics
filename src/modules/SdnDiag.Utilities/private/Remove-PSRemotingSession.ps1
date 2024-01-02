@@ -14,20 +14,22 @@ function Remove-PSRemotingSession {
 
     try {
         [int]$timeOut = 120
-        $stopWatch =  [System.Diagnostics.Stopwatch]::StartNew()
+        $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
-        $sessions = Get-PSSession -Name "SdnDiag-*"
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
-            $sessions | Where-Object {$_.ComputerName -iin $ComputerName}
+            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object { $_.ComputerName -iin $ComputerName }
+        }
+        else {
+            $sessions = Get-PSSession -Name "SdnDiag-*"
         }
 
-        while($sessions){
-            if($stopWatch.Elapsed.TotalSeconds -gt $timeOut){
+        while ($sessions) {
+            if ($stopWatch.Elapsed.TotalSeconds -gt $timeOut) {
                 throw New-Object System.TimeoutException("Unable to drain PSSessions")
             }
 
-            foreach($session in $sessions){
-                if($session.Availability -ieq 'Busy'){
+            foreach ($session in $sessions) {
+                if ($session.Availability -ieq 'Busy') {
                     "{0} is currently {1}. Waiting for PSSession.. {2} seconds" -f $session.Name, $session.Availability, $stopWatch.Elapsed.TotalSeconds | Trace-Output
                     Start-Sleep -Seconds 5
                     continue
@@ -45,7 +47,12 @@ function Remove-PSRemotingSession {
                 }
             }
 
-            $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object {$_.ComputerName -iin $ComputerName}
+            if ($PSBoundParameters.ContainsKey('ComputerName')) {
+                $sessions = Get-PSSession -Name "SdnDiag-*" | Where-Object { $_.ComputerName -iin $ComputerName }
+            }
+            else {
+                $sessions = Get-PSSession -Name "SdnDiag-*"
+            }
         }
 
         $stopWatch.Stop()
