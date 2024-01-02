@@ -10,7 +10,6 @@
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @(
-            "Application"
             "Microsoft-Windows-SlbMux*"
         )
         RegKeyPaths = @(

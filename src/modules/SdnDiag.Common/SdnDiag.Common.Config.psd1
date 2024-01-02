@@ -5,6 +5,10 @@
     DefaultLogDirectory = "C:\Windows\Tracing\SDNDiagnostics\Logs"
     LogFileTypes = @("*.log", "*.etl", "*.cab")
     Properties = @{
+        EventLogProviders = @(
+            "Application"
+            "System"
+        )
         EtwTraceProviders = @{}
     }
 }

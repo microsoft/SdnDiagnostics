@@ -208,10 +208,8 @@
             serviceFabricLogDirectory = "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
         }
         EventLogProviders = @(
-            "Application"
             "Microsoft-Windows-NetworkController*"
             "Microsoft-ServiceFabric*"
-            "System"
         )
         NetControllerStatePath = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
         RegKeyPaths = @(

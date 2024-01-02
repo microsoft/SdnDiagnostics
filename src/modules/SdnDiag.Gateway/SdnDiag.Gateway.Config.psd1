@@ -12,11 +12,9 @@
             RasGatewayTraces = "C:\Windows\Tracing"
         }
         EventLogProviders = @(
-            "Application"
             "Microsoft-Windows-RasAgileVpn*"
             "Microsoft-Windows-RemoteAccess*"
             "Microsoft-Windows-VPN*"
-            "System"
         )
         RegKeyPaths = @(
             "HKLM:\Software\Microsoft\NetworkController"

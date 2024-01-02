@@ -11,7 +11,7 @@ function Get-TraceProviders {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnTraceRole]$Role,
+        [SdnRole]$Role,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Default", "Optional", "All")]

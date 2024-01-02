@@ -11,7 +11,7 @@ function Stop-SdnEtwTraceCapture {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role,
+        [SdnRole]$Role,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Default", "Optional", "All")]

@@ -1,11 +1,11 @@
-function Get-SdnNetworkControllerConfigurationState {
+function Get-NetworkControllerConfigState {
     <#
     .SYNOPSIS
         Outputs a set of configuration state files for the network controller role.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .EXAMPLE
-        PS> Get-SdnNetworkControllerConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-NetworkControllerConfigState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
@@ -32,7 +32,7 @@ function Get-SdnNetworkControllerConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "$env:SystemRoot\NetworkController" -Directory

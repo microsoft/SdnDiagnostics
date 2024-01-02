@@ -19,7 +19,7 @@ function Get-SdnEventLog {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role,
+        [SdnRole]$Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,

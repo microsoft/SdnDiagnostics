@@ -1,11 +1,11 @@
-function Get-SdnSlbMuxConfigurationState {
+function Get-SlbMuxConfigState {
     <#
     .SYNOPSIS
         Outputs a set of configuration state files for the load balancer role.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .EXAMPLE
-        PS> Get-SdnSlbMuxConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-SlbMuxConfigState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
@@ -31,7 +31,7 @@ function Get-SdnSlbMuxConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose

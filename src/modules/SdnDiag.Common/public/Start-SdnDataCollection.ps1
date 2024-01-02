@@ -56,7 +56,8 @@ function Start-SdnDataCollection {
         [Uri]$NcUri,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Role')]
-        [SdnRoles[]]$Role,
+        [ValidateSet('Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String[]]$Role,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Computer')]
         [System.String[]]$ComputerName,
@@ -119,6 +120,11 @@ function Start-SdnDataCollection {
     $collectLogSB = {
         param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4,[Boolean]$arg5)
         Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5
+    }
+
+    $collectConfigStateSB = {
+        param([Parameter(Position = 0)][String]$Role, [Parameter(Position = 1)][String]$OutputDirectory)
+        Get-SdnConfigState -Role $Role -OutputDirectory $OutputDirectory
     }
 
     try {
@@ -239,27 +245,12 @@ function Start-SdnDataCollection {
             $filteredDataCollectionNodes += $dataNodes
 
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+            Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectConfigStateSB `
+                -ArgumentList @($group.Name, $tempDirectory.FullName) -AsJob -PassThru -Activity "Collect $($group.Name) Configuration State"
+
+            # collect any adhoc data based on the role
             switch ($group.Name) {
-                'Gateway' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory)
-                        Get-SdnGatewayConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Gateway Configuration'
-                }
-
-                'NetworkController' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory)
-                        Get-SdnNetworkControllerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Network Controller Configuration'
-                }
-
                 'Server' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory)
-                        Get-SdnServerConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect Server Configuration'
-
                     Get-SdnProviderAddress -ComputerName $dataNodes -Credential $Credential `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnProviderAddress' -FileType csv
 
@@ -268,20 +259,6 @@ function Start-SdnDataCollection {
 
                     Get-SdnVMNetworkAdapter -ComputerName $dataNodes -Credential $Credential -AsJob -PassThru -Timeout 900 `
                     | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapter' -FileType csv
-                }
-
-                'LoadBalancerMux' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory)
-                        Get-SdnSlbMuxConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect SLB Configuration State'
-                }
-
-                'Common' {
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$OutputDirectory)
-                        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory
-                    } -ArgumentList $tempDirectory.FullName -AsJob -PassThru -Activity 'Collect SLB Configuration State'
                 }
             }
 

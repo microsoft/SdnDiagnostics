@@ -31,7 +31,7 @@ function Start-SdnNetshTrace {
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
-        [SdnTraceRole]$Role,
+        [SdnRole]$Role,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
@@ -86,7 +86,7 @@ function Start-SdnNetshTrace {
 
     $scriptBlock = {
         param(
-            [Parameter(Position = 0)][SdnRoles]$Role,
+            [Parameter(Position = 0)][SdnRole]$Role,
             [Parameter(Position = 1)][String]$OutputDirectory,
             [Parameter(Position = 2)][int]$MaxTraceSize,
             [Parameter(Position = 3)][String]$Capture,

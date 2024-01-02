@@ -13,9 +13,7 @@
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @(
-            "Application"
             "Microsoft-Windows-Hyper-V*"
-            "System"
         )
         RegKeyPaths = @(
             "HKLM:\Software\Microsoft\NetworkController"

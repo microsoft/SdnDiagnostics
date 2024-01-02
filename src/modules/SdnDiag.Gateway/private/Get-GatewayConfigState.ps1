@@ -1,11 +1,11 @@
-function Get-SdnGatewayConfigurationState {
+function Get-GatewayConfigState {
     <#
     .SYNOPSIS
         Outputs a set of configuration state files for the gateway role.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .EXAMPLE
-        PS> Get-SdnGatewayConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-GatewayConfigState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
@@ -31,7 +31,7 @@ function Get-SdnGatewayConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-SdnCommonConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose

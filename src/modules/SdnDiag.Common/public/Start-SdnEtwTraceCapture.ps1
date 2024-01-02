@@ -11,7 +11,7 @@ function Start-SdnEtwTraceCapture {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRoles]$Role,
+        [SdnRole]$Role,
 
         [Parameter(Mandatory = $false)]
         [System.String]$OutputDirectory = (Get-WorkingDirectory),
