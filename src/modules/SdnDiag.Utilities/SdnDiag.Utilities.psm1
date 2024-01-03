@@ -1,7 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Using module .\..\SdnDiag.Common\SdnDiag.Common.Helper.psm1
 Using module .\SdnDiag.Utilities.Helper.psm1
 
 # create local variable to store configuration data

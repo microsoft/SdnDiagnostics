@@ -1,7 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Using module .\..\SdnDiag.Common\SdnDiag.Common.Helper.psm1
 Using module .\SdnDiag.Health.Helper.psm1
 
 Import-Module $PSScriptRoot\SdnDiag.Health.Helper.psm1

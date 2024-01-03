@@ -1,8 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Using module .\SdnDiag.Common.Helper.psm1
-Import-Module $PSScriptRoot\SdnDiag.Common.Helper.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
 # create local variable to store configuration data

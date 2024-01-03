@@ -11,7 +11,8 @@ function Get-TraceProviders {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRole]$Role,
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String]$Role,
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("Default", "Optional", "All")]
@@ -24,7 +25,7 @@ function Get-TraceProviders {
     $traceProvidersArray = @()
 
     try {
-        $config = Get-SdnModuleConfiguration -Role $Role.ToString()
+        $config = Get-SdnModuleConfiguration -Role $Role
         if ($null -eq $config.properties.EtwTraceProviders) {
             return $null
         }

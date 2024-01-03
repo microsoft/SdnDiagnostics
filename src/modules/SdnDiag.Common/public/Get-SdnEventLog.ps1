@@ -19,7 +19,8 @@ function Get-SdnEventLog {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [SdnRole]$Role,
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String]$Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
@@ -35,20 +36,20 @@ function Get-SdnEventLog {
     $toDateUTC = $ToDate.ToUniversalTime()
 
     try {
-        $roleConfig = Get-SdnModuleConfiguration -Role $Role.ToString()
+        $roleConfig = Get-SdnModuleConfiguration -Role $Role
         $eventLogs = [System.Collections.ArrayList]::new()
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs"
 
         "Collect event logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+        if (-NOT (Initialize-DataCollection -Role $Role -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
             return
         }
 
         $eventLogProviders = $roleConfig.Properties.EventLogProviders
         if ($null -ieq $eventLogs) {
-            "No event log providers found for {0}" -f $Role.ToString() | Trace-Output -Level:Warning
+            "No event log providers found for {0}" -f $Role | Trace-Output -Level:Warning
             return
         }
 
