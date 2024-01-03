@@ -27,7 +27,7 @@ function Get-SdnFabricInfrastructureResult {
 
     if ($PSBoundParameters.ContainsKey('Role')) {
         if ($cacheResults) {
-            $cacheResults = $cacheResults | Where-Object {$_.Role -eq $Role.ToString()}
+            $cacheResults = $cacheResults | Where-Object {$_.Role -eq $Role}
         }
     }
 
