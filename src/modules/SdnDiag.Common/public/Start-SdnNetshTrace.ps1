@@ -31,6 +31,7 @@ function Start-SdnNetshTrace {
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
         [String]$Role,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]

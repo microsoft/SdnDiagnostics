@@ -11,6 +11,7 @@ function Stop-SdnEtwTraceCapture {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
         [String]$Role,
 
         [Parameter(Mandatory = $false)]
