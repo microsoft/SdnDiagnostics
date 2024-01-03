@@ -1,11 +1,11 @@
-function Get-SdnServerConfigurationState {
+function Get-ServerConfigState {
     <#
     .SYNOPSIS
         Outputs a set of configuration state files for the server role.
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.
     .EXAMPLE
-        PS> Get-SdnServerConfigurationState -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-ServerConfigState -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding()]
@@ -31,7 +31,7 @@ function Get-SdnServerConfigurationState {
         }
 
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-GeneralConfigurationState -OutputDirectory $OutputDirectory.FullName
+        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose

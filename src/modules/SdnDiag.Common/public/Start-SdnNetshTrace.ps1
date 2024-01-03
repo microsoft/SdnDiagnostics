@@ -31,7 +31,8 @@ function Start-SdnNetshTrace {
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Remote')]
-        [SdnRoles]$Role,
+        [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String]$Role,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
@@ -86,7 +87,7 @@ function Start-SdnNetshTrace {
 
     $scriptBlock = {
         param(
-            [Parameter(Position = 0)][SdnRoles]$Role,
+            [Parameter(Position = 0)][String]$Role,
             [Parameter(Position = 1)][String]$OutputDirectory,
             [Parameter(Position = 2)][int]$MaxTraceSize,
             [Parameter(Position = 3)][String]$Capture,
@@ -96,17 +97,17 @@ function Start-SdnNetshTrace {
             [Parameter(Position = 7)][String]$Providers
         )
 
-        Start-SdnNetshTrace -Role $Role.ToString() -OutputDirectory $OutputDirectory `
+        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
         -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Correlation $Correlation -Providers $Providers
     }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role.ToString(), $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers)
+            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers)
         }
         else {
-            $traceProviderString = Get-TraceProviders -Role $Role.ToString() -Providers $Providers -AsString
+            $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
             if ($traceProviderString) {
                 $params.Add('TraceProviderString', $traceProviderString)
                 "Trace providers configured: {0}" -f $traceProviderString | Trace-Output -Level:Verbose
@@ -119,7 +120,7 @@ function Start-SdnNetshTrace {
                 }
             }
 
-            if (-NOT ( Initialize-DataCollection -Role $Role.ToString() -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
+            if (-NOT ( Initialize-DataCollection -Role $Role -FilePath $OutputDirectory -MinimumMB ($MaxTraceSize*1.5) )) {
                 "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
                 return
             }

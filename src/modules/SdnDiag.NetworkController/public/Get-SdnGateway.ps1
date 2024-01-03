@@ -80,15 +80,15 @@ function Get-SdnGateway {
             }
 
             if($ManagementAddressOnly){
-                $managementAddress = @()
+                $connections = @()
                 foreach ($resource in $result) {
                     $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
-                    $managementAddress += $virtualServerMgmtAddress
+                    $connections += $virtualServerMgmtAddress
                 }
 
-                return ($managementAddress | Sort-Object -Unique)
+                return $connections
             }
-            else{
+            else {
                 return $result
             }
         }

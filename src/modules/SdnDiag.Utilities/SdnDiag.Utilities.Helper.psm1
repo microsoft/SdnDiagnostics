@@ -13,8 +13,8 @@ enum TraceLevel {
 enum SdnModules {
     Common
     Gateway
+    LoadBalancerMux
     NetworkController
     Server
-    LoadBalancerMux
     Utilities
 }

@@ -47,11 +47,11 @@ foreach ($folder in $folders) {
     }
 }
 
-Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
-Copy-Item -Path "$PSScriptRoot\..\src\SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
+# copy the root files under src that are prefixed with SdnDiagnostics
+Copy-Item -Path "$PSScriptRoot\..\src\*" -Include "SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
 
 # setting the version of the module manifest
-$modManifest = Get-ChildItem "$outDir\SdnDiagnostics" -Filter "*.psd1"
+$modManifest = Get-Item "$outDir\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction Stop
 if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
     try {
         $manifest = Test-ModuleManifest -Path $modManifest.FullName

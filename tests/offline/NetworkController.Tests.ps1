@@ -1,4 +1,4 @@
-Describe 'NetworkController test' { 
+Describe 'NetworkController test' {
     BeforeAll {
         Mock -ModuleName SdnDiagnostics Get-SdnResource {
             return $Global:PesterOfflineTests.SdnApiResources[$ResourceType.ToString()]
@@ -13,6 +13,6 @@ Describe 'NetworkController test' {
     It "Get-SdnServer should return Server resource" {
         $servers = Get-SdnServer "https://sdnexpnc"
         $servers.Count | Should -BeGreaterThan 0
-        $servers[0].resourceRef | Should -Not -BeNullOrEmpty     
+        $servers[0].resourceRef | Should -Not -BeNullOrEmpty
     }
   }

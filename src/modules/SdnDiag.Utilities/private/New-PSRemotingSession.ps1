@@ -10,8 +10,25 @@ function New-PSRemotingSession {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [bool]$ImportModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$ModuleName = $Global:SdnDiagnostics.Config.ModuleName,
+
+        [Parameter(Mandatory = $false)]
         [Switch]$Force
     )
+
+    $importRemoteModule = {
+        param([string]$arg0, $arg1)
+        try {
+            Import-Module $arg0 -ErrorAction Stop
+            $Global:SdnDiagnostics.Config = $arg1
+        }
+        catch {
+            throw $_
+        }
+    }
 
     $remoteSessions = [System.Collections.ArrayList]::new()
 
@@ -45,7 +62,7 @@ function New-PSRemotingSession {
             try {
                 if($Credential -ne [System.Management.Automation.PSCredential]::Empty){
                     "PSRemotingSession use provided credential {0}" -f $Credential.UserName | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US -IdleTimeout 86400000) -ErrorAction Stop
                 }
                 else {
                     # if we need to create a new remote session, need to check to ensure that if using an IP Address that credentials are specified
@@ -64,13 +81,17 @@ function New-PSRemotingSession {
                     }
 
                     "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US) -ErrorAction Stop
+                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $obj -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US' -IdleTimeout 86400000) -ErrorAction Stop
+
+                    if ($ImportModuleOnRemoteSession) {
+                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                    }
                 }
 
                 "Created powershell session {0} to {1}" -f $session.Name, $obj | Trace-Output -Level:Verbose
             }
             catch {
-                "Unable to create powershell session to {0}`n`t{1}" -f $obj, $_.Exception | Trace-Output -Level:Warning
+                "Unable to create powershell session to {0}`n`t{1}" -f $obj, $_.Exception.Message | Trace-Output -Level:Warning
                 continue
             }
         }
