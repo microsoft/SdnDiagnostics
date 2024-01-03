@@ -114,7 +114,7 @@ function Copy-UserProvidedCertificateToFabric {
                 Copy-CertificateToFabric -CertFile $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails -NetworkControllerNodeCert -Credential $Credential
             }
             else {
-                "Unable to locate self-signed certificate file for {0}. Node certificate may need to be manually installed to other Network Controllers manually." -f $controller | Trace-Output -Level:Exception
+                "Unable to locate self-signed certificate file for {0}. Node certificate may need to be manually installed to other Network Controllers manually." -f $controller | Trace-Output -Level:Error
             }
         }
     }

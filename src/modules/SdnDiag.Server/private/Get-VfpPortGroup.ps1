@@ -23,7 +23,7 @@ function Get-VfpPortGroup {
     # due to how vfp handles not throwing a terminating error if port ID does not exist,
     # need to manually examine the response to see if it contains a failure
     if ($vfpGroups[0] -ilike "ERROR*") {
-        "{0}" -f $vfpGroups[0] | Trace-Output -Level:Exception
+        "{0}" -f $vfpGroups[0] | Trace-Output -Level:Error
         return $null
     }
 
