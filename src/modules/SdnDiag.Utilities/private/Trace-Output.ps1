@@ -43,10 +43,13 @@ function Trace-Output {
             }
 
             'Exception' {
-                Write-Error -Exception $Exception.Exception -Message $formattedMessage
                 if ($Exception) {
+                    Write-Error -Exception $Exception.Exception -Message $Message
                     $traceEvent.FunctionName = (Get-PSCallStack)[2].Command
                     $traceEvent.Message = "{0}`n`t{1}" -f $Exception.Exception.Message, $Exception.Exception.ScriptStackTrace
+                }
+                else {
+                    Write-Error -Message $Message
                 }
             }
 
