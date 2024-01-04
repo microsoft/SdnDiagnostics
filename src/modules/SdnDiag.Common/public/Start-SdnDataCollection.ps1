@@ -290,11 +290,12 @@ function Start-SdnDataCollection {
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
                 -ArgumentList @($diagLogDir, "$($tempDirectory.FullName)\SdnDiagnosticLogs", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
 
+                # collect the event logs specific to the role
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
                     param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
                     Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
-                } -ArgumentList @($tempDirectory.FullName, $group.Name, $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Event Logs'
+                } -ArgumentList @($tempDirectory.FullName, ($group.Name, "Common"), $FromDate, $ToDate) -AsJob -PassThru -Activity "Get $($group.Name) Event Logs"
             }
         }
 
