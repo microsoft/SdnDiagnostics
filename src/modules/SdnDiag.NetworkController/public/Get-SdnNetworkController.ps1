@@ -42,13 +42,13 @@ function Get-SdnNetworkController {
             }
         }
         catch {
-            "Get-NetworkController failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Exception
+            "Get-NetworkController failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Error
             $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
         }
 
         return $result
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

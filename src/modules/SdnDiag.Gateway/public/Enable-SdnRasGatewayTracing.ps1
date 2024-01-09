@@ -8,7 +8,7 @@ function Enable-SdnRasGatewayTracing {
         # ensure that the appropriate windows feature is installed and ensure module is imported
         $config = Get-SdnModuleConfiguration -Role 'Gateway'
         if (-NOT (Initialize-DataCollection -Role 'Gateway' -FilePath $config.properties.commonPaths.rasGatewayTraces -MinimumMB 250)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -36,6 +36,6 @@ function Enable-SdnRasGatewayTracing {
         return $object
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

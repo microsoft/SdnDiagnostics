@@ -46,7 +46,7 @@ function Test-ProviderNetwork {
                             $sdnHealthObject.Remediation += $remediationMsg
 
                             "Cannot ping {0} from {1} ({2})." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
+                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Error
                         }
 
                         # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
@@ -57,7 +57,7 @@ function Test-ProviderNetwork {
                             $sdnHealthObject.Remediation += $remediationMsg
 
                             "Cannot send jumbo packets to {0} from {1} ({2})." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Exception
+                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Error
                         }
                     }
                     else {
@@ -74,6 +74,6 @@ function Test-ProviderNetwork {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

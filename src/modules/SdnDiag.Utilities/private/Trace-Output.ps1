@@ -6,7 +6,10 @@ function Trace-Output {
         [System.String]$Message,
 
         [Parameter(Mandatory = $false)]
-        [TraceLevel]$Level
+        [TraceLevel]$Level,
+
+        [parameter(Mandatory = $false)]
+        $Exception
     )
 
     begin {
@@ -31,32 +34,41 @@ function Trace-Output {
             Message = $Message
         }
 
+        $formattedMessage = "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message
+
         # write the message to the console
         switch($Level){
             'Error' {
-                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Error
+                $formattedMessage | Write-Host -ForegroundColor:Red
             }
 
             'Exception' {
-                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Red
+                if ($Exception) {
+                    Write-Error -Exception $Exception.Exception -Message $Message
+                    $traceEvent.FunctionName = (Get-PSCallStack)[2].Command
+                    $traceEvent.Message = "{0}`n`t{1}" -f $Exception.Exception.Message, $Exception.Exception.ScriptStackTrace
+                }
+                else {
+                    Write-Error -Message $Message
+                }
             }
 
             'Success' {
-                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Green
+                $formattedMessage  | Write-Host -ForegroundColor:Green
             }
 
             'Verbose' {
                 if($VerbosePreference -ne [System.Management.Automation.ActionPreference]::SilentlyContinue) {
-                    "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Verbose
+                    $formattedMessage | Write-Verbose
                 }
             }
 
             'Warning' {
-                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Warning
+                $formattedMessage | Write-Warning
             }
 
             default {
-                "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message | Write-Host -ForegroundColor:Cyan
+                $formattedMessage | Write-Host -ForegroundColor:Cyan
             }
         }
 

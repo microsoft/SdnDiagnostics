@@ -43,7 +43,7 @@ function Get-SdnEventLog {
         "Collect event logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
 
         if (-NOT (Initialize-DataCollection -Role $Role -FilePath $OutputDirectory.FullName -MinimumGB 1)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -87,6 +87,6 @@ function Get-SdnEventLog {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }
