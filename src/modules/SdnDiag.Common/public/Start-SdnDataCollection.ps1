@@ -337,6 +337,9 @@ function Start-SdnDataCollection {
         $dataCollectionObject.OutputDirectory = $OutputDirectory.FullName
         $dataCollectionObject.Role = $groupedObjectsByRole.Name
 
+        # remove any completed or failed jobs
+        Remove-SdnDiagnosticJob -State @('Completed', 'Failed')
+
         $stopwatch.Stop()
         $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
         $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4
