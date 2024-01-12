@@ -292,10 +292,18 @@ function Start-SdnDataCollection {
 
                 # collect the event logs specific to the role
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+
+                # because we may have a 'Common' role that is being collected, we need to account for that
+                # and ensure that we are collecting the appropriate event logs
+                switch ( $group.Name ) {
+                    'Common' { $roleArray = @(); $roleArray += $group.Name }
+                    default { $roleArray = @(); $roleArray += $group.Name; $roleArray += 'Common' }
+                }
+
                 Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
+                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String[]]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
                     Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
-                } -ArgumentList @($tempDirectory.FullName, ($group.Name, "Common"), $FromDate, $ToDate) -AsJob -PassThru -Activity "Get $($group.Name) Event Logs"
+                } -ArgumentList @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate) -AsJob -PassThru -Activity "Get $($group.Name) Event Logs"
             }
         }
 
