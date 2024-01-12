@@ -27,7 +27,7 @@ function Confirm-DiskSpace {
                 }
 
                 # if we do not have enough disk space, we want to provide what was required vs what was available
-                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Exception
+                "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Error
                 return $false
             }
 
@@ -38,12 +38,12 @@ function Confirm-DiskSpace {
                 }
 
                 # if we do not have enough disk space, we want to provide what was required vs what was available
-                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output -Level:Exception
+                "Required: {0} MB | Available: {1} MB" -f ([float]$MinimumMB).ToString(), $freeSpace.MB | Trace-Output -Level:Error
                 return $false
             }
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

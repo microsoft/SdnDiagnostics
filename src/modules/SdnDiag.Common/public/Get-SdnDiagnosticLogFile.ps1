@@ -61,7 +61,7 @@ function Get-SdnDiagnosticLogFile {
         # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
         $minimumDiskSpace = [float](Get-FolderSize -FileName $logFiles.FullName -Total).GB * 3.5
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumGB $minimumDiskSpace)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -92,6 +92,6 @@ function Get-SdnDiagnosticLogFile {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

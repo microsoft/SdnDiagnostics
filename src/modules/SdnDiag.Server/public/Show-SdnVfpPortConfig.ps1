@@ -33,7 +33,7 @@ function Show-SdnVfpPortConfig {
     try {
         $vfpLayers = Get-SdnVfpPortLayer -PortId $PortId
         if ($null -eq $vfpLayers) {
-            "Unable to locate PortId {0}" -f $PortId | Trace-Output -Level:Exception
+            "Unable to locate PortId {0}" -f $PortId | Trace-Output -Level:Error
             return $null
         }
 
@@ -58,6 +58,6 @@ function Show-SdnVfpPortConfig {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

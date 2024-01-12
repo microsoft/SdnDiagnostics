@@ -44,7 +44,7 @@ function Test-SlbManagerConnectionToMux {
         # in which case we should mark this test as failed and return back to the caller with guidance to fix the SlbManagerService
         $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController -ServiceTypeName 'SlbManagerService' -Credential $NcRestCredential -Primary
         if ($null -ieq $primaryReplicaNode) {
-            "Unable to return primary replica of SlbManagerService" | Trace-Output -Level:Exception
+            "Unable to return primary replica of SlbManagerService" | Trace-Output -Level:Error
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation = "Fix the primary replica of SlbManagerService within Network Controller."
             return $sdnHealthObject
@@ -57,7 +57,7 @@ function Test-SlbManagerConnectionToMux {
             $virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {
-                "{0} is not connected to SlbManager of Network Controller" -f $mux.resourceRef | Trace-Output -Level:Exception
+                "{0} is not connected to SlbManager of Network Controller" -f $mux.resourceRef | Trace-Output -Level:Error
                 $sdnHealthObject.Result = 'FAIL'
                 $sdnHealthObject.Remediation += "Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($mux.resourceRef)."
 
@@ -77,6 +77,6 @@ function Test-SlbManagerConnectionToMux {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

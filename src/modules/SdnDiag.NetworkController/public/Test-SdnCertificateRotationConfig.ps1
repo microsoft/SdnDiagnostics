@@ -26,7 +26,7 @@ function Test-SdnCertificateRotationConfig {
     try {
 
         if ([string]::IsNullOrEmpty($CertRotateConfig["NcRestCert"])) {
-            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Exception
+            Trace-Output "NcRestCert not specified in CertRotateConfig" -Level:Error
             return $false
         }
 
@@ -35,7 +35,7 @@ function Test-SdnCertificateRotationConfig {
             if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
                 $nodeCert = $CertRotateConfig[$ncNode.NodeName.ToLower()]
                 if ([string]::IsNullOrEmpty($nodeCert)) {
-                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Exception
+                    Trace-Output "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Error
                     return $false
                 }
                 else {
@@ -54,7 +54,7 @@ function Test-SdnCertificateRotationConfig {
                     } -ArgumentList $nodeCert
 
                     if (!$certValid) {
-                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Exception
+                        Trace-Output "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Error
                         return $false
                     }
                 }
@@ -75,13 +75,13 @@ function Test-SdnCertificateRotationConfig {
             } -ArgumentList $ncRestCert
 
             if (!$certValid) {
-                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Exception
+                Trace-Output "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Error
                 return $false
             }
         }
         return $true
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }
