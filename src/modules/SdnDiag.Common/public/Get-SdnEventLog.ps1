@@ -52,7 +52,7 @@ function Get-SdnEventLog {
 
         # check to see if the event log provider is valid
         # and that we have events to collect
-        "Collect the following {0} events: {1}" -f $_, ($eventLogProviders -join ', ') | Trace-Output
+        "Collect the following events: {0}" -f ($eventLogProviders -join ', ') | Trace-Output
         foreach ($provider in $eventLogProviders) {
             "Looking for event matching {0}" -f $provider | Trace-Output -Level:Verbose
             $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
