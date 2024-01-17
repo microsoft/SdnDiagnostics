@@ -44,7 +44,7 @@ function Test-NcHostAgentConnectionToApiService {
         # in which case we should mark this test as failed and return back to the caller with guidance to fix the SlbManagerService
         $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController -ServiceTypeName 'ApiService' -Credential $NcRestCredential -Primary
         if ($null -ieq $primaryReplicaNode) {
-            "Unable to return primary replica of ApiService" | Trace-Output -Level:Exception
+            "Unable to return primary replica of ApiService" | Trace-Output -Level:Error
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation = "Fix the primary replica of ApiService within Network Controller."
             return $sdnHealthObject
@@ -57,7 +57,7 @@ function Test-NcHostAgentConnectionToApiService {
             [System.Array]$connectionAddress = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceId $server.resourceId -ManagementAddressOnly -Credential $NcRestCredential
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $connectionAddress[0] -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {
-                "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Exception
+                "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Error
                 $sdnHealthObject.Result = 'FAIL'
                 $sdnHealthObject.Remediation += "Ensure NCHostAgent service is started. Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($server.resourceRef)."
 
@@ -77,6 +77,6 @@ function Test-NcHostAgentConnectionToApiService {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

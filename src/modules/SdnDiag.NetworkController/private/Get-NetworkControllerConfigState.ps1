@@ -27,7 +27,7 @@ function Get-NetworkControllerConfigState {
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
         if (-NOT (Initialize-DataCollection -Role 'NetworkController' -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
-            "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
@@ -42,7 +42,7 @@ function Get-NetworkControllerConfigState {
         }
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 
     $ProgressPreference = 'Continue'

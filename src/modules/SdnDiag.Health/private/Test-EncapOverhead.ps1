@@ -49,7 +49,7 @@ function Test-EncapOverhead {
                         $sdnHealthObject.Result = 'FAIL'
                         $sdnHealthObject.Remediation += "Ensure EncapOverhead and JumboPacket for interface {0} on {1} are enabled and configured correctly." -f $interface.NetworkInterface, $object.Name
 
-                        "EncapOverhead and JumboPacket for interface {0} on {1} are disabled or not configured correctly." -f $interface.NetworkInterface, $object.Name  | Trace-Output -Level:Exception
+                        "EncapOverhead and JumboPacket for interface {0} on {1} are disabled or not configured correctly." -f $interface.NetworkInterface, $object.Name  | Trace-Output -Level:Error
                     }
 
                     $array += $interface
@@ -62,6 +62,6 @@ function Test-EncapOverhead {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

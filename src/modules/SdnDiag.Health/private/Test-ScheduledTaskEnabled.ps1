@@ -55,11 +55,11 @@ function Test-ScheduledTaskEnabled {
                     "SDN Diagnostics Task is not available on {0} because logging is disabled." -f $result.PSComputerName | Trace-Output -Level:Verbose
                 }
                 'Not Found' {
-                    "Unable to locate SDN Diagnostics Task on {0}." -f $result.PSComputerName | Trace-Output -Level:Exception
+                    "Unable to locate SDN Diagnostics Task on {0}." -f $result.PSComputerName | Trace-Output -Level:Error
                     $sdnHealthObject.Result = 'FAIL'
                 }
                 'Disabled' {
-                    "SDN Diagnostics Task is disabled on {0}." -f $result.PSComputerName | Trace-Output -Level:Exception
+                    "SDN Diagnostics Task is disabled on {0}." -f $result.PSComputerName | Trace-Output -Level:Error
                     $sdnHealthObject.Result = 'FAIL'
                     $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable the 'SDN Diagnostics Task' scheduled task on $($result.PSComputerName)."
                 }
@@ -78,6 +78,6 @@ function Test-ScheduledTaskEnabled {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }

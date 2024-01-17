@@ -52,7 +52,7 @@ function Test-HostRootStoreNonRootCert {
                 foreach($nonRootCert in $nonRootCerts) {
                     $sdnHealthObject.Remediation += "Remove Certificate Thumbprint:{0} Subject:{1} from Host:{2}" -f $nonRootCert.Thumbprint, $nonRootCert.Subject, $node
                 }
-                
+
                 $array += $object
             }
         }
@@ -61,6 +61,6 @@ function Test-HostRootStoreNonRootCert {
         return $sdnHealthObject
     }
     catch {
-        "{0}`n{1}" -f $_.Exception, $_.ScriptStackTrace | Trace-Output -Level:Error
+        $_ | Trace-Exception
     }
 }
