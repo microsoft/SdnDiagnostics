@@ -39,7 +39,7 @@ function Update-NetworkControllerConfig {
 
         if($null -ne $thumbprintProperty){
             "GlobalConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
-            Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
+            Set-SdnServiceFabricClusterConfig -Uri $globalConfigUri -Name $thumbprintProperty.Name.ToString() -Value $nodeCertThumbprint
         }
 
         # Cluster Config property name like NodeName.ClusterCertThumbprint
@@ -48,7 +48,7 @@ function Update-NetworkControllerConfig {
         # If NodeName.ClusterCertThumbprint exist (for Server 2022 +), Update
         if($null -ne $thumbprintProperty){
             "ClusterConfiguration: Property $($thumbprintProperty.Name) will be updated from $($thumbprintProperty.Value) to $nodeCertThumbprint" | Trace-Output
-            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $thumbprintProperty.Name -Value $nodeCertThumbprint
+            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $thumbprintProperty.Name.ToString() -Value $nodeCertThumbprint
         }
 
         $certProperty = $clusterConfigs | Where-Object Name -ieq $ncNode.NodeName
@@ -59,7 +59,7 @@ function Update-NetworkControllerConfig {
             } -ArgumentList @('Cert:\LocalMachine\My', $nodeCertThumbprint)
 
             "ClusterConfiguration: Property $($certProperty.Name) will be updated From :`n$($certProperty.Value) `nTo : `n$nodeCert" | Trace-Output
-            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name -Value $nodeCert.GetRawCertData()
+            Set-SdnServiceFabricClusterConfig -Uri $clusterConfigUri -Name $certProperty.Name.ToString() -Value $nodeCert.GetRawCertData()
         }
     }
 }

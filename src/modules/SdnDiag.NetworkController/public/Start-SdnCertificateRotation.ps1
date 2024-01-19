@@ -365,6 +365,28 @@ function Start-SdnCertificateRotation {
             }
         }
 
+        #####################################
+        #
+        # Restart services
+        #
+        #####################################
+
+        "== STAGE: RESTART NETWORK CONTROLLER SERVICES ==" | Trace-Output
+        # restart the network controller services
+        # this will force new TLS connections to be established to southbound devices
+        # ensuring that the new certificates are used and we are able to push policies successfully
+
+        # check to determine if we have a multi-node NC cluster and if so, leverage the SF cmdlets to move the replicas
+        # otherwise, we will just stop the processes and let SF restart them automatically
+        if ($sdnFabricDetails.NetworkController.Count -gt 1) {
+            Move-SdnServiceFabricReplica -ServiceTypeName 'SlbManagerService'
+            Move-SdnServiceFabricReplica -ServiceTypeName 'VSwitchService'
+        }
+        else {
+            Get-Process -Name 'SDNFW' | Stop-Process -Force -ErrorAction Continue
+            Get-Process -Name 'SDNSLBM' | Stop-Process -Force -ErrorAction Continue
+        }
+
         "Certificate rotation has completed" | Trace-Output
     }
     catch {
