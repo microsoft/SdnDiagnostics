@@ -56,7 +56,7 @@ function Invoke-PSRemoteCommand {
         if ($AsJob) {
             $params += @{
                 AsJob = $true
-                JobName = $([guid]::NewGuid().Guid)
+                JobName = "SdnDiag-{0}" -f $(Get-Random)
             }
 
             $result = Invoke-Command @params
