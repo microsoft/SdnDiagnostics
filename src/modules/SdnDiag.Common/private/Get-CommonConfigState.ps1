@@ -60,7 +60,7 @@ function Get-CommonConfigState {
         # Gather DNS client settings
         Get-DnsClient | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClient' -FileType txt -Format List
         Get-DnsClientCache | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientCache' -FileType txt -Format List
-        Get-DnsClientDohServerAddress | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientDohServerAddress' -FileType txt -Format List
+        Get-DnsClientServerAddress | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientServerAddress' -FileType txt -Format List
         Get-DnsClientGlobalSetting | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientGlobalSetting' -FileType txt -Format List
         Get-DnsClientNrptGlobal | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientNrptGlobal' -FileType txt -Format List
         Get-DnsClientNrptPolicy | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientNrptPolicy' -FileType txt -Format List
