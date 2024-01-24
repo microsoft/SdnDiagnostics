@@ -25,7 +25,8 @@ function Debug-SdnFabricInfrastructure {
         [System.String]$NetworkController = $(HostName),
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
-        [SdnDiag.Common.Helper.SdnRoles[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server'),
+        [ValidateSet('Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
+        [String[]]$Role = ('Gateway','LoadBalancerMux','NetworkController','Server'),
 
         [Parameter(Mandatory = $true, ParameterSetName = 'ComputerName')]
         [System.String[]]$ComputerName,
