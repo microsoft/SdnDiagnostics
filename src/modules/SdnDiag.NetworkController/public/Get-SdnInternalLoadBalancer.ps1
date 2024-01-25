@@ -4,32 +4,47 @@ function Get-SdnInternalLoadBalancer {
             Performs lookups and joins between OVSDB resources, load balancers and virtual networks to create internal load balancer object mappings
         .PARAMETER NcUri
             Specifies the Network Controller URI to connect to.
+        .PARAMETER IPAddress
+            Specify the private IP address of the Internal Load Balancer.
+        .PARAMETER ProviderAddress
+            Specify the provider address IP that is associated with the Internal Load Balancer.
         .PARAMETER Credential
             Specifies a user account that has permission to the Hyper-V Hosts within the SDN Fabric. The default is the current user.
         .PARAMETER NcRestCredential
             Specifies a user account that has permission to query the Network Controller NB API endpoint. The default is the current user.
         .EXAMPLE
+            Get-SdnInternalLoadBalancer -NcUri https://nc.contoso.com -IPAddress 10.10.0.50
+        .EXAMPLE
             Get-SdnInternalLoadBalancer -NcUri https://nc.contoso.com -Credential (Get-Credential)
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'IPAddress')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ProviderAddress')]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'IPAddress')]
         [IPAddress]$IPAddress,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ProviderAddress')]
+        [IPAddress]$ProviderAddress,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'IPAddress')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ProviderAddress')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'IPAddress')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ProviderAddress')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
-
 
     $array = @()
     $subnetHash = [System.Collections.Hashtable]::new()
@@ -39,7 +54,7 @@ function Get-SdnInternalLoadBalancer {
         $servers = Get-SdnServer -NcUri $NcUri -Credential $NcRestCredential -ManagementAddressOnly
         $ovsdbAddressMappings = Get-SdnOvsdbAddressMapping -ComputerName $servers -Credential $Credential | Where-Object {$_.mappingType -eq 'learning_disabled'}
         $loadBalancers = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -Resource LoadBalancers
-        $virtualNetworks = Get-SdnResource-NcUri $NcUri -Credential $NcRestCredential -Resource VirtualNetworks
+        $virtualNetworks = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -Resource VirtualNetworks
 
         # if this returns null, this is due to no tenant internal load balancers have been provisioned on the system
         # in which case all the further processing is not needed
@@ -82,9 +97,9 @@ function Get-SdnInternalLoadBalancer {
 
                             # create a new object to add to the array list as we now have all the mappings we want
                             $array += [PSCustomObject]@{
-                                [String]ResourceRef = $internalLoadBalancer.resourceRef
-                                [IPAddress]CustomerAddress = $internalLoadBalancer.properties.privateIPAddress
-                                [IPAddress]ProviderAddress = $ovsdbObject.ProviderAddress
+                                ResourceRef = [String]$internalLoadBalancer.resourceRef
+                                CustomerAddress = [IPAddress]$internalLoadBalancer.properties.privateIPAddress
+                                ProviderAddress = [IPAddress]$ovsdbObject.ProviderAddress
                             }
                         }
                         else {
@@ -103,6 +118,10 @@ function Get-SdnInternalLoadBalancer {
 
         if ($IPAddress) {
             return ($array | Where-Object {$_.CustomerAddress -eq $IPAddress})
+        }
+
+        if ($ProviderAddress) {
+            return ($array | Where-Object {$_.ProviderAddress -eq $ProviderAddress})
         }
 
         return ($array | Sort-Object CustomerAddress -Unique)
