@@ -1,12 +1,17 @@
 function Connect-SlbManager {
     [CmdletBinding()]
-    param()
+    param(
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
 
     $slbClient = Get-SlbClient -ErrorAction Stop
 
     # we need identify the current primary replica for the slbmanager service
     # if the primary replica is on the local node, then we will use the loopback address
-    $slbManagerPrimary = Get-SdnServiceFabricReplica -ServiceTypeName 'SlbManagerService' -Primary -ErrorAction Stop
+    $slbManagerPrimary = Get-SdnServiceFabricReplica -ServiceTypeName 'SlbManagerService' -Primary -Credential $Credential -ErrorAction Stop
     if ($null -ieq $slbManagerPrimary) {
         throw "Unable to return primary replica of SlbManagerService"
     }
