@@ -82,7 +82,7 @@ function Get-SdnSlbStateInformation {
         if ($VirtualIPAddress) {
             $tenantDetails = $stateResult.properties.output.datagroups | Where-object { $_.name -eq 'Tenant' }
             $vipDetails = $tenantDetails.dataSections.dataunits | Where-object { $_.name -eq $VirtualIPAddress.IPAddressToString }
-            return $vipDetails
+            return $vipDetails.value
         }
 
         return $stateResult.properties.output
