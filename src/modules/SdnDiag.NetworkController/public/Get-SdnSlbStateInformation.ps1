@@ -1,7 +1,11 @@
 function Get-SdnSlbStateInformation {
     <#
     .SYNOPSIS
-        Generates an aggregated report of Virtual IPs (VIPs) in the environment and their current status as reported by the MUXes.
+        Generates an aggregated report of Virtual IPs (VIPs) in the environment and their current status as reported by Software Load Balancer and MUXes.
+    .PARAMETER NcUri
+         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER VirtualIPAddress
+        Specifies the VIP address to return information for. If omitted, returns all VIPs.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER ExecutionTimeout
@@ -10,6 +14,8 @@ function Get-SdnSlbStateInformation {
         Interval in which to query the state of the request to determine completion.
     .EXAMPLE
         Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com"
+    .EXAMPLE
+        Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com" -VirtualIPAddress 41.40.40.1
     .EXAMPLE
         Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
     .EXAMPLE
@@ -20,6 +26,9 @@ function Get-SdnSlbStateInformation {
     param (
         [Parameter(Mandatory = $true)]
         [uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [IPAddress]$VirtualIPAddress,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -67,9 +76,16 @@ function Get-SdnSlbStateInformation {
             $msg = "Unable to get results for OperationId: {0}. {1}" -f $operationId, $stateResult.properties
             throw New-Object System.Exception($msg)
         }
-        else {
-            return $stateResult.properties.output
+
+        # if a VIP address is specified, return only the details for that VIP
+        # must do some processing to get into the raw data
+        if ($VirtualIPAddress) {
+            $tenantDetails = $stateResult.properties.output.datagroups | Where-object { $_.name -eq 'Tenant' }
+            $vipDetails = $tenantDetails.dataSections.dataunits | Where-object { $_.name -eq $VirtualIPAddress.IPAddressToString }
+            return $vipDetails
         }
+
+        return $stateResult.properties.output
     }
     catch {
         $_ | Trace-Exception
