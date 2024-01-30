@@ -76,7 +76,7 @@ function Debug-SdnFabricInfrastructure {
 
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
-            "Processing tests for {0} role" -f $object.ToString() | Trace-Output
+            "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Verbose
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
 
             $roleHealthReport = [SdnFabricHealthReport]@{
@@ -129,6 +129,7 @@ function Debug-SdnFabricInfrastructure {
             switch ($object) {
                 'Gateway' {
                     $roleHealthReport.HealthValidation += @(
+                        Test-ResourceProvisioningState @restApiParams
                         Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
@@ -137,6 +138,7 @@ function Debug-SdnFabricInfrastructure {
 
                 'LoadBalancerMux' {
                     $roleHealthReport.HealthValidation += @(
+                        Test-ResourceProvisioningState @restApiParams
                         Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ScheduledTaskEnabled @computerCredParams
@@ -161,9 +163,10 @@ function Debug-SdnFabricInfrastructure {
 
                 'Server' {
                     $roleHealthReport.HealthValidation += @(
+                        Test-ResourceProvisioningState @restApiParams
+                        Test-ResourceConfigurationState @restApiParams
                         Test-EncapOverhead @computerCredParams
                         Test-ProviderNetwork @computerCredParams
-                        Test-ResourceConfigurationState @restApiParams
                         Test-ServiceState @computerCredParams
                         Test-ServerHostId @computerCredAndRestApiParams
                         Test-VfpDuplicatePort @computerCredParams

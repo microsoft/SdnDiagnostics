@@ -1,7 +1,7 @@
 function Test-ResourceConfigurationState {
     <#
     .SYNOPSIS
-        Validate that the configurationState and provisioningState is Success
+        Validate that the configurationState of the resources.
     #>
 
     [CmdletBinding()]
@@ -19,110 +19,93 @@ function Test-ResourceConfigurationState {
     $array = @()
 
     try {
-        "Validating configuration and provisioning state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
+        "Validating configuration state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
 
         $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
-        foreach($object in $sdnResources){
-            $skipValidation = $false
+        foreach ($object in $sdnResources) {
 
-            # examine the provisioning state of the resources and display errors to the screen
+            # if we have a resource that is not in a success state, we will skip validation
+            # as we do not expect configurationState to be accurate if provisioningState is not Success
             if ($object.properties.provisioningState -ine 'Succeeded') {
-                $msg = "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState
-                switch ($object.properties.configurationState.Status) {
-                    'Warning' {
-                        $msg | Trace-Output -Level:Warning
-                    }
-                    'Error' {
-                        $msg | Trace-Output -Level:Error
-                    }
-                    default {
-                        # for all other statuses, we will log as normal
-                        # and skip the validation of the configurationState
-                        $skipValidation = $true
-                        $msg | Trace-Output -Level:Information
-                    }
-                }
-
-                # if we are skipping validation, we will continue to the next object
-                # as we do not expect configurationState to be accurate if provisioningState is not Success
-                if ($skipValidation) {
-                    continue
-                }
-
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Examine the Network Controller logs to determine why $($object.resourceRef) provisioning failed."
-
-                # we can continue to the next object at this point
-                # as we do not care about the configurationState at this point if the provisioningState is not success
                 continue
             }
 
             # examine the configuration state of the resources and display errors to the screen
-            elseif($object.properties.configurationState.status -ine 'Success'){
-                $errorMessages = @()
-                switch ($object.properties.configurationState.Status) {
-                    'Warning' {
+            $errorMessages = @()
+            switch ($object.properties.configurationState.Status) {
+                'Warning' {
+                    # if we already have a failure, we will not change the result to warning
+                    if ($sdnHealthObject.Result -ne 'FAIL') {
+                        $sdnHealthObject.Result = 'WARNING'
+                    }
+
+                    $traceLevel = 'Warning'
+                }
+
+                'Failure' {
+                    $sdnHealthObject.Result = 'FAIL'
+                    $traceLevel = 'Error'
+                }
+
+                'InProgress' {
+                    # if we already have a failure, we will not change the result to warning
+                    if ($sdnHealthObject.Result -ne 'FAIL') {
+                        $sdnHealthObject.Result = 'WARNING'
+                    }
+
+                    $traceLevel = 'Warning'
+                }
+
+                'Uninitialized' {
+                    # in scenarios where state is redundant, we will not fail the test
+                    if ($object.properties.state -ieq 'Redundant') {
+                        # do nothing
+                    }
+                    else {
+                        # if we already have a failure, we will not change the result to warning
+                        if ($sdnHealthObject.Result -ne 'FAIL') {
+                            $sdnHealthObject.Result = 'WARNING'
+                        }
+
                         $traceLevel = 'Warning'
                     }
-                    'Error' {
-                        $traceLevel = 'Exception'
-                    }
-                    'Uninitialized' {
-                        # in scenarios where state is redundant, we will not fail the test
-                        # as this is expected to be uninitialized
-                        if ($object.properties.state -ieq 'Redundant') {
-                            $skipValidation = $true
-                        }
-                        else {
-                            $traceLevel = 'Exception'
-                        }
-                    }
-                    default {
-                        $traceLevel = 'Information'
-                    }
                 }
 
-                # if we are skipping validation, we will continue to the next object
-                if ($skipValidation) {
-                    continue
+                default {
+                    $traceLevel = 'Verbose'
                 }
-
-                $sdnHealthObject.Result = 'FAIL'
-                foreach ($detail in $object.properties.configurationState.detailedInfo) {
-                    if ($detail.code -eq 'Success') {
-                        continue
-                    }
-
-                    switch ($detail.code) {
-                        'Success' {
-                            continue
-                        }
-                        default {
-                            $errorMessages += $detail.message
-                        }
-                    }
-
-                    try {
-                        $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
-                        $sdnHealthObject.Remediation += $errorDetails.Action
-                    }
-                    catch {
-                        "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
-                        $sdnHealthObject.Remediation += "Examine the configurationState property to determine why $($object.resourceRef) configuration failed."
-                    }
-                }
-
-                # print the overall configuration state to screen, with each of the messages that were captured
-                # as part of the detailedinfo property
-                $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" `
-                -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
-
-                $msg | Trace-Output -Level $traceLevel.ToString()
             }
 
+            foreach ($detail in $object.properties.configurationState.detailedInfo) {
+                switch ($detail.code) {
+                    'Success' {
+                        # do nothing
+                    }
+
+                    default {
+                        $errorMessages += $detail.message
+                        try {
+                            $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
+                            $sdnHealthObject.Remediation += "[{0}] {1}" -f $object.resourceRef, $errorDetails.Action
+                        }
+                        catch {
+                            "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
+                            $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $object.resourceRef
+                            $sdnHealthObject.Remediation += $remediationString
+                        }
+                    }
+                }
+            }
+
+            # print the overall configuration state to screen, with each of the messages that were captured
+            # as part of the detailedinfo property
+            $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" `
+                -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
+
+            $msg | Trace-Output -Level $traceLevel.ToString()
+
             $details = [PSCustomObject]@{
-                resourceRef = $object.resourceRef
-                provisioningState = $object.properties.provisioningState
+                resourceRef        = $object.resourceRef
                 configurationState = $object.properties.configurationState
             }
 

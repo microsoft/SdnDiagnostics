@@ -34,8 +34,13 @@
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
         }
         'Test-ResourceConfigurationState' = @{
-            Description = "Infrastructure resource is not in a healthy state."
-            Impact = "SDN services and functionality will be impacted."
+            Description = "Infrastructure resource configuration is not Succeeded."
+            Impact = "SDN services and functionality may be impacted."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
+        }
+        'Test-ResourceProvisioningState' = @{
+            Description = "Infrastructure resource is not in Succeeded state."
+            Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
         'Test-ScheduledTaskEnabled' = @{
