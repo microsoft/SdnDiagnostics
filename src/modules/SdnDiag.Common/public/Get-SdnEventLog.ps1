@@ -40,7 +40,7 @@ function Get-SdnEventLog {
 
     "Collect event logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
     if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 200)) {
-        "Unable to initialize environment for data collection" | Trace-Output -Level:Exception
+        "Unable to initialize environment for data collection" | Trace-Output -Level:Error
         return
     }
 
