@@ -65,6 +65,7 @@
         'Get-SdnFabricInfrastructureResult',
         'Get-SdnGateway',
         'Get-SdnInfrastructureInfo',
+        'Get-SdnInternalLoadBalancer',
         'Get-SdnModuleConfiguration',
         'Get-SdnMuxCertificate',
         'Get-SdnMuxDistributedRouterIP',

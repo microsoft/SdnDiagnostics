@@ -80,7 +80,10 @@ function Install-SdnDiagnostics {
         }
         else {
             "Getting current installed version of SdnDiagnostics on {0}" -f ($filteredComputerName -join ', ') | Trace-Output -Level:Verbose
-            $remoteModuleVersion = Invoke-PSRemoteCommand -ComputerName $filteredComputerName -Credential $Credential -ImportModuleOnRemoteSession:$false -ScriptBlock {
+
+            # use Invoke-Command here, as we do not want to create a cached session for the remote computers
+            # as it will impact scenarios where we need to import the module on the remote computer for remote sessions
+            $remoteModuleVersion = Invoke-Command -ComputerName $filteredComputerName -Credential $Credential -ScriptBlock {
                 param ([string]$arg0)
                 try {
                     # Get the latest version of SdnDiagnostics Module installed
