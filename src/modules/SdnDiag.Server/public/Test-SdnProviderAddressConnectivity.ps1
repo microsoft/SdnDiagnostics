@@ -26,13 +26,13 @@ function Test-SdnProviderAddressConnectivity {
 
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
-            "No provider addresses returned on {0}" -f $env:COMPUTERNAME | Trace-Output -Level:Warning
+            "No provider addresses found" | Trace-Output -Level:Warning
             return
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
         if ($null -eq $compartmentId) {
-            "No compartment returned on {0} that matches description PAhostVNic" -f $env:COMPUTERNAME | Trace-Output -Level:Warning
+            "No compartment that matches description PAhostVNic" | Trace-Output -Level:Warning
             return
         }
 

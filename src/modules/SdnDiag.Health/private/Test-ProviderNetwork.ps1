@@ -23,10 +23,9 @@ function Test-ProviderNetwork {
 
         $providerAddresses = (Get-SdnProviderAddress -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential).ProviderAddress
         if ($null -eq $providerAddresses){
-            "No provider addresses were found on the hosts specified. This may be expected if tenant workloads have not yet been deployed." | Trace-Output -Level:Warning
+            "No provider addresses were found on the hosts." | Trace-Output
         }
-
-        if ($providerAddresses) {
+        else {
             $connectivityResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {
                 param([Parameter(Position = 0)][String[]]$param1)
                 Test-SdnProviderAddressConnectivity -ProviderAddress $param1
