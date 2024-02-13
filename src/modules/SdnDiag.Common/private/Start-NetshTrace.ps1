@@ -13,7 +13,7 @@ function Start-NetshTrace {
     .PARAMETER Overwrite
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
     .PARAMETER Correlation
-        Optional. Specifies whether related events will be correlated and grouped together. If unspecified, the default is No.
+        Optional. Specifies whether related events will be correlated and grouped together. If unspecified, the default is disabled.
     .PARAMETER Report
         Optional. Specifies whether a complementing report will be generated in addition to the trace file report. If unspecified, the default is disabled.
     .EXAMPLE
@@ -47,12 +47,12 @@ function Start-NetshTrace {
         [System.String]$Overwrite = 'Yes',
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('Enabled', 'Disabled')]
+        [ValidateSet('Yes', 'No', 'Disabled')]
         [System.String]$Report = 'Disabled',
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('Yes', 'No')]
-        [System.String]$Correlation = 'No'
+        [ValidateSet('Yes', 'No', 'Disabled')]
+        [System.String]$Correlation = 'Disabled'
     )
 
     try {
