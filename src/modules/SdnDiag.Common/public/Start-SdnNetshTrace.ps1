@@ -113,7 +113,7 @@ function Start-SdnNetshTrace {
                 "Trace providers configured: {0}" -f $traceProviderString | Trace-Output -Level:Verbose
             }
             elseif ($null -eq $traceProviderString) {
-                "No default trace providers found for role {0}." | Trace-Output
+                "No default trace providers found for role {0}." -f $Role | Trace-Output
                 if ($params.Capture -eq 'No') {
                     $params.Capture = 'Yes'
                     "Setting capture to {1}" -f $Role, $params.Capture | Trace-Output
