@@ -72,9 +72,6 @@ function Get-ServerConfigState {
         # Gather Hyper-V network details
         "Gathering hyper-v configuration details" | Trace-Output -Level:Verbose
         Get-VM | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType csv
-        Get-PACAMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-PACAMapping' -FileType txt -Format Table
-        Get-ProviderAddress | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-ProviderAddress' -FileType txt -Format Table
-        Get-CustomerRoute | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-CustomerRoute' -FileType txt -Format Table
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVPort' -FileType txt -Format Table
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVmqQueue' -FileType txt -Format Table
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnNetAdapterEncapOverheadConfig' -FileType txt -Format Table
@@ -85,6 +82,23 @@ function Get-ServerConfigState {
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format Table
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format Table
         Get-VMSystemSwitchExtensionPortFeature -FeatureId "9940cd46-8b06-43bb-b9d5-93d50381fd56" | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSystemSwitchExtensionPortFeature' -FileType json
+
+        # add fault tolerance for hnvdiagnostics commands that do not have [CmdletBinding()]
+        # and will ignore the ErrorActionPreference resulting in a terminating exception
+        $hnvDiag = @(
+            "Get-PACAMapping",
+            "Get-CustomerRoute",
+            "Get-ProviderAddress"
+        )
+        $hnvDiag | ForEach-Object {
+            try {
+                $cmd = $_
+                Invoke-Express -Command $cmd | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name $cmd -FileType txt -Format Table
+            }
+            catch {
+                "Failed to execute {0}" -f $cmd | Trace-Output -Level:Error
+            }
+        }
     }
     catch {
         $_ | Trace-Exception
