@@ -17,7 +17,7 @@ function Get-CommonConfigState {
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "Common"
 
-        "Collect general configuration state details" | Trace-Output
+        "Collect general configuration state details" | Trace-Output -Level:Verbose
         if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return

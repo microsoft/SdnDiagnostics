@@ -47,7 +47,7 @@ function Get-SdnDiagnosticLogFile {
         $commonConfig = Get-SdnModuleConfiguration -Role 'Common'
         # enumerate the log files in the log directory and filter based on the from and to date
         if (-NOT (Test-Path -Path $LogDir)) {
-            "{0} does not exist" -f $LogDir | Trace-Output
+            "{0} does not exist" -f $LogDir | Trace-Output -Level:Verbose
             return
         }
 
