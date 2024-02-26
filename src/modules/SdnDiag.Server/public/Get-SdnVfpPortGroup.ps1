@@ -72,7 +72,7 @@ function Get-SdnVfpPortGroup {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0, [string]$arg1)
                 Get-VfpPortGroup -PortId $arg0 -Layer $arg1
-            } -ArgumentList @params
+            } -ArgumentList @($params.PortId, $params.Layer)
         }
         else {
             $results = Get-VfpPortGroup @params
