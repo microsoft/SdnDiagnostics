@@ -693,7 +693,7 @@ function Test-SdnExpressBGP {
             $port = "179"
 
             $RestoreMuxState = $false
-            $mux = Get-Service -Name -erroraction silentlycontinue
+            $mux = Get-Service -Name 'SlbMux' -ErrorAction SilentlyContinue
             if ($null -ne $mux) {
                 $muxstartup = $mux.starttype
                 $muxstatus = $mux.status
