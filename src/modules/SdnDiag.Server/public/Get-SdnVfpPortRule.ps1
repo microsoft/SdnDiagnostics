@@ -54,7 +54,7 @@ function Get-SdnVfpPortRule {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
                 Get-VfpPortRule -PortId $arg0 -Layer $arg1 -Group $arg2
-            } -ArgumentList $params
+            } -ArgumentList @($params.PortId, $params.Layer, $params.Group)
         }
         else {
             $results = Get-VfpPortRule @params

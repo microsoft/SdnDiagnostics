@@ -43,7 +43,7 @@ function Get-SdnVfpPortLayer {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0)
                 Get-VfpPortLayer -PortId $arg0
-            } -ArgumentList $params
+            } -ArgumentList @($params.PortId)
         }
         else {
             $results = Get-VfpPortLayer @params

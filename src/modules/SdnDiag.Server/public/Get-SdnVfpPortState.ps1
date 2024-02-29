@@ -37,7 +37,7 @@ function Get-SdnVfpPortState {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0)
                 Get-VfpPortState -PortName $arg0
-            } -ArgumentList $params
+            } -ArgumentList @($params.PortName)
         }
         else {
             $results = Get-VfpPortState @params
