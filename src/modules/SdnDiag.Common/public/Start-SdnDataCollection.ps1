@@ -170,6 +170,16 @@ function Start-SdnDataCollection {
             $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         }
 
+        # determine if network controller is using default logging mechanism to local devices or network share
+        [xml]$clusterManifest = Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential
+        $fileShareWinFabEtw = $clusterManifest.ClusterManifest.FabricSettings.Section | Where-Object {$_.Name -ieq 'FileShareWinFabEtw'}
+        $connectionString = $fileShareWinFabEtw.Parameter | Where-Object {$_.Name -ieq 'StoreConnectionString'}
+        if ($connectionString.value) {
+            # typically the network share will be in a format of file://share/path
+            $diagLogNetShare = ($connectionString.value).Split(':')[1].Replace('/', '\').Trim()
+            $ncNodeFolders = @()
+        }
+
         switch ($PSCmdlet.ParameterSetName) {
             'Role' {
                 foreach ($value in $Role) {
@@ -269,26 +279,39 @@ function Start-SdnDataCollection {
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
-                if ($group.Name -ieq 'NetworkController') {
-                    $ncConfig = Get-SdnModuleConfiguration -Role:NetworkController
-                    [String]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
-
-                    "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-                    -ArgumentList @($sfLogDir, "$($tempDirectory.FullName)\ServiceFabricLogs", $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Service Fabric Logs'
-                }
-
-                if ($group.Name -ieq 'Server') {
-                    Get-SdnAuditLog -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
-                    -ComputerName $dataNodes -Credential $Credential
-                }
-
-                "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                 $commonConfig = Get-SdnModuleConfiguration -Role:Common
                 [String]$diagLogDir = $commonConfig.DefaultLogDirectory
 
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-                -ArgumentList @($diagLogDir, "$($tempDirectory.FullName)\SdnDiagnosticLogs", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
+                # check to see if we are using local or network share for the logs
+                if (!$diagLogNetShare) {
+                    "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+
+                    Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
+                    -ArgumentList @($diagLogDir, "$($tempDirectory.FullName)\SdnDiagnosticLogs", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
+
+                    # collect the service fabric logs for the network controller
+                    if ($group.Name -ieq 'NetworkController') {
+                        $ncConfig = Get-SdnModuleConfiguration -Role:NetworkController
+                        [string]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+
+                        "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                        Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
+                        -ArgumentList @($sfLogDir, "$($tempDirectory.FullName)\ServiceFabricLogs", $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Service Fabric Logs'
+                    }
+
+                    # if the role is a server, collect the audit logs if they are available
+                    if ($group.Name -ieq 'Server') {
+                        Get-SdnAuditLog -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
+                        -ComputerName $dataNodes -Credential $Credential
+                    }
+                }
+
+                # if the role is network controller and we are using a network share
+                # need to update variable to include the network controller nodes
+                # so we can add these supplmental folders to the collection
+                if ($group.Name -ieq 'NetworkController') {
+                    $ncNodeFolders += $dataNodes
+                }
 
                 # collect the event logs specific to the role
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
@@ -305,6 +328,20 @@ function Start-SdnDataCollection {
                     Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
                 } -ArgumentList @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate) -AsJob -PassThru -Activity "Get $($group.Name) Event Logs"
             }
+        }
+
+        if ($diagLogNetShare) {
+            $netDiagLogShareParams = @{
+                NetworkSharePath           = $diagLogNetShare
+                Credential                 = $Credential
+                OutputDirectory            = $OutputDirectory.FullName
+                FromDate                   = $FromDate
+                ToDate                     = $ToDate
+                FilterByNode               = $dataCollectionNodes.Name
+                NetworkControllerNodeNames = $ncNodeFolders
+            }
+
+            Get-SdnDiagnosticLogFileFromNetworkShare @netDiagLogShareParams
         }
 
         if ($IncludeNetView) {

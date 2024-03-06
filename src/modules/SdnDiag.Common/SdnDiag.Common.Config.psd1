@@ -3,7 +3,23 @@
 
 @{
     DefaultLogDirectory = "C:\Windows\Tracing\SDNDiagnostics\Logs"
-    LogFileTypes = @("*.log", "*.etl", "*.cab")
+    NetworkShareFolders = @(
+        "CrashDumps",
+        "NCApplicationCrashDumps",
+        "NCApplicationLogs",
+        "PerfCounters",
+        "SdnDiagnostics",
+        "Traces"
+    )
+    LogFileTypes = @(
+        "*.log",
+        "*.etl",
+        "*.cab",
+        "*.dmp"
+        "*.trace"
+        "*.zip"
+        "*.blg"
+        )
     Properties = @{
         EventLogProviders = @(
             "Application"
