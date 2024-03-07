@@ -2,13 +2,14 @@ function Trace-Output {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'Message')]
         [System.String]$Message,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Message')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
         [TraceLevel]$Level,
 
-        [parameter(Mandatory = $false)]
+        [parameter(Mandatory = $true, ParameterSetName = 'Exception')]
         $Exception
     )
 
@@ -46,7 +47,7 @@ function Trace-Output {
                 if ($Exception) {
                     Write-Error -Exception $Exception.Exception -Message $Message
                     $traceEvent.FunctionName = (Get-PSCallStack)[2].Command
-                    $traceEvent.Message = "{0}`n`t{1}" -f $Exception.Exception.Message, $Exception.Exception.ScriptStackTrace
+                    $traceEvent.Message = "{0}`n{1}" -f $Exception.Exception, $Exception.ScriptStackTrace
                 }
                 else {
                     Write-Error -Message $Message

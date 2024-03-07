@@ -22,5 +22,5 @@ function Trace-Exception {
         $Exception
     )
 
-    Trace-Output -Level:Error -Message $Exception.Exception.Message -Exception $Exception
+    Trace-Output -Level:Exception -Exception $Exception
 }
