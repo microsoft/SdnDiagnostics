@@ -58,6 +58,11 @@ function Start-SdnCertificateRotation {
         [switch]$Force
     )
 
+    # we do not support this operation being executed from remote session
+    if ($PSSenderInfo) {
+        throw New-Object System.NotSupportedException("This operation is not supported in a remote session. Please run this operation locally on Network Controller.")
+    }
+
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-NOT $elevated) {
