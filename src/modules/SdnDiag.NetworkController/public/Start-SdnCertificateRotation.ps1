@@ -100,6 +100,9 @@ function Start-SdnCertificateRotation {
         if ($NcInfraInfo.ClusterCredentialType -ieq 'X509') {
             $rotateNCNodeCerts = $true
         }
+        else {
+            $rotateNCNodeCerts = $false
+        }
 
         # Get the current rest certificate to determine if it is expired scenario or not.
         $currentRestCert = Get-SdnNetworkControllerRestCertificate
@@ -200,7 +203,7 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
             $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
-            -NetworkControllerHealthy:$ncHealthy -Credential $Credential -RotateNodeCerts:$rotateNCNodeCerts
+            -NetworkControllerHealthy $ncHealthy -Credential $Credential -RotateNodeCerts $rotateNCNodeCerts
 
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
