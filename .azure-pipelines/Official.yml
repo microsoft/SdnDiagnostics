@@ -20,7 +20,7 @@ variables:
   REPOROOT: $(Build.SourcesDirectory)
   OUTPUTROOT: $(REPOROOT)\out
   NUGET_XMLDOC_MODE: none
-  WindowsContainerImage: $(image) # Docker image which is used to build the project
+  WindowsContainerImage: onebranch.azurecr.io/windows/ltsc2019/vse2022:latest # Docker image which is used to build the project
 
 resources:
   repositories:
@@ -30,7 +30,7 @@ resources:
       ref: refs/heads/main
 
 extends:
-  template: $(template)
+  template: v2/OneBranch.Official.CrossPlat.yml@templates
   parameters:
     cloudvault:
       enabled: false
