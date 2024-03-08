@@ -4,7 +4,7 @@ trigger:
     - main
   paths:
     include:
-      - src/**
+    - src/**
 
 parameters: # parameters are shown up in ADO UI in a build queue time
 - name: 'debug'
@@ -20,7 +20,7 @@ variables:
   REPOROOT: $(Build.SourcesDirectory)
   OUTPUTROOT: $(REPOROOT)\out
   NUGET_XMLDOC_MODE: none
-  WindowsContainerImage: onebranch.azurecr.io/windows/ltsc2019/vse2022:latest # Docker image which is used to build the project
+  WindowsContainerImage: 'onebranch.azurecr.io/windows/ltsc2019/vse2022:latest' # Docker image which is used to build the project
 
 resources:
   repositories:
@@ -32,8 +32,6 @@ resources:
 extends:
   template: v2/OneBranch.Official.CrossPlat.yml@templates
   parameters:
-    cloudvault:
-      enabled: false
     globalSdl:
       tsa:
         enabled: false
