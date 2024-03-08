@@ -61,25 +61,29 @@ extends:
             displayName: "Create custom version"
             inputs:
               filepath: '$(Build.SourcesDirectory)\.build\generate-version.ps1'
+              
           - task: onebranch.pipeline.version@1
             displayName: 'Setup BuildNumber'
             system: 'Custom'
             customVersion: '$(CUSTOM_VERSION)'
+            
           - task: PowerShell@2
             displayName: 'Restore external dependencies'
             inputs:
               filePath: '$(Build.SourcesDirectory)\.build\restore.ps1'
               workingDirectory: '$(Build.SourcesDirectory)'
+              
           - task: PowerShell@2
             displayName: 'Generate SdnDiagnostics module files'
             inputs:
               filePath: '$(Build.SourcesDirectory)\.build\generate-sdndiagnostics.ps1'
+              
           - task: PowerShell@2
             displayName: 'Generate module manifest for SdnDiagnostics'
             inputs:
               filePath: '$(Build.SourcesDirectory)\.build\generate-module-manifest.ps1'
               arguments: -Manifest $(Build.SourcesDirectory)\out\build\SdnDiagnostics\SdnDiagnostics.psd1 -Version $(CUSTOM_VERSION)
-          - task: PowerShell@2'
+
           - task: onebranch.pipeline.signing@1
             displayName: 'Script Signing'
             inputs:
