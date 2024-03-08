@@ -5,7 +5,7 @@ trigger:
   paths:
     include:
       - src/**
-      
+
 parameters: # parameters are shown up in ADO UI in a build queue time
 - name: 'debug'
   displayName: 'Enable debug output'
@@ -28,13 +28,13 @@ resources:
       type: git
       name: OneBranch.Pipelines/GovernedTemplates
       ref: refs/heads/main
-      
+
 extends:
   template: ${{ variables.template }}
   parameters:
     cloudvault:
       enabled: false
-    globalSdl: 
+    globalSdl:
       tsa:
         enabled: false
       binskim:
@@ -53,7 +53,7 @@ extends:
           ob_outputDirectory: '$(REPOROOT)\out'
           ob_sdl_binskim_break: true
           ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-            ob_symbolsPublishing_enabled: true 
+            ob_symbolsPublishing_enabled: true
           ob_artifactBaseName: 'drop'
 
         steps:
@@ -65,3 +65,26 @@ extends:
             displayName: 'Setup BuildNumber'
             system: 'Custom'
             customVersion: '$(CUSTOM_VERSION)'
+          - task: PowerShell@2
+            displayName: 'Restore external dependencies'
+            inputs:
+              filePath: '$(Build.SourcesDirectory)\.build\restore.ps1'
+              workingDirectory: '$(Build.SourcesDirectory)'
+          - task: PowerShell@2
+            displayName: 'Generate SdnDiagnostics module files'
+            inputs:
+              filePath: '$(Build.SourcesDirectory)\.build\generate-sdndiagnostics.ps1'
+          - task: PowerShell@2
+            displayName: 'Generate module manifest for SdnDiagnostics'
+            inputs:
+              filePath: '$(Build.SourcesDirectory)\.build\generate-module-manifest.ps1'
+              arguments: -Manifest $(Build.SourcesDirectory)\out\build\SdnDiagnostics\SdnDiagnostics.psd1 -Version $(CUSTOM_VERSION)
+          - task: PowerShell@2'
+          - task: onebranch.pipeline.signing@1
+            displayName: 'Script Signing'
+            inputs:
+              command: 'sign'
+              signing_environment: 'azure-ado'
+              signing_profile: 'external_distribution'
+              files_to_sign: '**/*.exe;**/*.dll;**/*.ps1;**/*.psm1;**/*.psd1;**/*.js'
+              search_root: '$(Build.SourcesDirectory)\out'
