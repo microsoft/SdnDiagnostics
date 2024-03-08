@@ -20,7 +20,7 @@ variables:
   REPOROOT: $(Build.SourcesDirectory)
   OUTPUTROOT: $(REPOROOT)\out
   NUGET_XMLDOC_MODE: none
-  WindowsContainerImage: ${{ variables.image }} # Docker image which is used to build the project
+  WindowsContainerImage: $(image) # Docker image which is used to build the project
 
 resources:
   repositories:
@@ -30,7 +30,7 @@ resources:
       ref: refs/heads/main
 
 extends:
-  template: ${{ variables.template }}
+  template: $(template)
   parameters:
     cloudvault:
       enabled: false
