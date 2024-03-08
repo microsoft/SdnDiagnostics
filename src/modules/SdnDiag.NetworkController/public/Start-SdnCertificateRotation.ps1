@@ -58,6 +58,11 @@ function Start-SdnCertificateRotation {
         [switch]$Force
     )
 
+    # we do not support this operation being executed from remote session
+    if ($PSSenderInfo) {
+        throw New-Object System.NotSupportedException("This operation is not supported in a remote session. Please run this operation locally on Network Controller.")
+    }
+
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-NOT $elevated) {
@@ -99,6 +104,9 @@ function Start-SdnCertificateRotation {
 
         if ($NcInfraInfo.ClusterCredentialType -ieq 'X509') {
             $rotateNCNodeCerts = $true
+        }
+        else {
+            $rotateNCNodeCerts = $false
         }
 
         # Get the current rest certificate to determine if it is expired scenario or not.
@@ -200,7 +208,7 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
             $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
-            -NetworkControllerHealthy:$ncHealthy -Credential $Credential -RotateNodeCerts:$rotateNCNodeCerts
+            -NetworkControllerHealthy $ncHealthy -Credential $Credential -RotateNodeCerts $rotateNCNodeCerts
 
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
