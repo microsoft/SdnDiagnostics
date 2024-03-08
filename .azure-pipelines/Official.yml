@@ -1,0 +1,67 @@
+trigger:
+  branches:
+    include:
+    - main
+  paths:
+    include:
+      - src/**
+      
+parameters: # parameters are shown up in ADO UI in a build queue time
+- name: 'debug'
+  displayName: 'Enable debug output'
+  type: boolean
+  default: false
+
+variables:
+  CDP_DEFINITION_BUILD_COUNT: $[counter('', 0)] # needed for onebranch.pipeline.version task
+  system.debug: ${{ parameters.debug }}
+  ENABLE_PRS_DELAYSIGN: 1
+  ROOT: $(Build.SourcesDirectory)
+  REPOROOT: $(Build.SourcesDirectory)
+  OUTPUTROOT: $(REPOROOT)\out
+  NUGET_XMLDOC_MODE: none
+  WindowsContainerImage: ${{ variables.image }} # Docker image which is used to build the project
+
+resources:
+  repositories:
+    - repository: templates
+      type: git
+      name: OneBranch.Pipelines/GovernedTemplates
+      ref: refs/heads/main
+      
+extends:
+  template: ${{ variables.template }}
+  parameters:
+    cloudvault:
+      enabled: false
+    globalSdl: 
+      tsa:
+        enabled: false
+      binskim:
+        break: true
+      policheck:
+        break: true
+
+    stages:
+    - stage: build
+      jobs:
+      - job: main
+        pool:
+          type: windows
+
+        variables:
+          ob_outputDirectory: '$(REPOROOT)\out'
+          ob_sdl_binskim_break: true
+          ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+            ob_symbolsPublishing_enabled: true 
+          ob_artifactBaseName: 'drop'
+
+        steps:
+          - task: PowerShell@2
+            displayName: "Create custom version"
+            inputs:
+              filepath: '$(Build.SourcesDirectory)\.build\generate-version.ps1'
+          - task: onebranch.pipeline.version@1
+            displayName: 'Setup BuildNumber'
+            system: 'Custom'
+            customVersion: '$(CUSTOM_VERSION)'
