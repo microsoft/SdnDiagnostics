@@ -2,8 +2,8 @@
 # Licensed under the MIT License.
 
 @{
-    DefaultLogDirectory = "C:\Windows\Tracing\SDNDiagnostics\Logs"
-    NetworkShareFolders = @(
+    DefaultLogDirectory = "C:\Windows\Tracing\SDNDiagnostics"
+    DefaultLogFolders = @(
         "CrashDumps",
         "NCApplicationCrashDumps",
         "NCApplicationLogs",

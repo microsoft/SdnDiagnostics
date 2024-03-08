@@ -118,8 +118,8 @@ function Start-SdnDataCollection {
     }
 
     $collectLogSB = {
-        param([string]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4,[Boolean]$arg5)
-        Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5
+        param([string[]]$arg0,[String]$arg1,[DateTime]$arg2,[DateTime]$arg3,[Boolean]$arg4,[Boolean]$arg5,[string[]]$arg6)
+        Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5 -FolderNameFilter $arg6
     }
 
     $collectConfigStateSB = {
@@ -275,15 +275,15 @@ function Start-SdnDataCollection {
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
             Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-            -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", "$tempDirectory\NetworkTraces", $FromDate, $ToDate, $ConvertETW, $true) -AsJob -PassThru -Activity 'Collect Network Traces'
+            -ArgumentList @("$($workingDirectory.FullName)\NetworkTraces", $tempDirectory.FullName, $FromDate, $ToDate, $ConvertETW, $true) -AsJob -PassThru -Activity 'Collect Network Traces'
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
                 $commonConfig = Get-SdnModuleConfiguration -Role:Common
-                [String]$diagLogDir = $commonConfig.DefaultLogDirectory
 
                 # check to see if we are using local or network share for the logs
                 if (!$diagLogNetShare) {
+                    [String]$diagLogDir = $commonConfig.DefaultLogDirectory
                     "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
 
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
@@ -331,17 +331,41 @@ function Start-SdnDataCollection {
         }
 
         if ($diagLogNetShare) {
-            $netDiagLogShareParams = @{
-                NetworkSharePath           = $diagLogNetShare
-                Credential                 = $Credential
-                OutputDirectory            = $OutputDirectory.FullName
-                FromDate                   = $FromDate
-                ToDate                     = $ToDate
-                FilterByNode               = $dataCollectionNodes.Name
-                NetworkControllerNodeNames = $ncNodeFolders
-            }
+            $isNetShareMapped = New-SdnDiagNetworkMappedShare -NetworkSharePath $diagLogNetShare -Credential $Credential
+            if ($isNetShareMapped) {
+                $outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
 
-            Get-SdnDiagnosticLogFileFromNetworkShare @netDiagLogShareParams
+                # create an array of names that we will use to filter the logs
+                # this ensures that we will only pick up the logs from the nodes that we are collecting from
+                $filterArray = @()
+                $dataCollectionNodes.Name | ForEach-Object {
+                    $filterArray += (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
+                }
+                $filterArray = $filterArray | Sort-Object -Unique
+
+                # create an array of folders to collect the logs from leveraging the common configuration
+                $logDir = @()
+                $commonConfig.DefaultLogFolders | ForEach-Object {
+                    $logDir += Join-Path -Path $diagLogNetShare -ChildPath $_
+                }
+                $ncNodeFolders | ForEach-Object {
+                    $ncNetBiosName = (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
+                    $logDir += Join-Path -Path $diagLogNetShare -ChildPath $ncNetBiosName
+                }
+                $logDir = $logDir | Sort-Object -Unique
+
+                # create parameters for the Get-SdnDiagnosticLogFile function
+                $netDiagLogShareParams = @{
+                    LogDir           = $logDir
+                    OutputDirectory  = $outDir
+                    FromDate         = $FromDate
+                    ToDate           = $ToDate
+                    FolderFilter     = $filterArray
+                    FileFilter       = $commonConfig.LogFileTypes
+                }
+
+                Get-SdnDiagnosticLogFile @netDiagLogShareParams
+            }
         }
 
         if ($IncludeNetView) {
