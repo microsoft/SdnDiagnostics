@@ -62,8 +62,9 @@ extends:
               
           - task: onebranch.pipeline.version@1
             displayName: 'Setup BuildNumber'
-            system: 'Custom'
-            customVersion: '$(CUSTOM_VERSION)'
+            inputs:
+              system: 'Custom'
+              customVersion: '$(CUSTOM_VERSION)'
             
           - task: PowerShell@2
             displayName: 'Restore external dependencies'
