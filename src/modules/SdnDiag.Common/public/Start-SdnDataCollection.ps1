@@ -293,7 +293,7 @@ function Start-SdnDataCollection {
                     # collect the service fabric logs for the network controller
                     if ($group.Name -ieq 'NetworkController') {
                         $ncConfig = Get-SdnModuleConfiguration -Role:NetworkController
-                        [string]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+                        [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
 
                         "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                         $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
