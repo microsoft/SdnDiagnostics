@@ -50,7 +50,6 @@ function Get-SdnDiagnosticLogFile {
 
     process {
         $LogDir | ForEach-Object {
-            "Checking for logs in {0}" -f $_ | Trace-Output
             $folder = Get-Item -Path $_ -ErrorAction SilentlyContinue
 
             # if the folder is not found, then log a message and continue to the next folder
@@ -67,12 +66,16 @@ function Get-SdnDiagnosticLogFile {
                 ErrorAction  = 'SilentlyContinue'
             }
 
-            "Scanning for logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output -Level:Verbose
+            "Scanning for {0} in {1} between {2} and {3} UTC" -f ($commonConfig.LogFileTypes -join ', '), $folder.FullName, $fromDateUTC, $toDateUTC | Trace-Output -Level:Verbose
             if ($FolderNameFilter) {
                 $FolderNameFilter | ForEach-Object {
-                    "Filtering logs related to {0}" -f $_ | Trace-Output -Level:Verbose
+                    [string]$filter = $_
                     $unfilteredlogFiles = Get-ChildItem @getItemParams | Where-Object { $_.LastWriteTime.ToUniversalTime() -ge $fromDateUTC -and $_.LastWriteTime.ToUniversalTime() -le $toDateUTC }
-                    $logFiles += $unfilteredlogFiles | Where-Object { $_.DirectoryName -ilike "*$_*" }
+
+                    if ($unfilteredlogFiles) {
+                        "Filtering logs related to DirectoryName contains '{0}'" -f $filter | Trace-Output -Level:Verbose
+                        $logFiles += $unfilteredlogFiles | Where-Object { $_.DirectoryName -ilike "*$filter*" }
+                    }
                 }
             }
             else {

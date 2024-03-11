@@ -362,8 +362,7 @@ function Start-SdnDataCollection {
                     OutputDirectory  = $outputDir
                     FromDate         = $FromDate
                     ToDate           = $ToDate
-                    FolderFilter     = $filterArray
-                    FileFilter       = $commonConfig.LogFileTypes
+                    FolderNameFilter = $filterArray
                 }
 
                 Get-SdnDiagnosticLogFile @netDiagLogShareParams
