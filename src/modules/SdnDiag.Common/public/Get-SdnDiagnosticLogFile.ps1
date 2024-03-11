@@ -50,7 +50,7 @@ function Get-SdnDiagnosticLogFile {
 
     process {
         $LogDir | ForEach-Object {
-            "Collect diagnostic logs in {0} between {1} and {2} UTC" -f $_, $fromDateUTC, $toDateUTC | Trace-Output
+            "Checking for logs in {0}" -f $_ | Trace-Output
             $folder = Get-Item -Path $_ -ErrorAction SilentlyContinue
 
             # if the folder is not found, then log a message and continue to the next folder
@@ -67,8 +67,10 @@ function Get-SdnDiagnosticLogFile {
                 ErrorAction  = 'SilentlyContinue'
             }
 
+            "Scanning for logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output -Level:Verbose
             if ($FolderNameFilter) {
                 $FolderNameFilter | ForEach-Object {
+                    "Filtering logs related to {0}" -f $_ | Trace-Output -Level:Verbose
                     $unfilteredlogFiles = Get-ChildItem @getItemParams | Where-Object { $_.LastWriteTime.ToUniversalTime() -ge $fromDateUTC -and $_.LastWriteTime.ToUniversalTime() -le $toDateUTC }
                     $logFiles += $unfilteredlogFiles | Where-Object { $_.DirectoryName -ilike "*$_*" }
                 }
@@ -83,7 +85,7 @@ function Get-SdnDiagnosticLogFile {
                 $logDirectory = $logFiles | Group-Object -Property Directory
                 $logDirectory | ForEach-Object {
                     $splitIndex = $_.Name.IndexOf($folder.Name)
-                    [System.IO.DirectoryInfo]$outputPath = Join-Path -Path $OutputDirectory.Parent -ChildPath $_.Name.Substring($splitIndex)
+                    [System.IO.DirectoryInfo]$outputPath = Join-Path -Path $OutputDirectory.FullName -ChildPath $_.Name.Substring($splitIndex)
 
                     # we want to call the initialize datacollection after we have identify the amount of disk space we will need to create a copy of the logs
                     # once the disk space is identified, we will initialize the data collection and copy the files to the output directory

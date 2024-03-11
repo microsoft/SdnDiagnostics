@@ -284,10 +284,11 @@ function Start-SdnDataCollection {
                 # check to see if we are using local or network share for the logs
                 if (!$diagLogNetShare) {
                     [String]$diagLogDir = $commonConfig.DefaultLogDirectory
-                    "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
 
+                    "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                    $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'SdnDiagnosticLogs'
                     Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-                    -ArgumentList @($diagLogDir, "$($tempDirectory.FullName)\SdnDiagnosticLogs", $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
+                    -ArgumentList @($diagLogDir, $outputDir, $FromDate, $ToDate, $ConvertETW) -AsJob -PassThru -Activity 'Get Diagnostic Log Files'
 
                     # collect the service fabric logs for the network controller
                     if ($group.Name -ieq 'NetworkController') {
@@ -295,8 +296,9 @@ function Start-SdnDataCollection {
                         [string]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
 
                         "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                        $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
                         Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock $collectLogSB `
-                        -ArgumentList @($sfLogDir, "$($tempDirectory.FullName)\ServiceFabricLogs", $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Service Fabric Logs'
+                        -ArgumentList @($sfLogDir, $outputDir, $FromDate, $ToDate) -AsJob -PassThru -Activity 'Get Service Fabric Logs'
                     }
 
                     # if the role is a server, collect the audit logs if they are available
@@ -333,7 +335,7 @@ function Start-SdnDataCollection {
         if ($diagLogNetShare) {
             $isNetShareMapped = New-SdnDiagNetworkMappedShare -NetworkSharePath $diagLogNetShare -Credential $Credential
             if ($isNetShareMapped) {
-                $outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
+                $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
 
                 # create an array of names that we will use to filter the logs
                 # this ensures that we will only pick up the logs from the nodes that we are collecting from
@@ -357,7 +359,7 @@ function Start-SdnDataCollection {
                 # create parameters for the Get-SdnDiagnosticLogFile function
                 $netDiagLogShareParams = @{
                     LogDir           = $logDir
-                    OutputDirectory  = $outDir
+                    OutputDirectory  = $outputDir
                     FromDate         = $FromDate
                     ToDate           = $ToDate
                     FolderFilter     = $filterArray
