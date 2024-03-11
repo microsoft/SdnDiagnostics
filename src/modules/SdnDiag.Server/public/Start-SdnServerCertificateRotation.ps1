@@ -96,7 +96,7 @@ function Start-SdnServerCertificateRotation {
         "Retrieving current SDN environment details" | Trace-Output
 
         if ([String]::IsNullOrEmpty($CertPath)) {
-            [System.String]$CertPath = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC)
+            [System.String]$CertPath = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC)
 
             if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
                 $null = New-Item -Path $CertPath -ItemType Directory -Force
