@@ -172,22 +172,21 @@ function Start-SdnServerCertificateRotation {
             }
 
             # after we have generated the certificates and updated the servers to use the new certificate
-            # we will want to go and remove any old certificates as this will cause issues in older builds
-            "Removing the old certificates on {0} that match {1}" -f $obj.managementAddress, $obj.Certificate.Subject | Trace-Output
-            $certsRemoved = Invoke-PSRemoteCommand -ComputerName $obj.managementAddress -Credential $Credential -ScriptBlock {
+            # we will want to go and locate certificates that may conflict with the new certificate
+            "Checking certificates on {0} that match {1}" -f $obj.managementAddress, $obj.Certificate.Subject | Trace-Output
+            $certsToExamine = Invoke-PSRemoteCommand -ComputerName $obj.managementAddress -Credential $Credential -ScriptBlock {
                 param([Parameter(Mandatory = $true)]$param1)
                 $certs = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $param1.Subject
                 if ($certs.Count -ge 2) {
                     $certToRemove = $certs | Where-Object {$_.Thumbprint -ine $param1.Thumbprint}
-                    $certToRemove | Remove-Item
 
                     return $certToRemove
                 }
             } -ArgumentList $obj.Certificate
 
-            if ($certsRemoved) {
-                foreach ($cert in $certsRemoved) {
-                    "Removed certificate subject {0} and thumbprint {1}" -f $cert.Subject, $cert.Thumbprint | Trace-Output
+            if ($certsToExamine) {
+                foreach ($cert in $certsToExamine) {
+                    "Examine certificate subject {0} and thumbprint {1} on {2} and remove if no longer needed" -f $cert.Subject, $cert.Thumbprint, $obj.managementAddress | Trace-Output -Level:Warning
                 }
             }
 
