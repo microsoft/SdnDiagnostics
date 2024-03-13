@@ -12,7 +12,7 @@ function Initialize-DataCollection {
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
-        [System.IO.FileInfo]$FilePath,
+        [System.IO.DirectoryInfo]$FilePath,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         [System.Int32]$MinimumGB,
