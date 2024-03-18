@@ -1,19 +1,18 @@
 param (
-    [String]$Version = $env:SdnDiagCustomBuildNumber
+    [System.IO.DirectoryInfo]$OutputDirectory = "$PSScriptRoot\..\out\build"
 )
 
 $currentErrorPref = $ErrorActionPreference
 $ErrorActionPreference = 'Stop'
 
-$outDir = "$PSScriptRoot\..\out\build"
-if (-NOT (Test-Path -Path $outDir -PathType Container)) {
-    $null = New-Item -ItemType:Directory -Path $outDir -Force
+if (-NOT (Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
+    $null = New-Item -ItemType:Directory -Path $OutputDirectory.FullName -Force
 }
 
 $folders = Get-ChildItem -Path $PSScriptRoot\..\src -Directory
 foreach ($folder in $folders) {
 
-    $outDirFolder = New-Item -Path (Join-Path -Path $outDir -ChildPath "SdnDiagnostics\$($folder.BaseName)") -ItemType Directory -Force
+    $outDirFolder = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "SdnDiagnostics\$($folder.BaseName)") -ItemType Directory -Force
     switch ($folder.Name) {
         'modules' {
             foreach ($moduleDir in (Get-ChildItem -Path "$PSScriptRoot\..\src\modules" -Directory)) {
@@ -39,7 +38,7 @@ foreach ($folder in $folders) {
                 }
             }
 
-            Copy-Item -Path "$($folder.FullName)\*.psm1" -Destination "$outDir\SdnDiagnostics\modules\"
+            Copy-Item -Path "$($folder.FullName)\*.psm1" -Destination "$($OutputDirectory.FullName)\SdnDiagnostics\modules\"
         }
         default {
             Copy-Item -Path "$($folder.FullName)\*" -Destination $outDirFolder -Recurse -Force
@@ -48,26 +47,8 @@ foreach ($folder in $folders) {
 }
 
 # copy the root files under src that are prefixed with SdnDiagnostics
-Copy-Item -Path "$PSScriptRoot\..\src\*" -Include "SdnDiagnostics.*" -Destination "$outDir\SdnDiagnostics\" -Force
+"Copying \src\SdnDiagnostics.* files to $($OutputDirectory.FullName)\SdnDiagnostics" | Write-Host
+Copy-Item -Path "$PSScriptRoot\..\src\*" -Include "SdnDiagnostics.*" -Destination "$($OutputDirectory.FullName)\SdnDiagnostics\" -Force
 
-# setting the version of the module manifest
-$modManifest = Get-Item "$outDir\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction Stop
-if (($null -ne (Get-Item -Path "$($modManifest.DirectoryName)\$($modManifest.BaseName).psm1" -ErrorAction SilentlyContinue))) {
-    try {
-        $manifest = Test-ModuleManifest -Path $modManifest.FullName
-
-        if ($manifest.Version.ToString() -ne $Version) {
-            "Updating {0} version: {1} --> {2}" -f $modManifest.BaseName, $manifest.Version.ToString(), $Version | Write-Host
-            Update-ModuleManifest -ModuleVersion $Version -Path $modManifest.FullName
-        }
-        else {
-            "`r`n{0} version does not need to be updated." -f $Version | Write-Host
-        }
-    }
-    catch {
-        "Failed to update the module manifest for $($modManifest.BaseName)`n{0}" -f $_.Exception | Write-Error
-        exit 1
-    }
-}
-
+"Successfully generated the directory module structure under $($OutputDirectory.FullName)" | Write-Host
 $ErrorActionPreference = $currentErrorPref

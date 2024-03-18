@@ -13,26 +13,8 @@ function Get-SdnRole {
         [System.Object]$EnvironmentInfo
     )
 
-    # we know Windows has some strict requirements around NetBIOS/DNS name of the computer
-    # so we can safely make some assumptions that if period (.) exists, then assume the ComputerName being passed into function
-    # is a FQDN in which case we want to split the string and assign the NetBIOS name
-    if ($ComputerName.Contains('.')) {
-        [System.String]$computerNameNetBIOS = $ComputerName.Split('.')[0]
-        [System.String]$computerNameFQDN = $ComputerName
-    }
-
-    # likewise, if no period (.) specified as part of the ComputerName we can assume we were passed a NetBIOS name of the object
-    # in which case we will try to resolve via DNS. If any failures when resolving the HostName from DNS, will catch and default to
-    # current user dns domain in best effort
-    else {
-        [System.String]$computerNameNetBIOS = $ComputerName
-        try {
-            [System.String]$computerNameFQDN = [System.Net.Dns]::GetHostByName($ComputerName).HostName
-        }
-        catch {
-            [System.String]$computerNameFQDN = "$($ComputerName).$($env:USERDNSDOMAIN)"
-        }
-    }
+    # get the NetBIOS and FQDN name of the computer
+    $result = Get-ComputerNameFQDNandNetBIOS -ComputerName $ComputerName
 
     # enumerate the objects for each of the available SDN roles to find a match
     # once match is found, return the role name as string back to calling function
@@ -42,7 +24,7 @@ function Get-SdnRole {
         }
 
         foreach ($object in $EnvironmentInfo[$role]) {
-            if ($object -ieq $computerNameNetBIOS -or $object -ieq $computerNameFQDN) {
+            if ($object -ieq $result.ComputerNameNetBIOS -or $object -ieq $result.ComputerNameFQDN) {
                 return $role.ToString()
             }
         }
