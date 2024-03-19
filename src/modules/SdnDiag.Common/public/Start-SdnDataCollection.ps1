@@ -219,8 +219,8 @@ function Start-SdnDataCollection {
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
 
         # ensure SdnDiagnostics installed across the data nodes and versions are the same
-        Install-SdnDiagnostics -ComputerName $NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Stop
+        Install-SdnDiagnostics -ComputerName $NetworkController -ErrorAction Continue
+        Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Continue
 
         # collect control plane information without regardless of roles defined
         $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
