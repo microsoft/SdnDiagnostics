@@ -47,5 +47,6 @@ function Get-SdnVfpPortState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

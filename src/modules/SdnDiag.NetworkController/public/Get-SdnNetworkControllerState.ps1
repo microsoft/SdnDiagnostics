@@ -76,5 +76,6 @@ function Get-SdnNetworkControllerState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

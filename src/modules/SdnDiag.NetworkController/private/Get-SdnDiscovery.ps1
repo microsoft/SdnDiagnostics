@@ -26,5 +26,6 @@ function Get-SdnDiscovery {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

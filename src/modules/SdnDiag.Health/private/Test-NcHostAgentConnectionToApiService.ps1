@@ -78,5 +78,6 @@ function Test-NcHostAgentConnectionToApiService {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -57,5 +57,6 @@ function Get-SdnServiceFabricNode {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

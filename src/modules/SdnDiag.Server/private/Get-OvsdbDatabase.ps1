@@ -24,5 +24,6 @@ function Get-OvsdbDatabase {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

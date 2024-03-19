@@ -61,5 +61,6 @@ function Get-OvsdbAddressMapping {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

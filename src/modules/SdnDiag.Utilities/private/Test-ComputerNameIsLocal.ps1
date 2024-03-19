@@ -33,5 +33,6 @@ function Test-ComputerNameIsLocal {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

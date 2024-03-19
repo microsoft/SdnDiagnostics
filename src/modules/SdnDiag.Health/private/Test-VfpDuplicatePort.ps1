@@ -45,5 +45,6 @@ function Test-VfpDuplicatePort {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

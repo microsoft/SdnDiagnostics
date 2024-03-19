@@ -83,5 +83,6 @@ function Get-SdnEventLog {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

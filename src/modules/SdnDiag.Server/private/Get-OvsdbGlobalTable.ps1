@@ -33,5 +33,6 @@ function Get-OvsdbGlobalTable {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
