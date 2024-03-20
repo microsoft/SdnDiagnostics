@@ -85,7 +85,8 @@ function Invoke-WebRequestWithRetry {
                 return $null
             }
             else {
-                $_ | Trace-Output -Level:Error
+                $_ | Trace-Exception
+                throw $_
             }
 
             if (($counter -le $MaxRetry) -and $Retry) {
@@ -93,6 +94,7 @@ function Invoke-WebRequestWithRetry {
                 Start-Sleep -Seconds $RetryIntervalInSeconds
             }
             else {
+                $_ | Trace-Exception
                 throw $_
             }
         }

@@ -51,54 +51,51 @@ function Get-SdnResource {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    switch ($PSCmdlet.ParameterSetName) {
+        'InstanceId' {
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
+            [System.String]$uri = "{0}/{1}" -f $uri, $InstanceId.Trim()
+        }
+        'ResourceRef' {
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
+        }
+        'Resource' {
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $Resource
+
+            if ($ResourceID) {
+                [System.String]$uri = "{0}/{1}" -f $uri, $ResourceId.Trim()
+            }
+        }
+    }
+
+    "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
+
+    # gracefully handle System.Net.WebException responses such as 404 to throw warning
+    # anything else we want to throw terminating exception and capture for debugging purposes
     try {
-        switch ($PSCmdlet.ParameterSetName) {
-            'InstanceId' {
-                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
-                [System.String]$uri = "{0}/{1}" -f $uri, $InstanceId.Trim()
-            }
-            'ResourceRef' {
-                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
-            }
-            'Resource' {
-                [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $Resource
-
-                if ($ResourceID) {
-                    [System.String]$uri = "{0}/{1}" -f $uri, $ResourceId.Trim()
-                }
-            }
-        }
-
-        "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
-
-        # gracefully handle System.Net.WebException responses such as 404 to throw warning
-        # anything else we want to throw terminating exception and capture for debugging purposes
-        try {
-            $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
-        }
-        catch [System.Net.WebException] {
+        $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
+    }
+    catch [System.Net.WebException] {
+        if ($_.Exception.Response.StatusCode -eq 404) {
             "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
             return $null
         }
-        catch {
+        else {
             throw $_
         }
-
-        # if multiple objects are returned, they will be nested under a property called value
-        # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
-        if ($result.value) {
-            return $result.value
-        }
-
-        # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
-        # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
-        elseif ($result.PSObject.Properties.Name -ieq "nextLink" -and $result.PSObject.Properties.Name.Count -eq 1) {
-            return $null
-        }
-
-        return $result
     }
-    catch {
-        "{0}`nAbsoluteUri:{1}`n{2}" -f $_.Exception, $_.TargetObject.Address.AbsoluteUri, $_.ScriptStackTrace | Trace-Output -Level:Error
+
+    # if multiple objects are returned, they will be nested under a property called value
+    # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
+    if ($result.value) {
+        return $result.value
     }
+
+    # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
+    # we need to return null instead otherwise the empty string will cause calling functions to treat the value as it contains data
+    elseif ($result.PSObject.Properties.Name -ieq "nextLink" -and $result.PSObject.Properties.Name.Count -eq 1) {
+        return $null
+    }
+
+    return $result
 }
