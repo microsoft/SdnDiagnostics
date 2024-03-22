@@ -13,7 +13,7 @@ function Invoke-RestMethodWithRetry {
         [System.String]$ContentType,
 
         [Parameter(Mandatory = $false)]
-        [System.Object] $Body,
+        [System.Object]$Body,
 
         [Parameter(Mandatory = $false)]
         [Switch] $DisableKeepAlive,
