@@ -54,5 +54,6 @@ function Start-EtwTraceSession {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

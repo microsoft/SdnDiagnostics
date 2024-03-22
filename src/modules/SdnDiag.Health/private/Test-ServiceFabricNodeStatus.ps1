@@ -36,5 +36,6 @@ function Test-ServiceFabricNodeStatus {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

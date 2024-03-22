@@ -76,16 +76,17 @@ function Get-SdnResource {
         $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
     }
     catch [System.Net.WebException] {
-        if ($_.Exception.Response.StatusCode -eq 404) {
+        if ($_.Exception.Response.StatusCode -eq 'NotFound') {
 
             # if the resource is iDNSServer configuration, we want to return null instead of throwing a warning
             # as this may be expected behavior if the iDNSServer is not configured
-            if ($Resource -like "*/iDNSServer/configuration*" -or $ResourceRef -like "*/iDNSServer/configuration*") {
+            if ($_.Exception.Response.ResponseUri.AbsoluteUri -ilike '*/idnsserver/configuration') {
                 return $null
             }
-
-            "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
-            return $null
+            else {
+                "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
+                return $null
+            }
         }
         else {
             throw $_

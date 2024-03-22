@@ -35,5 +35,6 @@ function Test-ServiceFabricApplicationHealth {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

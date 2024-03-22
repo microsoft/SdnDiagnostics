@@ -103,5 +103,6 @@ function Move-SdnServiceFabricReplica {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

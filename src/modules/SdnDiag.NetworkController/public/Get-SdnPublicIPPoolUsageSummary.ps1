@@ -85,5 +85,6 @@ function Get-SdnPublicIPPoolUsageSummary {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

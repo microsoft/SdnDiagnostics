@@ -46,5 +46,6 @@ function Export-RegistryKeyConfigDetails {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

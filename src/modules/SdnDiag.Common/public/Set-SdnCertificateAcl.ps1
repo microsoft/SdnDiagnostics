@@ -71,5 +71,6 @@ function Set-SdnCertificateAcl {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

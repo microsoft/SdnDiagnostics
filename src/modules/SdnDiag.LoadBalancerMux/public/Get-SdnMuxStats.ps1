@@ -27,5 +27,6 @@ function Get-SdnMuxStats {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
