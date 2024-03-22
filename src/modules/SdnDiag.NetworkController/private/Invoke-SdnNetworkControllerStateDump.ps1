@@ -58,6 +58,5 @@ function Invoke-SdnNetworkControllerStateDump {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

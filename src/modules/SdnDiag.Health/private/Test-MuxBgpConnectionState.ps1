@@ -71,6 +71,5 @@ function Test-MuxBgpConnectionState {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

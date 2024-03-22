@@ -88,6 +88,5 @@ function Test-NetworkControllerCertCredential {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

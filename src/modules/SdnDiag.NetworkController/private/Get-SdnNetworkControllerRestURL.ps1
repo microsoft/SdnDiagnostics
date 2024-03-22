@@ -34,6 +34,5 @@ function Get-SdnNetworkControllerRestURL {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

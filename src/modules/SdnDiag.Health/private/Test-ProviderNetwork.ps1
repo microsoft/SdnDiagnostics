@@ -74,6 +74,5 @@ function Test-ProviderNetwork {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

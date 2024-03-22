@@ -28,6 +28,5 @@ function Show-SdnVipState {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -136,6 +136,5 @@ function Install-SdnDiagnostics {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

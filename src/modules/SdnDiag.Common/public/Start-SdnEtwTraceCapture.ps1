@@ -42,6 +42,5 @@ function Start-SdnEtwTraceCapture {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

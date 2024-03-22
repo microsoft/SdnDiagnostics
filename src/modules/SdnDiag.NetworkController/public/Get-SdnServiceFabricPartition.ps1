@@ -82,6 +82,5 @@ function Get-SdnServiceFabricPartition {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

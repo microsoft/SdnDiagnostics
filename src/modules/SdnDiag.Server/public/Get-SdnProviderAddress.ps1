@@ -55,6 +55,5 @@ function Get-SdnProviderAddress {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

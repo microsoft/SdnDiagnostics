@@ -76,6 +76,5 @@ function New-SdnNetworkControllerNodeCertificate {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

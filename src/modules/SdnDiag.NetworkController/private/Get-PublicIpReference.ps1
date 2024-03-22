@@ -70,6 +70,5 @@ function Get-PublicIpReference {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

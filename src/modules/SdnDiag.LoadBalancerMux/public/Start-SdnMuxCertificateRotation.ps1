@@ -201,6 +201,5 @@ function Start-SdnMuxCertificateRotation {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

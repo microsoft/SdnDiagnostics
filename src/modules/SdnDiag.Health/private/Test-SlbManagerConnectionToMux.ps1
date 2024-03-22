@@ -78,6 +78,5 @@ function Test-SlbManagerConnectionToMux {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

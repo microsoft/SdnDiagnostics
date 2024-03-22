@@ -137,6 +137,5 @@ function Get-SdnNetAdapterRdmaConfig {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

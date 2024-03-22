@@ -149,6 +149,5 @@ function Set-SdnVMNetworkAdapterPortProfile {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

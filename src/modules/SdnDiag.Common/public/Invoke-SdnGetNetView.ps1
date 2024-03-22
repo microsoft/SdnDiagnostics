@@ -74,6 +74,5 @@ function Invoke-SdnGetNetView {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

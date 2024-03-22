@@ -43,6 +43,5 @@ function Get-OvsdbFirewallRuleTable {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

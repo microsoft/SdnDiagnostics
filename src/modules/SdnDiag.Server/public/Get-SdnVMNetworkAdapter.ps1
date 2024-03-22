@@ -60,6 +60,5 @@ function Get-SdnVMNetworkAdapter {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

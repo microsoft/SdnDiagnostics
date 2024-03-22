@@ -38,6 +38,5 @@ function Get-SdnMuxVipConfig {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

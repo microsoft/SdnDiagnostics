@@ -45,6 +45,5 @@ function Confirm-DiskSpace {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

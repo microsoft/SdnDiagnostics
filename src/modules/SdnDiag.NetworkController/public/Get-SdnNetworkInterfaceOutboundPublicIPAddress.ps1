@@ -56,6 +56,5 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

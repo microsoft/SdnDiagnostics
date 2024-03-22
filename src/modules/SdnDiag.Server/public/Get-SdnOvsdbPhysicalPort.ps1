@@ -74,6 +74,5 @@ function Get-SdnOvsdbPhysicalPort {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

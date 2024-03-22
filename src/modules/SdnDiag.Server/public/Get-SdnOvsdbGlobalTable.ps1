@@ -33,6 +33,5 @@ function Get-SdnOvsdbGlobalTable {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -58,6 +58,5 @@ function Get-SdnOvsdbFirewallRule {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -91,6 +91,5 @@ function Wait-NetworkControllerAppHealthy {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

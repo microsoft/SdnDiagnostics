@@ -37,6 +37,5 @@ function Enable-SdnRasGatewayTracing {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -31,6 +31,5 @@ function Stop-SdnNetshTrace {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -38,6 +38,5 @@ function Get-OvsdbPhysicalPortTable {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

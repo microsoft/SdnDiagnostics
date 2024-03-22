@@ -56,6 +56,5 @@ function Get-OvsdbRouterTable {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

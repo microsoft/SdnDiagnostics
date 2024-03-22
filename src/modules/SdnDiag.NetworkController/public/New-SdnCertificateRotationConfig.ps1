@@ -67,6 +67,5 @@ function New-SdnCertificateRotationConfig {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

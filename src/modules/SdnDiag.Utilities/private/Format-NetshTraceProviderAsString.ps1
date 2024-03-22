@@ -43,6 +43,5 @@ function Format-NetshTraceProviderAsString {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

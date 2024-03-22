@@ -62,6 +62,5 @@ function Test-HostRootStoreNonRootCert {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

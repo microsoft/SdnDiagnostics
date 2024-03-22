@@ -78,6 +78,5 @@ function Get-SdnNetworkControllerClusterInfo {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

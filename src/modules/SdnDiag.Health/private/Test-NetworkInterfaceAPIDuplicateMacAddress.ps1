@@ -53,6 +53,5 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -50,6 +50,5 @@ function Get-SdnNetworkController {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

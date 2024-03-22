@@ -130,6 +130,5 @@ function Start-SdnNetshTrace {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

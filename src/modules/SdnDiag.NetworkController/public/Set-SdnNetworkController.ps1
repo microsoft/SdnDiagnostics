@@ -154,7 +154,6 @@ function Set-SdnNetworkController {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
     finally {
         if ($client) {

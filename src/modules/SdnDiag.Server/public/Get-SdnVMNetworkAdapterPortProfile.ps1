@@ -74,6 +74,5 @@ function Get-SdnVMNetworkAdapterPortProfile {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -62,6 +62,5 @@ function Get-SdnNetworkControllerInfoOffline {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

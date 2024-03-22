@@ -95,6 +95,5 @@ function Get-SdnLoadBalancerMux {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

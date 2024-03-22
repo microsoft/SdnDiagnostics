@@ -30,6 +30,5 @@ function Get-FunctionFromFile {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -59,6 +59,5 @@ function Show-SdnVfpPortConfig {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

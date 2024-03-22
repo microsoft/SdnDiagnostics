@@ -95,6 +95,5 @@ function Get-SdnGateway {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

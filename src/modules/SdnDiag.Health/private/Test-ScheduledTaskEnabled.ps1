@@ -79,6 +79,5 @@ function Test-ScheduledTaskEnabled {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

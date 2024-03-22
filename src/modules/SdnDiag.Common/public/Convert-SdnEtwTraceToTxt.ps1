@@ -81,6 +81,5 @@ function Convert-SdnEtwTraceToTxt {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

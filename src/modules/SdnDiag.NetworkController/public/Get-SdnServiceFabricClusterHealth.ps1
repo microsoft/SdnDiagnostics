@@ -31,6 +31,5 @@ function Get-SdnServiceFabricClusterHealth {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

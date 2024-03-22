@@ -100,6 +100,5 @@ function Get-SdnVfpPortGroup {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

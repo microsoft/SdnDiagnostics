@@ -66,6 +66,5 @@ function Copy-ServiceFabricManifestToNetworkController {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

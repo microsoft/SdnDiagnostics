@@ -99,6 +99,5 @@ function Get-SdnServiceFabricClusterManifest {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

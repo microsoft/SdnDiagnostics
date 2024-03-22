@@ -36,6 +36,5 @@ function Get-SdnServiceFabricApplicationHealth {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

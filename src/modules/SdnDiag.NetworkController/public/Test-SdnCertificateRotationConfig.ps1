@@ -83,6 +83,5 @@ function Test-SdnCertificateRotationConfig {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -32,6 +32,5 @@ function Get-SdnMuxDistributedRouterIP {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

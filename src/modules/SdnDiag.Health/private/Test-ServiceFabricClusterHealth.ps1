@@ -35,6 +35,5 @@ function Test-ServiceFabricClusterHealth {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

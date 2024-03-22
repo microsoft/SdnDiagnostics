@@ -34,6 +34,5 @@ function Get-OvsdbUcastMacRemoteTable {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

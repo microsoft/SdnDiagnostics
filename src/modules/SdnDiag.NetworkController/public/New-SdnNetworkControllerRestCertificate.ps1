@@ -87,6 +87,5 @@ function New-SdnNetworkControllerRestCertificate {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

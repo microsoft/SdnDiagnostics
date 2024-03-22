@@ -76,7 +76,6 @@ function Get-CommonConfigState {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 
     $ProgressPreference = 'Continue'

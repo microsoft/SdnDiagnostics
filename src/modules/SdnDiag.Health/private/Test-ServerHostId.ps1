@@ -56,6 +56,5 @@ function Test-ServerHostId {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

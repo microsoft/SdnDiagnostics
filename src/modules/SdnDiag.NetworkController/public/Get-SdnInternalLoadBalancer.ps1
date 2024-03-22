@@ -128,6 +128,5 @@ function Get-SdnInternalLoadBalancer {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

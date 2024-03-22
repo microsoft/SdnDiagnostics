@@ -60,6 +60,5 @@ function Get-SdnCertificate {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

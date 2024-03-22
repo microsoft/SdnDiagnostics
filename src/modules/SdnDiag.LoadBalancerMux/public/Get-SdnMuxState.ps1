@@ -10,6 +10,5 @@ function Get-SdnMuxState {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

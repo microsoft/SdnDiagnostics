@@ -101,6 +101,5 @@ function Wait-ServiceFabricClusterHealthy {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

@@ -62,6 +62,5 @@ function Invoke-SdnResourceDump {
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
     }
 }
