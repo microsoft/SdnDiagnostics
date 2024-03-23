@@ -102,19 +102,22 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
+    $dataCollectionNodes = New-Object System.Collections.ArrayList
+    $filteredDataCollectionNodes = @()
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     $dataCollectionObject = [PSCustomObject]@{
         DurationInMinutes = $null
-        TotalSize = $null
-        OutputDirectory = $null
-        Role = $null
-        IncludeNetView = $IncludeNetView
-        IncludeLogs = $IncludeLogs
-        FromDate = $FromDate.ToString()
-        FromDateUTC = $FromDate.ToUniversalTime().ToString()
-        ToDate = $ToDate.ToString()
-        ToDateUTC = $ToDate.ToUniversalTime().ToString()
+        TotalSize         = $null
+        OutputDirectory   = $null
+        Role              = $null
+        IncludeNetView    = $IncludeNetView
+        IncludeLogs       = $IncludeLogs
+        FromDate          = $FromDate.ToString()
+        FromDateUTC       = $FromDate.ToUniversalTime().ToString()
+        ToDate            = $ToDate.ToString()
+        ToDateUTC         = $ToDate.ToUniversalTime().ToString()
+        Result            = $null
     }
 
     $collectLogSB = {
@@ -141,9 +144,6 @@ function Start-SdnDataCollection {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
-
-        $dataCollectionNodes = @()
-        $filteredDataCollectionNodes = @()
 
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
@@ -190,7 +190,7 @@ function Start-SdnDataCollection {
                         }
 
                         "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
-                        $dataCollectionNodes += $object
+                        [void]$dataCollectionNodes.Add($object)
                     }
                 }
             }
@@ -205,27 +205,63 @@ function Start-SdnDataCollection {
                         }
 
                         "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
-                        $dataCollectionNodes += $object
+                        [void]$dataCollectionNodes.Add($object)
                     }
                 }
             }
         }
 
-        if ($null -eq $dataCollectionNodes) {
+        if ($dataCollectionNodes.Count -eq 0) {
             throw New-Object System.NullReferenceException("No data nodes identified")
+        }
+
+        # once we have identified the nodes, we need to validate WinRM connectivity to the nodes
+        # if we are running on PowerShell 7 or greater, we can leverage the -Parallel parameter
+        # to speed up the process
+        # if we are running on PowerShell 5.1, we will need to run the process in serial
+        # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
+        "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
+        $nodesToRemove = New-Object System.Collections.ArrayList
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel {
+                $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
+                if (-NOT ($tncResult)) {
+                    [void]$nodesToRemove.Add($_)
+                }
+            }
+        }
+        else {
+            $dataCollectionNodes | ForEach-Object {
+                $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
+                if (-NOT ($tncResult)) {
+                    [void]$nodesToRemove.Add($_)
+                }
+            }
+        }
+
+        if ($nodesToRemove.Count -gt 0) {
+            $nodesToRemove | ForEach-Object {
+                "Removing {0} from data collection due to WinRM connectivity issues" -f $_.Name | Trace-Output -Level:Warning
+                [void]$dataCollectionNodes.Remove($_)
+            }
         }
 
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
 
         # ensure SdnDiagnostics installed across the data nodes and versions are the same
-        Install-SdnDiagnostics -ComputerName $NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Stop
+        # depending on the state of the environment though, these may result in failure
+        Install-SdnDiagnostics -ComputerName $NetworkController -ErrorAction Continue
+        Install-SdnDiagnostics -ComputerName $dataCollectionNodes.Name -ErrorAction Continue
 
-        # collect control plane information without regardless of roles defined
-        $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
-        $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
-        Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+        # ensure that the NcUrl is populated before we start collecting data
+        # in scenarios where certificate is not trusted or expired, we will not be able to collect data
+        if (-NOT ([System.String]::IsNullOrEmpty($sdnFabricDetails.NcUrl))) {
+            $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
+            $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
+            Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
+        }
+
         Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
         Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
         $debugInfraHealthResults = Get-SdnFabricInfrastructureResult
@@ -332,7 +368,7 @@ function Start-SdnDataCollection {
             }
         }
 
-        if ($diagLogNetShare) {
+        if ($diagLogNetShare -and $IncludeLogs) {
             $isNetShareMapped = New-SdnDiagNetworkMappedShare -NetworkSharePath $diagLogNetShare -Credential $Credential
             if ($isNetShareMapped) {
                 $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
@@ -387,31 +423,53 @@ function Start-SdnDataCollection {
             Copy-FileFromRemoteComputer -Path (Get-TraceOutputFile) -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
         }
 
-        # check for any failed PS remoting jobs and copy them to data collection
-        if (Test-Path -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures") {
-            Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
-        }
-
-        "Performing cleanup of {0} across the SDN fabric" -f $tempDirectory.FullName | Trace-Output
-        Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
-
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)
         $dataCollectionObject.OutputDirectory = $OutputDirectory.FullName
         $dataCollectionObject.Role = $groupedObjectsByRole.Name
-
-        # remove any completed or failed jobs
-        Remove-SdnDiagnosticJob -State @('Completed', 'Failed')
-
-        $stopwatch.Stop()
-        $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
-        $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4
-        "`Data collection completed. Logs have been saved to {0}" -f $OutputDirectory.FullName | Trace-Output -Level:Success
-        Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName
-
-        return $dataCollectionObject
+        $dataCollectionObject.Result = 'Success'
     }
     catch {
-        $stopwatch.Stop()
         $_ | Trace-Exception
+        $_ | Write-Error
+        $dataCollectionObject.Result = 'Failed'
     }
+    finally {
+        $stopWatch.Stop()
+        $dataCollectionObject.DurationInMinutes = $stopWatch.Elapsed.TotalMinutes
+
+        try {
+            "Performing post operations and cleanup of {0} across the SDN fabric" -f $tempDirectory.FullName | Trace-Output
+
+            # check for any failed PS remoting jobs and copy them to data collection
+            if (Test-Path -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures") {
+                Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
+            }
+
+            Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
+
+            # remove any completed or failed jobs
+            Remove-SdnDiagnosticJob -State @('Completed', 'Failed')
+        }
+        catch {
+            $_ | Trace-Exception
+            Write-Error -Message "An error occurred during cleanup of the SDN fabric." -Exception $_.Exception
+            $dataCollectionObject.Result = 'Failed'
+        }
+    }
+
+    $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4 -ErrorAction Continue
+    Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName -Force -ErrorAction Continue
+
+    # we will return the object to the caller regardless if the data collection was successful or not
+    $msg = "Sdn Data Collection completed with status of {0}" -f $dataCollectionObject.Result
+    switch ($dataCollectionObject.Result) {
+        'Success' {
+            $msg | Trace-Output
+        }
+        'Failed' {
+            $msg | Trace-Output -Level:Error
+        }
+    }
+
+    return $dataCollectionObject
 }
