@@ -1,7 +1,7 @@
 function New-SdnCertificateRotationConfig {
     <#
     .SYNOPSIS
-        Prepare the Network Controller Ceritifcate Rotation Configuration to determine which certificates to be used.
+        Prepare the Network Controller certificate Rotation Configuration to determine which certificates to be used.
     .PARAMETER NetworkController
         Specifies the name the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
     .PARAMETER Credential
@@ -23,6 +23,23 @@ function New-SdnCertificateRotationConfig {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $CertificateRotationConfig = @{}
+    $getNewestCertScript = {
+        param(
+            [String]
+            $certSubject
+        )
+
+        # Default to return Node Certificate
+        if ([string]::IsNullOrEmpty($certSubject)) {
+            $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
+            $certSubject = "CN=$NodeFQDN"
+        }
+
+        $cert = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $certSubject -ErrorAction Stop | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
+        return $cert.Thumbprint
+    }
+
     try {
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
             $config = Get-SdnModuleConfiguration -Role 'NetworkController'
@@ -34,30 +51,17 @@ function New-SdnCertificateRotationConfig {
         }
 
         $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -NetworkController $NetworkController -Credential $Credential
-
-        $CertificateRotationConfig = @{}
         $CertificateRotationConfig["ClusterCredentialType"] = $NcInfraInfo.ClusterCredentialType
-        $getNewestCertScript = {
-            param(
-                [String]
-                $certSubject
-            )
-
-            # Default to return Node Certificate
-            if ([string]::IsNullOrEmpty($certSubject)) {
-                $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-                $certSubject = "CN=$NodeFQDN"
-            }
-
-            Write-Verbose "Looking for cert match $certSubject"
-            $cert = Get-ChildItem -Path Cert:\LocalMachine\My | ? { $_.Subject -ieq $certSubject } | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
-            return $cert.Thumbprint
+        $restCert = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
+        if ($null -eq $restCert) {
+            throw New-Object System.NullReferenceException("Unable to locate the REST certificate for Network Controller")
         }
-        $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
+
+        $CertificateRotationConfig["NcRestCert"] = $restCert
 
         if($NcInfraInfo.ClusterCredentialType -eq "X509"){
             foreach ($ncNode in $($NcInfraInfo.NodeList)) {
-                Trace-Output "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
+                Trace-Output -Message "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
                 $ncNodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
                 $CertificateRotationConfig[$ncNode.NodeName.ToLower()] = $ncNodeCert
             }
