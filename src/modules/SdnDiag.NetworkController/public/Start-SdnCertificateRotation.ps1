@@ -178,7 +178,7 @@ function Start-SdnCertificateRotation {
             "== STAGE: CREATE SELF SIGNED CERTIFICATES ==" | Trace-Output
 
             $newSelfSignedCert = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
-            -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
+            -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails -ErrorAction Stop
 
             $selfSignedRestCertFile = $newSelfSignedCert.FileInfo
 
