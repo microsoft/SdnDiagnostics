@@ -102,7 +102,7 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
-    $dataCollectionNodes = New-Object System.Collections.ArrayList
+    $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
     $filteredDataCollectionNodes = @()
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
@@ -221,22 +221,20 @@ function Start-SdnDataCollection {
         # if we are running on PowerShell 5.1, we will need to run the process in serial
         # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
         "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
-        $nodesToRemove = New-Object System.Collections.ArrayList
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel {
-                $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
-                if (-NOT ($tncResult)) {
-                    [void]$nodesToRemove.Add($_)
-                }
+
+        $nodesToRemove = [System.Collections.ArrayList]::new()
+        $tncScriptBlock = {
+            $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
+            if (-NOT ($tncResult)) {
+                [void]$nodesToRemove.Add($_)
             }
         }
+
+        if ($PSVersionTable.PSVersion.Major -ge 7) {
+            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel $tncScriptBlock
+        }
         else {
-            $dataCollectionNodes | ForEach-Object {
-                $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
-                if (-NOT ($tncResult)) {
-                    [void]$nodesToRemove.Add($_)
-                }
-            }
+            $dataCollectionNodes | ForEach-Object $tncScriptBlock
         }
 
         if ($nodesToRemove.Count -gt 0) {
