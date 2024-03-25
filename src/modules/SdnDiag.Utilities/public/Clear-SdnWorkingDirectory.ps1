@@ -97,5 +97,6 @@ function Clear-SdnWorkingDirectory {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

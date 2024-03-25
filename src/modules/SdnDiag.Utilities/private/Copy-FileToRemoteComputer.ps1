@@ -77,5 +77,6 @@ function Copy-FileToRemoteComputer {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

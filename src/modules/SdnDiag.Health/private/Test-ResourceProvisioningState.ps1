@@ -65,5 +65,6 @@ function Test-ResourceProvisioningState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

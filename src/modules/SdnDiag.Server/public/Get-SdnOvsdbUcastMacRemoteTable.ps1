@@ -33,5 +33,6 @@ function Get-SdnOvsdbUcastMacRemoteTable {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -75,5 +75,6 @@ function Get-TraceProviders {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

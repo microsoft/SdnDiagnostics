@@ -68,5 +68,6 @@ function Get-SdnVfpPortRule {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

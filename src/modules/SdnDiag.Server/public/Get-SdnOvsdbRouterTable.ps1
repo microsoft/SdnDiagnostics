@@ -33,5 +33,6 @@ function Get-SdnOvsdbRouterTable {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -200,5 +200,6 @@ function Start-SdnServerCertificateRotation {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

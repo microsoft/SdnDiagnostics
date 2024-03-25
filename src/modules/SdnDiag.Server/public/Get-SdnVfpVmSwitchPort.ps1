@@ -77,5 +77,6 @@ function Get-SdnVfpVmSwitchPort {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

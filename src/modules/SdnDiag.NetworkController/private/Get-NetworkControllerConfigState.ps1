@@ -43,6 +43,7 @@ function Get-NetworkControllerConfigState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 
     $ProgressPreference = 'Continue'

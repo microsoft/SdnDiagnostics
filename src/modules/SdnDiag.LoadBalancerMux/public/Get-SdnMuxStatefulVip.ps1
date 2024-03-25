@@ -32,5 +32,6 @@ function Get-SdnMuxStatefulVip {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

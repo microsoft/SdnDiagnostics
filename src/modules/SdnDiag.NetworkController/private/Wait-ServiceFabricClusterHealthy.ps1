@@ -50,7 +50,7 @@ function Wait-ServiceFabricClusterHealthy {
             } -ArgumentList $Restart
         }
 
-        Trace-Output "Sleeping 60s to wait for Serice Fabric Service to be ready"
+        Trace-Output -Message "Sleeping 60s to wait for Serice Fabric Service to be ready"
         Start-Sleep -Seconds 60
         "Waiting for service fabric service healthy" | Trace-Output
         $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
@@ -101,5 +101,6 @@ function Wait-ServiceFabricClusterHealthy {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -90,5 +90,6 @@ function Get-SdnServer {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

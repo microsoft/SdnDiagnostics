@@ -74,6 +74,7 @@ function Get-GatewayConfigState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 
     $ProgressPreference = 'Continue'

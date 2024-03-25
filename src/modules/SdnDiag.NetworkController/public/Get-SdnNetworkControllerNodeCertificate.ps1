@@ -35,5 +35,6 @@ function Get-SdnNetworkControllerNodeCertificate {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -27,5 +27,6 @@ function Stop-EtwTraceSession {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

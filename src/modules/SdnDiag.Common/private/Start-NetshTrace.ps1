@@ -109,5 +109,6 @@ function Start-NetshTrace {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

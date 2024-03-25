@@ -50,5 +50,6 @@ function New-SdnCertificate {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -87,5 +87,6 @@ function Test-ServiceFabricPartitionDatabaseSize {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

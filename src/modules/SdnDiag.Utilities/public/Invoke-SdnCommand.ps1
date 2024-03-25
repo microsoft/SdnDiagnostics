@@ -28,5 +28,6 @@ function Invoke-SdnCommand {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

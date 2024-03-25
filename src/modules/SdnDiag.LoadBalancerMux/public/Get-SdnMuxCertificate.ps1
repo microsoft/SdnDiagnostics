@@ -15,5 +15,6 @@ function Get-SdnMuxCertificate {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

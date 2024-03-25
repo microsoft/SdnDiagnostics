@@ -45,6 +45,7 @@ function Get-SlbMuxConfigState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 
     $ProgressPreference = 'Continue'

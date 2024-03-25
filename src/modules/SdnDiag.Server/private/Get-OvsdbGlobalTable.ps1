@@ -6,32 +6,27 @@ function Get-OvsdbGlobalTable {
         PS> Get-OvsdbGlobalTable
     #>
 
-    try {
-        $arrayList = [System.Collections.ArrayList]::new()
+    $arrayList = [System.Collections.ArrayList]::new()
 
-        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-        $globalTable = $ovsdbResults | Where-Object { $_.caption -eq 'Global table' }
+    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+    $globalTable = $ovsdbResults | Where-Object { $_.caption -eq 'Global table' }
 
-        if ($null -eq $globalTable) {
-            return $null
+    if ($null -eq $globalTable) {
+        return $null
+    }
+
+    # enumerate the json results and add to psobject
+    foreach ($obj in $globalTable.data) {
+        $result = [OvsdbGlobalTable]@{
+            uuid     = $obj[0][1]
+            CurrentConfig  = $obj[1]
+            NextConfig = $obj[4]
+            Switches = $obj[6][1]
         }
 
-        # enumerate the json results and add to psobject
-        foreach ($obj in $globalTable.data) {
-            $result = [OvsdbGlobalTable]@{
-                uuid     = $obj[0][1]
-                CurrentConfig  = $obj[1]
-                NextConfig = $obj[4]
-                Switches = $obj[6][1]
-            }
-
-            # add the psobject to array
-            [void]$arrayList.Add($result)
-        }
-
-        return $arrayList
+        # add the psobject to array
+        [void]$arrayList.Add($result)
     }
-    catch {
-        $_ | Trace-Exception
-    }
+
+    return $arrayList
 }

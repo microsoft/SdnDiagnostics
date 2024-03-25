@@ -42,7 +42,7 @@ function Update-NetworkControllerCertificateInManifest {
     $clusterManifestXml = [xml](Get-Content "$ManifestFolder\ClusterManifest.current.xml")
 
     if ($null -eq $clusterManifestXml) {
-        Trace-Output "ClusterManifest not found at $ManifestFolder\ClusterManifest.current.xml" -Level:Error
+        Trace-Output -Message "ClusterManifest not found at $ManifestFolder\ClusterManifest.current.xml" -Level:Error
         throw
     }
 
@@ -60,7 +60,7 @@ function Update-NetworkControllerCertificateInManifest {
 
     # Update SecretsCertificate to new REST Cert
 
-    Trace-Output "Updating SecretsCertificate with new rest cert thumbprint $NcRestCertThumbprint"
+    Trace-Output -Message "Updating SecretsCertificate with new rest cert thumbprint $NcRestCertThumbprint"
     $clusterManifestXml.ClusterManifest.Certificates.SecretsCertificate.X509FindValue = "$NcRestCertThumbprint"
 
     $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"

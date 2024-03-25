@@ -59,5 +59,6 @@ function Test-SdnProviderAddressConnectivity {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

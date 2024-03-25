@@ -44,5 +44,6 @@ function Test-VMNetAdapterDuplicateMacAddress {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

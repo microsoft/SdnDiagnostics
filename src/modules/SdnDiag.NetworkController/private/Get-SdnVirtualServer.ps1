@@ -45,5 +45,6 @@ function Get-SdnVirtualServer {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

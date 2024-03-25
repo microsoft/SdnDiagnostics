@@ -36,5 +36,6 @@ function Stop-NetshTrace {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

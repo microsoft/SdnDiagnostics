@@ -78,5 +78,6 @@ function Test-NcUrlNameResolution {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -43,5 +43,6 @@ function Update-NetworkControllerCertificateAcl {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
