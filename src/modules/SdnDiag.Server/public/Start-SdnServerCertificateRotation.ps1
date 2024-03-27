@@ -108,8 +108,8 @@ function Start-SdnServerCertificateRotation {
         $servers = Get-SdnServer -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -Credential $Credential -ErrorAction Stop
 
         #####################################
         #
