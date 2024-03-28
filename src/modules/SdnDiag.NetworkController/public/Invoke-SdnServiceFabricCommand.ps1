@@ -72,7 +72,7 @@ function Invoke-SdnServiceFabricCommand {
             }
             catch {
                 "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Error
-                "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
+                "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Verbose
                 Get-PSSession -Id $session.Id | Remove-PSSession
             }
         }
