@@ -123,7 +123,7 @@ function Start-SdnServerCertificateRotation {
             # retrieve the corresponding managementAddress from each of the server resources
             # and invoke remote operation to the server to generate the self-signed certificate
             foreach ($server in $servers) {
-                $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate"}
+                $serverConnection = $server.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
                 $managementAddress = $serverConnection.managementAddresses[0]
 
                 $serverCert = Invoke-PSRemoteCommand -ComputerName $managementAddress -Credential $Credential -ScriptBlock {
