@@ -111,9 +111,13 @@ function Start-SdnCertificateRotation {
 
         # Get the current rest certificate to determine if it is expired scenario or not.
         $currentRestCert = Get-SdnNetworkControllerRestCertificate
-
         $restCertExpired = (Get-Date) -gt $($currentRestCert.NotAfter)
-        $ncHealthy = $true
+        if ($restCertExpired) {
+            $ncHealthy = $false
+        }
+        else {
+            $ncHealthy = $true
+        }
 
         if (!$restCertExpired) {
             try {
