@@ -124,7 +124,7 @@ function Start-SdnMuxCertificateRotation {
             # and invoke remote operation to the mux to generate the self-signed certificate that matches the managementAddress for x509 credentials
             foreach ($muxResource in $loadBalancerMuxes) {
                 $virtualServer = Get-SdnResource -NcUri $sdnFabricDetails.NcUrl -ResourceRef $muxResource.properties.virtualServer.resourceRef
-                $virtualServerConnection = $virtualServer.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate"}
+                $virtualServerConnection = $virtualServer.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
                 $managementAddress = $virtualServerConnection.managementAddresses[0]
 
                 $muxCert = Invoke-PSRemoteCommand -ComputerName $managementAddress -Credential $Credential -ScriptBlock {

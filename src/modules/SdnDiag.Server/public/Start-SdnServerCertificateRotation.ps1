@@ -107,9 +107,9 @@ function Start-SdnServerCertificateRotation {
         $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential -ErrorAction Stop
         $servers = Get-SdnServer -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ErrorAction Stop
 
-        # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
+        # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -Credential $Credential -ErrorAction Stop
 
         #####################################
         #
@@ -123,7 +123,7 @@ function Start-SdnServerCertificateRotation {
             # retrieve the corresponding managementAddress from each of the server resources
             # and invoke remote operation to the server to generate the self-signed certificate
             foreach ($server in $servers) {
-                $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate"}
+                $serverConnection = $server.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
                 $managementAddress = $serverConnection.managementAddresses[0]
 
                 $serverCert = Invoke-PSRemoteCommand -ComputerName $managementAddress -Credential $Credential -ScriptBlock {
