@@ -11,7 +11,7 @@ function Trace-Output {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Message')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
-        [System.String]$FunctionName = (Get-PSCallStack)[1].Command,
+        [System.String]$FunctionName = (Get-PSCallStack)[0].Command,
 
         [parameter(Mandatory = $true, ParameterSetName = 'Exception')]
         $Exception
