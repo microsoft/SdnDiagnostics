@@ -28,15 +28,29 @@ function Copy-ServiceFabricManifestToNetworkController {
             return
         }
         Trace-Output -Message "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
+        Trace-Output -Message "Stopping Service Fabric Service on Network Controller VMs."
 
-        Trace-Output -Message "Stopping Service Fabric Service"
-        foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
-            Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock {
-                Write-Host "[$(HostName)] Stopping Service Fabric Service"
-                Stop-Service FabricHostSvc -Force
+        # stop service fabric service
+        $stopSfService = Invoke-PSRemoteCommand -ComputerName $NcNodeList.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+            Stop-Service -Name 'FabricHostSvc' -Force -ErrorAction Ignore 3>$null # redirect warning to null
+            if ((Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore).Status -eq 'Stopped') {
+                return $true
+            }
+            else {
+                return $false
+            }
+        } -AsJob -PassThru -Activity 'Stopping Service Fabric Service on Network Controller' -ExecutionTimeOut 900
+
+        # enumerate the results of stopping service fabric service
+        # if any of the service fabric service is not stopped, throw an exception as we do not want to proceed further
+        $stopSfService | ForEach-Object {
+            if ($_) {
+                "Service Fabric Service stopped on {0}" -f $_.PSComputerName | Trace-Output
+            }
+            else {
+                throw "Failed to stop Service Fabric Service on $($_.PSComputerName)"
             }
         }
-
 
         $NcNodeList | ForEach-Object {
             $fabricFolder = "$env:ProgramData\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
