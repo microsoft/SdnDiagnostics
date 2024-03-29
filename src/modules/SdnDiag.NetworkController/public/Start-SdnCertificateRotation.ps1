@@ -251,8 +251,9 @@ function Start-SdnCertificateRotation {
             foreach ($node in $NcInfraInfo.NodeList) {
                 $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
                 $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
-                    Get-SdnNetworkControllerNodeCertificate
-                }
+                    param([Parameter(Position = 0)][string]$param1)
+                    Get-SdnNetworkControllerNodeCertificate -Name $param1
+                } -ArgumentList @($node.NodeName)
 
                 $newNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
                     param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)

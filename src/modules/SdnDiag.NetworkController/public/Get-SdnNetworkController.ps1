@@ -35,14 +35,26 @@ function Get-SdnNetworkController {
 
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+                # check if service fabric service is running otherwise this command will hang
+                if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+                    throw "Service Fabric Service is not running on $NetworkController"
+                }
+
                 $result = Get-NetworkController
             }
             else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
+                    # check if service fabric service is running otherwise this command will hang
+                    if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+                        throw "Service Fabric Service is not running on $NetworkController"
+                    }
+
+                    Get-NetworkController
+                } -ErrorAction Stop
             }
         }
         catch {
-            "Get-NetworkController failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Error
+            "Get-NetworkController failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Error
             $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
         }
 
