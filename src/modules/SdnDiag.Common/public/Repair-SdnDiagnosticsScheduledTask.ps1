@@ -37,5 +37,6 @@ function Repair-SdnDiagnosticsScheduledTask {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

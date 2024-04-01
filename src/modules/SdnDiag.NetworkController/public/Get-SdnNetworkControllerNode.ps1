@@ -87,5 +87,6 @@ function Get-SdnNetworkControllerNode {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

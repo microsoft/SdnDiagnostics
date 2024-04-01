@@ -63,5 +63,6 @@ function Test-EncapOverhead {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -22,5 +22,5 @@ function Trace-Exception {
         $Exception
     )
 
-    Trace-Output -Level:Error -Message $Exception.Exception.Message -Exception $Exception
+    Trace-Output -Exception $Exception -FunctionName (Get-PSCallStack)[1].Command -Level 'Exception'
 }

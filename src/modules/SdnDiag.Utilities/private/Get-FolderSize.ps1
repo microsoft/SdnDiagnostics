@@ -63,5 +63,6 @@ function Get-FolderSize {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

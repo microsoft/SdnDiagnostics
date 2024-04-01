@@ -80,19 +80,12 @@ function Invoke-WebRequestWithRetry {
             break
         }
         catch {
-            if ($_.Exception.Response.StatusCode -eq "NotFound") {
-                "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Trace-Output -Level:Warning
-                return $null
-            }
-            else {
-                $_ | Trace-Output -Level:Error
-            }
-
             if (($counter -le $MaxRetry) -and $Retry) {
                 "Retrying operation in {0} seconds. Retry count: {1}." - $RetryIntervalInSeconds, $counter | Trace-Output
                 Start-Sleep -Seconds $RetryIntervalInSeconds
             }
             else {
+                $_ | Trace-Exception
                 throw $_
             }
         }

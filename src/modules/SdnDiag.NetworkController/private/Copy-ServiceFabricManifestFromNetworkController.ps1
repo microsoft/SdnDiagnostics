@@ -29,10 +29,10 @@ function Copy-ServiceFabricManifestFromNetworkController {
 
     try {
         if ($NcNodeList.Count -eq 0) {
-            Trace-Output "No NC Node found" -Level:Error
+            Trace-Output -Message "No NC Node found" -Level:Error
             return
         }
-        Trace-Output "Copying Manifest files from $($NcNodeList.IpAddressOrFQDN)" -Level:Verbose
+        Trace-Output -Message "Copying Manifest files from $($NcNodeList.IpAddressOrFQDN)" -Level:Verbose
 
         New-Item -Path $ManifestFolder -ItemType Directory -Force | Out-Null
         New-Item -Path $ManifestFolderNew -ItemType Directory -Force | Out-Null
@@ -62,5 +62,6 @@ function Copy-ServiceFabricManifestFromNetworkController {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

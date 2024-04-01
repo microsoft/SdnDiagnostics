@@ -57,7 +57,7 @@ function New-SdnCertificateRotationConfig {
 
         if($NcInfraInfo.ClusterCredentialType -eq "X509"){
             foreach ($ncNode in $($NcInfraInfo.NodeList)) {
-                Trace-Output "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
+                Trace-Output -Message "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
                 $ncNodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
                 $CertificateRotationConfig[$ncNode.NodeName.ToLower()] = $ncNodeCert
             }
@@ -67,5 +67,6 @@ function New-SdnCertificateRotationConfig {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

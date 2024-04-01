@@ -71,5 +71,6 @@ function New-SdnMuxCertificate {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -84,5 +84,6 @@ function Wait-PSJob {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

@@ -53,5 +53,6 @@ function Test-ServiceState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
