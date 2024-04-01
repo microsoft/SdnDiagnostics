@@ -18,70 +18,63 @@ function Get-SdnServiceFabricService {
         PS> Get-SdnServiceFabricService -NetworkController 'Prefix-NC01' -Credential (Get-Credential) -ServiceTypeName 'ApiService'
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'NamedService')]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param(
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedServiceTypeName')]
         [System.String]$ApplicationName = 'fabric:/NetworkController',
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'NamedService')]
         [System.String]$ServiceName,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'NamedServiceTypeName')]
         [System.String]$ServiceTypeName,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
-        [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedService')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'NamedServiceTypeName')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $sfParams = @{
+        NetworkController = $NetworkController
+        Credential = $Credential
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'NamedService' {
+            $sfParams.Add('ArgumentList',@($ApplicationName, $ServiceName))
+            $sb = {
+                param([string]$param1, [string]$param2)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceName $param2
+            }
+        }
+        'NamedServiceTypeName' {
+            $sfParams.Add('ArgumentList',@($ApplicationName, $ServiceTypeName))
+            $sb = {
+                param([string]$param1, [string]$param2)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceTypeName $param2
+            }
+        }
+        default {
+            $sfParams.Add('ArgumentList',@($ApplicationName))
+            $sb = {
+                param([string]$param1)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService
+            }
+        }
+    }
+
     try {
-        switch ($PSCmdlet.ParameterSetName) {
-            'NamedService' {
-                if ($ServiceName) {
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName
-                    }
-                }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService
-                    }
-                }
-            }
-
-            'NamedServiceTypeName' {
-                if ($ServiceTypeName) {
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName
-                    }
-                }
-                else {
-                    $sb = {
-                        Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService
-                    }
-                }
-            }
-
-            default {
-                $sb = {
-                    Get-ServiceFabricApplication | Get-ServiceFabricService
-                }
-            }
-        }
-
-        if ($NetworkController) {
-            Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
-        }
-        else {
-            Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential
-        }
+        Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb
     }
     catch {
         $_ | Trace-Exception

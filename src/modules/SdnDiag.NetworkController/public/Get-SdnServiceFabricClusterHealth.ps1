@@ -13,7 +13,7 @@ function Get-SdnServiceFabricClusterHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -22,12 +22,7 @@ function Get-SdnServiceFabricClusterHealth {
     )
 
     try {
-        if ($NetworkController) {
-            Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricClusterHealth } -Credential $Credential
-        }
-        else {
-            Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterHealth } -Credential $Credential
-        }
+        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock { Get-ServiceFabricClusterHealth }
     }
     catch {
         $_ | Trace-Exception

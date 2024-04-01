@@ -73,11 +73,6 @@ function Start-SdnCertificateRotation {
     # add disclaimer that this feature is currently under preview
     if (!$Force) {
         "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues and help unblock your cert rotation." | Trace-Output -Level:Warning
-        $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? [Y/N]:"
-        if (-NOT $confirm) {
-            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-            return
-        }
     }
 
     try {
@@ -121,6 +116,7 @@ function Start-SdnCertificateRotation {
 
         if (!$restCertExpired) {
             try {
+                "Calling Get-NetworkController to determine if the Network Controller is healthy. Please wait..." | Trace-Output
                 $null = Get-NetworkController
             }
             catch {
@@ -240,12 +236,12 @@ function Start-SdnCertificateRotation {
             throw New-Object System.NotSupportedException("Unable to validate certificate configuration")
         }
 
-        $updatedRestCertificate = Get-ChildItem -Path Cert:\LocalMachine\My | Where-Object { $_.Subject -ieq $currentRestCert.Subject } `
+        $updatedRestCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $currentRestCert.Subject `
         | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
 
-        "Network Controller Rest Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+        "Network Controller Rest Certificate {0} will be updated:`n`tExisting: [Thumbprint:{1} NotAfter:{2}]`n`tNew: [Thumbprint:{3} NotAfter:{4}]" `
             -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $currentRestCert.NotAfter, $CertRotateConfig["NcRestCert"], $updatedRestCertificate.NotAfter `
-        | Trace-Output -Level:Warning
+        | Trace-Output
 
         if ($rotateNCNodeCerts) {
             foreach ($node in $NcInfraInfo.NodeList) {
@@ -260,9 +256,9 @@ function Start-SdnCertificateRotation {
                     Get-SdnCertificate -Path $param1 -Thumbprint $param2
                 } -ArgumentList @('Cert:\LocalMachine\My', $nodeCertThumbprint)
 
-                "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+                "Network Controller Node Certificate {0} will be updated:`n`tExisting: [Thumbprint:{1} NotAfter:{2}]`n`tNew: [Thumbprint:{3} NotAfter:{4}]" `
                     -f $currentNodeCert.Subject, $currentNodeCert.Thumbprint, $currentNodeCert.NotAfter, `
-                    $newNodeCert.Thumbprint, $newNodeCert.NotAfter | Trace-Output -Level:Warning
+                    $newNodeCert.Thumbprint, $newNodeCert.NotAfter | Trace-Output
             }
         }
 
@@ -400,7 +396,7 @@ function Start-SdnCertificateRotation {
             Get-Process -Name 'SDNSLBM' | Stop-Process -Force -ErrorAction Continue
         }
 
-        "Certificate rotation has completed" | Trace-Output
+        "Certificate rotation has completed. Please cleanup old certificates manually." | Trace-Output
     }
     catch {
         $_ | Trace-Exception

@@ -15,7 +15,7 @@ function Get-SdnServiceFabricApplicationHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false)]
         [String]$ApplicationName = 'fabric:/NetworkController',
@@ -26,13 +26,13 @@ function Get-SdnServiceFabricApplicationHealth {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $sb = {
+        param([string]$param1)
+        Get-ServiceFabricApplicationHealth -ApplicationName $param1
+    }
+
     try {
-        if ($NetworkController) {
-            Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricApplicationHealth -ApplicationName $using:ApplicationName } -Credential $Credential
-        }
-        else {
-            Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricApplicationHealth -ApplicationName $using:ApplicationName } -Credential $Credential
-        }
+        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock $sb -ArgumentList @($ApplicationName)
     }
     catch {
         $_ | Trace-Exception

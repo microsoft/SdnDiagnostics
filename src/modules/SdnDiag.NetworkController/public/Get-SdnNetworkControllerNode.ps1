@@ -31,8 +31,25 @@ function Get-SdnNetworkControllerNode {
         [switch]$ServerNameOnly
     )
 
+    if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
+        $config = Get-SdnModuleConfiguration -Role 'NetworkController'
+        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+        if (-NOT ($confirmFeatures)) {
+            "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
+            return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
+        }
+    }
+
+    $params = @{
+        NetworkController = $NetworkController
+        Credential = $Credential
+    }
+    if ($Name) {
+        $params.Add('Name', $Name)
+    }
+
     $sb = {
-        param([Parameter(Position = 0)][String]$param1)
+        param([String]$param1)
         # check if service fabric service is running otherwise this command will hang
         if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
             throw "Service Fabric Service is not running on $NetworkController"
@@ -47,23 +64,18 @@ function Get-SdnNetworkControllerNode {
     }
 
     try {
-
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
-        }
-
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
                 # check if service fabric service is running otherwise this command will hang
                 if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
                     throw "Service Fabric Service is not running on $NetworkController"
                 }
-                $result = Get-NetworkControllerNode -Name $Name -ErrorAction Stop
+                if ($Name) {
+                    $result = Get-NetworkControllerNode -Name $Name -ErrorAction Stop
+                }
+                else {
+                    $result = Get-NetworkControllerNode -ErrorAction Stop
+                }
             }
             else {
                 if ($Name) {
@@ -92,14 +104,6 @@ function Get-SdnNetworkControllerNode {
         }
         catch {
             "Get-NetworkControllerNode failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Error
-            $params = @{
-                NetworkController = $NetworkController
-                Credential = $Credential
-            }
-            if ($Name) {
-                $params.Add('Name', $Name)
-            }
-
             $result = Get-NetworkControllerNodeInfoFromClusterManifest @params
         }
 
@@ -109,7 +113,6 @@ function Get-SdnNetworkControllerNode {
         else {
             return $result
         }
-
     }
     catch {
         $_ | Trace-Exception

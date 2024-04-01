@@ -4,15 +4,28 @@ function Get-SdnNetworkControllerNodeCertificate {
         Returns the current Network Controller node certificate
     .PARAMETER Name
         Specifies the friendly name of the node for the network controller. If not provided, settings are retrieved for all nodes in the deployment.
+    .PARAMETER NetworkController
+        Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
     [CmdletBinding()]
     param(
-        [string]$Name = $env:COMPUTERNAME
+        [Parameter(Mandatory = $false)]
+        [string]$Name = $env:COMPUTERNAME,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$NetworkController = $env:COMPUTERNAME,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        $networkControllerNode = Get-SdnNetworkControllerNode -Name $Name
+        $networkControllerNode = Get-SdnNetworkControllerNode -Name $Name -NetworkController $NetworkController -Credential $Credential
 
         # check to see if FindCertificateBy property exists as this was added in later builds
         # else if does not exist, default to Thumbprint for certificate

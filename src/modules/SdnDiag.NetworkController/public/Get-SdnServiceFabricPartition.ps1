@@ -38,7 +38,7 @@ function Get-SdnServiceFabricPartition {
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'PartitionID')]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String]$NetworkController,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -48,37 +48,38 @@ function Get-SdnServiceFabricPartition {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $sfParams = @{
+        Credential  = $Credential
+        NetworkController = $NetworkController
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'NamedService' {
+            $sfParams.Add('ArgumentList',@($ApplicationName, $ServiceName))
+            $sb = {
+                param([string]$param1, [string]$param2)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceName $param2 | Get-ServiceFabricPartition
+            }
+        }
+
+        'NamedServiceTypeName' {
+            $sfParams.Add('ArgumentList',@($ApplicationName, $ServiceTypeName))
+            $sb = {
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceTypeName $param2 | Get-ServiceFabricPartition
+            }
+        }
+
+        'PartitionID' {
+            $sfParams.Add('ArgumentList',@($PartitionId))
+            $sb = {
+                param([Guid]$param1)
+                Get-ServiceFabricPartition -PartitionId $param1
+            }
+        }
+    }
+
     try {
-        switch ($PSCmdlet.ParameterSetName) {
-            'NamedService' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName | Get-ServiceFabricPartition
-                }
-            }
-
-            'NamedServiceTypeName' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName | Get-ServiceFabricPartition
-                }
-            }
-
-            'PartitionID' {
-                $sb = {
-                    Get-ServiceFabricPartition -PartitionId $using:PartitionId
-                }
-            }
-
-            default {
-                # no default
-            }
-        }
-
-        if ($NetworkController) {
-            return (Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential)
-        }
-        else {
-            return (Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential)
-        }
+        Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb
     }
     catch {
         $_ | Trace-Exception
