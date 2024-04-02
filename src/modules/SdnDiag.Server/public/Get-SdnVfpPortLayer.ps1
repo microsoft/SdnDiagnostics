@@ -57,5 +57,6 @@ function Get-SdnVfpPortLayer {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

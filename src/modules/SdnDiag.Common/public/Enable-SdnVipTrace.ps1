@@ -165,5 +165,6 @@ function Enable-SdnVipTrace {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

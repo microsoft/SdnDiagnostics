@@ -89,5 +89,6 @@ function Get-SdnSlbStateInformation {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

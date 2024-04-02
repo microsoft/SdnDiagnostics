@@ -102,6 +102,7 @@ function Get-ServerConfigState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 
     $ProgressPreference = 'Continue'
