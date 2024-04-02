@@ -117,5 +117,6 @@ function Test-ResourceConfigurationState {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

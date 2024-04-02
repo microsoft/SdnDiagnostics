@@ -67,5 +67,6 @@ function Test-Ping {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

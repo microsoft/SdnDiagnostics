@@ -29,5 +29,6 @@ function Stop-SdnEtwTraceCapture {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
