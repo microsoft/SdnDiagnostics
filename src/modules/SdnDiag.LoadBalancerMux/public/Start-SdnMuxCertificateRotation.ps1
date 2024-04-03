@@ -186,9 +186,12 @@ function Start-SdnMuxCertificateRotation {
             } -ArgumentList $obj.Certificate
 
             if ($certsToExamine) {
+                "`nMultiple certificates detected for Subject: {0}. Examine the certificates and cleanup if no longer needed." -f $cert.Subject | Trace-Output -Level:Warning
                 foreach ($cert in $certsToExamine) {
-                    "Examine certificate subject {0} and thumbprint {1} on {2} and remove if no longer needed" -f $cert.Subject, $cert.Thumbprint, $obj.managementAddress | Trace-Output -Level:Warning
+                    "`t[{0}] Thumbprint: {1}" -f $cert.PSComputerName, $cert.Thumbprint | Trace-Output -Level:Warning
                 }
+
+                Write-Host "" # insert empty line for better readability
             }
 
             # restart the slb mux service on the mux
