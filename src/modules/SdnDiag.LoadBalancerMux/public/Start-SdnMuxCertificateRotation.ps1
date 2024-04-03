@@ -160,7 +160,7 @@ function Start-SdnMuxCertificateRotation {
             else {
                 # in instances where the certificate property does not exist, we will need to add it
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
-                $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding
+                $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
             }
             $jsonBody = $virtualServer | ConvertTo-Json -Depth 100
 
