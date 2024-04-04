@@ -20,7 +20,7 @@ function New-SdnNetworkControllerRestCertificate {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC),
+        [System.String]$Path = "$(Get-WorkingDirectory)\NcRest_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
         [System.Object]$FabricDetails,
@@ -61,18 +61,18 @@ function New-SdnNetworkControllerRestCertificate {
 
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
             "Creating directory {0}" -f $Path | Trace-Output
-            $CertPath = New-Item -Path $Path -ItemType Directory -Force
+            $certPath = New-Item -Path $Path -ItemType Directory -Force
         }
         else {
-            $CertPath = Get-Item -Path $Path
+            $certPath = Get-Item -Path $Path
         }
 
         [System.String]$formattedSubject = "CN={0}" -f $RestName.Trim()
-        $certificate = New-SdnCertificate -Subject $formattedSubject -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $formattedSubject -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
         # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
-        [System.String]$pfxFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $RestName.ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
+        [System.String]$pfxFilePath = "$(Join-Path -Path $certPath.FullName -ChildPath $RestName.ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
         "Exporting pfx certificate to {0}" -f $pfxFilePath | Trace-Output
         $exportedCertificate = Export-PfxCertificate -Cert $certificate -FilePath $pfxFilePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
         $null = Import-SdnCertificate -FilePath $exportedCertificate.FullName -CertStore 'Cert:\LocalMachine\Root' -CertPassword $CertPassword
@@ -89,4 +89,6 @@ function New-SdnNetworkControllerRestCertificate {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    return $null
 }
