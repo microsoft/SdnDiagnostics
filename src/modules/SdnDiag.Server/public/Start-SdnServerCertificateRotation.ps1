@@ -159,7 +159,7 @@ function Start-SdnServerCertificateRotation {
             else {
                 # in instances where the certificate property does not exist, we will need to add it
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
-                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding
+                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
             }
             $jsonBody = $server | ConvertTo-Json -Depth 100
 
@@ -185,9 +185,12 @@ function Start-SdnServerCertificateRotation {
             } -ArgumentList $obj.Certificate
 
             if ($certsToExamine) {
+                "`nMultiple certificates detected for Subject: {0}. Examine the certificates and cleanup if no longer needed." -f $obj.Certificate.Subject | Trace-Output -Level:Warning
                 foreach ($cert in $certsToExamine) {
-                    "Examine certificate subject {0} and thumbprint {1} on {2} and remove if no longer needed" -f $cert.Subject, $cert.Thumbprint, $obj.managementAddress | Trace-Output -Level:Warning
+                    "`t[{0}] Thumbprint: {1}" -f $cert.PSComputerName, $cert.Thumbprint | Trace-Output -Level:Warning
                 }
+
+                Write-Host "" # insert empty line for better readability
             }
 
             # restart nchostagent on server
