@@ -15,45 +15,52 @@ function New-SdnCertificateRotationConfig {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [String]$NetworkController = $(HostName),
+        [String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Rest','NetworkController','Server','LoadBalancerMux')]
+        [String]$CertificateType
     )
 
-    try {
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
+    $CertificateRotationConfig = @{}
+    $getNewestCertScript = {
+        param([string]$param1, [string]$param2, [string]$param3)
+
+        if ([string]::IsNullOrWhiteSpace($param2)) {
+            $cert = Get-SdnCertificate -Path $param1 -Subject $param2 -NetworkControllerOid
         }
-
-        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -NetworkController $NetworkController -Credential $Credential
-
-        $CertificateRotationConfig = @{}
-        $CertificateRotationConfig["ClusterCredentialType"] = $NcInfraInfo.ClusterCredentialType
-        $getNewestCertScript = {
-            param(
-                [String]
-                $certSubject
-            )
-
-            # Default to return Node Certificate
-            if ([string]::IsNullOrEmpty($certSubject)) {
-                $NodeFQDN = (get-ciminstance win32_computersystem).DNSHostName + "." + (get-ciminstance win32_computersystem).Domain
-                $certSubject = "CN=$NodeFQDN"
-            }
-
-            Write-Verbose "Looking for cert match $certSubject"
-            $cert = Get-ChildItem -Path Cert:\LocalMachine\My | ? { $_.Subject -ieq $certSubject } | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
+        else {
+            $cert = Get-SdnCertificate -Path $param1 -Subject $param3 -NetworkControllerOid
+        }
+        # get the certificate that has the expiration date furthest in the future
+        # we also want to ensure we filter for certificates that have the Network Controller OID
+        if ($cert) {
+            $cert = $cert | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
             return $cert.Thumbprint
         }
-        $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $getNewestCertScript -ArgumentList "CN=$($NcInfraInfo.NcRestName)" -Credential $Credential
+
+        return $null
+    }
+
+    try {
+        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -NetworkController $NetworkController -Credential $Credential
+        $CertificateRotationConfig["ClusterCredentialType"] = $NcInfraInfo.ClusterCredentialType
+
+        switch ($CertificateType) {
+            'Rest' {
+                $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand @{
+                    ComputerName = $NetworkController
+                    ScriptBlock  = $getNewestCertScript
+                    Credential  = $Credential
+                    ArgumentList =  @("Cert:\LocalMachine\My", "CN=$($NcInfraInfo.NcRestName)")
+                }
+            }
+        }
 
         if($NcInfraInfo.ClusterCredentialType -eq "X509"){
             foreach ($ncNode in $($NcInfraInfo.NodeList)) {

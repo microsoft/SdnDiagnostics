@@ -108,6 +108,29 @@ function Start-SdnNetworkControllerCertificateRotation {
             New-SdnNetworkControllerNodeCertificate -NotAfter $param1 -CertPassword $param2 -Credential $param3 -Path $param4 -FabricDetails $param5
         } -ArgumentList @($NotAfter, $CertPassword, $Credential, $CertPath.FullName, $sdnFabricDetails)
 
+        foreach ($node in $NcInfraInfo.NodeList) {
+            $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
+            $currentNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                Get-SdnNetworkControllerNodeCertificate
+            }
+
+            $newNodeCert = Invoke-PSRemoteCommand -ComputerName $node.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+                param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+                Get-SdnCertificate -Path $param1 -Thumbprint $param2
+            } -ArgumentList @('Cert:\LocalMachine\My', $nodeCertThumbprint)
+
+            "Network Controller Node Certificate {0} will be updated from [Thumbprint:{1} NotAfter:{2}] to [Thumbprint:{3} NotAfter:{4}]" `
+                -f $currentNodeCert.Subject, $currentNodeCert.Thumbprint, $currentNodeCert.NotAfter, `
+                $newNodeCert.Thumbprint, $newNodeCert.NotAfter | Trace-Output -Level:Warning
+        }
+
+        foreach ($node in $NcInfraInfo.NodeList) {
+            $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
+            $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node.IpAddressOrFQDN -Credential $Credential -Thumbprint $nodeCertThumbprint
+
+            "Waiting for 2 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+            Start-Sleep -Seconds 120
+        }
     }
     catch {
         $_ | Trace-Exception
