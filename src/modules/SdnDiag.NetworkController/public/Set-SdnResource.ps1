@@ -20,13 +20,13 @@ function Set-SdnResource {
         PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource "networkInterfaces" -ResourceId "contoso-nic1" -Object $object
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [System.String]$ResourceRef,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
@@ -74,7 +74,9 @@ function Set-SdnResource {
         # perform a query against the resource to ensure it exists
         # as we only support operations against existing resources within this function
         try {
-            $null = Invoke-RestMethodWithRetry @restParams
+            if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called to update the properties of resource")) {
+                $null = Invoke-RestMethodWithRetry @restParams
+            }
         }
         catch [System.Net.WebException] {
             if ($_.Exception.Response.StatusCode -eq "NotFound") {
@@ -88,14 +90,12 @@ function Set-SdnResource {
             throw $_
         }
 
-        $restParams.Method = 'PUT'
+        $restParams.Method = 'Put'
         $restParams.Body = ($Object | ConvertTo-Json -Depth 100)
 
         $null = Invoke-RestMethodWithRetry @restParams -ErrorAction Stop
-        $resourceState = Wait-ProvisioningStateSucceeded -Uri $uri -Credential $Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
-        if ($resourceState) {
-            "Successfully updated {0}" -f $uri | Trace-Output
-        }
+        $resourceState = Confirm-ProvisioningStateSucceeded -Uri $uri -Credential $Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
+        return $resourceState
     }
     catch {
         $_ | Trace-Exception
