@@ -3,7 +3,6 @@
 
 Using module .\SdnDiag.NetworkController.Helper.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.Helper.psm1
-Import-Module $PSScriptRoot\..\SdnDiag.NetworkController.ServiceFabric\SdnDiag.NetworkController.ServiceFabric.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
 
