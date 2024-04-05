@@ -97,8 +97,29 @@ function Set-SdnResource {
         $resourceState = Confirm-ProvisioningStateSucceeded -Uri $uri -Credential $Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
         return $resourceState
     }
+    catch [System.Net.WebException] {
+        $_ | Trace-Exception
+
+        # $_.Exception.Response contains the HTTP response that caused the exception
+        $response = $_.Exception.Response
+
+        # Read the response body
+        $streamReader = New-Object System.IO.StreamReader($response.GetResponseStream())
+        $responseBody = $streamReader.ReadToEnd()
+
+        # Now you can do something with the response body, like convert it from JSON to a PowerShell object
+        $errorObject = $responseBody | ConvertFrom-Json
+
+        # And then you can access properties of the error object
+        Write-Error "Error: $($errorObject.error.message)"
+    }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
+    }
+    finally {
+        if ($streamReader) {
+            $streamReader.Dispose()
+        }
     }
 }
