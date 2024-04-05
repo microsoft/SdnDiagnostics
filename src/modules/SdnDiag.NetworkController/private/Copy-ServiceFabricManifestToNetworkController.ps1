@@ -24,12 +24,12 @@ function Copy-ServiceFabricManifestToNetworkController {
 
     try {
         if ($NcNodeList.Count -eq 0) {
-            Trace-Output "No NC VMs found" -Level:Error
+            Trace-Output -Message "No NC VMs found" -Level:Error
             return
         }
-        Trace-Output "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
+        Trace-Output -Message "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
 
-        Trace-Output "Stopping Service Fabric Service"
+        Trace-Output -Message "Stopping Service Fabric Service"
         foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
             Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock {
                 Write-Host "[$(HostName)] Stopping Service Fabric Service"
@@ -66,5 +66,6 @@ function Copy-ServiceFabricManifestToNetworkController {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

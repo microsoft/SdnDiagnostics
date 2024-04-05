@@ -6,42 +6,40 @@ function Get-OvsdbFirewallRuleTable {
         PS> Get-OvsdbFirewallRuleTable
     #>
 
-    try {
-        $arrayList = [System.Collections.ArrayList]::new()
+    [CmdletBinding()]
+    param()
 
-        $ovsdbResults = Get-OvsdbDatabase -Table ms_firewall
-        $firewallTable = $ovsdbResults | Where-Object { $_.caption -eq 'FW_Rules table' }
+    $arrayList = [System.Collections.ArrayList]::new()
 
-        if ($null -eq $firewallTable) {
-            return $null
-        }
-        # enumerate the json rules and create object for each firewall rule returned
-        # there is no nice way to generate this and requires manually mapping as only the values are return
-        foreach ($obj in $firewallTable.data) {
-            $result = [OvsdbFirewallRule]@{
-                UUID               = $obj[0][1]
-                Action             = $obj[1]
-                Direction          = $obj[2]
-                DestinationAddress = $obj[3]
-                DestinationPort    = $obj[4]
-                Logging            = $obj[5]
-                Priority           = $obj[6]
-                Protocols          = $obj[7]
-                RuleId             = $obj[8]
-                State              = $obj[9]
-                Type               = $obj[10]
-                SourceAddress      = $obj[11]
-                SourcePort         = $obj[12]
-                VirtualNicId       = $obj[13]
-            }
+    $ovsdbResults = Get-OvsdbDatabase -Table ms_firewall
+    $firewallTable = $ovsdbResults | Where-Object { $_.caption -eq 'FW_Rules table' }
 
-            # add the psobject to array list
-            [void]$arrayList.Add($result)
+    if ($null -eq $firewallTable) {
+        return $null
+    }
+    # enumerate the json rules and create object for each firewall rule returned
+    # there is no nice way to generate this and requires manually mapping as only the values are return
+    foreach ($obj in $firewallTable.data) {
+        $result = [OvsdbFirewallRule]@{
+            UUID               = $obj[0][1]
+            Action             = $obj[1]
+            Direction          = $obj[2]
+            DestinationAddress = $obj[3]
+            DestinationPort    = $obj[4]
+            Logging            = $obj[5]
+            Priority           = $obj[6]
+            Protocols          = $obj[7]
+            RuleId             = $obj[8]
+            State              = $obj[9]
+            Type               = $obj[10]
+            SourceAddress      = $obj[11]
+            SourcePort         = $obj[12]
+            VirtualNicId       = $obj[13]
         }
 
-        return $arrayList
+        # add the psobject to array list
+        [void]$arrayList.Add($result)
     }
-    catch {
-        $_ | Trace-Exception
-    }
+
+    return $arrayList
 }

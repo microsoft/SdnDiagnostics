@@ -44,5 +44,6 @@ function Set-SdnServiceFabricClusterConfig {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

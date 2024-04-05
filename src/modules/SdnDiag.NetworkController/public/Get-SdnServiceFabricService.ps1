@@ -85,5 +85,6 @@ function Get-SdnServiceFabricService {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

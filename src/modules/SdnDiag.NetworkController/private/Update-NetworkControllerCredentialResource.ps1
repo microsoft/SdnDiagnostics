@@ -32,7 +32,7 @@ function Update-NetworkControllerCredentialResource {
     $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
     foreach ($object in $servers) {
         "Processing X509 connections for {0}" -f $object.resourceRef | Trace-Output
-        foreach ($connection in $servers.properties.connections | Where-Object {$_.credentialType -ieq 'X509Certificate'}) {
+        foreach ($connection in $servers.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }) {
             $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
             $cred = Get-SdnResource -NcUri $NcUri -ResourceRef $connection.credential.resourceRef -Credential $Credential

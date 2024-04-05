@@ -107,9 +107,9 @@ function Start-SdnServerCertificateRotation {
         $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential -ErrorAction Stop
         $servers = Get-SdnServer -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ErrorAction Stop
 
-        # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -ErrorAction Stop
+        # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
+        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -Credential $Credential -ErrorAction Stop
 
         #####################################
         #
@@ -123,7 +123,7 @@ function Start-SdnServerCertificateRotation {
             # retrieve the corresponding managementAddress from each of the server resources
             # and invoke remote operation to the server to generate the self-signed certificate
             foreach ($server in $servers) {
-                $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate"}
+                $serverConnection = $server.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
                 $managementAddress = $serverConnection.managementAddresses[0]
 
                 $serverCert = Invoke-PSRemoteCommand -ComputerName $managementAddress -Credential $Credential -ScriptBlock {
@@ -159,7 +159,7 @@ function Start-SdnServerCertificateRotation {
             else {
                 # in instances where the certificate property does not exist, we will need to add it
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
-                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding
+                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
             }
             $jsonBody = $server | ConvertTo-Json -Depth 100
 
@@ -185,9 +185,12 @@ function Start-SdnServerCertificateRotation {
             } -ArgumentList $obj.Certificate
 
             if ($certsToExamine) {
+                "`nMultiple certificates detected for Subject: {0}. Examine the certificates and cleanup if no longer needed." -f $obj.Certificate.Subject | Trace-Output -Level:Warning
                 foreach ($cert in $certsToExamine) {
-                    "Examine certificate subject {0} and thumbprint {1} on {2} and remove if no longer needed" -f $cert.Subject, $cert.Thumbprint, $obj.managementAddress | Trace-Output -Level:Warning
+                    "`t[{0}] Thumbprint: {1}" -f $cert.PSComputerName, $cert.Thumbprint | Trace-Output -Level:Warning
                 }
+
+                Write-Host "" # insert empty line for better readability
             }
 
             # restart nchostagent on server
@@ -200,5 +203,6 @@ function Start-SdnServerCertificateRotation {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

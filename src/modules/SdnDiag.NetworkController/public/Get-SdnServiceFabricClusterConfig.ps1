@@ -77,5 +77,6 @@ function Get-SdnServiceFabricClusterConfig {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

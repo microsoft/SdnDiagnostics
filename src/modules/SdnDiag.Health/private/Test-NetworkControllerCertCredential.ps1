@@ -31,7 +31,7 @@ function Test-NetworkControllerCertCredential {
         $serverCredentialRefs = [System.Collections.Hashtable]::new()
         foreach ($server in $servers) {
             # find the first connection with credential type of X509Certificate
-            $serverConnection = $server.properties.connections | Where-Object { $_.credentialType -eq "X509Certificate" } | Select-Object -First 1;
+            $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName"} | Select-Object -First 1;
             if ($null -ne $serverConnection) {
                 $credRef = $serverConnection.credential[0].resourceRef
                 "Adding credential {0} for server {1} for validation" -f $credRef, $serverConnection.managementAddresses[0] | Trace-Output -Level:Verbose
@@ -88,5 +88,6 @@ function Test-NetworkControllerCertCredential {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

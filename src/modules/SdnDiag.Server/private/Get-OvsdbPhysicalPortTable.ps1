@@ -6,37 +6,35 @@ function Get-OvsdbPhysicalPortTable {
         PS> Get-OvsdbPhysicalPortTable
     #>
 
-    try {
-        $arrayList = [System.Collections.ArrayList]::new()
+    [CmdletBinding()]
+    param()
 
-        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-        $portTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Port table' }
+    $arrayList = [System.Collections.ArrayList]::new()
 
-        if ($null -eq $portTable) {
-            return $null
+    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+    $portTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Port table' }
+
+    if ($null -eq $portTable) {
+        return $null
+    }
+
+    # enumerate the json objects and create psobject for each port
+    foreach ($obj in $portTable.data) {
+        $physicalPort = [OvsdbPhysicalPort]@{
+            UUID        = $obj[0][1]
+            Description = $obj[1]
+            Name        = $obj[2].Trim('{', '}')  # remove the curly braces from the name
         }
 
-        # enumerate the json objects and create psobject for each port
-        foreach ($obj in $portTable.data) {
-            $physicalPort = [OvsdbPhysicalPort]@{
-                UUID        = $obj[0][1]
-                Description = $obj[1]
-                Name        = $obj[2].Trim('{', '}')  # remove the curly braces from the name
-            }
-
-            # there are numerous key/value pairs within this object with some having different properties
-            # enumerate through the properties and add property and value for each
-            foreach ($property in $obj[4][1]) {
-                $physicalPort | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
-            }
-
-            # add the psobject to array
-            [void]$arrayList.Add($physicalPort)
+        # there are numerous key/value pairs within this object with some having different properties
+        # enumerate through the properties and add property and value for each
+        foreach ($property in $obj[4][1]) {
+            $physicalPort | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
         }
 
-        return $arrayList
+        # add the psobject to array
+        [void]$arrayList.Add($physicalPort)
     }
-    catch {
-        $_ | Trace-Exception
-    }
+
+    return $arrayList
 }

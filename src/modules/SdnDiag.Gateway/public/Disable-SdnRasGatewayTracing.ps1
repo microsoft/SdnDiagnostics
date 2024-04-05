@@ -22,5 +22,6 @@ function Disable-SdnRasGatewayTracing {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

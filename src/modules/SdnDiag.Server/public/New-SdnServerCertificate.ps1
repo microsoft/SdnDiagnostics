@@ -20,7 +20,7 @@ function New-SdnServerCertificate {
         [datetime]$NotAfter = (Get-Date).AddYears(3),
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Path = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC),
+        [System.String]$Path = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
         [System.Object]$FabricDetails,
@@ -71,5 +71,6 @@ function New-SdnServerCertificate {
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

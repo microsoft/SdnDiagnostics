@@ -2,21 +2,22 @@ function Trace-Output {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true, ParameterSetName = 'Message')]
         [System.String]$Message,
 
-        [Parameter(Mandatory = $false)]
-        [TraceLevel]$Level,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Message')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
+        [TraceLevel]$Level = 'Information',
 
-        [parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Message')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
+        [System.String]$FunctionName = (Get-PSCallStack)[0].Command,
+
+        [parameter(Mandatory = $true, ParameterSetName = 'Exception')]
         $Exception
     )
 
     begin {
-        if (!$PSBoundParameters.ContainsKey('Level')) {
-            $Level = [TraceLevel]::Information
-        }
-
         $traceFile = (Get-TraceOutputFile)
         if ([string]::IsNullOrEmpty($traceFile)) {
             New-WorkingDirectory
@@ -29,9 +30,18 @@ function Trace-Output {
         $traceEvent = [PSCustomObject]@{
             Computer = $env:COMPUTERNAME.ToUpper().ToString()
             TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
-            FunctionName = (Get-PSCallStack)[1].Command
+            FunctionName = $FunctionName
             Level = $Level.ToString()
-            Message = $Message
+            Message = $null
+        }
+
+        switch ($PSCmdlet.ParameterSetName) {
+            'Message' {
+                $traceEvent.Message = $Message
+            }
+            'Exception' {
+                $traceEvent.Message = "{0}`n{1}" -f $Exception.Exception, $Exception.ScriptStackTrace
+            }
         }
 
         $formattedMessage = "[{0}] {1}" -f $traceEvent.Computer, $traceEvent.Message
@@ -43,14 +53,8 @@ function Trace-Output {
             }
 
             'Exception' {
-                if ($Exception) {
-                    Write-Error -Exception $Exception.Exception -Message $Message
-                    $traceEvent.FunctionName = (Get-PSCallStack)[2].Command
-                    $traceEvent.Message = "{0}`n`t{1}" -f $Exception.Exception.Message, $Exception.Exception.ScriptStackTrace
-                }
-                else {
-                    Write-Error -Message $Message
-                }
+                # do nothing here, as the exception should be written to the console by the caller using Write-Error
+                # as this will preserve the proper call stack tracing
             }
 
             'Success' {

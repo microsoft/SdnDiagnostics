@@ -52,13 +52,16 @@ function Get-SdnCertificate {
             return $null
         }
 
-        if ($filteredCert.NotAfter -le (Get-Date)) {
-            "Certificate [Thumbprint: {0} | Subject: {1}] is currently expired" -f $filteredCert.Thumbprint, $filteredCert.Subject | Trace-Output -Level:Error
+        $filteredCert | ForEach-Object {
+            if ($_.NotAfter -le (Get-Date)) {
+                "Certificate [Thumbprint: {0} | Subject: {1}] is currently expired" -f $_.Thumbprint, $_.Subject | Trace-Output -Level:Warning
+            }
         }
 
         return $filteredCert
     }
     catch {
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 }
