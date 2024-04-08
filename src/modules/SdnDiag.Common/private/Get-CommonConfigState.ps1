@@ -34,7 +34,7 @@ function Get-CommonConfigState {
         "Gathering network details" | Trace-Output -Level:Verbose
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
         | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetTCPConnection' -FileType csv
-        Get-NetIPInterface | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetIpInterface' -FileType txt -Format Table
+        Get-NetIPInterface | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetIPInterface' -FileType txt -Format Table
         Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetNeighbor' -FileType txt -Format Table
         Get-NetConnectionProfile | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetConnectionProfile' -FileType txt -Format Table
         Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetRoute' -FileType txt -Format Table
@@ -49,18 +49,19 @@ function Get-CommonConfigState {
 
         $netAdapter = Get-NetAdapter
         if ($netAdapter) {
+            $netAdapterRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
+
             $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format List
             $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType json
-
-            $netAdapterRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
             $netAdapter | ForEach-Object {
-                $_ | Get-NetAdapterAdvancedProperty | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType json
-                $_ | Get-NetAdapterBinding | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterBinding' -FileType json
-                $_ | Get-NetAdapterChecksumOffload | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterChecksumOffload' -FileType json
-                $_ | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterHardwareInfo' -FileType json
-                $_ | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterRsc' -FileType json
-                $_ | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterSriov' -FileType json
-                $_ | Get-NetAdapterStatistics | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $_.Name -Name 'Get-NetAdapterStatistics' -FileType json
+                $prefix = $_.Name.ToString().Replace(' ','_').Trim()
+                $_ | Get-NetAdapterAdvancedProperty | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType json
+                $_ | Get-NetAdapterBinding | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterBinding' -FileType json
+                $_ | Get-NetAdapterChecksumOffload | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterChecksumOffload' -FileType json
+                $_ | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterHardwareInfo' -FileType json
+                $_ | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterRsc' -FileType json
+                $_ | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterSriov' -FileType json
+                $_ | Get-NetAdapterStatistics | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterStatistics' -FileType json
             }
         }
 

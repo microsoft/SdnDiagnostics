@@ -72,18 +72,19 @@ function Get-ServerConfigState {
         "Gathering virtual machine configuration details" | Trace-Output -Level:Verbose
         $vm = Get-VM
         if ($vm) {
-            $vm = Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType csv
-
             $vmRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VM") -ItemType Directory -Force
+
+            $vm | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType csv
+            $vm | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType json
             $vm | ForEach-Object {
-                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $_.VMName) -ItemType Directory -Force
-                $_ | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapter' -FileType json
-                $_ | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterAcl' -FileType json
-                $_ | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType json
-                $_ | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterIsolation' -FileType json
-                $_ | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType json
-                $_ | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterTeamMapping' -FileType json
-                $_ | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $_.VMName -Name 'Get-VMNetworkAdapterVLAN' -FileType json
+                $prefix = $_.Name.ToString().Replace(" ", "_").Trim()
+                $_ | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapter' -FileType json
+                $_ | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType json
+                $_ | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType json
+                $_ | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType json
+                $_ | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType json
+                $_ | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType json
+                $_ | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType json
             }
         }
 
@@ -101,15 +102,16 @@ function Get-ServerConfigState {
         Get-VMSwitchTeam | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitchTeam' -FileType txt -Format List
         $vmSwitch = Get-VMSwitch
         if ($vmSwitch) {
-            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType json
-            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType text -Format List
+            $vmSwitchRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VMSwitch") -ItemType Directory -Force
 
-            $vmSwitchRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VM") -ItemType Directory -Force
+            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType json
+            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType txt -Format List
             $vmSwitch | ForEach-Object {
-                $_ | Get-VMSwitchExtension | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $_.Name -Name 'Get-VMSwitchExtension' -FileType json
-                $_ | Get-VMSwitchExtensionSwitchData | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $_.Name -Name 'Get-VMSwitchExtensionSwitchData' -FileType json
-                $_ | Get-VMSwitchExtensionSwitchFeature | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $_.Name -Name 'Get-VMSwitchExtensionSwitchFeature' -FileType json
-                $_ | Get-VMSwitchTeam | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $_.Name -Name 'Get-VMSwitchTeam' -FileType json
+                $prefix = $_.Name.ToString().Replace(" ", "_").Trim()
+                $_ | Get-VMSwitchExtension | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtension' -FileType json
+                $_ | Get-VMSwitchExtensionSwitchData | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtensionSwitchData' -FileType json
+                $_ | Get-VMSwitchExtensionSwitchFeature | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtensionSwitchFeature' -FileType json
+                $_ | Get-VMSwitchTeam | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchTeam' -FileType json
             }
         }
 

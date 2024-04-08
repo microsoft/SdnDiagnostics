@@ -222,6 +222,7 @@ function Start-SdnDataCollection {
         # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
         "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
 
+        $Global:ProgressPreference = 'SilentlyContinue'
         $nodesToRemove = [System.Collections.ArrayList]::new()
         $tncScriptBlock = {
             $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
@@ -243,6 +244,7 @@ function Start-SdnDataCollection {
                 [void]$dataCollectionNodes.Remove($_)
             }
         }
+        $Global:ProgressPreference = 'Continue'
 
         $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
