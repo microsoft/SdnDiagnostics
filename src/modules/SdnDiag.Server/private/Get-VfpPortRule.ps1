@@ -158,27 +158,51 @@ function Get-VfpPortRule {
 
                         # create the custom object based on the layer
                         # so that we can add appropriate properties
-                        switch -Wildcard ($Layer) {
-                            "*_METER_*" {
-                                $object = [VfpMeterRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "FW_*" {
+                        switch ($Layer) {
+                            "FW_ADMIN_LAYER_ID" {
                                 $object = [VfpFirewallRule]@{
                                     Rule = $value
                                 }
                             }
 
-                            "*_ENCAP_*" {
+                            "FW_CONTROLLER_LAYER_ID" {
+                                $object = [VfpFirewallRule]@{
+                                    Rule = $value
+                                }
+                            }
+
+                            "VNET_METER_LAYER_OUT" {
+                                $object = [VfpMeterRule]@{
+                                    Rule = $value
+                                }
+                            }
+
+                            "VNET_MAC_REWRITE_LAYER" {
                                 $object = [VfpEncapRule]@{
                                     Rule = $value
                                 }
                             }
 
-                            "VNET_*" {
-                                $object = [VfpVnetRule]@{
+                            "VNET_ENCAP_LAYER" {
+                                $object = [VfpEncapRule]@{
+                                    Rule = $value
+                                }
+                            }
+
+                            "VNET_PA_ROUTE_LAYER" {
+                                $object = [VfpEncapRule]@{
+                                    Rule = $value
+                                }
+                            }
+
+                            "SLB_NAT_LAYER" {
+                                $object = [VfpRule]@{
+                                    Rule = $value
+                                }
+                            }
+
+                            "SLB_DECAP_LAYER_STATEFUL" {
+                                $object = [VfpRule]@{
                                     Rule = $value
                                 }
                             }
