@@ -159,6 +159,12 @@ function Get-VfpPortRule {
                         # create the custom object based on the layer
                         # so that we can add appropriate properties
                         switch ($Layer) {
+                            "GW_PA_ROUTE_LAYER" {
+                                $object = [VfpEncapRule]@{
+                                    Rule = $value
+                                }
+                            }
+
                             "FW_ADMIN_LAYER_ID" {
                                 $object = [VfpFirewallRule]@{
                                     Rule = $value

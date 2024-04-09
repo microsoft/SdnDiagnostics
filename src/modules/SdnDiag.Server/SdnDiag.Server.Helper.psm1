@@ -133,16 +133,13 @@ class VfpEncapRule : VfpRule {
     [string]$EncapType
     [string[]]$EncapDestination
     [string]$EncapSourceIP
+    [string]$Transposition
+    [string[]]$Modify
     [string[]]$RuleData
     [int]$GREKey
 }
 
 class VfpFirewallRule : VfpRule {}
-
-class VfpVnetRule : VfpRule {
-    [string]$Transposition
-    [string[]]$Modify
-}
 
 class VfpPortState {
     [boolean]$Enabled
