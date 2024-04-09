@@ -44,8 +44,9 @@ function Get-VfpPortRule {
         # in situations where the value might be nested in another line we need to do some additional data processing
         # subkey is declared below if the value is null after the split
         if ($subKey) {
+            $doneProcessingSubKey = $false
             if($null -eq $subObject){
-                $subObject = New-Object -TypeName PSObject
+                $subObject = [PSCustomObject]::new()
             }
             if ($null -eq $subArrayList) {
                 $subArrayList = [System.Collections.ArrayList]::new()
@@ -59,7 +60,8 @@ function Get-VfpPortRule {
                     if ($line.Contains('Flow TTL')) {
                         $object.Conditions = $subObject
 
-                        $subObject = [PSCustomObject]::new()
+                        $doneProcessingSubKey = $true
+                        $subObject = $null
                         $subKey = $null
                     }
 
@@ -67,7 +69,8 @@ function Get-VfpPortRule {
                     elseif ($line.Contains('<none>')) {
                         $object.Conditions = $null
 
-                        $subObject = [PSCustomObject]::new()
+                        $doneProcessingSubKey = $true
+                        $subObject = $null
                         $subKey = $null
                     }
 
@@ -127,8 +130,13 @@ function Get-VfpPortRule {
                 }
             }
 
-            # since we are processing sub values, we want to move to the next line and not do any further processing
-            continue
+            if ($doneProcessingSubKey) {
+                # we are done processing the subkey, so we can proceed to the rest of the script
+            }
+            else {
+                # we are not done processing the subkey values, so we need to continue to the next line
+                continue
+            }
         }
 
         # lines in the VFP output that contain : contain properties and values
