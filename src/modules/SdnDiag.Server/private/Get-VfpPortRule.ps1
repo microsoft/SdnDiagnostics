@@ -237,7 +237,8 @@ function Get-VfpPortRule {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
+                            # this is the fallback method to just add a property to the object
+                            # outside of the defined class properties
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }
