@@ -10,6 +10,52 @@ class SdnFabricInfrastructure {
     [System.String[]]$FabricNodes
 }
 
+class BaseCert {
+    [String]$Thumbprint
+    [String]$SubjectName
+    [bool]$IsSelfSigned
+}
+
+class RestCert : BaseCert {
+    [CertType]$CertificateType = [CertType]::Rest
+}
+
+class NodeCert : BaseCert {
+    [String]$ResourceRef
+    [String]$IpAddressOrFQDN
+    [String]$NodeName
+}
+
+class NetworkControllerNodeCert : NodeCert {
+    [CertType]$CertificateType = [CertType]::NetworkController
+}
+
+class LoadBalancerMuxNodeCert : NodeCert {
+    [CertType]$CertificateType = [CertType]::LoadBalancerMux
+}
+
+class ServerNodeCert : NodeCert {
+    [CertType]$CertificateType = [CertType]::Server
+}
+
+class CertRotateConfig {
+    [RestCert]$RestCert
+    [ClusterCredentialType]$ClusterCredentialType = [ClusterCredentialType]::Kerberos
+    [Object[]]$NodeCerts
+}
+
+enum ClusterCredentialType {
+    Kerberos
+    X509
+}
+
+enum CertType {
+    Rest
+    NetworkController
+    Server
+    LoadBalancerMux
+}
+
 enum NcManagedRoles {
     Gateway
     Server

@@ -24,9 +24,11 @@ function Start-SdnExpiredCertificateRotation {
         [Parameter(Mandatory = $true)]
         [hashtable]
         $CertRotateConfig,
+
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
+
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
@@ -44,26 +46,24 @@ function Start-SdnExpiredCertificateRotation {
     $NcNodeList = $NcInfraInfo.NodeList
 
     if ($null -eq $NcNodeList -or $NcNodeList.Count -eq 0) {
-        Trace-Output -Message "Failed to get NC Node List from NetworkController: $(HostName)" -Level:Error
+        throw "Failed to get NC Node List from NetworkController: $($env:COMPUTERNAME)"
     }
 
     Trace-Output -Message "NcNodeList: $($NcNodeList.IpAddressOrFQDN)"
-
     Trace-Output -Message "Validate CertRotateConfig"
     if(!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)){
-        Trace-Output -Message "Invalid CertRotateConfig, please correct the configuration and try again" -Level:Error
-        return
+        throw "Invalid CertRotateConfig, please correct the configuration and try again"
     }
 
     if ([String]::IsNullOrEmpty($NcInfraInfo.NcRestName)) {
         Trace-Output -Message "Failed to get NcRestName using current secret certificate thumbprint. This might indicate the certificate not found on $(HOSTNAME). We won't be able to recover." -Level:Error
-        throw New-Object System.NotSupportedException("Current NC Rest Cert not found, Certificate Rotation cannot be continue.")
+        throw New-Object System.NotSupportedException("Current Network Controller Rest certificate not found.")
     }
 
     $NcVms = $NcNodeList.IpAddressOrFQDN
 
-    if (Test-Path $NcUpdateFolder) {
-        $items = Get-ChildItem $NcUpdateFolder
+    if (Test-Path -Path $NcUpdateFolder) {
+        $items = Get-ChildItem -Path $NcUpdateFolder -ErrorAction Ignore
         if ($items.Count -gt 0) {
             $confirmCleanup = Read-Host "The Folder $NcUpdateFolder not empty. Need to be cleared. Enter Y to confirm"
             if ($confirmCleanup -eq "Y") {
@@ -122,15 +122,4 @@ function Start-SdnExpiredCertificateRotation {
     # Step 7 Restart
     Trace-Output -Message "Step 7 Restarting Service Fabric Cluster after configuration change"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential -Restart
-
-<#     Trace-Output -Message "Step 7.2 Rotate Network Controller Certificate"
-    #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
-
-    # Step 8 Update REST CERT credential
-    Trace-Output -Message "Step 8 Update REST CERT credential"
-    # Step 8.1 Wait for NC App Healthy
-    Trace-Output -Message "Step 8.1 Wiating for Network Controller App Ready"
-    #Wait-NetworkControllerAppHealthy -Interval 60
-    Trace-Output -Message "Step 8.2 Updating REST CERT Credential object calling REST API" #>
-    #Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -NewRestCertThumbprint $NcRestCertThumbprint -Credential $NcRestCredential
 }

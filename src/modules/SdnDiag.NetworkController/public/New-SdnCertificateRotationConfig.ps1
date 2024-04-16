@@ -1,76 +1,115 @@
 function New-SdnCertificateRotationConfig {
     <#
     .SYNOPSIS
-        Prepare the Network Controller Ceritifcate Rotation Configuration to determine which certificates to be used.
-    .PARAMETER NetworkController
-        Specifies the name the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
+        Prepare the Network Controller Certificate Rotation Configuration to determine which certificates to be used.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> New-SdnCertificateRotationConfig
-    .EXAMPLE
-        PS> New-SdnCertificateRotationConfig -NetworkController 'NC01' -Credential (Get-Credential)
+        PS> New-SdnCertificateRotationConfig -CertificateType 'Rest'
     #>
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false)]
-        [String]$NetworkController = $env:COMPUTERNAME,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('Rest','NetworkController','Server','LoadBalancerMux')]
+        [String]$CertificateType,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $true)]
-        [ValidateSet('Rest','NetworkController','Server','LoadBalancerMux')]
-        [String]$CertificateType
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$NetworkControllerOid
     )
 
-    $CertificateRotationConfig = @{}
-    $getNewestCertScript = {
-        param([string]$param1, [string]$param2, [string]$param3)
-
-        if ([string]::IsNullOrWhiteSpace($param2)) {
-            $cert = Get-SdnCertificate -Path $param1 -Subject $param2 -NetworkControllerOid
-        }
-        else {
-            $cert = Get-SdnCertificate -Path $param1 -Subject $param3 -NetworkControllerOid
-        }
-        # get the certificate that has the expiration date furthest in the future
-        # we also want to ensure we filter for certificates that have the Network Controller OID
-        if ($cert) {
-            $cert = $cert | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
-            return $cert.Thumbprint
-        }
-
-        return $null
-    }
+    $certRotateConfig = [CertRotateConfig]::new()
 
     try {
-        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -NetworkController $NetworkController -Credential $Credential
-        $CertificateRotationConfig["ClusterCredentialType"] = $NcInfraInfo.ClusterCredentialType
+        $ncInfraInfo = Get-SdnNetworkControllerInfoOffline
+        $certRotateConfig.ClusterCredentialType = $ncInfraInfo.ClusterCredentialType
+        [string]$restSubjectName = "CN=$($NcInfraInfo.NcRestName)"
+        [uri]$ncUrl = "https://$($NcInfraInfo.NcRestName)"
 
         switch ($CertificateType) {
+            'LoadBalancerMux' {
+                $servers = Get-SdnLoadBalancerMux -NcUri $ncUrl -Credential $NcRestCredential
+                $servers | ForEach-Object {
+                    $virtualServer = Get-SdnResource -NcUri $ncUrl -ResourceRef $_.properties.virtualServer.resourceRef
+                    $connection = $virtualServer.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
+                    $managementAddress = $connection.managementAddresses[0]
+
+                    "Retrieving latest certificate from $managementAddress" | Trace-Output
+                    $cert = Invoke-PSRemoteCommand -ComputerName $managementAddress -ScriptBlock {
+                        param([switch]$arg0)
+                        return (Get-SdnMuxCertificate -NetworkControllerOid:$arg0)
+                    } -ArgumentList @($NetworkControllerOid) -Credential $Credential -ErrorAction Stop
+
+                    $newestCert = $cert | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+                    $certRotateConfig.NodeCerts += [LoadBalancerMuxNodeCert]@{
+                        Thumbprint      = $newestCert.Thumbprint
+                        SubjectName     = $newestCert.Subject
+                        IpAddressOrFQDN = $managementAddress
+                        NodeName        = $newestCert.PSComputerName
+                        ResourceRef     = $_.ResourceRef
+                        IsSelfSigned = (Confirm-IsCertSelfSigned -Certificate $newestCert)
+                    }
+                }
+            }
+
+            'NetworkController' {
+            }
+
             'Rest' {
-                $CertificateRotationConfig["NcRestCert"] = Invoke-PSRemoteCommand @{
-                    ComputerName = $NetworkController
-                    ScriptBlock  = $getNewestCertScript
-                    Credential  = $Credential
-                    ArgumentList =  @("Cert:\LocalMachine\My", "CN=$($NcInfraInfo.NcRestName)")
+                # grab the rest certificate with the latest expiration date
+                $restCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $restSubjectName -NetworkControllerOid:$NetworkControllerOid `
+                | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+
+                if ($null -eq $restCertificate) {
+                    throw New-Object System.NullReferenceException("Failed to locate Rest certificate")
+                }
+
+                $restCertObject = [RestCert]@{
+                    CertificateType = 'Rest'
+                    Thumbprint = $restCertificate.Thumbprint
+                    SubjectName = $restCertificate.Subject
+                    IsSelfSigned = (Confirm-IsCertSelfSigned -Certificate $restCertificate)
+                }
+
+                $certRotateConfig.RestCert = $restCertObject
+            }
+
+            'Server' {
+                $servers = Get-SdnServer -NcUri $ncUrl -Credential $NcRestCredential
+                $servers | ForEach-Object {
+                    $connection = $_.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }
+                    $managementAddress = $connection.managementAddresses[0]
+
+                    "Retrieving latest certificate from $managementAddress" | Trace-Output
+                    $cert = Invoke-PSRemoteCommand -ComputerName $managementAddress -ScriptBlock {
+                        param([switch]$arg0)
+                        return (Get-SdnServerCertificate -NetworkControllerOid:$arg0)
+                    } -ArgumentList @($NetworkControllerOid) -Credential $Credential -ErrorAction Stop
+
+                    $newestCert = $cert | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+                    $certRotateConfig.NodeCerts += [ServerNodeCert]@{
+                        Thumbprint      = $newestCert.Thumbprint
+                        SubjectName     = $newestCert.Subject
+                        IpAddressOrFQDN = $managementAddress
+                        NodeName        = $newestCert.PSComputerName
+                        ResourceRef     = $_.ResourceRef
+                        IsSelfSigned = (Confirm-IsCertSelfSigned -Certificate $newestCert)
+                    }
                 }
             }
         }
 
-        if($NcInfraInfo.ClusterCredentialType -eq "X509"){
-            foreach ($ncNode in $($NcInfraInfo.NodeList)) {
-                Trace-Output -Message "Looking for Node Cert for Node: $($ncNode.NodeName), IpAddressOrFQDN: $($ncNode.IpAddressOrFQDN)" -Level:Verbose
-                $ncNodeCert = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -ScriptBlock $getNewestCertScript -Credential $Credential
-                $CertificateRotationConfig[$ncNode.NodeName.ToLower()] = $ncNodeCert
-            }
-        }
-
-        return $CertificateRotationConfig
+        return $certRotateConfig
     }
     catch {
         $_ | Trace-Exception

@@ -65,10 +65,7 @@ function Start-SdnCertificateRotation {
     )
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     $config = Get-SdnModuleConfiguration -Role 'NetworkController'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
@@ -178,6 +175,7 @@ function Start-SdnCertificateRotation {
                     $newSelfSignedCert = New-SdnNetworkControllerRestCertificate -RestName $NcInfraInfo.NcRestName.ToString() -NotAfter $NotAfter -Path $CertPath.FullName `
                     -CertPassword $CertPassword -Credential $Credential -FabricDetails $sdnFabricDetails
                     $selfSignedRestCertFile = $newSelfSignedCert.FileInfo
+                    $encryptionCertificate = $newSelfSignedCert.FileInfo
                 }
                 'NetworkController' {
                     $newSelfSignedCert = New-SdnNetworkControllerCertificate -NotAfter $NotAfter -Path $CertPath.FullName -CertPassword $CertPassword -Credential $Credential
@@ -246,14 +244,38 @@ function Start-SdnCertificateRotation {
 
         #####################################
         #
-        # Rotate NC Certificate Expired
+        # Rotate Certificates
         #
         #####################################
 
-        if ($restCertExpired -or !$ncHealthy) {
-            # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
-            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
+        switch ($CertificateType) {
+            'Rest' {
+                # if the rest certificate / encryption certificate is expired, we need to rotate it
+                if ($restCertExpired -or !$ncHealthy) {
+                    Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
+                }
+
+                # rotate the rest certificate
+                "== STAGE: ROTATE NC REST CERTIFICATE ==" | Trace-Output
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $CertRotateConfig["NcRestCert"]
+                "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+                Start-Sleep -Seconds 300
+
+                # rotate the encryption certificate
+                "== STAGE: ROTATE NC CLUSTER CERTIFICATE ==" | Trace-Output
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerCluster' -Credential $Credential -Thumbprint $CertRotateConfig["NcRestCert"]
+                "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
+                Start-Sleep -Seconds 300
+            }
         }
+
+        #####################################
+        #
+        # Certificate Seeding (Southbound Nodes)
+        #
+        #####################################
+
+        $rotate
 
         "Certificate rotation has completed" | Trace-Output
     }
