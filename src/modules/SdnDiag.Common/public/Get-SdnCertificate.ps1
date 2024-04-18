@@ -37,14 +37,14 @@ function Get-SdnCertificate {
         [switch]$NetworkControllerOid
     )
 
-    [string]$ObjectIdentifier = @('1.3.6.1.4.1.311.95.1.1.1') # this is a custom OID used for Network Controller
+    [string]$objectIdentifier = @('1.3.6.1.4.1.311.95.1.1.1') # this is a custom OID used for Network Controller
     $array = @()
 
     try {
         $certificateList = Get-ChildItem -Path $Path | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Ignore
         if ($NetworkControllerOid) {
             $certificateList | ForEach-Object {
-                if ($ObjectIdentifier -iin $_.EnhancedKeyUsageList.ObjectId) {
+                if ($objectIdentifier -iin $_.EnhancedKeyUsageList.ObjectId) {
                     $array += $_
                 }
             }
