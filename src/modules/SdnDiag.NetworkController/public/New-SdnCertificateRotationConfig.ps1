@@ -11,8 +11,7 @@ function New-SdnCertificateRotationConfig {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateSet('Rest','NetworkController','Server','LoadBalancerMux')]
-        [String]$CertificateType,
+        [CertType]$CertificateType,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -37,7 +36,7 @@ function New-SdnCertificateRotationConfig {
         [uri]$ncUrl = "https://$($NcInfraInfo.NcRestName)"
 
         switch ($CertificateType) {
-            'LoadBalancerMux' {
+            'LoadBalancerMuxNodeCert' {
                 $servers = Get-SdnLoadBalancerMux -NcUri $ncUrl -Credential $NcRestCredential
                 $servers | ForEach-Object {
                     $virtualServer = Get-SdnResource -NcUri $ncUrl -ResourceRef $_.properties.virtualServer.resourceRef
@@ -62,10 +61,10 @@ function New-SdnCertificateRotationConfig {
                 }
             }
 
-            'NetworkController' {
+            'NetworkControllerNodeCert' {
             }
 
-            'Rest' {
+            'RestCertificate' {
                 # grab the rest certificate with the latest expiration date
                 $restCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $restSubjectName -NetworkControllerOid:$NetworkControllerOid `
                 | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
@@ -74,17 +73,15 @@ function New-SdnCertificateRotationConfig {
                     throw New-Object System.NullReferenceException("Failed to locate Rest certificate")
                 }
 
-                $restCertObject = [RestCert]@{
+                $CertRotateConfig.RestCertificate = [RestCertificate]@{
                     CertificateType = 'Rest'
                     Thumbprint = $restCertificate.Thumbprint
                     SubjectName = $restCertificate.Subject
                     IsSelfSigned = (Confirm-IsCertSelfSigned -Certificate $restCertificate)
                 }
-
-                $certRotateConfig.RestCert = $restCertObject
             }
 
-            'Server' {
+            'ServerNodeCert' {
                 $servers = Get-SdnServer -NcUri $ncUrl -Credential $NcRestCredential
                 $servers | ForEach-Object {
                     $connection = $_.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }

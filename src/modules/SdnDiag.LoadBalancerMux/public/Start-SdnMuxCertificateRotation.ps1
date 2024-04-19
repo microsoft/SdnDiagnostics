@@ -18,8 +18,8 @@ function Start-SdnMuxCertificateRotation {
 
     [CmdletBinding(DefaultParameterSetName = 'GenerateCertificate')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
-        [System.String]$NetworkController = $env:COMPUTERNAME,
+        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
+        [System.String]$NetworkController,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
         [System.Management.Automation.PSCredential]
@@ -45,16 +45,7 @@ function Start-SdnMuxCertificateRotation {
     )
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
-
-    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
-    }
+    Confirm-IsAdmin
 
     $array = @()
     $headers = @{"Accept"="application/json"}

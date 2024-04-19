@@ -16,8 +16,8 @@ class BaseCert {
     [bool]$IsSelfSigned
 }
 
-class RestCert : BaseCert {
-    [CertType]$CertificateType = [CertType]::Rest
+class RestCertificate : BaseCert {
+    [CertType]$CertificateType = [CertType]::RestCertificate
 }
 
 class NodeCert : BaseCert {
@@ -27,19 +27,19 @@ class NodeCert : BaseCert {
 }
 
 class NetworkControllerNodeCert : NodeCert {
-    [CertType]$CertificateType = [CertType]::NetworkController
+    [CertType]$CertificateType = [CertType]::NetworkControllerNodeCert
 }
 
 class LoadBalancerMuxNodeCert : NodeCert {
-    [CertType]$CertificateType = [CertType]::LoadBalancerMux
+    [CertType]$CertificateType = [CertType]::LoadBalancerMuxNodeCert
 }
 
 class ServerNodeCert : NodeCert {
-    [CertType]$CertificateType = [CertType]::Server
+    [CertType]$CertificateType = [CertType]::ServerNodeCert
 }
 
 class CertRotateConfig {
-    [RestCert]$RestCert
+    [RestCertificate]$RestCertificate
     [ClusterCredentialType]$ClusterCredentialType = [ClusterCredentialType]::Kerberos
     [Object[]]$NodeCerts
 }
@@ -50,10 +50,10 @@ enum ClusterCredentialType {
 }
 
 enum CertType {
-    Rest
-    NetworkController
-    Server
-    LoadBalancerMux
+    RestCertificate
+    NetworkControllerNodeCert
+    ServerNodeCert
+    LoadBalancerMuxNodeCert
 }
 
 enum NcManagedRoles {

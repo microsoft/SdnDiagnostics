@@ -22,8 +22,7 @@ function Start-SdnExpiredCertificateRotation {
 
     param (
         [Parameter(Mandatory = $true)]
-        [hashtable]
-        $CertRotateConfig,
+        [CertRotateConfig]$CertRotateConfig,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -60,25 +59,40 @@ function Start-SdnExpiredCertificateRotation {
         throw New-Object System.NotSupportedException("Current Network Controller Rest certificate not found.")
     }
 
-    $NcVms = $NcNodeList.IpAddressOrFQDN
-
-    if (Test-Path -Path $NcUpdateFolder) {
-        $items = Get-ChildItem -Path $NcUpdateFolder -ErrorAction Ignore
-        if ($items.Count -gt 0) {
-            $confirmCleanup = Read-Host "The Folder $NcUpdateFolder not empty. Need to be cleared. Enter Y to confirm"
-            if ($confirmCleanup -eq "Y") {
-                $items | Remove-Item -Force -Recurse
+    if (Test-Path -Path $NcUpdateFolder -ItemType Container) {
+        $items = Get-ChildItem -Path $NcUpdateFolder
+        if ($items) {
+            $confirm = Confirm-UserInput -Message "$NcUpdateFolder not empty. Proceed with cleanup? [Y/N]: "
+            if (-NOT $confirm) {
+                # throw terminating exception here
+                # this will stop the execution Start-SdnCertificateRotation which calls into this function
+                throw New-Object System.OperationCanceledException("User cancelled the operation")
             }
             else {
-                return
+                $items | Remove-Item -Force -Recurse
             }
         }
     }
 
-    foreach ($nc in $NcVms) {
-        Invoke-Command -ComputerName $nc -ScriptBlock {
-            Write-Host "[$(HostName)] Stopping Service Fabric Service"
-            Stop-Service FabricHostSvc -Force
+    # stop service fabric service
+    $stopSfService = Invoke-PSRemoteCommand -ComputerName $NcNodeList.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
+        Stop-Service -Name 'FabricHostSvc' -Force -ErrorAction Ignore 3>$null # redirect warning to null
+        if ((Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore).Status -eq 'Stopped') {
+            return $true
+        }
+        else {
+            return $false
+        }
+    } -AsJob -PassThru -Activity 'Stopping Service Fabric Service on Network Controller' -ExecutionTimeOut 900
+
+    # enumerate the results of stopping service fabric service
+    # if any of the service fabric service is not stopped, throw an exception as we do not want to proceed further
+    $stopSfService | ForEach-Object {
+        if ($_) {
+            "Service Fabric Service stopped on {0}" -f $_.PSComputerName | Trace-Output
+        }
+        else {
+            throw "Failed to stop Service Fabric Service on $($_.PSComputerName)"
         }
     }
 
@@ -93,16 +107,14 @@ function Start-SdnExpiredCertificateRotation {
     Trace-Output -Message "Step 3 Copy the new files back to the NC vms"
     Copy-ServiceFabricManifestToNetworkController -NcNodeList $NcNodeList -ManifestFolder $ManifestFolderNew -Credential $Credential
 
-    # Step 5 Start FabricHostSvc and wait for SF system service to become healty
+    # Step 4 Start FabricHostSvc and wait for SF system service to become healty
     Trace-Output -Message "Step 4 Start FabricHostSvc and wait for SF system service to become healty"
-    Trace-Output -Message "Step 4.1 Update Network Controller Certificate ACL to allow 'Network Service' Access"
-    Update-NetworkControllerCertificateAcl -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
-    Trace-Output -Message "Step 4.2 Start Service Fabric Host Service and wait"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
     Trace-Output -Message "ClusterHealthy: $clusterHealthy"
     if($clusterHealthy -ne $true){
         throw New-Object System.NotSupportedException("Cluster unheathy after manifest update, we cannot continue with current situation")
     }
+
     # Step 6 Invoke SF Cluster Upgrade
     Trace-Output -Message "Step 5 Invoke SF Cluster Upgrade"
     Update-ServiceFabricCluster -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -ManifestFolderNew $ManifestFolderNew -Credential $Credential

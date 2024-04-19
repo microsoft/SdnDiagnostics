@@ -6,6 +6,7 @@ function Confirm-IsCertSelfSigned {
     )
 
     if ($Certificate.Issuer -eq $Certificate.Subject) {
+        "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
         return $true
     }
 

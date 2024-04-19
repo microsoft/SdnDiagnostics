@@ -6,8 +6,8 @@ function Start-SdnNetworkControllerRestCertificateRotation {
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
-    .PARAMETER CertPath
-        Path directory where certificate(s) .pfx files are located for use with certificate rotation.
+    .PARAMETER Certificate
+        Specifies the certificate file path to be used for certificate rotation.
     .PARAMETER GenerateCertificate
         Switch to determine if certificate rotate function should generate self-signed certificates.
     .PARAMETER CertPassword
@@ -23,6 +23,19 @@ function Start-SdnNetworkControllerRestCertificateRotation {
     [CmdletBinding(DefaultParameterSetName = 'GenerateCertificate')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
+        [System.String]$Certificate,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
+        [Switch]$GenerateCertificate,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
+        [System.Security.SecureString]$CertPassword,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
+        [CertRotateConfig]$CertRotateConfig,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
         [System.Management.Automation.PSCredential]
@@ -36,21 +49,8 @@ function Start-SdnNetworkControllerRestCertificateRotation {
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
-        [System.String]$CertPath,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
-        [Switch]$GenerateCertificate,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
-        [System.Security.SecureString]$CertPassword,
-
         [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
         [datetime]$NotAfter = (Get-Date).AddYears(3),
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
-        [hashtable]$CertRotateConfig,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
@@ -59,45 +59,158 @@ function Start-SdnNetworkControllerRestCertificateRotation {
     )
 
     # ensure that the module is running as local administrator
+    # and that we are operating the cmdlet on a network controller
     Confirm-IsAdmin
+    Confirm-IsNetworkController
 
-    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
+    # if we are generating a certificate, we will want to create specify the certificate path
+    if ([String]::IsNullOrEmpty($CertPath)) {
+        [System.String]$CertPath = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC)
     }
 
-    # purge any existing remote sessions to prevent situation where
-    # we leverage a session without credentials
-    Remove-PSRemotingSession
-
     try {
-        # grab the rest certificate with the latest expiration date
-        $updatedRestCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $currentRestCert.Subject -NetworkControllerOid `
-        | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+        # create the directory if it does not exist
+        if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
+            $null = New-Item -Path $CertPath -ItemType Directory -Force
+        }
+        $CertPathDir = Get-Item -Path $CertPath -ErrorAction 'Stop'
 
-        "Network Controller Rest Certificate {0} will be updated:`n`tCurrent: [Thumbprint:{1} NotAfter:{2}]`n`tUpdated: [Thumbprint:{3} NotAfter:{4}]" `
-            -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $currentRestCert.NotAfter, $CertRotateConfig["NcRestCert"], $updatedRestCertificate.NotAfter `
-        | Trace-Output -Level:Warning
+        "Retrieving current SDN environment details" | Trace-Output
+        $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
 
-        $null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $CertRotateConfig["NcRestCert"]
+        # get the network controller infrastructure information
+        # and determine if the rest certificate is expired or if the network controller is healthy
+        $currentRestCert = Get-SdnNetworkControllerRestCertificate -ErrorAction 'Stop'
+        $restCertExpired = (Get-Date) -gt $($currentRestCert.NotAfter)
+        if ($restCertExpired) {
+            "Network Controller Rest Certificate {0} expired at {1}" -f $currentRestCert.Thumbprint, $currentRestCert.NotAfter | Trace-Output -Level:Warning
+            $isNetworkControllerHealthy = $false
+        }
+        else {
+            $isNetworkControllerHealthy = Test-NetworkControllerIsHealthy
+        }
+
+        if ($isNetworkControllerHealthy) {
+            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential -NcRestCredential $NcRestCredential
+        }
+        else {
+            $sdnFabricDetails = [SdnFabricInfrastructure]@{
+                NetworkController = $NcInfraInfo.NodeList.IpAddressOrFQDN
+            }
+        }
+
+        switch ($PSCmdlet.ParameterSetName) {
+            'GenerateCertificate' {
+                "== STAGE: CREATE SELF SIGNED REST CERTIFICATE ==" | Trace-Output
+                $restCertFileParams = @{
+                    RestName      = $NcInfraInfo.NcRestName
+                    NotAfter      = $NotAfter
+                    Path          = $CertPathDir.FullName
+                    CertPassword  = $CertPassword
+                    Credential    = $Credential
+                    FabricDetails = $sdnFabricDetails
+                    ErrorAction   = 'Stop'
+                }
+
+                New-SdnNetworkControllerRestCertificate @restCertFileParams
+            }
+            'Pfx' {
+                "== STAGE: PARSE PFX CERTIFICATE ==" | Trace-Output
+                $pfxData = Get-PfxData -FilePath $Certificate -Password $CertPassword -ErrorAction 'Stop'
+                if ($pfxdata.EndEntityCertificates.Subject -ieq $currentRestCert.Subject) {
+                    "Matched {0} [Subject: {1}; Thumbprint: {2}] to NC Rest Certificate" -f `
+                    $Certificate, $pfxData.EndEntityCertificates.Subject, $pfxData.EndEntityCertificates.Thumbprint | Trace-Output
+                }
+                $restCertFile = Get-Item -Path $Certificate -ErrorAction 'Stop'
+            }
+            'CertConfig' {
+                "== STAGE: DETERMINE CERTIFICATE CONFIG ==" | Trace-Output
+                $certValidated = Test-SdnCertificateRotationConfig -NcNodeList $NcInfraInfo.NodeList -CertRotateConfig $CertRotateConfig -Credential $Credential
+
+                if ($certValidated -ne $true) {
+                    throw New-Object System.NotSupportedException("Unable to validate certificate configuration")
+                }
+            }
+        }
+
+        # we will import the certificate, even though it may already exist
+        # as we want to ensure we return the properties that contain self-signed information
+        $importRestCert = Import-SdnCertificate -FilePath $restCertFile.FullName -CertStore 'Cert:\LocalMachine\My' -CertPassword $CertPassword -ErrorAction 'Stop'
+
+        # in this instance, we will want to copy the certificate to the fabric
+        # however we will not copy to southbound devices at this time as we will do that later
+        # to account for situations where the current certificate is expired or network controller is unhealthy
+        # resulting in us not being able to determine the southbound devices
+
+        "== STAGE: COPY CERTIFICATE TO FABRIC ==" | Trace-Output
+        $copyCertToFabricParams = @{
+            CertFile                         = $restCertFile.FullName
+            CertPassword                     = $CertPassword
+            FabricDetails                    = $sdnFabricDetails
+            NetworkControllerRestCertificate = $true
+            InstallToSouthboundDevices       = $false
+            Credential                       = $Credential
+            ErrorAction                      = 'Stop'
+        }
+
+        Copy-CertificateToFabric @copyCertToFabricParams
+
+        # generate the certificate rotation configuration
+        if (!$CertRotateConfig) {
+            $certRotateConfigParams = @{
+                CertificateType      = 'Rest'
+                Credential           = $Credential
+                NcRestCredential     = $NcRestCredential
+                NetworkControllerOid = $true
+                ErrorAction          = 'Stop'
+            }
+
+            $CertRotateConfig = New-SdnCertificateRotationConfig @certRotateConfigParams
+        }
+
+        "Network Controller Rest Certificate {0} will be updated:`n`tCurrent: [Thumbprint:{1}]`n`tUpdated: [Thumbprint:{2}]" `
+        -f $currentRestCert.Subject, $currentRestCert.Thumbprint, $CertRotateConfig.RestCertificate.Thumbprint | Trace-Output -Level:Warning
+
+        # if we are not forcing the rotation, we will want to prompt the user to confirm the operation
+        if (!$Force) {
+            $confirm = Confirm-UserInput
+            if (-NOT $confirm) {
+                "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
+                return
+            }
+        }
+
+        # in situations where the rest certificate may be already expired, or the network controller is unhealthy
+        # we will want to leverage the expired certificate rotation function to fix up things so we may proceed with certificate rotate
+        if (!$isNetworkControllerHealthy) {
+            Start-SdnExpiredCertificateRotation @{
+                CertRotateConfig = $CertRotateConfig
+                Credential       = $Credential
+                NcRestCredential = $NcRestCredential
+            }
+        }
+
+        # Rotate NC Northbound Certificate (REST)
+        "== STAGE: ROTATE NC REST CERTIFICATE ==" | Trace-Output
+        $null = Invoke-CertRotateCommand @{
+            Command    = 'Set-NetworkController'
+            Credential = $Credential
+            Thumbprint = $CertRotateConfig.RestCertificate.Thumbprint
+        }
 
         "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
         Start-Sleep -Seconds 300
 
         # Rotate Cluster Certificate
-        $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerCluster' -Credential $Credential -Thumbprint $CertRotateConfig["NcRestCert"]
+        "== STAGE: ROTATE NC CLUSTER CERTIFICATE ==" | Trace-Output
+        $null = Invoke-CertRotateCommand @{
+            Command    = 'Set-NetworkControllerCluster'
+            Credential = $Credential
+            Thumbprint = $CertRotateConfig.RestCertificate.Thumbprint
+        }
 
         "Waiting for 5 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
         Start-Sleep -Seconds 300
-
-        # Update Credential Resource
-        $null = Update-NetworkControllerCredentialResource @{
-            NcUri                 = "https://$($NcInfraInfo.NcRestName)"
-            Credential            = $NcRestCredential
-            NewRestCertThumbprint = $CertRotateConfig["NcRestCert"]
-            ErrorAction           = Stop
-        }
 
         #####################################
         #
@@ -108,7 +221,7 @@ function Start-SdnNetworkControllerRestCertificateRotation {
         # in situation where maybe the Network Controller was down and we could not previously determine the southbound devices (if they exist)
         # we will want to get updated infrastructure information to determine if we need to seed the certificate to the southbound devices
         # if we get an error with returning the infrastructure information, we will terminate the script
-        if ($selfSignedRestCertFile) {
+        if ($CertRotateConfig.RestCertificate.IsSelfSigned) {
             $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force -ErrorAction Stop
             $southBoundNodes = @()
             if ($null -ne $sdnFabricDetails.LoadBalancerMux) {
@@ -124,14 +237,22 @@ function Start-SdnNetworkControllerRestCertificateRotation {
                 # ensure that we have the latest version of sdnDiagnostics module on the southbound devices
                 Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
 
-                "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
-                [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
-                Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedRestCertFile.FullName -Destination $remoteFilePath
-                $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
-                    Import-SdnCertificate -FilePath $param1 -CertStore $param2
-                } -ArgumentList @($remoteFilePath, 'Cert:\LocalMachine\Root') -ErrorAction Stop
+                Copy-CertificateToFabric @{
+                    CertFile                         = $importRestCert.SelfSignedCertFileInfo.FullName
+                    FabricDetails                    = $sdnFabricDetails
+                    NetworkControllerRestCertificate = $true
+                    InstallToSouthboundDevices       = $true
+                    Credential                       = $Credential
+                }
             }
+        }
+
+        "== STAGE: UPDATE X509 CREDENTIALS  ==" | Trace-Output
+        $null = Update-NetworkControllerCredentialResource @{
+            NcUri                 = "https://$($NcInfraInfo.NcRestName)"
+            Credential            = $NcRestCredential
+            NewRestCertThumbprint = $CertRotateConfig.RestCertificate.Thumbprint
+            ErrorAction           = 'Stop'
         }
 
         #####################################

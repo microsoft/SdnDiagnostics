@@ -42,11 +42,21 @@ function Get-SdnCertificate {
 
     try {
         $certificateList = Get-ChildItem -Path $Path | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Ignore
+        if ($null -eq $certificateList) {
+            return $null
+        }
+
         if ($NetworkControllerOid) {
             $certificateList | ForEach-Object {
                 if ($objectIdentifier -iin $_.EnhancedKeyUsageList.ObjectId) {
                     $array += $_
                 }
+            }
+
+            # if no certificates are found based on the OID, search based on other criteria
+            if (!$array) {
+                "Unable to locate certificates that match Network Controller OID: {0}. Searching based on other criteria." -f $objectIdentifier | Trace-Output -Level:Warning
+                $array = $certificateList
             }
         }
         else {

@@ -30,7 +30,7 @@ function Import-SdnCertificate {
     $certObject = [PSCustomObject]@{
         SelfSigned = $false
         CertInfo = $null
-        CerFileInfo = $null
+        SelfSignedCertFileInfo = $null
     }
 
     try {
@@ -73,8 +73,7 @@ function Import-SdnCertificate {
         }
 
         # determine if the certificates being used are self signed
-        if ($certObject.CertInfo.Subject -ieq $certObject.CertInfo.Issuer) {
-            "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
+        if (Confirm-IsCertSelfSigned -Certificate $certObject.CertInfo) {
             $certObject.SelfSigned = $true
 
             # check to see if we installed to root store with above operation
@@ -84,7 +83,7 @@ function Import-SdnCertificate {
                 $selfSignedCerExists = Get-SdnCertificate -Path $trustedRootStore -Thumbprint $certObject.CertInfo.Thumbprint
                 [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=','_')
                 $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
-                $certObject.CerFileInfo = $selfSignedCer
+                $certObject.SelfSignedCertFileInfo = $selfSignedCer
 
                 if (-NOT ($selfSignedCerExists)) {
                     # import the certificate to the trusted root store

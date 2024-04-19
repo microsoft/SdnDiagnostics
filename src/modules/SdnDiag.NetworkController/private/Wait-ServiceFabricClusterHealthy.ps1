@@ -13,12 +13,10 @@ function Wait-ServiceFabricClusterHealthy {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [PSCustomObject[]]
-        $NcNodeList,
+        [PSCustomObject[]]$NcNodeList,
 
         [Parameter(Mandatory = $true)]
-        [hashtable]
-        $CertRotateConfig,
+        [CertRotateConfig]$CertRotateConfig,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -26,8 +24,7 @@ function Wait-ServiceFabricClusterHealthy {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [switch]
-        $Restart
+        [switch]$Restart
     )
 
     try {
@@ -35,7 +32,7 @@ function Wait-ServiceFabricClusterHealthy {
 
         # Start Service Fabric Service for each NC
         foreach ($ncNode in $NcNodeList) {
-            if(Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN){
+            if (Test-ComputerNameIsLocal -ComputerName $ncNode.IpAddressOrFQDN) {
                 $currentNcNode = $ncNode
             }
 
@@ -59,10 +56,10 @@ function Wait-ServiceFabricClusterHealthy {
         $maxRetry = 10
         $clusterConnected = $false
         while ($maxRetry -gt 0) {
-            if(!$clusterConnected){
-                try{
+            if (!$clusterConnected) {
+                try {
                     "Service fabric cluster connect attempt $(11 - $maxRetry)/10" | Trace-Output
-                    if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
+                    if ($CertRotateConfig.ClusterCredentialType -ieq "X509") {
                         "Connecting to Service Fabric Cluster using cert with thumbprint: {0}" -f $certThumb | Trace-Output
                         Connect-ServiceFabricCluster -X509Credential -FindType FindByThumbprint -FindValue $certThumb  -ConnectionEndpoint "$($NodeFQDN):49006" | Out-Null
                     }
@@ -70,13 +67,14 @@ function Wait-ServiceFabricClusterHealthy {
                         Connect-ServiceFabricCluster | Out-Null
                     }
                     $clusterConnected = $true
-                }catch{
+                }
+                catch {
                     $maxRetry --
                     continue
                 }
             }
 
-            if($clusterConnected){
+            if ($clusterConnected) {
                 $services = @()
                 $services = Get-ServiceFabricService -ApplicationName fabric:/System
                 $allServiceHealth = $true
