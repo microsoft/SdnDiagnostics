@@ -51,7 +51,7 @@ function Set-SdnResource {
     )
 
     $restParams = @{
-        Uri      = $null
+        Uri     = $null
         Method  = 'Get'
         Credential = $Credential
         UseBasicParsing = $true
@@ -69,14 +69,12 @@ function Set-SdnResource {
             }
         }
 
-        $restParamsGet.Uri = $uri
+        $restParams.Uri = $uri
 
         # perform a query against the resource to ensure it exists
         # as we only support operations against existing resources within this function
         try {
-            if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called to update the properties of resource")) {
-                $null = Invoke-RestMethodWithRetry @restParams
-            }
+            $null = Invoke-RestMethodWithRetry @restParams
         }
         catch [System.Net.WebException] {
             if ($_.Exception.Response.StatusCode -eq "NotFound") {
@@ -90,28 +88,23 @@ function Set-SdnResource {
             throw $_
         }
 
-        $restParams.Method = 'Put'
-        $restParams.Body = ($Object | ConvertTo-Json -Depth 100)
+        $modifiedObject = Remove-PropertiesFromObject -Object $Object -PropertiesToRemove @('ConfigurationState','ProvisioningState')
+        $jsonBody = $modifiedObject | ConvertTo-Json -Depth 100
 
-        $null = Invoke-RestMethodWithRetry @restParams -ErrorAction Stop
-        $resourceState = Confirm-ProvisioningStateSucceeded -Uri $uri -Credential $Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
-        return $resourceState
+        $restParams.Method = 'Put'
+        $restParams.Add('Body', $jsonBody )
+        $restParams.Add('Headers', @{"Accept"="application/json"})
+        $restParams.Add('ContentType', "application/json; charset=UTF-8")
+
+        if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with PUT to configure the properties of $uri`n`t$jsonBody")) {
+            $null = Invoke-RestMethodWithRetry @restParams
+            $resourceState = Confirm-ProvisioningStateSucceeded -Uri $restParams.Uri -Credential $restParams.Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
+            return $resourceState
+        }
     }
     catch [System.Net.WebException] {
         $_ | Trace-Exception
-
-        # $_.Exception.Response contains the HTTP response that caused the exception
-        $response = $_.Exception.Response
-
-        # Read the response body
-        $streamReader = New-Object System.IO.StreamReader($response.GetResponseStream())
-        $responseBody = $streamReader.ReadToEnd()
-
-        # Now you can do something with the response body, like convert it from JSON to a PowerShell object
-        $errorObject = $responseBody | ConvertFrom-Json
-
-        # And then you can access properties of the error object
-        Write-Error "Error: $($errorObject.error.message)"
+        Write-Error "Error: $($_.ErrorDetails.Message)"
     }
     catch {
         $_ | Trace-Exception
