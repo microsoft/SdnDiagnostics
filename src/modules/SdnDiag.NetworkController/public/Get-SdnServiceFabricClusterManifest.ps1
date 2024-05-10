@@ -15,7 +15,7 @@ function Get-SdnServiceFabricClusterManifest {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $env:COMPUTERNAME,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -24,15 +24,6 @@ function Get-SdnServiceFabricClusterManifest {
     )
 
     try {
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
-        }
-
         # in instances where Service Fabric is down/offline we want to catch any exceptions returned by Invoke-SdnServiceFabricCommand
         # and then fallback to getting the cluster manifest information from the file system directly
         try {

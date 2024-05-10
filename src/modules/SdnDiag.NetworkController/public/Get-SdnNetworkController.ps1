@@ -15,7 +15,7 @@ function Get-SdnNetworkController {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String]$NetworkController = $(HostName),
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -23,22 +23,18 @@ function Get-SdnNetworkController {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
-        }
+    $networkControllerSB = {
+        Get-NetworkController
+    }
 
+    try {
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                $result = Get-NetworkController
+                Confirm-IsNetworkController
+                $result = Invoke-Command -ScriptBlock $networkControllerSB
             }
             else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkController } -Credential $Credential
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $networkControllerSB -Credential $Credential
             }
         }
         catch {

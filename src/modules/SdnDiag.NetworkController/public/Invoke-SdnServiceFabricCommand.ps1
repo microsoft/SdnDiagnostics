@@ -17,7 +17,7 @@ function Invoke-SdnServiceFabricCommand {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $env:COMPUTERNAME,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -31,6 +31,18 @@ function Invoke-SdnServiceFabricCommand {
         [Object[]]$ArgumentList = $null
     )
 
+    $connectSFCluster = {
+        if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+            throw "Service Fabric Service is currently not running."
+        }
+
+        # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+        Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
+    }
+
+    $i = 0
+    $maxRetry = 3
+
     $params = @{
         ScriptBlock = $ScriptBlock
     }
@@ -38,76 +50,70 @@ function Invoke-SdnServiceFabricCommand {
         $params.Add('ArgumentList', $ArgumentList)
     }
 
-    if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-        $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (-NOT ($confirmFeatures)) {
-            "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-            return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-        }
-    }
+    "Invoke Service Fabric cmdlets against {0}" -f $NetworkController | Trace-Output -Level Verbose
+    while ($i -lt $maxRetry) {
+        $i++
 
-    foreach ($controller in $NetworkController) {
-
-        $i = 0
-        $maxRetry = 3
-
-        # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
-        # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
-        "Invoke Service Fabric cmdlets against {0}" -f $controller | Trace-Output -Level Verbose
-        while ($i -lt $maxRetry) {
-            $i++
-
-            $session = New-PSRemotingSession -ComputerName $controller -Credential $Credential
-            if (!$session) {
-                "No session could be established to {0}" -f $controller | Trace-Output -Level:Error
-                break
-            }
-
-            try {
-                $connection = Invoke-Command -Session $session -ScriptBlock {
-                    # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
-                    Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
-                } -ErrorAction Stop
-            }
-            catch {
-                "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Error
-                "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
-                Get-PSSession -Id $session.Id | Remove-PSSession
-            }
-        }
-
-        # if we were not able to create a connection
-        # we want to continue the foreach statement to connect to another network controller node (if provided)
-        if (!$connection) {
-            "Unable to connect to Service Fabric Cluster" | Trace-Output -Level:Error
-            continue
-        }
-
-        # if we have the session created, we can then construct the remainder of the parameters for splatting purposes
-        # and write some verbose details to the log for tracking purposes
-        if ($session) {
-            if (-NOT ($params.ContainsKey('Session'))) {
-                $params.Add('Session', $session)
+        try {
+            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+                Confirm-IsNetworkController
+                $connection = Invoke-Command -ScriptBlock $connectSFCluster -ErrorAction Stop
             }
             else {
-                $params.Session = $session
-            }
+                try {
+                    $session = New-PSRemotingSession -ComputerName $NetworkController -Credential $Credential -ErrorAction Stop
+                    if (-NOT ($params.ContainsKey('Session'))) {
+                        $params.Add('Session', $session)
+                    }
+                    else {
+                        $params.Session = $session
+                    }
 
-            "NetworkController: {0}, ScriptBlock: {1}" -f $controller, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
-            if ($params.ArgumentList) {
-                "ArgumentList: {0}" -f ($params.ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+                    $connection = Invoke-Command -Session $session -ScriptBlock $connectSFCluster -ErrorAction Stop
+                }
+                # due to scenario as described in https://docs.microsoft.com/en-us/azure/service-fabric/service-fabric-troubleshoot-local-cluster-setup#cluster-connection-fails-with-object-is-closed
+                # we want to catch any exception when connecting to service fabric cluster, and if necassary destroy and create a new remote pssession
+                catch [Microsoft.ServiceFabric.Powershell.ConnectCluster+FabricObjectClosedException] {
+                    "Terminating remote session {0} to {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Warning
+                    Get-PSSession -Id $session.Id | Remove-PSSession
+                }
+                catch {
+                    throw $_
+                }
             }
+        }
+        catch {
+            switch -Wildcard ($_.Exception.Message) {
+                "*Service Fabric Service is not running*" {
+                    # Handle the case where the Service Fabric service is not running
+                    "Service Fabric Service is not running on $NetworkController" | Trace-Output -Level:Error
+                    throw $_
+                }
+                default {
+                    $_ | Trace-Exception
+                    "Unable to connect to Service Fabric Cluster. Attempt {0}/{1}`n`t{2}" -f $i, $maxRetry, $_ | Trace-Output -Level:Error
+                }
+            }
+        }
 
-            # if we get results from service fabric, then we want to break out of the loop
-            # otherwise we will try again to see if state issue with service fabric or the particular node
-            $sfResults = Invoke-Command @params
-            if ($sfResults) {
-                break
-            }
+        if ($connection) {
+            break
         }
     }
 
+    # if we were not able to create a connection
+    if (!$connection) {
+        throw "Unable to connect to Service Fabric Cluster"
+    }
+
+    "NetworkController: {0}, ScriptBlock: {1}" -f $NetworkController, $ScriptBlock.ToString() | Trace-Output -Level:Verbose
+    if ($params.ArgumentList) {
+        "ArgumentList: {0}" -f ($params.ArgumentList | ConvertTo-Json).ToString() | Trace-Output -Level:Verbose
+    }
+
+    # if we get results from service fabric, then we want to break out of the loop
+    # otherwise we will try again to see if state issue with service fabric or the particular node
+    $sfResults = Invoke-Command @params
     if (!$sfResults) {
         throw New-Object System.NullReferenceException("Unable to return results from service fabric")
     }

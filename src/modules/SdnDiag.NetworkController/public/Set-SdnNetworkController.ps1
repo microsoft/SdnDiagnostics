@@ -39,26 +39,12 @@ function Set-SdnNetworkController {
         $params.Add('Credential', $Credential)
     }
 
-    # we do not support this operation being executed from remote session
-    # unless we have explicitly specified the Credential parameter
+    Confirm-IsAdmin
+    Confirm-IsNetworkController
     if ($PSSenderInfo) {
         if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
             throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
         }
-    }
-
-    # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
-
-    # add disclaimer that this feature is currently under preview
-    "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues." | Trace-Output -Level:Warning
-    $confirm = Confirm-UserInput -Message "Do you want to proceed with operation? [Y/N]:"
-    if (-NOT $confirm) {
-        "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-        return
     }
 
     try {

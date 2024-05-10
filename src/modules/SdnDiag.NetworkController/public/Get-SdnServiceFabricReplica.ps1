@@ -32,7 +32,7 @@ function Get-SdnServiceFabricReplica {
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedService')]
         [Parameter(Mandatory = $false, ValueFromPipeline = $false, ParameterSetName = 'NamedServiceTypeName')]
@@ -45,31 +45,31 @@ function Get-SdnServiceFabricReplica {
         [Switch]$Primary
     )
 
+    $sfParams = @{
+        NetworkController = $NetworkController
+        Credential = $Credential
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'NamedService' {
+            $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceName))
+            $sb = {
+                param([string]$param1, [string]$param2)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceName $param2 | Get-ServiceFabricPartition | Get-ServiceFabricReplica
+            }
+        }
+
+        'NamedServiceTypeName' {
+            $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceTypeName))
+            $sb = {
+                param([string]$param1, [string]$param2)
+                Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceTypeName $param2 | Get-ServiceFabricPartition | Get-ServiceFabricReplica
+            }
+        }
+    }
+
     try {
-        switch ($PSCmdlet.ParameterSetName) {
-            'NamedService' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceName $using:ServiceName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                }
-            }
-
-            'NamedServiceTypeName' {
-                $sb = {
-                    Get-ServiceFabricApplication -ApplicationName $using:ApplicationName | Get-ServiceFabricService -ServiceTypeName $using:ServiceTypeName | Get-ServiceFabricPartition | Get-ServiceFabricReplica
-                }
-            }
-
-            default {
-                # no default
-            }
-        }
-
-        if ($NetworkController) {
-            $replica = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
-        }
-        else {
-            $replica = Invoke-SdnServiceFabricCommand -ScriptBlock $sb -Credential $Credential
-        }
+        $replica = Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb
 
         # as network controller only leverages stateful service fabric services, we will have Primary and ActiveSecondary replicas
         # if the -Primary switch was declared, we only want to return the primary replica for that particular service

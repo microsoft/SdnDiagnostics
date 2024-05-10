@@ -19,7 +19,7 @@ function Get-SdnServiceFabricNode {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $env:COMPUTERNAME,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -31,29 +31,26 @@ function Get-SdnServiceFabricNode {
 
     )
 
-    try {
+    $sfParams = @{
+        NetworkController = $NetworkController
+        Credential = $Credential
+    }
+    if ($NodeName) {
+        $sfParams.Add('ArgumentList', @($NodeName))
+    }
 
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
-        }
-
-        if ($NodeName) {
-            $sb = {
-                Get-ServiceFabricNode -NodeName $using:NodeName
-            }
+    $sb = {
+        param([string]$param1)
+        if ($param1) {
+            Get-ServiceFabricNode -NodeName $param1
         }
         else {
-            $sb = {
-                Get-ServiceFabricNode
-            }
+            Get-ServiceFabricNode
         }
+    }
 
-        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
+    try {
+        Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb
     }
     catch {
         $_ | Trace-Exception

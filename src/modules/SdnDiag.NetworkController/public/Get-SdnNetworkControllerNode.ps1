@@ -31,25 +31,37 @@ function Get-SdnNetworkControllerNode {
         [switch]$ServerNameOnly
     )
 
-    try {
+    $params = @{
+        NetworkController = $NetworkController
+        Credential = $Credential
+    }
+    if ($Name) {
+        $params.Add('Name', $Name)
+    }
 
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
+    $sb = {
+        param([String]$param1)
+        # check if service fabric service is running otherwise this command will hang
+        if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+            throw "FabricHostSvc is not running."
         }
 
+        if (-NOT [string]::IsNullOrEmpty($param1)) {
+            return (Get-NetworkControllerNode -Name $param1)
+        }
+        else {
+            return (Get-NetworkControllerNode)
+        }
+    }
+
+    try {
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                $result = Get-NetworkControllerNode -ErrorAction Stop
+                Confirm-IsNetworkController
+                $result = Invoke-Command -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
             }
             else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock {
-                    Get-NetworkControllerNode -ErrorAction Stop
-                } -ErrorAction Stop
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
             }
 
             # in this scenario if the results returned we will parse the objects returned and generate warning to user if node is not up
@@ -69,12 +81,8 @@ function Get-SdnNetworkControllerNode {
             }
         }
         catch {
-            "Get-NetworkControllerNode failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Error
-            $result = Get-NetworkControllerNodeInfoFromClusterManifest  -NetworkController $NetworkController -Credential $Credential
-        }
-
-        if ($Name) {
-            $result = $result | Where-Object { $_.Name.Split(".")[0] -ieq $Name.Split(".")[0] -or $_.Server -ieq $Name.Split(".")[0] }
+            "Get-NetworkControllerNode failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Error
+            $result = Get-NetworkControllerNodeInfoFromClusterManifest @params
         }
 
         if($ServerNameOnly){
@@ -83,7 +91,6 @@ function Get-SdnNetworkControllerNode {
         else {
             return $result
         }
-
     }
     catch {
         $_ | Trace-Exception
