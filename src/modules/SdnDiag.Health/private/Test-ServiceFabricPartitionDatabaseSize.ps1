@@ -21,13 +21,13 @@ function Test-ServiceFabricPartitionDatabaseSize {
     try {
         "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }
 
         foreach($node in $ncNodes){
-            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock {
+            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)
                 Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
             } -ArgumentList @($node.NodeName.ToString())
@@ -38,10 +38,10 @@ function Test-ServiceFabricPartitionDatabaseSize {
             }
 
             # Only stateful service have the database file
-            $ncServices = Get-SdnServiceFabricService -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential | Where-Object {$_.ServiceKind -eq "Stateful"}
+            $ncServices = Get-SdnServiceFabricService -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential | Where-Object {$_.ServiceKind -eq "Stateful"}
 
             foreach ($ncService in $ncServices){
-                $replica = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
+                $replica = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName[0] -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
                 $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
                 $imosStoreFile = Invoke-PSRemoteCommand -ComputerName $node.NodeName -Credential $Credential -ScriptBlock {
                     param([Parameter(Position = 0)][String]$param1)

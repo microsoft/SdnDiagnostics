@@ -20,7 +20,7 @@ function Test-ServiceFabricNodeStatus {
     try {
         "Validating the Service Fabric Nodes for Network Controller" | Trace-Output
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }

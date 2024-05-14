@@ -20,12 +20,12 @@ function Test-ServiceFabricClusterHealth {
     try {
         "Validating the Service Fabric Cluster Health for Network Controller" | Trace-Output
 
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName -Credential $credential
+        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
         if($null -eq $ncNodes){
             throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
         }
 
-        $clusterHealth = Get-SdnServiceFabricClusterHealth -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential
+        $clusterHealth = Get-SdnServiceFabricClusterHealth -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
         if ($clusterHealth.AggregatedHealthState -ine 'Ok') {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation += "Examine the Service Fabric Cluster Health for Network Controller to determine why the health is not OK."
