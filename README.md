@@ -1,3 +1,5 @@
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/microsoft/SdnDiagnostics/badge)](https://scorecard.dev/viewer/?uri=github.com/microsoft/SdnDiagnostics) ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/dependency-review.yml/badge.svg) ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell.yml/badge.svg)
+
 # Project
 SdnDiagnostics is a PowerShell module that is designed to simplify the diagnostic troubleshooting and data collection process when troubleshooting issues related to [Microsoft Software Defined Network](https://docs.microsoft.com/en-us/windows-server/networking/sdn/software-defined-networking).
 
@@ -8,13 +10,6 @@ Please refer to the [wiki](https://github.com/microsoft/SdnDiagnostics/wiki) on 
 | :-- | :-- | :-- |
 | PowerShell Gallery | [![downloads](https://img.shields.io/powershellgallery/dt/SdnDiagnostics.svg?label=Downloads)](https://www.powershellgallery.com/packages/SdnDiagnostics) | [![downloads](https://img.shields.io/powershellgallery/v/SdnDiagnostics.svg?label=Version)](https://www.powershellgallery.com/packages/SdnDiagnostics) |
 | NuGet | [![downloads](https://img.shields.io/nuget/dt/SdnDiagnostics.svg?label=Downloads)](https://www.nuget.org/packages/SdnDiagnostics) |[![downloads](https://img.shields.io/nuget/v/SdnDiagnostics.svg?label=Version)](https://www.nuget.org/packages/SdnDiagnostics)
-
-## GitHub Action Status
-| Actions | Current Status |
-| :-- | :-- |
-| Build Validation | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/server2019-sdntest.yml/badge.svg) |
-| Script Analyzer | ![](https://github.com/microsoft/SdnDiagnostics/actions/workflows/powershell.yml/badge.svg) |
-
 
 # Contributing
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
