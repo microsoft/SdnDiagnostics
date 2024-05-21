@@ -55,6 +55,12 @@ function Get-SdnServiceFabricReplica {
             $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceName))
             $sb = {
                 param([string]$param1, [string]$param2)
+                if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+                    throw "Service Fabric Service is currently not running."
+                }
+
+                # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+                $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
                 Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceName $param2 | Get-ServiceFabricPartition | Get-ServiceFabricReplica
             }
         }
@@ -63,6 +69,12 @@ function Get-SdnServiceFabricReplica {
             $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceTypeName))
             $sb = {
                 param([string]$param1, [string]$param2)
+                if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+                    throw "Service Fabric Service is currently not running."
+                }
+
+                # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+                $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
                 Get-ServiceFabricApplication -ApplicationName $param1 | Get-ServiceFabricService -ServiceTypeName $param2 | Get-ServiceFabricPartition | Get-ServiceFabricReplica
             }
         }

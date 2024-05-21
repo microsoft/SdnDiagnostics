@@ -23,11 +23,21 @@ function Get-SdnServiceFabricClusterManifest {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $sb = {
+        if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+            throw "Service Fabric Service is currently not running."
+        }
+
+        # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+        $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
+        Get-ServiceFabricClusterManifest
+    }
+
     try {
         # in instances where Service Fabric is down/offline we want to catch any exceptions returned by Invoke-SdnServiceFabricCommand
         # and then fallback to getting the cluster manifest information from the file system directly
         try {
-            $clusterManifest = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricClusterManifest } -Credential $Credential
+            $clusterManifest = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock $sb -Credential $Credential
         }
         catch {
             "Unable to retrieve ClusterManifest directly from Service Fabric. Attempting to retrieve ClusterManifest from file system" | Trace-Output -Level:Warning

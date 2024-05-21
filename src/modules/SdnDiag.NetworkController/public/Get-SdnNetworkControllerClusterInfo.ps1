@@ -69,8 +69,8 @@ function Get-SdnNetworkControllerClusterInfo {
             | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricReplica_$($service.ServiceTypeName)" -FileType txt
         }
 
-        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {Get-ServiceFabricApplication} `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-ServiceFabricApplication" -FileType json
+        Get-SdnServiceFabricApplication -NetworkController $NetworkController -Credential $Credential `
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricApplication" -FileType json
 
         Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricNode" -FileType txt

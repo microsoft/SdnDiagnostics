@@ -54,10 +54,13 @@ function Get-SdnNetworkControllerNode {
         }
     }
 
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        Confirm-IsNetworkController
+    }
+
     try {
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                Confirm-IsNetworkController
                 $result = Invoke-Command -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
             }
             else {

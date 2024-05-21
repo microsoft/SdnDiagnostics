@@ -29,6 +29,9 @@ function Test-ServiceFabricPartitionDatabaseSize {
         foreach($node in $ncNodes){
             $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential -ScriptBlock {
                 param([Parameter(Position = 0)][String]$param1)
+
+                # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+                $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
                 Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
             } -ArgumentList @($node.NodeName.ToString())
 
