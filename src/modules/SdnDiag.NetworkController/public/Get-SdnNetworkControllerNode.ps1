@@ -46,11 +46,14 @@ function Get-SdnNetworkControllerNode {
             throw "FabricHostSvc is not running."
         }
 
-        if (-NOT [string]::IsNullOrEmpty($param1)) {
-            return (Get-NetworkControllerNode -Name $param1)
+        # native cmdlet to get network controller node information is case sensitive
+        # so we need to get all nodes and then filter based on the name
+        $ncNodes = Get-NetworkControllerNode
+        if (![string]::IsNullOrEmpty($param1)) {
+            return ($ncNodes | Where-Object {$_.Name -ieq $param1})
         }
         else {
-            return (Get-NetworkControllerNode)
+            return $ncNodes
         }
     }
 

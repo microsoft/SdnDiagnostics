@@ -7,6 +7,9 @@ function Invoke-CertRotateCommand {
         [System.String]$Command,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$Name,
+
+        [Parameter(Mandatory = $false)]
         [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
@@ -60,7 +63,7 @@ function Invoke-CertRotateCommand {
             $params.Add('CredentialEncryptionCertificate', $cert)
         }
         'Set-NetworkControllerNode' {
-            $ncNode = Get-SdnNetworkControllerNode -Name $NetworkController -Credential $Credential
+            $ncNode = Get-SdnNetworkControllerNode -NetworkController $NetworkController -Name $Name -Credential $Credential
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)
