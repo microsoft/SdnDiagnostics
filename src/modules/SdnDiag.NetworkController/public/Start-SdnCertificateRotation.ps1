@@ -317,7 +317,7 @@ function Start-SdnCertificateRotation {
 
             foreach ($node in $NcInfraInfo.NodeList) {
                 $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
-                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node.IpAddressOrFQDN -Name $node.Name -Credential $Credential -Thumbprint $nodeCertThumbprint
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node.IpAddressOrFQDN -Name $node.NodeName -Credential $Credential -Thumbprint $nodeCertThumbprint
 
                 "Waiting for 2 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
                 Start-Sleep -Seconds 120
