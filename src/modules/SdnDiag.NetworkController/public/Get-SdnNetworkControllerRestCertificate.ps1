@@ -2,18 +2,22 @@ function Get-SdnNetworkControllerRestCertificate {
     <#
     .SYNOPSIS
         Returns the current Network Controller REST Certificate
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    Confirm-IsNetworkController
+
     try {
-
-        $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (-NOT ($confirmFeatures)) {
-            "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-            return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-        }
-
-        $networkController = Get-SdnNetworkController
+        $networkController = Get-SdnNetworkController -NetworkController $env:COMPUTERNAME -Credential $Credential
         $ncRestCertThumprint = $($networkController.ServerCertificate.Thumbprint).ToString()
         $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncRestCertThumprint
 

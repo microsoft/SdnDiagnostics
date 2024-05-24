@@ -42,7 +42,7 @@ function Test-SlbManagerConnectionToMux {
         # get the current primary replica of Network Controller
         # if we cannot return the primary replica, then something is critically wrong with Network Controller
         # in which case we should mark this test as failed and return back to the caller with guidance to fix the SlbManagerService
-        $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController -ServiceTypeName 'SlbManagerService' -Credential $NcRestCredential -Primary
+        $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController[0] -ServiceTypeName 'SlbManagerService' -Credential $NcRestCredential -Primary
         if ($null -ieq $primaryReplicaNode) {
             "Unable to return primary replica of SlbManagerService" | Trace-Output -Level:Error
             $sdnHealthObject.Result = 'FAIL'

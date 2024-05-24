@@ -2,10 +2,22 @@ function Get-SdnNetworkControllerNodeCertificate {
     <#
     .SYNOPSIS
         Returns the current Network Controller node certificate
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    Confirm-IsNetworkController
+
     try {
-        $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:COMPUTERNAME
+        $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:ComputerName -Credential $Credential
 
         # check to see if FindCertificateBy property exists as this was added in later builds
         # else if does not exist, default to Thumbprint for certificate

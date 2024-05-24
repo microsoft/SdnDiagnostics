@@ -148,12 +148,12 @@ function Start-SdnCertificateRotation {
             }
 
             # before we proceed with anything else, we want to make sure that all the Network Controllers within the SDN fabric are running the current version
-            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
 
             "Network Controller version: {0}" -f $ncSettings.NetworkControllerVersion | Trace-Output
             "Network Controller cluster version: {0}" -f $ncSettings.NetworkControllerClusterVersion | Trace-Output
 
-            $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME
+            $healthState = Get-SdnServiceFabricClusterHealth -NetworkController $env:COMPUTERNAME -Credential $Credential
             if ($healthState.AggregatedHealthState -ine 'Ok') {
                 "Service Fabric AggregatedHealthState is currently reporting {0}. Please address underlying health before proceeding with certificate rotation" `
                     -f $healthState.AggregatedHealthState | Trace-Output -Level:Error
@@ -317,7 +317,7 @@ function Start-SdnCertificateRotation {
 
             foreach ($node in $NcInfraInfo.NodeList) {
                 $nodeCertThumbprint = $certRotateConfig[$node.NodeName.ToLower()]
-                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node.IpAddressOrFQDN -Credential $Credential -Thumbprint $nodeCertThumbprint
+                $null = Invoke-CertRotateCommand -Command 'Set-NetworkControllerNode' -NetworkController $node.IpAddressOrFQDN -Name $node.NodeName -Credential $Credential -Thumbprint $nodeCertThumbprint
 
                 "Waiting for 2 minutes before proceeding to the next step. Script will resume at {0}" -f (Get-Date).AddMinutes(5).ToUniversalTime().ToString() | Trace-Output
                 Start-Sleep -Seconds 120

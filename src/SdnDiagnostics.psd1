@@ -96,6 +96,7 @@
         'Get-SdnResource',
         'Get-SdnServer',
         'Get-SdnServerCertificate',
+        'Get-SdnServiceFabricApplication',
         'Get-SdnServiceFabricApplicationHealth',
         'Get-SdnServiceFabricClusterConfig',
         'Get-SdnServiceFabricClusterHealth',
