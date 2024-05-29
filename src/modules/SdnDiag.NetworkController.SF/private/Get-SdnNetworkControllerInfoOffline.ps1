@@ -15,7 +15,7 @@ function Get-SdnNetworkControllerInfoOffline {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [String]$NetworkController = $(HostName),
+        [String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -23,16 +23,11 @@ function Get-SdnNetworkControllerInfoOffline {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
-        }
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        Confirm-IsNetworkController
+    }
 
+    try {
         $clusterManifestXml = [xml](Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential)
         $NodeList = $clusterManifestXml.ClusterManifest.Infrastructure.WindowsServer.NodeList.Node
         $securitySection = $clusterManifestXml.ClusterManifest.FabricSettings.Section | Where-Object Name -eq "Security"
@@ -58,7 +53,6 @@ function Get-SdnNetworkControllerInfoOffline {
         }
 
         return $infraInfo
-
     }
     catch {
         $_ | Trace-Exception
