@@ -16,7 +16,7 @@ function Get-ServerConfigState {
 
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
-    $ErrorActionPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'Ignore'
 
     try {
         $config = Get-SdnModuleConfiguration -Role:Server
@@ -38,7 +38,6 @@ function Get-ServerConfigState {
         foreach ($vm in (Get-WmiObject -na root\virtualization\v2 msvm_computersystem)) {
             foreach ($vma in $vm.GetRelated("Msvm_SyntheticEthernetPort")) {
                 foreach ($port in $vma.GetRelated("Msvm_SyntheticEthernetPortSettingData").GetRelated("Msvm_EthernetPortAllocationSettingData").GetRelated("Msvm_EthernetSwitchPort")) {
-
                     $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
                     vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_nat_range' -Name $port.Name -FileType txt
                     vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_rule' -Name $port.Name -FileType txt
@@ -69,19 +68,52 @@ function Get-ServerConfigState {
         Get-SdnOvsdbPhysicalPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbPhysicalPort' -FileType json
         Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnOvsdbUcastMacRemoteTable' -FileType json
 
+        # Get virtual machine details
+        "Gathering virtual machine configuration details" | Trace-Output -Level:Verbose
+        $vm = Get-VM
+        if ($vm) {
+            $vmRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VM") -ItemType Directory -Force
+
+            $vm | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType csv
+            $vm | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType json
+            $vm | ForEach-Object {
+                $prefix = $_.Name.ToString().Replace(" ", "_").Trim()
+                $_ | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapter' -FileType json
+                $_ | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType json
+                $_ | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType json
+                $_ | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType json
+                $_ | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType json
+                $_ | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType json
+                $_ | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType json
+            }
+        }
+
         # Gather Hyper-V network details
-        "Gathering hyper-v configuration details" | Trace-Output -Level:Verbose
-        Get-VM | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VM' -FileType csv
+        "Gathering Hyper-V network configuration details" | Trace-Output -Level:Verbose
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVPort' -FileType txt -Format Table
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVmqQueue' -FileType txt -Format Table
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnNetAdapterEncapOverheadConfig' -FileType txt -Format Table
-        Get-VMSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType json
-        Get-VMSwitchTeam | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitchTeam' -FileType json
         Get-SdnVMNetworkAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapterPortProfile' -FileType txt -Format Table
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format Table
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format Table
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format Table
         Get-VMSystemSwitchExtensionPortFeature -FeatureId "9940cd46-8b06-43bb-b9d5-93d50381fd56" | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSystemSwitchExtensionPortFeature' -FileType json
+
+        Get-VMSwitchTeam | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitchTeam' -FileType txt -Format List
+        $vmSwitch = Get-VMSwitch
+        if ($vmSwitch) {
+            $vmSwitchRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath "VMSwitch") -ItemType Directory -Force
+
+            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType json
+            $vmSwitch | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMSwitch' -FileType txt -Format List
+            $vmSwitch | ForEach-Object {
+                $prefix = $_.Name.ToString().Replace(" ", "_").Trim()
+                $_ | Get-VMSwitchExtension | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtension' -FileType json
+                $_ | Get-VMSwitchExtensionSwitchData | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtensionSwitchData' -FileType json
+                $_ | Get-VMSwitchExtensionSwitchFeature | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchExtensionSwitchFeature' -FileType json
+                $_ | Get-VMSwitchTeam | Export-ObjectToFile -FilePath $vmSwitchRootDir.FullName -Prefix $prefix -Name 'Get-VMSwitchTeam' -FileType json
+            }
+        }
 
         # add fault tolerance for hnvdiagnostics commands that do not have [CmdletBinding()]
         # and will ignore the ErrorActionPreference resulting in a terminating exception

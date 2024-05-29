@@ -12,7 +12,7 @@ function Get-CommonConfigState {
 
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
-    $ErrorActionPreference = 'SilentlyContinue'
+    $ErrorActionPreference = 'Ignore'
 
     try {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "Common"
@@ -47,14 +47,22 @@ function Get-CommonConfigState {
         Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format Table
         netsh winhttp show proxy | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'netsh_winhttp_show_proxy' -FileType txt
 
-        $outputDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
-        foreach($adapter in Get-NetAdapter){
-            Get-NetAdapter -Name $adapter.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapter' -FileType txt -Format List
-            Get-NetAdapterSriov -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterSriov' -FileType txt -Format List
-            Get-NetAdapterRsc -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterRsc' -FileType txt -Format List
-            Get-NetAdapterHardwareInfo -Name $adapter.Name -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format List
-            Get-NetAdapterAdvancedProperty -Name $adapter.Name `
-                | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $adapter.Name -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
+        $netAdapter = Get-NetAdapter
+        if ($netAdapter) {
+            $netAdapterRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
+
+            $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format List
+            $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType json
+            $netAdapter | ForEach-Object {
+                $prefix = $_.Name.ToString().Replace(' ','_').Trim()
+                $_ | Get-NetAdapterAdvancedProperty | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType json
+                $_ | Get-NetAdapterBinding | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterBinding' -FileType json
+                $_ | Get-NetAdapterChecksumOffload -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterChecksumOffload' -FileType json
+                $_ | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterHardwareInfo' -FileType json
+                $_ | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterRsc' -FileType json
+                $_ | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterSriov' -FileType json
+                $_ | Get-NetAdapterStatistics -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterStatistics' -FileType json
+            }
         }
 
         # Gather DNS client settings

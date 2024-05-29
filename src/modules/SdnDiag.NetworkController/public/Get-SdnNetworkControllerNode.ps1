@@ -31,43 +31,38 @@ function Get-SdnNetworkControllerNode {
         [switch]$ServerNameOnly
     )
 
-    if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-        $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-        $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-        if (-NOT ($confirmFeatures)) {
-            "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-            return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-        }
-    }
-
     $params = @{
         NetworkController = $NetworkController
-        Credential        = $Credential
-        ErrorAction       = 'Stop'
+        Credential = $Credential
     }
     if ($Name) {
         $params.Add('Name', $Name)
     }
 
     $sb = {
-        param([String]$arg0)
-
+        param([String]$param1)
         # check if service fabric service is running otherwise this command will hang
         if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-            throw "Service Fabric Service is not running on $NetworkController"
+            throw "FabricHostSvc is not running."
         }
 
-        if ([string]::IsNullOrEmpty($arg0)) {
-            Get-NetworkControllerNode -ErrorAction Stop
+        # native cmdlet to get network controller node information is case sensitive
+        # so we need to get all nodes and then filter based on the name
+        $ncNodes = Get-NetworkControllerNode
+        if (![string]::IsNullOrEmpty($param1)) {
+            return ($ncNodes | Where-Object {$_.Name -ieq $param1})
         }
         else {
-            Get-NetworkControllerNode -Name $arg0 -ErrorAction Stop
+            return $ncNodes
         }
+    }
+
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        Confirm-IsNetworkController
     }
 
     try {
         try {
-            # Run the script block locally or remotely
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
                 $result = Invoke-Command -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
             }

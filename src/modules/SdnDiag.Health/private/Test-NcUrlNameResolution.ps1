@@ -21,7 +21,7 @@ function Test-NcUrlNameResolution {
     try {
         "Validate that the Network Controller NB API URL resolves to the correct IP address" | Trace-Output
 
-        $ncApiReplicaPrimary = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName -Credential $Credential -ServiceTypeName 'ApiService' -Primary
+        $ncApiReplicaPrimary = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential -ServiceTypeName 'ApiService' -Primary
         if ($null -eq $ncApiReplicaPrimary) {
             "Unable to find the primary replica for the ApiService" | Trace-Output -Level:Warning
             return $sdnHealthObject

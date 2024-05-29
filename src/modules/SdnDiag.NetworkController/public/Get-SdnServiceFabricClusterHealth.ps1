@@ -13,7 +13,7 @@ function Get-SdnServiceFabricClusterHealth {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [System.String[]]$NetworkController = $global:SdnDiagnostics.EnvironmentInfo.NetworkController,
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -21,13 +21,18 @@ function Get-SdnServiceFabricClusterHealth {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $sb = {
+        if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
+            throw "Service Fabric Service is currently not running."
+        }
+
+        # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+        $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
+        Get-ServiceFabricClusterHealth
+    }
+
     try {
-        if ($NetworkController) {
-            Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -ScriptBlock { Get-ServiceFabricClusterHealth } -Credential $Credential
-        }
-        else {
-            Invoke-SdnServiceFabricCommand -ScriptBlock { Get-ServiceFabricClusterHealth } -Credential $Credential
-        }
+        Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock $sb
     }
     catch {
         $_ | Trace-Exception

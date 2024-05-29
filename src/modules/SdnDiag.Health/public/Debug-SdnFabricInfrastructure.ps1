@@ -22,7 +22,7 @@ function Debug-SdnFabricInfrastructure {
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
-        [System.String]$NetworkController = $(HostName),
+        [System.String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [ValidateSet('Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
@@ -47,16 +47,18 @@ function Debug-SdnFabricInfrastructure {
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
 
-    try {
-        if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-            $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-            if (-NOT ($confirmFeatures)) {
-                "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
-                return # don't throw exception, since this is a controlled scenario and we do not need stack exception tracing
-            }
+    # check to see if we are running in a remote session and if so, ensure we have the necessary credentials
+    # otherwise we will not be able to perform the necessary tests
+    if ($PSSenderInfo) {
+        if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
+            throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
         }
+    }
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        Confirm-IsNetworkController
+    }
 
+    try {
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         if($null -eq $environmentInfo){
             throw New-Object System.NullReferenceException("Unable to retrieve environment details")
