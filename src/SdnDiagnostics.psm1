@@ -613,6 +613,16 @@ function Start-SdnDataCollection {
         Get-SdnConfigState -Role $Role -OutputDirectory $OutputDirectory
     }
 
+    $collectEventLogSB = {
+        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String[]]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
+        Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
+    }
+
+    $collectNetViewSB = {
+        param([Parameter(Position = 0)][String]$OutputDirectory)
+        Invoke-SdnGetNetView -OutputDirectory $OutputDirectory -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters
+    }
+
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
@@ -769,7 +779,7 @@ function Start-SdnDataCollection {
             $filteredDataCollectionNodes += $dataNodes
 
             "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-            Invoke-PSRemoteCommand @{
+            $splat = @{
                 ComputerName = $dataNodes
                 Credential   = $Credential
                 ScriptBlock  = $collectConfigStateSB
@@ -778,10 +788,11 @@ function Start-SdnDataCollection {
                 PassThru     = $true
                 Activity     = "Collect $($group.Name) Configuration State"
             }
+            Invoke-PSRemoteCommand @splat
 
             # check to see if any network traces were captured on the data nodes previously
             "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
-            Invoke-PSRemoteCommand @{
+            $splat = @{
                 ComputerName = $dataNodes
                 Credential   = $Credential
                 ScriptBlock  = $collectLogSB
@@ -790,6 +801,7 @@ function Start-SdnDataCollection {
                 PassThru     = $true
                 Activity     = 'Collect Network Traces'
             }
+            Invoke-PSRemoteCommand @splat
 
             # collect the sdndiagnostics etl files if IncludeLogs was provided
             if ($IncludeLogs) {
@@ -801,7 +813,7 @@ function Start-SdnDataCollection {
 
                     "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
                     $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'SdnDiagnosticLogs'
-                    Invoke-PSRemoteCommand @{
+                    $splat = @{
                         ComputerName = $dataNodes
                         Credential   = $Credential
                         ScriptBlock  = $collectLogSB
@@ -810,29 +822,40 @@ function Start-SdnDataCollection {
                         PassThru     = $true
                         Activity     = 'Get Diagnostic Log Files'
                     }
+                    Invoke-PSRemoteCommand @splat
 
-                    # collect the service fabric logs for the network controller
+                    # collect the logs related to the network controller
                     if ($group.Name -ieq 'NetworkController') {
-                        $ncConfig = Get-SdnModuleConfiguration -Role:NetworkController
-                        [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+                        # check to see if we are using SF cluster and if so, collect the SF logs
+                        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType -ieq 'ServiceFabric') {
+                            $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                            [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
 
-                        "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                        $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
-                        Invoke-PSRemoteCommand @{
-                            ComputerName = $dataNodes
-                            Credential   = $Credential
-                            ScriptBlock  = $collectLogSB
-                            ArgumentList = @($sfLogDir, $outputDir, $FromDate, $ToDate)
-                            AsJob        = $true
-                            PassThru     = $true
-                            Activity     = 'Get Service Fabric Logs'
+                            "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                            $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
+                            $splat = @{
+                                ComputerName = $dataNodes
+                                Credential   = $Credential
+                                ScriptBlock  = $collectLogSB
+                                ArgumentList = @($sfLogDir, $outputDir, $FromDate, $ToDate)
+                                AsJob        = $true
+                                PassThru     = $true
+                                Activity     = 'Get Service Fabric Logs'
+                            }
+                            Invoke-PSRemoteCommand @splat
                         }
                     }
 
                     # if the role is a server, collect the audit logs if they are available
                     if ($group.Name -ieq 'Server') {
-                        Get-SdnAuditLog -NcUri $sdnFabricDetails.NcUrl -NcRestCredential $NcRestCredential -OutputDirectory "$($OutputDirectory.FullName)\AuditLogs" `
-                        -ComputerName $dataNodes -Credential $Credential
+                        $splat = @{
+                            NcUri            = $sdnFabricDetails.NcUrl
+                            NcRestCredential = $NcRestCredential
+                            OutputDirectory  = "$($OutputDirectory.FullName)\AuditLogs"
+                            ComputerName     = $dataNodes
+                            Credential       = $Credential
+                        }
+                        Get-SdnAuditLog @splat
                     }
                 }
 
@@ -853,10 +876,16 @@ function Start-SdnDataCollection {
                     default { $roleArray = @(); $roleArray += $group.Name; $roleArray += 'Common' }
                 }
 
-                Invoke-PSRemoteCommand -ComputerName $dataNodes -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String[]]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
-                    Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
-                } -ArgumentList @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate) -AsJob -PassThru -Activity "Get $($group.Name) Event Logs"
+                $splat = @{
+                    ComputerName = $dataNodes
+                    Credential   = $Credential
+                    ScriptBlock  = $collectEventLogSB
+                    ArgumentList = @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate)
+                    AsJob        = $true
+                    PassThru     = $true
+                    Activity     = "Get $($group.Name) Event Logs"
+                }
+                Invoke-PSRemoteCommand @splat
             }
         }
 
@@ -899,14 +928,16 @@ function Start-SdnDataCollection {
 
         if ($IncludeNetView) {
             "Collect Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
-            $null = Invoke-PSRemoteCommand -ComputerName $filteredDataCollectionNodes -Credential $Credential -ScriptBlock {
-                param([Parameter(Position = 0)][String]$OutputDirectory)
-                Invoke-SdnGetNetView -OutputDirectory $OutputDirectory `
-                    -SkipAdminCheck `
-                    -SkipNetshTrace `
-                    -SkipVM `
-                    -SkipCounters
-            } -ArgumentList @($tempDirectory.FullName) -AsJob -PassThru -Activity 'Invoke Get-NetView'
+            $splat = @{
+                ComputerName = $filteredDataCollectionNodes
+                Credential   = $Credential
+                ScriptBlock  = $collectNetViewSB
+                ArgumentList = @($tempDirectory.FullName)
+                AsJob        = $true
+                PassThru     = $true
+                Activity     = 'Invoke Get-NetView'
+            }
+            $null = Invoke-PSRemoteCommand @splat
         }
 
         foreach ($node in $filteredDataCollectionNodes) {
