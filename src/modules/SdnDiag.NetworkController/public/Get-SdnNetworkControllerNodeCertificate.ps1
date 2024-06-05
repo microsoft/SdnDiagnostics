@@ -17,7 +17,7 @@ function Get-SdnNetworkControllerNodeCertificate {
     Confirm-IsNetworkController
 
     try {
-        $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:ComputerName -Credential $Credential
+        $networkControllerNode = Get-SdnNetworkControllerSFNode -Name $env:ComputerName -Credential $Credential
 
         # check to see if FindCertificateBy property exists as this was added in later builds
         # else if does not exist, default to Thumbprint for certificate

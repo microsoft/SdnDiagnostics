@@ -1,4 +1,4 @@
-function Get-SdnNetworkControllerNode {
+function Get-SdnNetworkControllerSFNode {
     <#
     .SYNOPSIS
         Returns a list of servers from network controller.
@@ -9,9 +9,9 @@ function Get-SdnNetworkControllerNode {
 	.PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnNetworkControllerNode
+        PS> Get-SdnNetworkControllerSFNode
     .EXAMPLE
-        PS> Get-SdnNetworkControllerNode -NetworkController 'NC01' -Credential (Get-Credential)
+        PS> Get-SdnNetworkControllerSFNode -NetworkController 'NC01' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

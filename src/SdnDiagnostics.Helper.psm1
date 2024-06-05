@@ -73,7 +73,7 @@ $networkControllerParamCommands = (
     'Start-SdnDataCollection',
     'Get-SdnNetworkControllerFC',
     'Get-SdnNetworkControllerSF',
-    'Get-SdnNetworkControllerNode',
+    'Get-SdnNetworkControllerSFNode',
     'Get-SdnNetworkControllerClusterInfo',
     'Get-SdnNetworkControllerState',
     'Get-SdnServiceFabricApplicationHealth',

@@ -63,7 +63,7 @@ function Invoke-CertRotateCommand {
             $params.Add('CredentialEncryptionCertificate', $cert)
         }
         'Set-NetworkControllerNode' {
-            $ncNode = Get-SdnNetworkControllerNode -NetworkController $NetworkController -Name $Name -Credential $Credential
+            $ncNode = Get-SdnNetworkControllerSFNode -NetworkController $NetworkController -Name $Name -Credential $Credential
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)

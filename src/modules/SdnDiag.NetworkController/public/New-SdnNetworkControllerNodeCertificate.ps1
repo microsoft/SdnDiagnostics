@@ -44,7 +44,7 @@ function New-SdnNetworkControllerNodeCertificate {
     try {
         if ($null -eq $FabricDetails) {
             $FabricDetails = [SdnFabricInfrastructure]@{
-                NetworkController = (Get-SdnNetworkControllerNode).Server
+                NetworkController = (Get-SdnNetworkControllerSFNode).Server
             }
         }
 
