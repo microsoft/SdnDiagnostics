@@ -4,8 +4,8 @@ function Get-SdnNetworkControllerSF {
         Gets network controller application settings from the network controller node leveraging Service Fabric.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnNetworkControllerSF
     .EXAMPLE
@@ -24,6 +24,12 @@ function Get-SdnNetworkControllerSF {
     )
 
     $networkControllerSB = {
+        # check if service fabric service is running
+        $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
+        if ($serviceState.Status -ne 'Running') {
+            throw New-Object System.Exception("Service Fabric Service is currently not running.")
+        }
+
         Get-NetworkController
     }
 
@@ -38,8 +44,18 @@ function Get-SdnNetworkControllerSF {
             }
         }
         catch {
-            "Get-NetworkController failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Error
-            $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
+            $_ | Trace-Exception
+
+            switch -Wildcard ($_.FullyQualifiedErrorId) {
+                '*does not have a cluster deployed*' {
+                    "Use 'Get-SdnNetworkControllerFC' to return information from Network Controller deployed on Failover Cluster" | Trace-Output -Level:Warning
+                    return $null
+                }
+                default {
+                    "Unable to return results from Get-NetworkController" | Trace-Output -Level:Warning
+                    $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
+                }
+            }
         }
 
         return $result

@@ -41,9 +41,10 @@ function Get-SdnNetworkControllerNode {
 
     $sb = {
         param([String]$param1)
-        # check if service fabric service is running otherwise this command will hang
-        if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-            throw "FabricHostSvc is not running."
+        # check if service fabric service is running
+        $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
+        if ($serviceState.Status -ne 'Running') {
+            throw New-Object System.Exception("Service Fabric Service is currently not running.")
         }
 
         # native cmdlet to get network controller node information is case sensitive
