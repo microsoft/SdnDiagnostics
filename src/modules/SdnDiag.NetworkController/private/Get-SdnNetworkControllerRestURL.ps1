@@ -21,7 +21,7 @@ function Get-SdnNetworkControllerRestURL {
             return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
         }
 
-        $result = Get-SdnNetworkController -NetworkController $NetworkController -Credential $Credential
+        $result = Get-SdnNetworkControllerSF -NetworkController $NetworkController -Credential $Credential
         if ($null -eq $result) {
             throw New-Object System.NullReferenceException("Unable to return information from Network Controller")
         }

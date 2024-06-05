@@ -71,7 +71,7 @@ $networkControllerParamCommands = (
     'Debug-SdnFabricInfrastructure',
     'Test-SdnKnownIssue',
     'Start-SdnDataCollection',
-    'Get-SdnNetworkController',
+    'Get-SdnNetworkControllerSF',
     'Get-SdnNetworkControllerNode',
     'Get-SdnNetworkControllerClusterInfo',
     'Get-SdnNetworkControllerState',

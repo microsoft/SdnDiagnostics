@@ -27,9 +27,9 @@ function Test-NcUrlNameResolution {
             return $sdnHealthObject
         }
 
-        $networkController = Get-SdnNetworkController -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
+        $networkController = Get-SdnNetworkControllerSF -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
         if ($null -eq $networkController) {
-            "Unable to retrieve results from Get-SdnNetworkController" | Trace-Output -Level:Warning
+            "Unable to retrieve results from Get-SdnNetworkControllerSF" | Trace-Output -Level:Warning
             return $sdnHealthObject
         }
 

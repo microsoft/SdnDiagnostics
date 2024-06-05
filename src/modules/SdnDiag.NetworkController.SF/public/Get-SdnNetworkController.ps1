@@ -1,15 +1,15 @@
-function Get-SdnNetworkController {
+function Get-SdnNetworkControllerSF {
     <#
     .SYNOPSIS
-        Gets network controller application settings.
+        Gets network controller application settings from the network controller node leveraging Service Fabric.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnNetworkController
+        PS> Get-SdnNetworkControllerSF
     .EXAMPLE
-        PS> Get-SdnNetworkController -NetworkController 'NC01' -Credential (Get-Credential)
+        PS> Get-SdnNetworkControllerSF -NetworkController 'NC01' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

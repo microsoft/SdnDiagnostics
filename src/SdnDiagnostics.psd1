@@ -81,7 +81,7 @@
         'Get-SdnNetAdapterEncapOverheadConfig',
         'Get-SdnNetAdapterRdmaConfig',
         'Get-SdnNetworkInterfaceOutboundPublicIPAddress',
-        'Get-SdnNetworkController',
+        'Get-SdnNetworkControllerSF',
         'Get-SdnNetworkControllerClusterInfo',
         'Get-SdnNetworkControllerNode',
         'Get-SdnNetworkControllerNodeCertificate'
