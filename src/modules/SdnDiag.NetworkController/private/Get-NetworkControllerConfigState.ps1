@@ -40,6 +40,15 @@ function Get-NetworkControllerConfigState {
             [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
             Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
         }
+
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+            'ServiceFabric' {
+                Get-NetworkControllerSFConfigState -OutputDirectory $OutputDirectory
+            }
+            'FailoverCluster' {
+                Get-NetworkControllerFCConfigState -OutputDirectory $OutputDirectory
+            }
+        }
     }
     catch {
         $_ | Trace-Exception

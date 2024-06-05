@@ -5,6 +5,8 @@ Using module .\SdnDiag.NetworkController.Helper.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.Helper.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Common\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\..\SdnDiag.Utilities\SdnDiag.Utilities.psm1
+Import-Module $PSScriptRoot\..\SdnDiag.NetworkController.FC\SdnDiag.NetworkController.FC.psm1
+Import-Module $PSScriptRoot\..\SdnDiag.NetworkController.SF\SdnDiag.NetworkController.SF.psm1
 
 # create local variable to store configuration data
 $configurationData = Import-PowerShellDataFile -Path $PSScriptRoot\SdnDiag.NetworkController.Config.psd1
