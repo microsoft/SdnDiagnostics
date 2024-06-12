@@ -5,7 +5,7 @@ function New-SdnNetworkControllerRestCertificate {
     .PARAMETER NotAfter
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
     .PARAMETER CertPassword
-        Specifies the password for the imported PFX file in the form of a secure string.
+        Specifies the password for the PFX file in the form of a secure string.
     #>
 
     [CmdletBinding()]
@@ -20,10 +20,7 @@ function New-SdnNetworkControllerRestCertificate {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC),
-
-        [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [System.String]$Path = "$(Get-WorkingDirectory)\NcRest_{0}" -f (Get-FormattedDateTimeUTC),
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -37,53 +34,27 @@ function New-SdnNetworkControllerRestCertificate {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     try {
-        if ($FabricDetails) {
-            if ($FabricDetails.LoadBalancerMux -or $FabricDetails.Server) {
-                $installToSouthboundDevices = $true
-            }
-            else {
-                $installToSouthboundDevices = $false
-            }
-        }
-        else {
-            $installToSouthboundDevices = $false
-
-            $FabricDetails = [SdnFabricInfrastructure]@{
-                NetworkController = (Get-SdnNetworkControllerNode).Server
-            }
-        }
-
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
             "Creating directory {0}" -f $Path | Trace-Output
-            $CertPath = New-Item -Path $Path -ItemType Directory -Force
+            $certPath = New-Item -Path $Path -ItemType Directory -Force
         }
         else {
-            $CertPath = Get-Item -Path $Path
+            $certPath = Get-Item -Path $Path
         }
 
         [System.String]$formattedSubject = "CN={0}" -f $RestName.Trim()
-        $certificate = New-SdnCertificate -Subject $formattedSubject -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $formattedSubject -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
-        # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
-        [System.String]$pfxFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $RestName.ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
+        [System.String]$pfxFilePath = "$(Join-Path -Path $certPath.FullName -ChildPath $RestName.ToLower().Replace('.','_').Replace('=','_').Trim()).pfx"
         "Exporting pfx certificate to {0}" -f $pfxFilePath | Trace-Output
         $exportedCertificate = Export-PfxCertificate -Cert $certificate -FilePath $pfxFilePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
         $null = Import-SdnCertificate -FilePath $exportedCertificate.FullName -CertStore 'Cert:\LocalMachine\Root' -CertPassword $CertPassword
 
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
-            -NetworkControllerRestCertificate -InstallToSouthboundDevices:$installToSouthboundDevices -Credential $Credential
-
-        return ([PSCustomObject]@{
-            Certificate = $certificate
-            FileInfo = $exportedCertificate
-        })
+        return $exportedCertificate
     }
     catch {
         $_ | Trace-Exception

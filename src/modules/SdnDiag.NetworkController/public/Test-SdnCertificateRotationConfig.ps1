@@ -15,7 +15,7 @@ function Test-SdnCertificateRotationConfig {
         [PSCustomObject[]]$NcNodeList,
 
         [Parameter(Mandatory = $true)]
-        [hashtable]$CertRotateConfig,
+        [CertRotateConfig]$CertRotateConfig,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -23,66 +23,52 @@ function Test-SdnCertificateRotationConfig {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
+    $sb1 = {
+        param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
+        $nodeCertObj = Get-SdnCertificate -Path $param1 -Thumbprint $param2
 
-        if ([string]::IsNullOrEmpty($CertRotateConfig["NcRestCert"])) {
-            Trace-Output -Message "NcRestCert not specified in CertRotateConfig" -Level:Error
+        # ensure that certificate is present
+        if ($null -eq $nodeCertObj) {
             return $false
         }
 
-        $ncRestCert = $CertRotateConfig["NcRestCert"]
-        foreach ($ncNode in $NcNodeList) {
-            if ($CertRotateConfig["ClusterCredentialType"] -ieq "X509") {
-                $nodeCert = $CertRotateConfig[$ncNode.NodeName.ToLower()]
-                if ([string]::IsNullOrEmpty($nodeCert)) {
-                    Trace-Output -Message "The ClusterCredentialType is X509 but Node $($ncNode.NodeName) does not have certificate specified" -Level:Error
-                    return $false
-                }
-                else {
-                    $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
-                        param([Parameter(Position = 0)][String]$param1)
-                        $nodeCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $param1
-                        if ($null -eq $nodeCertObj) {
-                            return $false
-                        }
-                        else {
-                            if ($nodeCertObj.NotAfter -le (Get-Date)) {
-                                return $false
-                            }
-                        }
-                        return $true
-                    } -ArgumentList $nodeCert
-
-                    if (!$certValid) {
-                        Trace-Output -Message "Node $($ncNode.NodeName) does not have validate Node certificate with thumbprint $nodeCert installed" -Level:Error
-                        return $false
-                    }
-                }
-            }
-
-            $certValid = Invoke-PSRemoteCommand -ComputerName $ncNode.IpAddressOrFQDN -Credential $Credential -ScriptBlock {
-                param([Parameter(Position = 0)][String]$param1)
-                $ncRestCertObj = Get-SdnCertificate -Path "Cert:\LocalMachine\My" -Thumbprint $param1
-                if ($null -eq $ncRestCertObj) {
-                    return $false
-                }
-                else {
-                    if ($ncRestCertObj.NotAfter -le (Get-Date)) {
-                        return $false
-                    }
-                }
-                return $true
-            } -ArgumentList $ncRestCert
-
-            if (!$certValid) {
-                Trace-Output -Message "Node $($ncNode.NodeName) does not have validate NcRest certificate with thumbprint $ncRestCert installed" -Level:Error
-                return $false
-            }
+        # ensure that certificate is not expired
+        if ($nodeCertObj.NotAfter -le (Get-Date)) {
+            return $false
         }
+
         return $true
     }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+
+    # validate that the certificates are installed on the nodes
+    $CertRotateConfig.NodeCerts | ForEach-Object {
+        if (Test-ComputerNameIsLocal -ComputerName $_.IpAddressOrFQDN) {
+            $certValid = Invoke-Command -ScriptBlock $sb1 -ArgumentList @("Cert:\LocalMachine\My", $_.Thumbprint)
+        }
+        else {
+            $certValid = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock $sb1 -ArgumentList @("Cert:\LocalMachine\My", $_.Thumbprint)
+        }
+
+        if (!$certValid) {
+            throw "$($_.NodeName) does not have valid certificate with thumbprint $($_.Thumbprint) installed"
+        }
     }
+
+    # validate the rest certificate exists on each of the nodes
+    if ($CertRotateConfig.RestCertificate) {
+        $NcNodeList | ForEach-Object {
+            if (Test-ComputerNameIsLocal -ComputerName $_.IpAddressOrFQDN) {
+                $certValid = Invoke-Command -ScriptBlock $sb1 -ArgumentList @("Cert:\LocalMachine\My", $CertRotateConfig.RestCertificate.Thumbprint)
+            }
+            else {
+                $certValid = Invoke-PSRemoteCommand -ComputerName $_.IpAddressOrFQDN -Credential $Credential -ScriptBlock $sb1 -ArgumentList @("Cert:\LocalMachine\My", $CertRotateConfig.RestCertificate.Thumbprint)
+            }
+
+            if (!$certValid) {
+                throw "$($_.NodeName) does not have valid rest certificate with thumbprint $($CertRotateConfig.RestCertificate.Thumbprint) installed"
+            }
+        }
+    }
+
+    return $true
 }

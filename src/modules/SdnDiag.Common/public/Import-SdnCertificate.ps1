@@ -14,7 +14,7 @@ function Import-SdnCertificate {
         PS> Import-SdnCertificate -FilePath c:\certs\cert.pfx -CertStore Cert:\LocalMachine\Root -Password $secureString
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'Medium')]
     param (
         [Parameter(Mandatory = $true)]
         [System.String]$FilePath,
@@ -27,76 +27,81 @@ function Import-SdnCertificate {
     )
 
     $trustedRootStore = 'Cert:\LocalMachine\Root'
-    $fileInfo = Get-Item -Path $FilePath
-
-    $certObject = @{
+    $certObject = [PSCustomObject]@{
         SelfSigned = $false
         CertInfo = $null
-        CerFileInfo = $null
+        SelfSignedCertFileInfo = $null
     }
 
-    switch ($fileInfo.Extension) {
-        '.pfx' {
-            if ($CertPassword) {
-                $certData = (Get-PfxData -FilePath $fileInfo.FullName -Password $CertPassword).EndEntityCertificates
+    try {
+        $fileInfo = Get-Item -Path $FilePath -ErrorAction Stop
+        switch ($fileInfo.Extension) {
+            '.pfx' {
+                if ($CertPassword) {
+                    $certData = (Get-PfxData -FilePath $fileInfo.FullName -Password $CertPassword).EndEntityCertificates
+                }
+                else {
+                    $certData = Get-PfxCertificate -FilePath $fileInfo.FullName
+                }
             }
-            else {
-                $certData = Get-PfxCertificate -FilePath $fileInfo.FullName
+
+            '.cer' {
+                $certData = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
+                $certData.Import($fileInfo)
+            }
+
+            default {
+                throw New-Object System.NotSupportedException("Unsupported certificate extension")
             }
         }
 
-        '.cer' {
-            $certData = New-Object System.Security.Cryptography.X509Certificates.X509Certificate2
-            $certData.Import($fileInfo)
-        }
-
-        default {
-            throw New-Object System.NotSupportedException("Unsupported certificate extension")
-        }
-    }
-
-    $certExists = Get-ChildItem -Path $CertStore | Where-Object {$_.Thumbprint -ieq $certData.Thumbprint}
-    if ($certExists) {
-        "{0} already exists under {1}" -f $certExists.Thumbprint, $CertStore | Trace-Output -Level:Verbose
-        $certObject.CertInfo = $certExists
-    }
-    else {
-        "Importing {0} to {1}" -f $certData.Thumbprint, $CertStore | Trace-Output
-        if ($certData.HasPrivateKey) {
-            $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
-            Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
+        $certExists = Get-SdnCertificate -Path $CertStore -Thumbprint $certData.Thumbprint
+        if ($certExists) {
+            $certObject.CertInfo = $certExists
         }
         else {
-            $importCert = Import-Certificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -ErrorAction Stop
-        }
-
-        $certObject.CertInfo = $importCert
-    }
-
-    # determine if the certificates being used are self signed
-    if ($certObject.CertInfo.Subject -ieq $certObject.CertInfo.Issuer) {
-        "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
-        $certObject.SelfSigned = $true
-
-        # check to see if we installed to root store with above operation
-        # if it is not, then we want to check the root store to see if this certificate has already been installed
-        # and finally if does not exist, then export the certificate from current store and import into trusted root store
-        if ($CertStore -ine $trustedRootStore) {
-            $selfSignedCerExists = Get-ChildItem -Path $trustedRootStore | Where-Object {$_.Thumbprint -ieq $certObject.CertInfo.Thumbprint}
-            [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=','_')
-            $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
-            $certObject.CerFileInfo = $selfSignedCer
-
-            if (-NOT ($selfSignedCerExists)) {
-                # import the certificate to the trusted root store
-                "Importing public key to {0}" -f $trustedRootStore | Trace-Output
-                $null = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
+            "Importing [Subject: $($_.Subject), Thumbprint: $($_.Thumbprint)] to $CertStore" | Trace-Output
+            if ($certData.HasPrivateKey) {
+                $importCert = Import-PfxCertificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -Password $CertPassword -Exportable -ErrorAction Stop
+                Set-SdnCertificateAcl -Path $CertStore -Thumbprint $importCert.Thumbprint
             }
             else {
-                "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output -Level:Verbose
+                $importCert = Import-Certificate -FilePath $fileInfo.FullName -CertStoreLocation $CertStore -ErrorAction Stop
+            }
+
+            $certObject.CertInfo = $importCert
+        }
+
+        # determine if the certificates being used are self signed
+        if (Confirm-IsCertSelfSigned -Certificate $certObject.CertInfo) {
+            $certObject.SelfSigned = $true
+
+            # check to see if we installed to root store with above operation
+            # if it is not, then we want to check the root store to see if this certificate has already been installed
+            # and finally if does not exist, then export the certificate from current store and import into trusted root store
+            if ($CertStore -ine $trustedRootStore) {
+                $selfSignedCerExists = Get-SdnCertificate -Path $trustedRootStore -Thumbprint $certObject.CertInfo.Thumbprint
+                [System.String]$selfSignedCerPath = "{0}\{1}.cer" -f (Split-Path $fileInfo.FullName -Parent), ($certObject.CertInfo.Subject).Replace('=','_')
+                $selfSignedCer = Export-Certificate -Cert $certObject.CertInfo -FilePath $selfSignedCerPath -ErrorAction Stop
+                $certObject.SelfSignedCertFileInfo = $selfSignedCer
+
+                if (-NOT ($selfSignedCerExists)) {
+                    # import the certificate to the trusted root store
+                    "Importing public key to {0}" -f $trustedRootStore | Trace-Output
+                    $null = Import-Certificate -FilePath $selfSignedCer.FullName -CertStoreLocation $trustedRootStore -ErrorAction Stop
+                }
+                else {
+                    "{0} already exists under {1}" -f $certObject.CertInfo.Thumbprint, $trustedRootStore | Trace-Output -Level:Verbose
+                }
             }
         }
+
+        return $certObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
     }
 
-    return $certObject
+    return $null
 }

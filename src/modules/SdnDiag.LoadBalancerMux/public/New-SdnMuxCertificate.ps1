@@ -17,7 +17,7 @@ function New-SdnMuxCertificate {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $false)]
-        [datetime]$NotAfter = (Get-Date).AddYears(3),
+        [datetime]$NotAfter = (Get-Date).AddYears(1),
 
         [Parameter(Mandatory = $false)]
         [System.String]$Path = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC),
@@ -45,19 +45,19 @@ function New-SdnMuxCertificate {
     try {
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
             "Creating directory {0}" -f $Path | Trace-Output
-            $CertPath = New-Item -Path $Path -ItemType Directory -Force
+            $certPath = New-Item -Path $Path -ItemType Directory -Force
         }
         else {
-            $CertPath = Get-Item -Path $Path
+            $certPath = Get-Item -Path $Path
         }
 
-        $muxCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux' -Name 'MuxCert'
+        $muxCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux' -Name 'MuxCert' -ErrorAction Stop
         $subjectName = "CN={0}" -f $muxCert
-        $certificate = New-SdnCertificate -Subject $subjectName -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $subjectName -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate and save the file to directory
         # This allows the rest of the function to pick up these files and perform the steps as normal
-        [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
+        [System.String]$cerFilePath = "$(Join-Path -Path $certPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
         Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -LoadBalancerMuxNodeCert -Credential $Credential
@@ -73,4 +73,6 @@ function New-SdnMuxCertificate {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    return $null
 }

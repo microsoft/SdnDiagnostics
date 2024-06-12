@@ -26,17 +26,17 @@ function Get-SdnNetworkControllerNodeCertificate {
             switch ($networkControllerNode.FindCertificateBy) {
                 'FindBySubjectName' {
                     "`tFindBySubjectName: {0}" -f $networkControllerNode.NodeCertSubjectName | Trace-Output -Level:Verbose
-                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $networkControllerNode.NodeCertSubjectName
+                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $networkControllerNode.NodeCertSubjectName -NetworkControllerOid:$NetworkControllerOid
                 }
 
                 'FindByThumbprint' {
                     "`FindByThumbprint: {0}" -f $networkControllerNode.NodeCertificateThumbprint | Trace-Output -Level:Verbose
-                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint
+                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint -NetworkControllerOid:$NetworkControllerOid
                 }
             }
         }
         else {
-            $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint
+            $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $networkControllerNode.NodeCertificateThumbprint -NetworkControllerOid:$NetworkControllerOid
         }
 
         if ($null -eq $certificate) {

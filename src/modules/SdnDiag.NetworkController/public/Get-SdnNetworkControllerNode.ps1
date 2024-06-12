@@ -6,7 +6,7 @@ function Get-SdnNetworkControllerNode {
         Specifies the friendly name of the node for the network controller. If not provided, settings are retrieved for all nodes in the deployment.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
-	.PARAMETER Credential
+    .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnNetworkControllerNode
@@ -72,17 +72,13 @@ function Get-SdnNetworkControllerNode {
 
             # in this scenario if the results returned we will parse the objects returned and generate warning to user if node is not up
             # this property is only going to exist though if service fabric is healthy and underlying NC cmdlet can query node status
-            foreach($obj in $result){
-                if($obj.Status -ine 'Up'){
-                    "{0} is reporting status {1}" -f $obj.Name, $obj.Status | Trace-Output -Level:Warning
+            $result | ForEach-Object {
+                if ($_.Status -ine 'Up') {
+                    "{0} is reporting status {1}" -f $_.Name, $_.Status | Trace-Output -Level:Warning
                 }
 
-                # if we returned the object, we want to add a new property called NodeCertificateThumbprint as this will ensure consistent
-                # output in scenarios where this operation fails due to NC unhealthy and we need to fallback to reading the cluster manifest
-                $result | ForEach-Object {
-                    if (!($_.PSOBject.Properties.name -contains "NodeCertificateThumbprint")) {
-                        $_ | Add-Member -MemberType NoteProperty -Name 'NodeCertificateThumbprint' -Value $_.NodeCertificate.Thumbprint
-                    }
+                if (!($_.PSOBject.Properties.name -contains "NodeCertificateThumbprint")) {
+                    $_ | Add-Member -MemberType NoteProperty -Name 'NodeCertificateThumbprint' -Value $_.NodeCertificate.Thumbprint
                 }
             }
         }

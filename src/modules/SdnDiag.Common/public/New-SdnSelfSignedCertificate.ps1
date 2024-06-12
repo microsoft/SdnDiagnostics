@@ -1,4 +1,4 @@
-function New-SdnCertificate {
+function New-SdnSelfSignedCertificate {
     <#
     .SYNOPSIS
         Creates a new self-signed certificate for use with SDN fabric.
@@ -9,7 +9,7 @@ function New-SdnCertificate {
     .PARAMETER NotAfter
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
     .EXAMPLE
-        PS> New-SdnCertificate -Subject rest.sdn.contoso -CertStoreLocation Cert:\LocalMachine\My
+        PS> New-SdnSelfSignedCertificate -Subject rest.sdn.contoso -CertStoreLocation Cert:\LocalMachine\My
     #>
 
     [CmdletBinding()]
@@ -34,6 +34,10 @@ function New-SdnCertificate {
     try {
         "Generating certificate with subject {0} under {1}" -f $Subject, $CertStoreLocation | Trace-Output
 
+        # create new self signed certificate with the following EnhancedKeyUsageList
+        # 1.3.6.1.5.5.7.3.1 - Server Authentication OID
+        # 1.3.6.1.5.5.7.3.2 - Client Authentication OID
+        # 1.3.6.1.4.1.311.95.1.1.1 - Network Controller OID
         $selfSignedCert = New-SelfSignedCertificate -Type Custom -KeySpec KeyExchange -Subject $Subject `
             -KeyExportPolicy Exportable -HashAlgorithm sha256 -KeyLength 2048 `
             -CertStoreLocation $CertStoreLocation -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,1.3.6.1.4.1.311.95.1.1.1") `

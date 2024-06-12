@@ -29,26 +29,53 @@ function Get-SdnCertificate {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
         [ValidateNotNullorEmpty()]
-        [System.String]$Thumbprint
+        [System.String]$Thumbprint,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [switch]$NetworkControllerOid
     )
 
+    [string]$objectIdentifier = @('1.3.6.1.4.1.311.95.1.1.1') # this is a custom OID used for Network Controller
+    $array = @()
+
     try {
-        $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
+        $certificateList = Get-ChildItem -Path $Path | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Ignore
+        if ($null -eq $certificateList) {
+            return $null
+        }
+
+        if ($NetworkControllerOid) {
+            $certificateList | ForEach-Object {
+                if ($objectIdentifier -iin $_.EnhancedKeyUsageList.ObjectId) {
+                    $array += $_
+                }
+            }
+
+            # if no certificates are found based on the OID, search based on other criteria
+            if (!$array) {
+                "Unable to locate certificates that match Network Controller OID: {0}. Searching based on other criteria." -f $objectIdentifier | Trace-Output -Level:Warning
+                $array = $certificateList
+            }
+        }
+        else {
+            $array = $certificateList
+        }
 
         switch ($PSCmdlet.ParameterSetName) {
             'Subject' {
-                $filteredCert = $certificateList | Where-Object {$_.Subject -ieq $Subject}
+                $filteredCert = $array | Where-Object {$_.Subject -ieq $Subject}
             }
             'Thumbprint' {
-                $filteredCert = $certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+                $filteredCert = $array | Where-Object {$_.Thumbprint -ieq $Thumbprint}
             }
             default {
-                return $certificateList
+                return $array
             }
         }
 
         if ($null -eq $filteredCert) {
-            "Unable to locate certificate using {0}" -f $PSCmdlet.ParameterSetName | Trace-Output -Level:Warning
             return $null
         }
 
