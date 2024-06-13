@@ -6,7 +6,7 @@ function Get-SdnNetworkControllerSFNode {
         Specifies the friendly name of the node for the network controller. If not provided, settings are retrieved for all nodes in the deployment.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
-	.PARAMETER Credential
+    .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnNetworkControllerSFNode
