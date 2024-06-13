@@ -21,15 +21,18 @@ function Get-SdnNetworkControllerRestURL {
             return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
         }
 
-        $result = Get-SdnNetworkControllerSF -NetworkController $NetworkController -Credential $Credential
-        if ($null -eq $result) {
-            throw New-Object System.NullReferenceException("Unable to return information from Network Controller")
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+            'FailoverCluster' {
+                $result = Get-SdnNetworkControllerFC @PSBoundParameters -ErrorAction Stop
+                $endpoint = $result.RestCertificateSubjectName
+            }
+            'ServiceFabric' {
+                $result = Get-SdnNetworkControllerSF @PSBoundParameters -ErrorAction Stop
+                $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
+            }
         }
 
-        # use the Subject of the ServerCertificate object back for the NB API
-        $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
         $ncUrl = 'https://{0}' -f $endpoint
-
         return $ncUrl
     }
     catch {

@@ -84,6 +84,8 @@
         'Get-SdnNetworkControllerFC',
         'Get-SdnNetworkControllerSF',
         'Get-SdnNetworkControllerClusterInfo',
+        'Get-SdnNetworkControllerNode',
+        'Get-SdnNetworkControllerFCNode',
         'Get-SdnNetworkControllerSFNode',
         'Get-SdnNetworkControllerNodeCertificate'
         'Get-SdnNetworkControllerRestCertificate',

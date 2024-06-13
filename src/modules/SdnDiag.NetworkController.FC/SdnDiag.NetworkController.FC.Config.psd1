@@ -12,7 +12,9 @@
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @()
-        RegKeyPaths = @()
+        RegKeyPaths = @(
+            'HKLM:\Cluster\NetworkController'
+        )
         Services = @{}
     }
 }

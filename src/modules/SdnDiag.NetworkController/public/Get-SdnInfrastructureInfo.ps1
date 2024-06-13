@@ -84,7 +84,7 @@ function Get-SdnInfrastructureInfo {
 
         # get the network controllers
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.NetworkController)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerSFNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential -ErrorAction Continue
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential -ErrorAction Continue
         }
 
         # get the load balancer muxes
