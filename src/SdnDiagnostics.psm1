@@ -189,26 +189,17 @@ function Start-SdnCertificateRotation {
 
         # Get the current rest certificate to determine if it is expired scenario or not.
         $currentRestCert = Get-SdnNetworkControllerRestCertificate
-
         $restCertExpired = (Get-Date) -gt $($currentRestCert.NotAfter)
-        $ncHealthy = $true
-
-        if (!$restCertExpired) {
-            try {
-                $null = Get-NetworkController
-            }
-            catch {
-                $ncHealthy = $false
-            }
+        if ($restCertExpired) {
+            "Network Controller Rest Certificate {0} expired at {1}" -f $currentRestCert.Thumbprint, $currentRestCert.NotAfter | Trace-Output -Level:Warning
+            $isNetworkControllerHealthy = $false
+        }
+        else {
+            $isNetworkControllerHealthy = Test-NetworkControllerIsHealthy
         }
 
-        if ($restCertExpired -or !$ncHealthy) {
+        if ($restCertExpired -or !$isNetworkControllerHealthy) {
             $postRotateSBRestCert = $true
-            if ($restCertExpired) {
-                "Network Controller Rest Certificate {0} expired at {1}" -f $currentRestCert.Thumbprint, $currentRestCert.NotAfter | Trace-Output -Level:Warning
-            }
-
-            "Network Controller is currently not healthy" | Trace-Output -Level:Warning
             $sdnFabricDetails = [SdnFabricInfrastructure]@{
                 NetworkController = $NcInfraInfo.NodeList.IpAddressOrFQDN
             }
@@ -286,7 +277,7 @@ function Start-SdnCertificateRotation {
         if ($PSCmdlet.ParameterSetName -ieq 'Pfx') {
             "== STAGE: Install PFX Certificates to Fabric ==" | Trace-Output
             $pfxCertificates = Copy-UserProvidedCertificateToFabric -CertPath $CertPath -CertPassword $CertPassword -FabricDetails $sdnFabricDetails `
-            -NetworkControllerHealthy $ncHealthy -Credential $Credential -RotateNodeCerts $rotateNCNodeCerts
+            -NetworkControllerHealthy $isNetworkControllerHealthy -Credential $Credential -RotateNodeCerts $rotateNCNodeCerts
 
             $pfxCertificates | ForEach-Object {
                 if ($_.CertificateType -ieq 'NetworkControllerRest' ) {
@@ -353,7 +344,7 @@ function Start-SdnCertificateRotation {
         #
         #####################################
 
-        if ($restCertExpired -or !$ncHealthy) {
+        if ($restCertExpired -or !$isNetworkControllerHealthy) {
             # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
             Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
         }
