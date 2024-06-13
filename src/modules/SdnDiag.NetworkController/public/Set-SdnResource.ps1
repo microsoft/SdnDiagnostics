@@ -12,8 +12,8 @@ function Set-SdnResource {
         Specify the unique ID of the resource.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/networkInterfaces/contoso-nic1" -Object $object
     .EXAMPLE
