@@ -6,8 +6,8 @@ function Get-SdnNetworkControllerRestURL {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]

@@ -33,10 +33,10 @@ function Get-SdnNetworkControllerNode {
 
     switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
         'FailoverCluster' {
-            Get-SdnNetworkControllerFCNode @PSBoundParameters -ErrorAction Stop
+            Get-SdnNetworkControllerFCNode @PSBoundParameters
         }
         'ServiceFabric' {
-            Get-SdnNetworkControllerSFNode @PSBoundParameters -ErrorAction Stop
+            Get-SdnNetworkControllerSFNode @PSBoundParameters
         }
     }
 }

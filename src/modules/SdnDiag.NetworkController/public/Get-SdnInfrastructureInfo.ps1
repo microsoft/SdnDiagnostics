@@ -119,8 +119,6 @@ function Get-SdnInfrastructureInfo {
         }
 
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
-
-        return $Global:SdnDiagnostics.EnvironmentInfo
     }
     catch {
         # Remove any cached info in case of exception as the cached info might be incorrect
@@ -132,6 +130,8 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         $_ | Trace-Exception
     }
+
+    return $Global:SdnDiagnostics.EnvironmentInfo
 }
 
 Set-Alias -Name "Get-SdnEnvironmentInfo" -Value "Get-SdnInfrastructureInfo" -Force

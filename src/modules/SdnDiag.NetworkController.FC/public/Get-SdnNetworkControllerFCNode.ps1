@@ -72,7 +72,7 @@ function Get-SdnNetworkControllerFCNode {
         }
 
         if($ServerNameOnly){
-            return [System.Array]$result.Server
+            return [System.Array]$result.Name
         }
         else {
             return $result
