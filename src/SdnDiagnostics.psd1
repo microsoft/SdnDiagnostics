@@ -132,6 +132,7 @@
         'Repair-SdnDiagnosticsScheduledTask',
         'Set-SdnCertificateAcl',
         'Set-SdnNetworkController',
+        'Set-SdnResource',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
         'Show-SdnVfpPortConfig',
