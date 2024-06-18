@@ -206,7 +206,17 @@
         }
         CommonPaths = @{}
         EventLogProviders = @(
-            "Microsoft-Windows-NetworkController*"
+            "Microsoft-Windows-NetworkController-FirewallService*",
+            "Microsoft-Windows-NetworkController-Framework*",
+            "Microsoft-Windows-NetworkController-GatewayManager*",
+            "Microsoft-Windows-NetworkController-SDNAPIEvents*",
+            "Microsoft-Windows-NetworkController-SDNBREvents*",
+            "Microsoft-Windows-NetworkController-SDNFNM*",
+            "Microsoft-Windows-NetworkController-SDNHelper*",
+            "Microsoft-Windows-NetworkController-SDNSlbManager*",
+            "Microsoft-Windows-NetworkController-ServiceInsertion*",
+            "Microsoft-Windows-NetworkController-Update*",
+            "Microsoft-Windows-NetworkController-VSwitchService*"
         )
         NetControllerStatePath = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
         RegKeyPaths = @(

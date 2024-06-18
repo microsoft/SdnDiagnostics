@@ -48,9 +48,9 @@ function Set-SdnNetworkController {
     }
 
     try {
-        $getNetworkController = Get-SdnNetworkController
+        $getNetworkController = Get-SdnNetworkControllerSF
         if ($null -eq $getNetworkController) {
-            throw New-Object System.Exception("Unable to retrieve results from Get-SdnNetworkController.")
+            throw New-Object System.Exception("Unable to retrieve results from Get-SdnNetworkControllerSF.")
         }
 
         $certSubjectName = $getNetworkController.ServerCertificate.Subject.Split('=')[1].Trim()
@@ -136,7 +136,7 @@ function Set-SdnNetworkController {
         "Calling Set-NetworkController with params: {0}" -f ($params | ConvertTo-Json) | Trace-Output
         Set-NetworkController @params
 
-        return (Get-SdnNetworkController)
+        return (Get-SdnNetworkControllerSF)
     }
     catch {
         $_ | Trace-Exception

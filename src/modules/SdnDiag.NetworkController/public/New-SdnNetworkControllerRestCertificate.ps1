@@ -55,7 +55,7 @@ function New-SdnNetworkControllerRestCertificate {
             $installToSouthboundDevices = $false
 
             $FabricDetails = [SdnFabricInfrastructure]@{
-                NetworkController = (Get-SdnNetworkControllerNode).Server
+                NetworkController = (Get-SdnNetworkControllerSFNode).Server
             }
         }
 

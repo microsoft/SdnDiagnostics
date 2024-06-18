@@ -55,8 +55,10 @@ function Get-SdnServiceFabricReplica {
             $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceName))
             $sb = {
                 param([string]$param1, [string]$param2)
-                if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-                    throw "Service Fabric Service is currently not running."
+                # check if service fabric service is running
+                $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
+                if ($serviceState.Status -ne 'Running') {
+                    throw New-Object System.Exception("Service Fabric Service is currently not running.")
                 }
 
                 # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
@@ -69,8 +71,10 @@ function Get-SdnServiceFabricReplica {
             $sfParams.Add('ArgumentList', @($ApplicationName, $ServiceTypeName))
             $sb = {
                 param([string]$param1, [string]$param2)
-                if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-                    throw "Service Fabric Service is currently not running."
+                # check if service fabric service is running
+                $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
+                if ($serviceState.Status -ne 'Running') {
+                    throw New-Object System.Exception("Service Fabric Service is currently not running.")
                 }
 
                 # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket

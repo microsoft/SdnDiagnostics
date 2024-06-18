@@ -17,7 +17,7 @@ function Get-SdnNetworkControllerRestCertificate {
     Confirm-IsNetworkController
 
     try {
-        $networkController = Get-SdnNetworkController -NetworkController $env:COMPUTERNAME -Credential $Credential
+        $networkController = Get-SdnNetworkControllerSF -NetworkController $env:COMPUTERNAME -Credential $Credential
         $ncRestCertThumprint = $($networkController.ServerCertificate.Thumbprint).ToString()
         $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncRestCertThumprint
 

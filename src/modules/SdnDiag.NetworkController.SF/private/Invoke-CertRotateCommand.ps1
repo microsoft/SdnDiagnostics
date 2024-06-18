@@ -63,13 +63,14 @@ function Invoke-CertRotateCommand {
             $params.Add('CredentialEncryptionCertificate', $cert)
         }
         'Set-NetworkControllerNode' {
-            $ncNode = Get-SdnNetworkControllerNode -NetworkController $NetworkController -Name $Name -Credential $Credential
+            $ncNode = Get-SdnNetworkControllerSFNode -NetworkController $NetworkController -Name $Name -Credential $Credential
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)
         }
     }
 
+    $waitBeforeRetry = $false
     while ($true) {
         $retryAttempt++
         switch ($Command) {
@@ -104,6 +105,11 @@ function Invoke-CertRotateCommand {
         # if we have not started operation, or we hit a retryable error
         # then invoke the command to start the certificate rotate
         try {
+            if ($waitBeforeRetry) {
+                "Waiting 2 minutes before retrying operation..." | Trace-Output
+                Start-Sleep -Seconds 120
+            }
+
             "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
             "Command:{0} Params: {1}" -f $Command, ($params | ConvertTo-Json) | Trace-Output -Level:Verbose
 
@@ -123,6 +129,14 @@ function Invoke-CertRotateCommand {
             switch -Wildcard ($_.Exception) {
                 '*One or more errors occurred*' {
                     "Retryable exception caught`n`t$_" | Trace-Output -Level:Warning
+                    $waitBeforeRetry = $true
+                    break
+                }
+
+                '*A generic error has occurred*' {
+                    "Retryable exception caught`n`t$_" | Trace-Output -Level:Warning
+                    $waitBeforeRetry = $true
+                    break
                 }
 
                 default {
@@ -134,8 +148,7 @@ function Invoke-CertRotateCommand {
         catch [InvalidOperationException] {
             if ($_.FullyQualifiedErrorId -ilike "*UpdateInProgress*") {
                 "Networkcontroller is being updated by another operation.`n`t{0}" -f $fullyQualifiedErrorId | Trace-Output -Level:Warning
-                # Sleep 60s or longer before next retry if update in progress
-                Start-Sleep -Seconds 60 * $retryAttempt
+                $waitBeforeRetry = $true
             }
             else {
                 $stopWatch.Stop()
