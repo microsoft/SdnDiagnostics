@@ -56,9 +56,22 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
             $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
             $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.RasGateway = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
+        }
+
+        # get cluster type
+        $clusterType = Get-SdnClusterType -NetworkController $NetworkController -Credential $Credential
+        if ($clusterType) {
+            $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType = $clusterType
+        }
+
+        # get the cluster name if we using a failover cluster
+        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -eq 'FailoverCluster') {
+            if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.FailoverClusterConfig.Name)) {
+                $Global:SdnDiagnostics.EnvironmentInfo.FailoverClusterConfig.Name = Get-SdnClusterName -NetworkController $NetworkController -Credential $Credential
+            }
         }
 
         # get the NC Northbound API endpoint

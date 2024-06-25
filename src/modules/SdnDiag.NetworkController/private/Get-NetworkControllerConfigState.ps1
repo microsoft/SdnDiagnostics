@@ -41,7 +41,7 @@ function Get-NetworkControllerConfigState {
             Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir -Name $fileName -FileType txt -Format List
         }
 
-        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'ServiceFabric' {
                 Get-NetworkControllerSFConfigState @PSBoundParameters
             }

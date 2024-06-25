@@ -31,7 +31,7 @@ function Get-SdnNetworkControllerNode {
         [switch]$ServerNameOnly
     )
 
-    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
         'FailoverCluster' {
             Get-SdnNetworkControllerFCNode @PSBoundParameters
         }

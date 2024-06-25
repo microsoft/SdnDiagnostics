@@ -21,7 +21,7 @@ function Get-SdnNetworkControllerRestURL {
             return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
         }
 
-        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
                 $result = Get-SdnNetworkControllerFC @PSBoundParameters -ErrorAction Stop
                 $endpoint = $result.RestCertificateSubjectName
