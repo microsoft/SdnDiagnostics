@@ -5,7 +5,7 @@ function Get-SdnClusterType {
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates.
     .PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Get-SdnClusterType
     .EXAMPLE

@@ -675,7 +675,7 @@ function Start-SdnDataCollection {
         else {
             $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         }
-        $sdnFabricDetails | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileName 'Get-SdnInfrastructureInfo'
+        $sdnFabricDetails | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnInfrastructureInfo'
 
         # determine if network controller is using default logging mechanism to local devices or network share
         if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'ServiceFabric') {

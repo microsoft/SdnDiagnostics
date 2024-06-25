@@ -5,7 +5,7 @@ function Get-SdnNetworkControllerClusterInfo {
     .PARAMETER NetworkController
         Specifies the name of the network controller node on which this cmdlet operates.
     .PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER OutputDirectory
         Directory location to save results. It will create a new sub-folder called NetworkControllerClusterInfo that the files will be saved to
     .EXAMPLE
