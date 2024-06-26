@@ -8,11 +8,18 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     EnvironmentInfo = @{
         # defines the cluster configuration type, supported values are 'ServiceFabric', 'FailoverCluster'
         # will default to 'ServiceFabric' on module import and updated once environment details have been retrieved
-        ClusterConfigurationType = 'ServiceFabric'
+        ClusterConfigType = 'ServiceFabric'
+        FailoverClusterConfig = @{
+            Name = $null
+        }
 
-        # defines the version of rest api that network controller is using
-        # defaults to v1 on module load, and updated once environment details have been retrieved
-        RestApiVersion = 'V1'
+        RestApiVersion = 'V1' # defaults to v1 on module load, and updated once environment details have been retrieved
+        NcUrl = $null
+        Gateway = @()
+        NetworkController = @()
+        LoadBalancerMux = @()
+        Server = @()
+        FabricNodes = @()
     }
     Config = @{
         # when creating remote sessions, the module will be imported automatically
@@ -614,6 +621,26 @@ function Start-SdnDataCollection {
         Invoke-SdnGetNetView -OutputDirectory $OutputDirectory -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters
     }
 
+    $collectClusterLogsSB = {
+        param([Parameter(Position = 0)][String]$OutputDirectory)
+        # The 3>$null 4>$null sends warning and error to null
+        # typically Get-ClusterLog does not like remote powershell operations and generates warnings/errors
+        $clusterLogFiles = Get-ClusterLog -Destination $OutputDirectory 2>$null 3>$null
+
+        # if we have cluster log files, we will zip them up to preserve disk space
+        if ($clusterLogFiles) {
+            $clusterLogFiles | ForEach-Object {
+                $zipFilePath = Join-Path -Path $OutputDirectory -ChildPath ($_.Name + ".zip")
+                Compress-Archive -Path $_.FullName -DestinationPath $zipFilePath -Force -ErrorAction Stop
+
+                # if the file was successfully zipped, we can remove the original file
+                if (Get-Item -Path $zipFilePath -ErrorAction Ignore) {
+                    Remove-Item -Path $_.FullName -Force -ErrorAction Ignore
+                }
+            }
+        }
+    }
+
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
@@ -648,15 +675,18 @@ function Start-SdnDataCollection {
         else {
             $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
         }
+        $sdnFabricDetails | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnInfrastructureInfo'
 
         # determine if network controller is using default logging mechanism to local devices or network share
-        [xml]$clusterManifest = Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential
-        $fileShareWinFabEtw = $clusterManifest.ClusterManifest.FabricSettings.Section | Where-Object {$_.Name -ieq 'FileShareWinFabEtw'}
-        $connectionString = $fileShareWinFabEtw.Parameter | Where-Object {$_.Name -ieq 'StoreConnectionString'}
-        if ($connectionString.value) {
-            # typically the network share will be in a format of file://share/path
-            $diagLogNetShare = ($connectionString.value).Split(':')[1].Replace('/', '\').Trim()
-            $ncNodeFolders = @()
+        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'ServiceFabric') {
+            [xml]$clusterManifest = Get-SdnServiceFabricClusterManifest -NetworkController $NetworkController -Credential $Credential
+            $fileShareWinFabEtw = $clusterManifest.ClusterManifest.FabricSettings.Section | Where-Object {$_.Name -ieq 'FileShareWinFabEtw'}
+            $connectionString = $fileShareWinFabEtw.Parameter | Where-Object {$_.Name -ieq 'StoreConnectionString'}
+            if ($connectionString.value) {
+                # typically the network share will be in a format of file://share/path
+                $diagLogNetShare = ($connectionString.value).Split(':')[1].Replace('/', '\').Trim()
+                $ncNodeFolders = @()
+            }
         }
 
         switch ($PSCmdlet.ParameterSetName) {
@@ -817,24 +847,40 @@ function Start-SdnDataCollection {
 
                     # collect the logs related to the network controller
                     if ($group.Name -ieq 'NetworkController') {
-                        # check to see if we are using SF cluster and if so, collect the SF logs
-                        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType -ieq 'ServiceFabric') {
-                            $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-                            [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+                        # switched based on the cluster configuration type to define the logs we need to collect
+                        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+                            'ServiceFabric' {
+                                $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                                [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
 
-                            "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                            $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
-                            $splat = @{
-                                ComputerName = $dataNodes
-                                Credential   = $Credential
-                                ScriptBlock  = $collectLogSB
-                                ArgumentList = @($sfLogDir, $outputDir, $FromDate, $ToDate)
-                                AsJob        = $true
-                                PassThru     = $true
-                                Activity     = 'Get Service Fabric Logs'
+                                "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                                $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
+                                $splat = @{
+                                    ComputerName = $dataNodes
+                                    Credential   = $Credential
+                                    ScriptBlock  = $collectLogSB
+                                    ArgumentList = @($sfLogDir, $outputDir, $FromDate, $ToDate)
+                                    AsJob        = $true
+                                    PassThru     = $true
+                                    Activity     = 'Get Service Fabric Logs'
+                                }
                             }
-                            Invoke-PSRemoteCommand @splat
+                            'FailoverCluster' {
+                                "Collect cluster logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
+                                $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ClusterLogs'
+                                $splat = @{
+                                    ComputerName = $dataNodes
+                                    Credential   = $Credential
+                                    ScriptBlock  = $collectClusterLogsSB
+                                    ArgumentList = @($outputDir)
+                                    AsJob        = $true
+                                    PassThru     = $true
+                                    Activity     = 'Get Cluster Logs'
+                                }
+                            }
                         }
+
+                        Invoke-PSRemoteCommand @splat
                     }
 
                     # if the role is a server, collect the audit logs if they are available

@@ -12,9 +12,8 @@
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @(
-            'Microsoft-Windows-FailoverClustering/Diagnostic',
-            'Microsoft-Windows-FailoverClustering/Operational',
-            'Microsoft-Windows-FailoverClustering-Manager/Admin',
+            'Microsoft-Windows-FailoverClustering*',
+            'Microsoft-Windows-FailoverClustering-Manager*',
             'NetworkControllerFc'
         )
         RegKeyPaths = @(

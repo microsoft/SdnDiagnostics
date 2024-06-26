@@ -23,7 +23,7 @@ function Get-SdnNetworkController {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigurationType) {
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
         'FailoverCluster' {
             Get-SdnNetworkControllerFC @PSBoundParameters
         }
