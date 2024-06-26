@@ -35,10 +35,10 @@ function Get-SdnClusterType {
     }
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-        $result = Invoke-Command -ScriptBlock $sb
+        [string]$result = Invoke-Command -ScriptBlock $sb
     }
     else {
-        $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $sb -Credential $Credential
+        [string]$result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $sb -Credential $Credential
     }
 
     "Cluster Type: $result" | Trace-Output -Level:Verbose
