@@ -15,28 +15,37 @@ function Get-SdnNetworkControllerRestURL {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        # if already populated into the cache, return the value
-        if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))) {
-            return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
-        }
+    # if already populated into the cache, return the value
+    if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))) {
+        return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+    }
 
+    try {
         switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
                 $result = Get-SdnNetworkControllerFC @PSBoundParameters -ErrorAction Stop
-                $endpoint = $result.RestCertificateSubjectName
+                if ($result) {
+                    $endpoint = $result.RestCertificateSubjectName
+                }
             }
             'ServiceFabric' {
                 $result = Get-SdnNetworkControllerSF @PSBoundParameters -ErrorAction Stop
-                $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
+                if ($result) {
+                    $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
+                }
             }
         }
-
-        $ncUrl = 'https://{0}' -f $endpoint
-        return $ncUrl
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
+        throw $_
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($endpoint)) {
+        $ncUrl = 'https://{0}' -f $endpoint
+        return $ncUrl
+    }
+    else {
+        throw New-Object System.NullReferenceException("Failed to retrieve Network Controller Rest URL.")
     }
 }

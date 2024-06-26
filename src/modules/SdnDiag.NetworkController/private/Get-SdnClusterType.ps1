@@ -24,17 +24,14 @@ function Get-SdnClusterType {
     )
 
     $sb = {
-        try {
-            # with failover cluster, the ApiService will run as a service within windows
-            # so we can check if the service exists to determine if it is a failover cluster configuration regardless if running
-            $service = Get-Service -Name 'ApiService' -ErrorAction Ignore
-            if ($service) {
-                return 'FailoverCluster'
-            }
+        # with failover cluster, the ApiService will run as a service within windows
+        # so we can check if the service exists to determine if it is a failover cluster configuration regardless if running
+        $service = Get-Service -Name 'ApiService' -ErrorAction Ignore
+        if ($service) {
+            return 'FailoverCluster'
         }
-        catch {
-            return 'ServiceFabric'
-        }
+
+        return 'ServiceFabric'
     }
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {

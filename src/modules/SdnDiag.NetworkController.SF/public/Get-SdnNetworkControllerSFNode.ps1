@@ -88,7 +88,8 @@ function Get-SdnNetworkControllerSFNode {
             }
         }
         catch {
-            "Get-NetworkControllerNode failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Error
+            $_ | Trace-Exception
+            "Get-NetworkControllerNode failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Warning
             $result = Get-NetworkControllerNodeInfoFromClusterManifest @params
         }
 

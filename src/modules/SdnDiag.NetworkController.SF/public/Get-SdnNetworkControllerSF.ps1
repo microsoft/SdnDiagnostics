@@ -37,25 +37,16 @@ function Get-SdnNetworkControllerSF {
         try {
             if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
                 Confirm-IsNetworkController
-                $result = Invoke-Command -ScriptBlock $networkControllerSB
+                $result = Invoke-Command -ScriptBlock $networkControllerSB -ErrorAction Stop
             }
             else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $networkControllerSB -Credential $Credential
+                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $networkControllerSB -Credential $Credential -ErrorAction Stop
             }
         }
         catch {
             $_ | Trace-Exception
-
-            switch -Wildcard ($_.FullyQualifiedErrorId) {
-                '*does not have a cluster deployed*' {
-                    "Use 'Get-SdnNetworkControllerFC' to return information from Network Controller deployed on Failover Cluster" | Trace-Output -Level:Warning
-                    return $null
-                }
-                default {
-                    "Unable to return results from Get-NetworkController" | Trace-Output -Level:Warning
-                    $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
-                }
-            }
+            "Get-NetworkController failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Warning
+            $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
         }
 
         return $result

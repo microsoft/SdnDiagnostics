@@ -81,7 +81,7 @@ function Get-SdnInfrastructureInfo {
         elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
             $result = Get-SdnNetworkControllerRestURL -NetworkController $NetworkController -Credential $Credential
 
-            if ($null -eq $result) {
+            if ([string]::IsNullOrEmpty($result)) {
                 throw New-Object System.NullReferenceException("Unable to locate REST API endpoint for Network Controller. Please specify REST API with -RestUri parameter.")
             }
 
