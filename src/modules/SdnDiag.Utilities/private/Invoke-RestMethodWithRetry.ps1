@@ -13,7 +13,7 @@ function Invoke-RestMethodWithRetry {
         [System.String]$ContentType,
 
         [Parameter(Mandatory = $false)]
-        [System.Object] $Body,
+        [System.Object]$Body,
 
         [Parameter(Mandatory = $false)]
         [Switch] $DisableKeepAlive,
@@ -72,7 +72,12 @@ function Invoke-RestMethodWithRetry {
         try {
             "Performing {0} request to uri {1}" -f $Method, $Uri | Trace-Output -Level:Verbose
             if ($Body) {
-                "Body:`n`t{0}" -f ($Body | ConvertTo-Json -Depth 10) | Trace-Output -Level:Verbose
+                if ($Body -is [Hashtable]) {
+                    "Body:`n`t{0}" -f ($Body | ConvertTo-Json -Depth 10) | Trace-Output -Level:Verbose
+                }
+                else {
+                    "Body:`n`t{0}" -f ($Body) | Trace-Output -Level:Verbose
+                }
             }
 
             $result = Invoke-RestMethod @params

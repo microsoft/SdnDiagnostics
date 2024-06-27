@@ -8,16 +8,22 @@ function Get-SdnResource {
         The resource ref of the object you want to perform the operation against.
     .PARAMETER Resource
         The resource type you want to perform the operation against.
-    .PARAMETER ResourceName
+    .PARAMETER ResourceId
+        Specify the unique ID of the resource.
     .PARAMETER InstanceID
+        Specify the unique Instance ID of the resource.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnResource -Resource PublicIPAddresses
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource PublicIPAddresses
+    .EXAMPLE
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource PublicIPAddresses -ResourceId "d9266251-a3ba-4ac5-859e-2c3a7c70352a"
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
+    .EXAMPLE
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a" -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]

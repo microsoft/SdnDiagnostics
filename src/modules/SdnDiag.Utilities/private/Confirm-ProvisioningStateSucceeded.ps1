@@ -24,27 +24,43 @@ function Confirm-ProvisioningStateSucceeded {
     )
 
     $splat = @{
-        Uri = $Uri
-        Credential = $Credential
+        Uri              = $Uri
+        Credential       = $Credential
         DisableKeepAlive = $DisableKeepAlive
-        UseBasicParsing = $UseBasicParsing
+        UseBasicParsing  = $UseBasicParsing
+        Method           = 'Get'
+        ErrorAction      = 'Stop'
     }
 
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     while ($true) {
         if ($stopWatch.Elapsed.TotalSeconds -gt $TimeoutInSec) {
             $stopWatch.Stop()
-
-            return $false
+            throw New-Object System.TimeoutException("ProvisioningState for $($result.resourceId) did not succeed within the alloted time")
         }
 
         $result = Invoke-RestMethodWithRetry @Splat
-        if ($result.properties.provisioningState -ieq 'Succeeded') {
-            $stopWatch.Stop()
+        switch ($result.properties.provisioningState) {
+            'Updating' {
+                "ProvisioningState for $($result.resourceId) is updating. Waiting for completion..." | Trace-Output
+                Start-Sleep -Seconds 5
+            }
 
-            return $true
+            'Succeeded' {
+                $stopWatch.Stop()
+
+                "ProvisioningState for $($result.resourceId) succeeded." | Trace-Output
+                return $true
+            }
+
+            'Failed' {
+                $stopWatch.Stop()
+                throw New-Object System.Exception("Failed to update $($result.resourceId). Examine Network Controller logs for more information.")
+            }
+
+            default {
+                throw New-Object System.Exception("Unknown provisioning state $($result.properties.provisioningState)")
+            }
         }
-
-        Start-Sleep -Seconds 5
     }
 }
