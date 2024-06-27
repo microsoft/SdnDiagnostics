@@ -30,17 +30,6 @@ function Get-NetworkControllerFCConfigState {
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        # collect cluster configuration information
-        Get-Cluster | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterFaultDomain | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterNode | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterGroup | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterNetwork | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterNetworkInterface | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterResource | Export-ObjectToFile -FilePath $outDir -FileType json
-        Get-ClusterResourceType | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-ClusterSharedVolume | Export-ObjectToFile -FilePath$outDir -FileType json
-
         # collect registry configuration information
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
     }
