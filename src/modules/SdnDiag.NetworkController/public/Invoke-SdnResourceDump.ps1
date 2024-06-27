@@ -55,6 +55,17 @@ function Invoke-SdnResourceDump {
             if ($minVersionInt -le $apiVersionInt) {
                 $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $value.uri -Credential $Credential
                 if ($sdnResource) {
+
+                    # parse the value if we are enumerating credentials property as we
+                    # will be redacting the value to ensure we do not compromise credentials
+                    if ($key -ieq 'Credentials') {
+                        $sdnResource | ForEach-Object {
+                            if ($_.properties.type -ieq 'UserNamePassword') {
+                                $_.properties.value = "removed_for_security_reasons"
+                            }
+                        }
+                    }
+
                     $sdnResource | Export-ObjectToFile -FilePath $outputDir.FullName -Name $key -FileType json -Depth 10
                 }
             }
