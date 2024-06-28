@@ -27,6 +27,10 @@ function Invoke-CertRotateCommand {
         [Int]$MaxRetry = 3
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $retryAttempt = 0
 

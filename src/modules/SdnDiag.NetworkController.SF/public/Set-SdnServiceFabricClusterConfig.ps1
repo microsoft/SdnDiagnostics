@@ -35,6 +35,10 @@ function Set-SdnServiceFabricClusterConfig {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     try {
         Connect-ServiceFabricCluster | Out-Null
         $client = [System.Fabric.FabricClient]::new()

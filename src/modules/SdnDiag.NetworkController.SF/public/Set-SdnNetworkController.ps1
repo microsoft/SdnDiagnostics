@@ -33,10 +33,8 @@ function Set-SdnNetworkController {
         $Credential
     )
 
-    $waitDuration = 30 # seconds
-    $params = @{}
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
     }
 
     Confirm-IsAdmin
@@ -45,6 +43,12 @@ function Set-SdnNetworkController {
         if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
             throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
         }
+    }
+
+    $waitDuration = 30 # seconds
+    $params = @{}
+    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+        $params.Add('Credential', $Credential)
     }
 
     try {

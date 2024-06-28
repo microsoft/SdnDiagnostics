@@ -30,6 +30,10 @@ function New-SdnNetworkControllerRestCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     $config = Get-SdnModuleConfiguration -Role 'NetworkController'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
