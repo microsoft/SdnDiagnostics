@@ -28,7 +28,6 @@ function Get-SdnServiceFabricNode {
 
         [Parameter(Mandatory = $false)]
         [System.String]$NodeName
-
     )
 
     $sfParams = @{
