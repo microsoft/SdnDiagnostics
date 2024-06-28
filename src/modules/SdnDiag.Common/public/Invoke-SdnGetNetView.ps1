@@ -23,7 +23,7 @@ function Invoke-SdnGetNetView {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory,
+        [string]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]
         [int]$BackgroundThreads = 5,
@@ -45,18 +45,22 @@ function Invoke-SdnGetNetView {
     )
 
     try {
-        Copy-Item -Path "$PSScriptRoot\..\..\..\externalPackages\Get-NetView" -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules" -Force -Recurse
-        Import-Module -Name 'Get-NetView' -Force
-        "Using Get-NetView version {0}" -f (Get-Module -Name 'Get-NetView' -ErrorAction SilentlyContinue).Version.ToString() | Trace-Output -Level:Verbose
+        # check to see if Get-NetView module is loaded into the runspace, if so, remove it
+        if (Get-Module -Name Get-NetView) {
+            Remove-Module -Name Get-NetView -Force
+        }
+        # import the Get-NetView module from the external packages
+        Import-Module -Name "$PSScriptRoot\..\..\..\externalPackages\Get-NetView.psd1" -Force
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "NetView"
-        # validate the output directory exists, else create the appropriate path
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        # initialize the data collection environment which will ensure the path exists and has enough space
+        [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "NetView"
+        if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 200)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+            return
         }
 
         # execute Get-NetView with specified parameters and redirect all streams to null to prevent unnecessary noise on the screen
-        Get-NetView -OutputDirectory $OutputDirectory.FullName `
+        Get-NetView -OutputDirectory $outDir `
             -BackgroundThreads $BackgroundThreads `
             -SkipAdminCheck:$SkipAdminCheck.IsPresent `
             -SkipLogs:$SkipLogs.IsPresent `
@@ -65,9 +69,9 @@ function Invoke-SdnGetNetView {
             -SkipVm:$SkipVm.IsPresent *> $null
 
         # remove the uncompressed files and folders to free up ~ 1.5GB of space
-        $compressedArchive = Get-ChildItem -Path $OutputDirectory.FullName -Filter "*.zip"
+        $compressedArchive = Get-ChildItem -Path $outDir -Filter "*.zip"
         if ($compressedArchive) {
-            Get-ChildItem -Path $OutputDirectory.FullName -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
+            Get-ChildItem -Path $outDir -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
         }
 
         return $compressedArchive.FullName
