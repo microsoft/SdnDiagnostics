@@ -7,14 +7,19 @@ function Invoke-SdnGetNetView {
     .PARAMETER BackgroundThreads
         Maximum number of background tasks, from 0 - 16. Defaults to 5.
     .PARAMETER SkipAdminCheck
-        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and usefulness of the collected data is limited.
+        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and
+        usefulness of the collected data is limited.
     .PARAMETER SkipLogs
         If present, skip the EVT and WER logs gather phases.
+    .PARAMETER SkipNetsh
+        If present, skip all Netsh commands.
     .PARAMETER SkipNetshTrace
-        If present, skip the Netsh Trace data gather phases.
+        If present, skip the Netsh Trace data gather phase.
     .PARAMETER SkipCounters
-        If present, skip the Windows Performance Counters (WPM) data gather phases.
-    .PARAMETER SkipVM
+        If present, skip the Windows Performance Counters collection phase.
+    .PARAMETER SkipWindowsRegistry
+        If present, skip exporting Windows Registry keys.
+    .PARAMETER SkipVm
         If present, skip the Virtual Machine (VM) data gather phases.
     .EXAMPLE
         PS> Invoke-SdnGetNetView -OutputDirectory "C:\Temp\CSS_SDN"
@@ -26,6 +31,7 @@ function Invoke-SdnGetNetView {
         [string]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]
+        [ValidateRange(0, 16)]
         [int]$BackgroundThreads = 5,
 
         [Parameter(Mandatory = $false)]
@@ -35,10 +41,16 @@ function Invoke-SdnGetNetView {
         [switch]$SkipLogs,
 
         [Parameter(Mandatory = $false)]
+        [switch]$SkipNetsh,
+
+        [Parameter(Mandatory = $false)]
         [switch]$SkipNetshTrace,
 
         [Parameter(Mandatory = $false)]
         [switch]$SkipCounters,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$SkipWindowsRegistry,
 
         [Parameter(Mandatory = $false)]
         [switch]$SkipVm
@@ -60,13 +72,7 @@ function Invoke-SdnGetNetView {
         }
 
         # execute Get-NetView with specified parameters and redirect all streams to null to prevent unnecessary noise on the screen
-        Get-NetView -OutputDirectory $outDir `
-            -BackgroundThreads $BackgroundThreads `
-            -SkipAdminCheck:$SkipAdminCheck.IsPresent `
-            -SkipLogs:$SkipLogs.IsPresent `
-            -SkipNetshTrace:$SkipNetshTrace.IsPresent `
-            -SkipCounters:$SkipCounters.IsPresent `
-            -SkipVm:$SkipVm.IsPresent *> $null
+        Get-NetView @PSBoundParameters *>$null
 
         # remove the uncompressed files and folders to free up ~ 1.5GB of space
         $compressedArchive = Get-ChildItem -Path $outDir -Filter "*.zip"
