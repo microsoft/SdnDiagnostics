@@ -12,6 +12,10 @@ function Get-SdnModuleConfiguration {
         [SdnModules]$Role
     )
 
+    if ($Role.ToString().Contains('_')) {
+        [string]$Role = $Role -replace '_', '.'
+    }
+
     $path = "SdnDiag.{0}\SdnDiag.{0}.Config.psd1" -f $Role
     $moduleConfig = Get-Item -Path $PSScriptRoot\..\$path -ErrorAction SilentlyContinue
     if ($moduleConfig) {

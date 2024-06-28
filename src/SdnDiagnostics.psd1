@@ -35,6 +35,8 @@
         'modules\SdnDiag.Health\SdnDiag.Health.psm1'
         'modules\SdnDiag.LoadBalancerMux\SdnDiag.LoadBalancerMux.psm1'
         'modules\SdnDiag.NetworkController\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.NetworkController.FC\SdnDiag.NetworkController.FC.psm1'
+        'modules\SdnDiag.NetworkController.SF\SdnDiag.NetworkController.SF.psm1'
         'modules\SdnDiag.Server\SdnDiag.Server.psm1'
         'modules\SdnDiag.Utilities\SdnDiag.Utilities.psm1'
         'modules\Test-SdnExpressBgp.psm1'

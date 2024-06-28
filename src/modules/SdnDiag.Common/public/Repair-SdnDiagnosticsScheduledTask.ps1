@@ -7,7 +7,15 @@ function Repair-SdnDiagnosticsScheduledTask {
     [CmdletBinding()]
     param()
 
-    $taskName = "SDN Diagnostics Task"
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+        'FailoverCluster' {
+            $taskName = "FcDiagnostics"
+        }
+        'ServiceFabric' {
+            $taskName = "SDN Diagnostics Task"
+        }
+    }
+
     try {
         $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled'
         if (-NOT $isLoggingEnabled ) {

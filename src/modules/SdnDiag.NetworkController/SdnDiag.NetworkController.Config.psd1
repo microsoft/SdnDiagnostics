@@ -204,18 +204,19 @@
                 includeInResourceDump = $true
             }
         }
-        CommonPaths = @{
-            serviceFabricLogDirectory = @(
-                "C:\ProgramData\Microsoft\Service Fabric\log\Traces"
-                "C:\ProgramData\Microsoft\Service Fabric\log\OperationalTraces"
-                "C:\ProgramData\Microsoft\Service Fabric\log\QueryTraces"
-                "C:\ProgramData\Microsoft\Service Fabric\log\CrashDumps"
-                "C:\ProgramData\Microsoft\Service Fabric\log\PerformanceCounters_WinFabPerfCtrFolder"
-            )
-        }
+        CommonPaths = @{}
         EventLogProviders = @(
-            "Microsoft-Windows-NetworkController*"
-            "Microsoft-ServiceFabric*"
+            "Microsoft-Windows-NetworkController-FirewallService*",
+            "Microsoft-Windows-NetworkController-Framework*",
+            "Microsoft-Windows-NetworkController-GatewayManager*",
+            "Microsoft-Windows-NetworkController-SDNAPIEvents*",
+            "Microsoft-Windows-NetworkController-SDNBREvents*",
+            "Microsoft-Windows-NetworkController-SDNFNM*",
+            "Microsoft-Windows-NetworkController-SDNHelper*",
+            "Microsoft-Windows-NetworkController-SDNSlbManager*",
+            "Microsoft-Windows-NetworkController-ServiceInsertion*",
+            "Microsoft-Windows-NetworkController-Update*",
+            "Microsoft-Windows-NetworkController-VSwitchService*"
         )
         NetControllerStatePath = "C:\Windows\Tracing\SDNDiagnostics\NetworkControllerState"
         RegKeyPaths = @(
@@ -223,12 +224,5 @@
             "HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent"
             "HKLM:\SYSTEM\CurrentControlSet\Services\Network Controller"
         )
-        Services = @{
-            FabricHostSvc = @{
-                Properties = @{
-                    DisplayName = "Service Fabric Host Service"
-                }
-            }
-        }
     }
 }

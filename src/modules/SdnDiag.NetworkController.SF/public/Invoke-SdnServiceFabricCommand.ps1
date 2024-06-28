@@ -31,6 +31,10 @@ function Invoke-SdnServiceFabricCommand {
         [Object[]]$ArgumentList = $null
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     $params = @{
         ScriptBlock = $ScriptBlock
     }

@@ -6,8 +6,8 @@ function Get-SdnNetworkControllerRestURL {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [String]$NetworkController,
+        [Parameter(Mandatory = $false)]
+        [String]$NetworkController = $env:COMPUTERNAME,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -15,25 +15,37 @@ function Get-SdnNetworkControllerRestURL {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    # if already populated into the cache, return the value
+    if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))) {
+        return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+    }
+
     try {
-        # if already populated into the cache, return the value
-        if (-NOT ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl))) {
-            return $Global:SdnDiagnostics.EnvironmentInfo.NcUrl
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'FailoverCluster' {
+                $result = Get-SdnNetworkControllerFC @PSBoundParameters -ErrorAction Stop
+                if ($result) {
+                    $endpoint = $result.RestCertificateSubjectName
+                }
+            }
+            'ServiceFabric' {
+                $result = Get-SdnNetworkControllerSF @PSBoundParameters -ErrorAction Stop
+                if ($result) {
+                    $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
+                }
+            }
         }
-
-        $result = Get-SdnNetworkController -NetworkController $NetworkController -Credential $Credential
-        if ($null -eq $result) {
-            throw New-Object System.NullReferenceException("Unable to return information from Network Controller")
-        }
-
-        # use the Subject of the ServerCertificate object back for the NB API
-        $endpoint = $result.ServerCertificate.Subject.Split('=')[1]
-        $ncUrl = 'https://{0}' -f $endpoint
-
-        return $ncUrl
     }
     catch {
         $_ | Trace-Exception
-        $_ | Write-Error
+        throw $_
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($endpoint)) {
+        $ncUrl = 'https://{0}' -f $endpoint
+        return $ncUrl
+    }
+    else {
+        throw New-Object System.NullReferenceException("Failed to retrieve Network Controller Rest URL.")
     }
 }

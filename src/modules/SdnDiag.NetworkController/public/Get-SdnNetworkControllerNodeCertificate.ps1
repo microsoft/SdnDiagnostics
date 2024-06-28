@@ -14,10 +14,14 @@ function Get-SdnNetworkControllerNodeCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     Confirm-IsNetworkController
 
     try {
-        $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:ComputerName -Credential $Credential
+        $networkControllerNode = Get-SdnNetworkControllerSFNode -Name $env:ComputerName -Credential $Credential
 
         # check to see if FindCertificateBy property exists as this was added in later builds
         # else if does not exist, default to Thumbprint for certificate

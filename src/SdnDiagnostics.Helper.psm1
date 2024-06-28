@@ -69,10 +69,13 @@ Register-ArgumentCompleter -CommandName $fabricNodeParamCommands -ParameterName 
 
 $networkControllerParamCommands = (
     'Debug-SdnFabricInfrastructure',
-    'Test-SdnKnownIssue',
     'Start-SdnDataCollection',
     'Get-SdnNetworkController',
     'Get-SdnNetworkControllerNode',
+    'Get-SdnNetworkControllerFC',
+    'Get-SdnNetworkControllerFCNode',
+    'Get-SdnNetworkControllerSF',
+    'Get-SdnNetworkControllerSFNode',
     'Get-SdnNetworkControllerClusterInfo',
     'Get-SdnNetworkControllerState',
     'Get-SdnServiceFabricApplicationHealth',

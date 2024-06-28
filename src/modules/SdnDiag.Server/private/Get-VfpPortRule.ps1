@@ -171,6 +171,12 @@ function Get-VfpPortRule {
                                 }
                             }
 
+                            "VNET_DR_REDIRECTION_LAYER" {
+                                $object = [VfpEncapRule]@{
+                                    Rule = $value
+                                }
+                            }
+
                             "FW_CONTROLLER_LAYER_ID" {
                                 $object = [VfpFirewallRule]@{
                                     Rule = $value
@@ -208,7 +214,7 @@ function Get-VfpPortRule {
                             }
 
                             "SLB_DECAP_LAYER_STATEFUL" {
-                                $object = [VfpRule]@{
+                                $object = [VfpEncapRule]@{
                                     Rule = $value
                                 }
                             }

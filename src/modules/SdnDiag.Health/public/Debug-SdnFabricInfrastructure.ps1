@@ -44,6 +44,10 @@ function Debug-SdnFabricInfrastructure {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
 
