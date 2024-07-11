@@ -66,7 +66,7 @@ function Invoke-SdnGetNetView {
         Import-Module -Name $module.FullName -Force
 
         # initialize the data collection environment which will ensure the path exists and has enough space
-        [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "NetView"
+        [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "Get-NetView"
         if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 200)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
