@@ -62,7 +62,8 @@ function Invoke-SdnGetNetView {
             Remove-Module -Name Get-NetView -Force
         }
         # import the Get-NetView module from the external packages
-        Import-Module -Name "$PSScriptRoot\..\..\..\externalPackages\Get-NetView.psd1" -Force
+        $module = Get-Item -Path "$PSScriptRoot\..\..\externalPackages\Get-NetView.*\Get-NetView.psd1" -ErrorAction Stop
+        Import-Module -Name $module.FullName -Force
 
         # initialize the data collection environment which will ensure the path exists and has enough space
         [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "NetView"
