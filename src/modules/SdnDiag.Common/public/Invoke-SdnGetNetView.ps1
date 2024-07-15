@@ -7,14 +7,19 @@ function Invoke-SdnGetNetView {
     .PARAMETER BackgroundThreads
         Maximum number of background tasks, from 0 - 16. Defaults to 5.
     .PARAMETER SkipAdminCheck
-        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and usefulness of the collected data is limited.
+        If present, skip the check for admin privileges before execution. Note that without admin privileges, the scope and
+        usefulness of the collected data is limited.
     .PARAMETER SkipLogs
         If present, skip the EVT and WER logs gather phases.
+    .PARAMETER SkipNetsh
+        If present, skip all Netsh commands.
     .PARAMETER SkipNetshTrace
-        If present, skip the Netsh Trace data gather phases.
+        If present, skip the Netsh Trace data gather phase.
     .PARAMETER SkipCounters
-        If present, skip the Windows Performance Counters (WPM) data gather phases.
-    .PARAMETER SkipVM
+        If present, skip the Windows Performance Counters collection phase.
+    .PARAMETER SkipWindowsRegistry
+        If present, skip exporting Windows Registry keys.
+    .PARAMETER SkipVm
         If present, skip the Virtual Machine (VM) data gather phases.
     .EXAMPLE
         PS> Invoke-SdnGetNetView -OutputDirectory "C:\Temp\CSS_SDN"
@@ -23,9 +28,10 @@ function Invoke-SdnGetNetView {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.IO.FileInfo]$OutputDirectory,
+        [string]$OutputDirectory,
 
         [Parameter(Mandatory = $false)]
+        [ValidateRange(0, 16)]
         [int]$BackgroundThreads = 5,
 
         [Parameter(Mandatory = $false)]
@@ -35,39 +41,44 @@ function Invoke-SdnGetNetView {
         [switch]$SkipLogs,
 
         [Parameter(Mandatory = $false)]
+        [switch]$SkipNetsh,
+
+        [Parameter(Mandatory = $false)]
         [switch]$SkipNetshTrace,
 
         [Parameter(Mandatory = $false)]
         [switch]$SkipCounters,
 
         [Parameter(Mandatory = $false)]
+        [switch]$SkipWindowsRegistry,
+
+        [Parameter(Mandatory = $false)]
         [switch]$SkipVm
     )
 
     try {
-        Copy-Item -Path "$PSScriptRoot\..\..\..\externalPackages\Get-NetView" -Destination "$($env:ProgramFiles)\WindowsPowerShell\Modules" -Force -Recurse
-        Import-Module -Name 'Get-NetView' -Force
-        "Using Get-NetView version {0}" -f (Get-Module -Name 'Get-NetView' -ErrorAction SilentlyContinue).Version.ToString() | Trace-Output -Level:Verbose
+        # check to see if Get-NetView module is loaded into the runspace, if so, remove it
+        if (Get-Module -Name Get-NetView) {
+            Remove-Module -Name Get-NetView -Force
+        }
+        # import the Get-NetView module from the external packages
+        $module = Get-Item -Path "$PSScriptRoot\..\..\externalPackages\Get-NetView.*\Get-NetView.psd1" -ErrorAction Stop
+        Import-Module -Name $module.FullName -Force
 
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "NetView"
-        # validate the output directory exists, else create the appropriate path
-        if (!(Test-Path -Path $OutputDirectory.FullName -PathType Container)) {
-            $null = New-Item -Path $OutputDirectory.FullName -ItemType Directory -Force
+        # initialize the data collection environment which will ensure the path exists and has enough space
+        [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "Get-NetView"
+        if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 200)) {
+            "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+            return
         }
 
         # execute Get-NetView with specified parameters and redirect all streams to null to prevent unnecessary noise on the screen
-        Get-NetView -OutputDirectory $OutputDirectory.FullName `
-            -BackgroundThreads $BackgroundThreads `
-            -SkipAdminCheck:$SkipAdminCheck.IsPresent `
-            -SkipLogs:$SkipLogs.IsPresent `
-            -SkipNetshTrace:$SkipNetshTrace.IsPresent `
-            -SkipCounters:$SkipCounters.IsPresent `
-            -SkipVm:$SkipVm.IsPresent *> $null
+        Get-NetView @PSBoundParameters *>$null
 
         # remove the uncompressed files and folders to free up ~ 1.5GB of space
-        $compressedArchive = Get-ChildItem -Path $OutputDirectory.FullName -Filter "*.zip"
+        $compressedArchive = Get-ChildItem -Path $outDir -Filter "*.zip"
         if ($compressedArchive) {
-            Get-ChildItem -Path $OutputDirectory.FullName -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
+            Get-ChildItem -Path $outDir -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
         }
 
         return $compressedArchive.FullName
