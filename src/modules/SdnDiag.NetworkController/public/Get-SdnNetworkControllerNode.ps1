@@ -31,75 +31,12 @@ function Get-SdnNetworkControllerNode {
         [switch]$ServerNameOnly
     )
 
-    $params = @{
-        NetworkController = $NetworkController
-        Credential = $Credential
-    }
-    if ($Name) {
-        $params.Add('Name', $Name)
-    }
-
-    $sb = {
-        param([String]$param1)
-        # check if service fabric service is running otherwise this command will hang
-        if ((Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-            throw "FabricHostSvc is not running."
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+        'FailoverCluster' {
+            Get-SdnNetworkControllerFCNode @PSBoundParameters
         }
-
-        # native cmdlet to get network controller node information is case sensitive
-        # so we need to get all nodes and then filter based on the name
-        $ncNodes = Get-NetworkControllerNode
-        if (![string]::IsNullOrEmpty($param1)) {
-            return ($ncNodes | Where-Object {$_.Name -ieq $param1})
+        'ServiceFabric' {
+            Get-SdnNetworkControllerSFNode @PSBoundParameters
         }
-        else {
-            return $ncNodes
-        }
-    }
-
-    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-        Confirm-IsNetworkController
-    }
-
-    try {
-        try {
-            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                $result = Invoke-Command -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
-            }
-            else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -Credential $Credential -ScriptBlock $sb -ArgumentList @($Name) -ErrorAction Stop
-            }
-
-            # in this scenario if the results returned we will parse the objects returned and generate warning to user if node is not up
-            # this property is only going to exist though if service fabric is healthy and underlying NC cmdlet can query node status
-            foreach($obj in $result){
-                if($obj.Status -ine 'Up'){
-                    "{0} is reporting status {1}" -f $obj.Name, $obj.Status | Trace-Output -Level:Warning
-                }
-
-                # if we returned the object, we want to add a new property called NodeCertificateThumbprint as this will ensure consistent
-                # output in scenarios where this operation fails due to NC unhealthy and we need to fallback to reading the cluster manifest
-                $result | ForEach-Object {
-                    if (!($_.PSOBject.Properties.name -contains "NodeCertificateThumbprint")) {
-                        $_ | Add-Member -MemberType NoteProperty -Name 'NodeCertificateThumbprint' -Value $_.NodeCertificate.Thumbprint
-                    }
-                }
-            }
-        }
-        catch {
-            "Get-NetworkControllerNode failed: {0}" -f $_.Exception.Message | Trace-Output -Level:Error
-            $result = Get-NetworkControllerNodeInfoFromClusterManifest @params
-        }
-
-        if($ServerNameOnly){
-            return [System.Array]$result.Server
-        }
-        else {
-            return $result
-        }
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

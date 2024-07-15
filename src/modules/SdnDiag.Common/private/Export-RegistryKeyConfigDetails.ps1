@@ -15,10 +15,10 @@ function Export-RegistryKeyConfigDetails {
         }
 
         foreach($regKeyPath in $Path){
-            "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output -Level:Verbose
+            "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output
 
             $regKeyDirectories = @()
-            $regKeyDirectories += Get-ChildItem -Path $regKeyPath -ErrorAction SilentlyContinue
+            $regKeyDirectories += Get-Item -Path $regKeyPath -ErrorAction SilentlyContinue
             $regKeyDirectories += Get-ChildItem -Path $regKeyPath -Recurse -ErrorAction SilentlyContinue
             $regKeyDirectories = $regKeyDirectories | Sort-Object -Unique
 
@@ -27,6 +27,11 @@ function Export-RegistryKeyConfigDetails {
                 "Scanning {0}" -f $obj.PsPath | Trace-Output -Level:Verbose
                 try {
                     $properties = Get-ItemProperty -Path $obj.PSPath -ErrorAction Stop
+
+                    # check to see if we are lookiing at cluster network controller registry key, if so, then redact the AESKey
+                    if ($obj.PSPath -ilike "*Cluster\NetworkController*") {
+                        $properties.'GlobalConfiguration.AESKey' = "removed_for_security_reasons"
+                    }
                 }
                 catch {
                     "Unable to return results from {0}`n`t{1}" -f $obj.PSPath, $_.Exception | Trace-Output -Level:Warning

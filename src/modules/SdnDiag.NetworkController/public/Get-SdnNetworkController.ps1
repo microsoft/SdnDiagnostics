@@ -1,7 +1,7 @@
 function Get-SdnNetworkController {
     <#
     .SYNOPSIS
-        Gets network controller application settings.
+        Gets network controller application settings from the network controller.
     .PARAMETER NetworkController
         Specifies the name or IP address of the network controller node on which this cmdlet operates. The parameter is optional if running on network controller node.
 	.PARAMETER Credential
@@ -23,29 +23,12 @@ function Get-SdnNetworkController {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $networkControllerSB = {
-        Get-NetworkController
-    }
-
-    try {
-        try {
-            if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-                Confirm-IsNetworkController
-                $result = Invoke-Command -ScriptBlock $networkControllerSB
-            }
-            else {
-                $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $networkControllerSB -Credential $Credential
-            }
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+        'FailoverCluster' {
+            Get-SdnNetworkControllerFC @PSBoundParameters
         }
-        catch {
-            "Get-NetworkController failed with following exception: `n`t{0}`n" -f $_ | Trace-Output -Level:Error
-            $result = Get-SdnNetworkControllerInfoFromClusterManifest -NetworkController $NetworkController -Credential $Credential
+        'ServiceFabric' {
+            Get-SdnNetworkControllerSF @PSBoundParameters
         }
-
-        return $result
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
     }
 }

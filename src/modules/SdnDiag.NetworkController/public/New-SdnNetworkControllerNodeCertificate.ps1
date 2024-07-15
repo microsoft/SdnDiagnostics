@@ -35,6 +35,10 @@ function New-SdnNetworkControllerNodeCertificate {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
     }
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
     if (-NOT $elevated) {
@@ -44,7 +48,7 @@ function New-SdnNetworkControllerNodeCertificate {
     try {
         if ($null -eq $FabricDetails) {
             $FabricDetails = [SdnFabricInfrastructure]@{
-                NetworkController = (Get-SdnNetworkControllerNode).Server
+                NetworkController = (Get-SdnNetworkControllerSFNode).Server
             }
         }
 

@@ -1,4 +1,4 @@
-function Get-SdnServiceFabricApplicationHealth {
+function Get-SdnServiceFabricApplication {
     <#
     .SYNOPSIS
         Gets the health of a Service Fabric application from Network Controller.
@@ -9,7 +9,7 @@ function Get-SdnServiceFabricApplicationHealth {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnServiceFabricApplicationHealth -NetworkController 'NC01' -Credential (Get-Credential)
+        PS> Get-SdnServiceFabricApplication -NetworkController 'NC01' -Credential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -27,14 +27,15 @@ function Get-SdnServiceFabricApplicationHealth {
     )
 
     $sb = {
-        param([string]$param1)
-        if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-            throw "Service Fabric Service is currently not running."
+        # check if service fabric service is running
+        $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
+        if ($serviceState.Status -ne 'Running') {
+            throw New-Object System.Exception("Service Fabric Service is currently not running.")
         }
 
         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
         $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
-        Get-ServiceFabricApplicationHealth -ApplicationName $param1
+        Get-ServiceFabricApplication
     }
 
     try {

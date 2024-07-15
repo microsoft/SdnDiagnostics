@@ -40,7 +40,7 @@ function Connect-SlbManager {
 
     # create IPEndPoint object for the SlbManagerPrimary address and port 49001
     $endpoint = New-Object System.Net.IPEndPoint($ipAddress, 49001)
-    $networkControllerNode = Get-SdnNetworkControllerNode -Name $env:COMPUTERNAME
+    $networkControllerNode = Get-SdnNetworkControllerSFNode -Name $env:COMPUTERNAME
 
     # check to see if we have a node certificate that will be used for establishing connectivity
     # otherwise if not using x509 between the NC nodes we can just use $null

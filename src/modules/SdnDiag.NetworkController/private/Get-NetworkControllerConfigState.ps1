@@ -20,25 +20,34 @@ function Get-NetworkControllerConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
-        [System.IO.FileInfo]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
-        [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
+        [string]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
 
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        if (-NOT (Initialize-DataCollection -Role 'NetworkController' -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+
+        Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
+        Get-CommonConfigState -OutputDirectory $outDir
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "$env:SystemRoot\NetworkController" -Directory
         foreach($directory in $ncAppDirectories){
-            [System.String]$fileName = "FileInfo_{0}" -f $directory.BaseName
-            Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir.FullName -Name $fileName -FileType txt -Format List
+            [string]$fileName = "FileInfo_{0}" -f $directory.BaseName
+            Get-Item -Path "$($directory.FullName)\*" -Include *.dll,*.exe | Export-ObjectToFile -FilePath $ncAppDir -Name $fileName -FileType txt -Format List
+        }
+
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'ServiceFabric' {
+                Get-NetworkControllerSFConfigState @PSBoundParameters
+            }
+            'FailoverCluster' {
+                Get-NetworkControllerFCConfigState @PSBoundParameters
+            }
         }
     }
     catch {

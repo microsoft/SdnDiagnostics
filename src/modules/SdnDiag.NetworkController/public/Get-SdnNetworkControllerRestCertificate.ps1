@@ -14,10 +14,14 @@ function Get-SdnNetworkControllerRestCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     Confirm-IsNetworkController
 
     try {
-        $networkController = Get-SdnNetworkController -NetworkController $env:COMPUTERNAME -Credential $Credential
+        $networkController = Get-SdnNetworkControllerSF -NetworkController $env:COMPUTERNAME -Credential $Credential
         $ncRestCertThumprint = $($networkController.ServerCertificate.Thumbprint).ToString()
         $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $ncRestCertThumprint
 

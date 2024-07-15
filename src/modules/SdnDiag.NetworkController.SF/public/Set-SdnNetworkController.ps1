@@ -33,10 +33,8 @@ function Set-SdnNetworkController {
         $Credential
     )
 
-    $waitDuration = 30 # seconds
-    $params = @{}
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
     }
 
     Confirm-IsAdmin
@@ -47,10 +45,16 @@ function Set-SdnNetworkController {
         }
     }
 
+    $waitDuration = 30 # seconds
+    $params = @{}
+    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+        $params.Add('Credential', $Credential)
+    }
+
     try {
-        $getNetworkController = Get-SdnNetworkController
+        $getNetworkController = Get-SdnNetworkControllerSF
         if ($null -eq $getNetworkController) {
-            throw New-Object System.Exception("Unable to retrieve results from Get-SdnNetworkController.")
+            throw New-Object System.Exception("Unable to retrieve results from Get-SdnNetworkControllerSF.")
         }
 
         $certSubjectName = $getNetworkController.ServerCertificate.Subject.Split('=')[1].Trim()
@@ -136,7 +140,7 @@ function Set-SdnNetworkController {
         "Calling Set-NetworkController with params: {0}" -f ($params | ConvertTo-Json) | Trace-Output
         Set-NetworkController @params
 
-        return (Get-SdnNetworkController)
+        return (Get-SdnNetworkControllerSF)
     }
     catch {
         $_ | Trace-Exception

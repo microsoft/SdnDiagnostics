@@ -56,9 +56,22 @@ function Get-SdnInfrastructureInfo {
             $Global:SdnDiagnostics.EnvironmentInfo.NcUrl = $null
             $global:SdnDiagnostics.EnvironmentInfo.NetworkController = $null
             $global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = $null
-            $Global:SdnDiagnostics.EnvironmentInfo.RasGateway = $null
+            $Global:SdnDiagnostics.EnvironmentInfo.Gateway = $null
             $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
             $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
+        }
+
+        # get cluster type
+        $clusterType = Get-SdnClusterType -NetworkController $NetworkController -Credential $Credential
+        if ($clusterType) {
+            $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType = $clusterType
+        }
+
+        # get the cluster name if we using a failover cluster
+        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -eq 'FailoverCluster') {
+            if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.FailoverClusterConfig.Name)) {
+                $Global:SdnDiagnostics.EnvironmentInfo.FailoverClusterConfig.Name = Get-SdnClusterName -NetworkController $NetworkController -Credential $Credential
+            }
         }
 
         # get the NC Northbound API endpoint
@@ -68,7 +81,7 @@ function Get-SdnInfrastructureInfo {
         elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
             $result = Get-SdnNetworkControllerRestURL -NetworkController $NetworkController -Credential $Credential
 
-            if ($null -eq $result) {
+            if ([string]::IsNullOrEmpty($result)) {
                 throw New-Object System.NullReferenceException("Unable to locate REST API endpoint for Network Controller. Please specify REST API with -RestUri parameter.")
             }
 
@@ -119,8 +132,6 @@ function Get-SdnInfrastructureInfo {
         }
 
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $fabricNodes
-
-        return $Global:SdnDiagnostics.EnvironmentInfo
     }
     catch {
         # Remove any cached info in case of exception as the cached info might be incorrect
@@ -132,6 +143,8 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         $_ | Trace-Exception
     }
+
+    return $Global:SdnDiagnostics.EnvironmentInfo
 }
 
 Set-Alias -Name "Get-SdnEnvironmentInfo" -Value "Get-SdnInfrastructureInfo" -Force

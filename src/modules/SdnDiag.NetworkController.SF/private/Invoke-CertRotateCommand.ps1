@@ -27,6 +27,10 @@ function Invoke-CertRotateCommand {
         [Int]$MaxRetry = 3
     )
 
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $retryAttempt = 0
 
@@ -63,7 +67,7 @@ function Invoke-CertRotateCommand {
             $params.Add('CredentialEncryptionCertificate', $cert)
         }
         'Set-NetworkControllerNode' {
-            $ncNode = Get-SdnNetworkControllerNode -NetworkController $NetworkController -Name $Name -Credential $Credential
+            $ncNode = Get-SdnNetworkControllerSFNode -NetworkController $NetworkController -Name $Name -Credential $Credential
 
             $params.Add('Name', $ncNode.Name)
             $params.Add('NodeCertificate', $cert)
