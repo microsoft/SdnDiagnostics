@@ -53,7 +53,8 @@ function Debug-SdnFabricInfrastructure {
 
     # check to see if we are running in a remote session and if so, ensure we have the necessary credentials
     # otherwise we will not be able to perform the necessary tests
-    if ($PSSenderInfo) {
+    # if credssp is enabled, we will allow it to move forward without specifying -Credential
+    if ($PSSenderInfo -and !(Get-WSManCredSSPState)) {
         if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
             throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
         }
