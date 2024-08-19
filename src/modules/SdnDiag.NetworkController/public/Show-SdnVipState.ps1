@@ -14,13 +14,6 @@ function Show-SdnVipState {
     )
 
     try {
-        # if credssp is enabled, we will allow it to move forward without specifying -Credential
-        if ($PSSenderInfo -and !(Get-WSManCredSSPState)) {
-            if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
-                throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
-            }
-        }
-
         $slbManager = Connect-SlbManager -Credential $Credential -ErrorAction Stop
         if ($slbManager) {
             $consolidatedVipState = $slbManager.GetConsolidatedVipState($VirtualIPAddress, $Detailed)

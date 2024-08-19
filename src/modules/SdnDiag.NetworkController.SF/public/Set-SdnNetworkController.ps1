@@ -40,13 +40,6 @@ function Set-SdnNetworkController {
     Confirm-IsAdmin
     Confirm-IsNetworkController
 
-    # if credssp is enabled, we will allow it to move forward without specifying -Credential
-    if ($PSSenderInfo -and !(Get-WSManCredSSPState)) {
-        if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
-            throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
-        }
-    }
-
     $waitDuration = 30 # seconds
     $params = @{}
     if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
