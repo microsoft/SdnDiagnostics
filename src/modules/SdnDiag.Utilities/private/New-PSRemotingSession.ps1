@@ -50,15 +50,15 @@ function New-PSRemotingSession {
     }
     process {
         $ComputerName | ForEach-Object {
-            $session = $null
-            $objectName = $_
+            $objectName = $PSItem
 
             # check to see if session is already opened
-            # if no session already exists or Force is defined, then create a new remote session
             if ($currentActiveSessions.ComputerName -contains $objectName -and !$Force) {
                 $session = ($currentActiveSessions | Where-Object { $_.ComputerName -eq $objectName })[0]
                 "Located existing powershell session {0} for {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
 
+                # if we have to import the module on the remote session, we need to check if the module is already imported
+                # if not, we will import the module on the remote session
                 if ($ImportModuleOnRemoteSession) {
                     $moduleImported = Invoke-Command -Session $session -ScriptBlock $confirmRemoteModuleImported -ArgumentList @($ModuleName) -ErrorAction Stop
                     if (-NOT $moduleImported) {
@@ -67,8 +67,9 @@ function New-PSRemotingSession {
                     }
                 }
 
+                # add the session to the array and skip further processing
                 $remoteSessions += $session
-                continue
+                return # stop processing
             }
 
             # determine if an IP address was passed for the destination
@@ -87,7 +88,7 @@ function New-PSRemotingSession {
                 }
                 catch {
                     $_ | Trace-Output -Level:Error
-                    continue
+                    return # stop processing
                 }
             }
 
@@ -123,11 +124,11 @@ function New-PSRemotingSession {
             }
             catch {
                 "Unable to create powershell session to {0}`n`t{1}" -f $objectName, $_.Exception.Message | Trace-Output -Level:Error
-                continue
+                return # stop processing
             }
         }
     }
     end {
-        $remoteSessions | Sort-Object -Unique
+        return ($remoteSessions | Sort-Object -Unique)
     }
 }
