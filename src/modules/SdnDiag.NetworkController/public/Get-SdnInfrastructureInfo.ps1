@@ -142,6 +142,7 @@ function Get-SdnInfrastructureInfo {
         $Global:SdnDiagnostics.EnvironmentInfo.Server = $null
         $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes = $null
         $_ | Trace-Exception
+        $_ | Write-Error
     }
 
     return $Global:SdnDiagnostics.EnvironmentInfo
