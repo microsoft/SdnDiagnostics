@@ -50,14 +50,6 @@ function Debug-SdnFabricInfrastructure {
 
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
-
-    # check to see if we are running in a remote session and if so, ensure we have the necessary credentials
-    # otherwise we will not be able to perform the necessary tests
-    if ($PSSenderInfo) {
-        if ($Credential -eq [System.Management.Automation.PSCredential]::Empty -or $null -eq $Credential) {
-            throw New-Object System.NotSupportedException("This operation is not supported in a remote session without supplying -Credential.")
-        }
-    }
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }

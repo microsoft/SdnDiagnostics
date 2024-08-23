@@ -30,21 +30,32 @@ function Install-SdnDiagnostics {
         [switch]$Force
     )
 
-    # if we have configured automatic seeding of module to remote nodes, we will want to skip this operation
-    if ($Global:SdnDiagnostics.Config.DisableModuleSeeding) {
-        return
-    }
+    begin {
+        $moduleName = $Global:SdnDiagnostics.Config.ModuleName
+        # if we have configured automatic seeding of module to remote nodes, we will want to skip this operation
+        if ($Global:SdnDiagnostics.Config.DisableModuleSeeding) {
+            return
+        }
 
-    $moduleName = $Global:SdnDiagnostics.Config.ModuleName
-    $filteredComputerName = [System.Collections.ArrayList]::new()
-    $installNodes = [System.Collections.ArrayList]::new()
-
-    try {
         # if we have multiple modules installed on the current workstation,
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
         $localModule = Get-Module -Name 'SdnDiagnostics'
         if ($localModule.Count -gt 1) {
             throw "Detected more than one module version of SdnDiagnostics. Remove all versions of module from runspace and re-import the module."
+        }
+
+        $getModuleVersionSB = {
+            param ([string]$arg0)
+            try {
+                # Get the latest version of SdnDiagnostics Module installed
+                $version = (Get-Module -Name $arg0 -ListAvailable -ErrorAction Ignore | Sort-Object Version -Descending)[0].Version.ToString()
+            }
+            catch {
+                # in some instances, the module will not be available and as such we want to skip the noise and return
+                # a string back to the remote call command which we can do proper comparison against
+                $version = '0.0.0.0'
+            }
+            return $version
         }
 
         # typically PowerShell modules will be installed in the following directory configuration:
@@ -56,86 +67,57 @@ function Install-SdnDiagnostics {
         # so we need to ensure that we are copying the module to the correct path on the remote computer
         [System.String]$destinationPathDir = Join-Path $Path -ChildPath $localModule.Version.ToString()
         "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output -Level:Verbose
+    }
+    process {
+        $ComputerName | ForEach-Object {
+            $computer = $_
 
-        # make sure that in instances where we might be on a node within the sdn dataplane,
-        # that we do not remove the module locally
-        foreach ($computer in $ComputerName) {
-            if (Test-ComputerNameIsLocal -ComputerName $computer) {
-                "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Verbose
-                continue
-            }
-
-            [void]$filteredComputerName.Add($computer)
-        }
-
-        # due to how arrayLists are interpreted, need to check if count is 0 rather than look for $null
-        if ($filteredComputerName.Count -eq 0){
-            return
-        }
-
-        # check to see if the current version is already present on the remote computers
-        # else if we -Force defined, we can just move forward
-        if ($Force) {
-            $installNodes = $filteredComputerName
-        }
-        else {
-            "Getting current installed version of SdnDiagnostics on {0}" -f ($filteredComputerName -join ', ') | Trace-Output -Level:Verbose
-
-            # use Invoke-Command here, as we do not want to create a cached session for the remote computers
-            # as it will impact scenarios where we need to import the module on the remote computer for remote sessions
-            $remoteModuleVersion = Invoke-Command -ComputerName $filteredComputerName -Credential $Credential -ScriptBlock {
-                param ([string]$arg0)
-                try {
-                    # Get the latest version of SdnDiagnostics Module installed
-                    $version = (Get-Module -Name $arg0 -ListAvailable -ErrorAction SilentlyContinue | Sort-Object Version -Descending)[0].Version.ToString()
+            try {
+                # check to see if the computer is local, if so, we will skip the operation
+                if (Test-ComputerNameIsLocal -ComputerName $computer) {
+                    "Detected that {0} is local machine. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Verbose
+                    return
                 }
-                catch {
-                    # in some instances, the module will not be available and as such we want to skip the noise and return
-                    # a string back to the remote call command which we can do proper comparison against
-                    $version = '0.0.0.0'
-                }
-                return $version
-            } -ArgumentList @($moduleName)
 
-            # enumerate the versions returned for each computer and compare with current module version to determine if we should perform an update
-            foreach ($computer in ($remoteModuleVersion.PSComputerName | Sort-Object -Unique)) {
-                $remoteComputerModuleVersions = $remoteModuleVersion | Where-Object {$_.PSComputerName -ieq $computer}
-                "{0} is currently using version(s): {1}" -f $computer, ($remoteComputerModuleVersions.ToString() -join ' | ') | Trace-Output -Level:Verbose
-                $updateRequired = $true
+                if (!$Force) {
+                    "Getting current installed version of SdnDiagnostics on {0}" -f $computer | Trace-Output -Level:Verbose
 
-                foreach ($version in $remoteComputerModuleVersions) {
-                    if ([version]$version -ge [version]$localModule.Version) {
-                        $updateRequired = $false
-
-                        # if we found a version that is greater or equal to current version, break out of current foreach loop for the versions
-                        # and move to the next computer as update is not required
-                        break
+                    # use Invoke-Command here, as we do not want to create a cached session for the remote computers
+                    # as it will impact scenarios where we need to import the module on the remote computer for remote sessions
+                    try {
+                        $remoteModuleVersion = Invoke-Command -ComputerName $computer -Credential $Credential -ScriptBlock $getModuleVersionSB -ArgumentList @($moduleName) -ErrorAction Stop
                     }
-                    else {
-                        $updateRequired = $true
+                    catch {
+                        # if we are unable to connect to the remote computer, we will skip the operation
+                        $_ | Trace-Exception
+                        "Unable to connect to {0}. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Verbose
+                        return
+                    }
+
+                    if ($remoteModuleVersion) {
+                        # if the remote module version is greater or equal to the local module version, then we do not need to update
+                        "{0} is currently using version: {1}" -f $computer, $remoteModuleVersion | Trace-Output -Level:Verbose
+                        if ([version]$remoteModuleVersion -ge [version]$localModule.Version) {
+                            "No update is required for {0}" -f $computer | Trace-Output -Level:Verbose
+                            return
+                        }
                     }
                 }
 
-                if ($updateRequired) {
-                    [void]$installNodes.Add($computer)
-                }
+                "SdnDiagnostics {0} will be installed to {1}" -f $localModule.Version.ToString(), $computer | Trace-Output
+                Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $computer -Destination $destinationPathDir -Credential $Credential -Recurse -Force
+
+                # ensure that we destroy the current pssessions for the computer to prevent any caching issues
+                # we will want to remove any existing PSSessions for the remote computers
+                Remove-PSRemotingSession -ComputerName $computer
             }
-        }
-
-        if ($installNodes) {
-            "SdnDiagnostics {0} will be installed to {1}" -f $localModule.Version.ToString(), ($filteredComputerName -join ', ') | Trace-Output
-            Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $installNodes -Destination $destinationPathDir -Credential $Credential -Recurse -Force
-
-            # ensure that we destroy the current pssessions for the computer to prevent any caching issues
-            # we will want to remove any existing PSSessions for the remote computers
-            Remove-PSRemotingSession -ComputerName $installNodes
-        }
-        else {
-            "No update is required" | Trace-Output -Level:Verbose
+            catch {
+                $_ | Trace-Exception
+                $_ | Write-Error
+            }
         }
     }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+    end {
+        # do nothing here
     }
 }
