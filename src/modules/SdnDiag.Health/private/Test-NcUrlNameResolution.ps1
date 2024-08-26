@@ -27,14 +27,15 @@ function Test-NcUrlNameResolution {
             return $sdnHealthObject
         }
 
-        $networkController = Get-SdnNetworkControllerSF -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
+        $networkController = Get-SdnNetworkController -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
         if ($null -eq $networkController) {
-            "Unable to retrieve results from Get-SdnNetworkControllerSF" | Trace-Output -Level:Warning
+            "Unable to retrieve results from Get-SdnNetworkController" | Trace-Output -Level:Warning
             return $sdnHealthObject
         }
 
         # depending on the configuration returned, will determine if we need to use the RestIPAddress or RestName
         $nbApiName = $networkController.ServerCertificate.Subject.Split('=')[1].Trim()
+
         if ($networkController.RestIPAddress) {
             $expectedIPAddress = $($networkController.RestIPAddress).Split('/')[0].Trim() # we expect to be in IP/CIDR format
             "Network Controller is configured with static RestIPAddress: {0}" -f $expectedIPAddress | Trace-Output -Level:Verbose
@@ -42,7 +43,8 @@ function Test-NcUrlNameResolution {
         else {
             "Network Controller is configured with RestName" | Trace-Output -Level:Verbose
             $ncNodeName = $ncApiReplicaPrimary.ReplicaAddress.Split(':')[0].Trim()
-            if ($ncNodeName -is [System.Net.IPAddress]) {
+            $isIpAddress = [System.Net.IPAddress]::TryParse($ncNodeName, [ref]$null)
+            if ($isIpAddress) {
                 $expectedIPAddress = $ncNodeName.ToString()
             }
             else {
@@ -58,7 +60,14 @@ function Test-NcUrlNameResolution {
             }
         }
 
-        # after we have performed some validation, we want to now perform some DNS resolution to ensure that the NB API URL resolves to the correct IP address
+        # in this scenario, the certificate is using an IP address as the subject, so we will need to compare the IP address to the expected IP address
+        # if they match, we will return a success
+        $isIpAddress = [System.Net.IPAddress]::TryParse($nbApiName, [ref]$null)
+        if ($isIpAddress -and ($nbApiName -ieq $expectedIPAddress)) {
+            return $sdnHealthObject
+        }
+
+        # perform some DNS resolution to ensure that the NB API URL resolves to the correct IP address
         $dnsResult = Resolve-DnsName -Name $nbApiName -NoHostsFile -ErrorAction SilentlyContinue
         if ($null -ieq $dnsResult) {
             $sdnHealthObject.Result = 'FAIL'

@@ -21,6 +21,10 @@ function Test-ServiceState {
 
     try {
         [string[]]$services = $SdnEnvironmentObject.Role.Properties.Services.Keys
+        if ([string]::IsNullOrEmpty($services)) {
+            return $sdnHealthObject
+        }
+
         "Validating {0} service state for {1}" -f ($services -join ', '), ($SdnEnvironmentObject.ComputerName -join ', ') | Trace-Output
 
         $scriptBlock = {
