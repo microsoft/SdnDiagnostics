@@ -43,7 +43,8 @@ function Test-NcUrlNameResolution {
         else {
             "Network Controller is configured with RestName" | Trace-Output -Level:Verbose
             $ncNodeName = $ncApiReplicaPrimary.ReplicaAddress.Split(':')[0].Trim()
-            if ($ncNodeName -is [System.Net.IPAddress]) {
+            $isIpAddress = [System.Net.IPAddress]::TryParse($ncNodeName, [ref]$null)
+            if ($isIpAddress) {
                 $expectedIPAddress = $ncNodeName.ToString()
             }
             else {
@@ -61,7 +62,8 @@ function Test-NcUrlNameResolution {
 
         # in this scenario, the certificate is using an IP address as the subject, so we will need to compare the IP address to the expected IP address
         # if they match, we will return a success
-        if (($nbApiName -is [System.Net.IPAddress]) -and $nbApiName -eq $expectedIPAddress) {
+        $isIpAddress = [System.Net.IPAddress]::TryParse($nbApiName, [ref]$null)
+        if ($isIpAddress -and ($nbApiName -ieq $expectedIPAddress)) {
             return $sdnHealthObject
         }
 
