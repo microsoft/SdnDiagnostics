@@ -25,7 +25,7 @@ function New-SdnCertificateRotationConfig {
 
     try {
         if (-NOT ($PSBoundParameters.ContainsKey('NetworkController'))) {
-            $config = Get-SdnModuleConfiguration -Role 'NetworkController'
+            $config = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
             $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
             if (-NOT ($confirmFeatures)) {
                 "The current machine is not a NetworkController, run this on NetworkController or use -NetworkController parameter to specify one" | Trace-Output -Level:Warning
