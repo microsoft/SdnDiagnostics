@@ -2,7 +2,7 @@
 # Licensed under the MIT License.
 
 @{
-    Name = "NetworkControllerFC"
+    Name = "NetworkController_FC"
     WindowsFeature = @(
         "NetworkController"
     )
