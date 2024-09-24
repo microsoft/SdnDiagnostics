@@ -587,6 +587,7 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
+    $ErrorActionPreference = 'Continue'
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
     $filteredDataCollectionNodes = @()
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()

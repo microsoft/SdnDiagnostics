@@ -46,6 +46,8 @@ function Wait-PSJob {
 
             # check the stopwatch and break out of loop if we hit execution timeout limit
             if ($stopWatch.Elapsed.TotalSeconds -ge $ExecutionTimeOut) {
+                $stopWatch.Stop()
+
                 Get-Job -Name $Name | Stop-Job -Confirm:$false
                 throw New-Object System.TimeoutException("Unable to complete operation within the specified timeout period")
             }
