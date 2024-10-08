@@ -32,35 +32,37 @@ function Export-ObjectToFile {
 
     begin {
         $arrayList = [System.Collections.ArrayList]::new()
+        # build the file directory and name that will be used to export the object out
+        if($Prefix){
+            [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
+        }
+        else {
+            [System.String]$formattedFileName = "{0}\{1}.{2}" -f $FilePath.FullName, $Name, $FileType
+        }
+        [System.IO.FileInfo]$fileName = $formattedFileName
 
+        # create the parent directory structure if does not already exist
+        if(!(Test-Path -Path $fileName.Directory -PathType Container)){
+
+            try {
+                "Creating directory {0}" -f $fileName.Directory | Trace-Output -Level:Verbose
+                $null = New-Item -Path $fileName.Directory -ItemType Directory
+            }
+            catch {
+                throw New-Object System.Exception("Failed to create directory $($fileName.Directory)")
+            }
+        }
+    }
+    process {
         # if object is null, then exit
         if ($null -eq $Object) {
             return
         }
-    }
-    process {
-        foreach ($obj in $Object) {
-            [void]$arrayList.add($obj)
-        }
+
+        $arrayList.AddRange($Object)
     }
     end {
         try {
-            # build the file directory and name that will be used to export the object out
-            if($Prefix){
-                [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
-            }
-            else {
-                [System.String]$formattedFileName = "{0}\{1}.{2}" -f $FilePath.FullName, $Name, $FileType
-            }
-
-            [System.IO.FileInfo]$fileName = $formattedFileName
-
-            # create the parent directory structure if does not already exist
-            if(!(Test-Path -Path $fileName.Directory -PathType Container)){
-                "Creating directory {0}" -f $fileName.Directory | Trace-Output -Level:Verbose
-                $null = New-Item -Path $fileName.Directory -ItemType Directory
-            }
-
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
             switch($FileType){
                 "json" {
