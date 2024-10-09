@@ -46,9 +46,10 @@ function Export-ObjectToFile {
 
             try {
                 "Creating directory {0}" -f $fileName.Directory | Trace-Output -Level:Verbose
-                $null = New-Item -Path $fileName.Directory -ItemType Directory
+                $null = New-Item -Path $fileName.Directory -ItemType Directory -ErrorAction Stop
             }
             catch {
+                $_ | Trace-Exception
                 throw New-Object System.Exception("Failed to create directory $($fileName.Directory)")
             }
         }
