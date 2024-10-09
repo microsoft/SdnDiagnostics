@@ -32,10 +32,6 @@ function Install-SdnDiagnostics {
 
     begin {
         $moduleName = $Global:SdnDiagnostics.Config.ModuleName
-        # if we have configured automatic seeding of module to remote nodes, we will want to skip this operation
-        if ($Global:SdnDiagnostics.Config.DisableModuleSeeding) {
-            return
-        }
 
         # if we have multiple modules installed on the current workstation,
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
@@ -66,11 +62,16 @@ function Install-SdnDiagnostics {
         #    Import-Module C:\{path}\SdnDiagnostics (if using custom PowerShell module path)
         # so we need to ensure that we are copying the module to the correct path on the remote computer
         [System.String]$destinationPathDir = Join-Path $Path -ChildPath $localModule.Version.ToString()
-        "Verifying {0} is running SdnDiagnostics version {1}" -f $($ComputerName -join ', '), $localModule.Version.ToString() | Trace-Output -Level:Verbose
     }
     process {
         $ComputerName | ForEach-Object {
             $computer = $_
+
+            # if we have configured automatic seeding of module to remote nodes, we will want to skip this operation
+            if ($Global:SdnDiagnostics.Config.DisableModuleSeeding) {
+                "Automatic seeding of module to remote nodes is disabled. Skipping update operation for {0}." -f $computer | Trace-Output -Level:Verbose
+                return
+            }
 
             try {
                 # check to see if the computer is local, if so, we will skip the operation

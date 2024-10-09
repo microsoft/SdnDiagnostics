@@ -76,33 +76,39 @@ function Test-ResourceConfigurationState {
                 }
             }
 
-            foreach ($detail in $object.properties.configurationState.detailedInfo) {
-                switch ($detail.code) {
-                    'Success' {
-                        # do nothing
-                    }
-
-                    default {
-                        $errorMessages += $detail.message
-                        try {
-                            $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
-                            $sdnHealthObject.Remediation += "[{0}] {1}" -f $object.resourceRef, $errorDetails.Action
+            if ($object.properties.configurationState.detailedInfo) {
+                foreach ($detail in $object.properties.configurationState.detailedInfo) {
+                    switch ($detail.code) {
+                        'Success' {
+                            # do nothing
                         }
-                        catch {
-                            "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
-                            $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $object.resourceRef
-                            $sdnHealthObject.Remediation += $remediationString
+
+                        default {
+                            $errorMessages += $detail.message
+                            try {
+                                $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
+                                $sdnHealthObject.Remediation += "[{0}] {1}" -f $object.resourceRef, $errorDetails.Action
+                            }
+                            catch {
+                                "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
+                                $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $object.resourceRef
+                                $sdnHealthObject.Remediation += $remediationString
+                            }
                         }
                     }
                 }
+
+                # print the overall configuration state to screen, with each of the messages that were captured
+                # as part of the detailedinfo property
+                if ($errorMessages) {
+                    $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
+                }
+                else {
+                    $msg = "{0} is reporting configurationState status {1}" -f $object.resourceRef, $object.properties.configurationState.Status
+                }
+
+                $msg | Trace-Output -Level $traceLevel.ToString()
             }
-
-            # print the overall configuration state to screen, with each of the messages that were captured
-            # as part of the detailedinfo property
-            $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" `
-                -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
-
-            $msg | Trace-Output -Level $traceLevel.ToString()
 
             $details = [PSCustomObject]@{
                 resourceRef        = $object.resourceRef
