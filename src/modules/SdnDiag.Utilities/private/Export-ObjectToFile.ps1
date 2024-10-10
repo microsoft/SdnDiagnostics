@@ -43,9 +43,7 @@ function Export-ObjectToFile {
 
         # create the parent directory structure if does not already exist
         if(!(Test-Path -Path $fileName.Directory -PathType Container)){
-
             try {
-                "Creating directory {0}" -f $fileName.Directory | Trace-Output -Level:Verbose
                 $null = New-Item -Path $fileName.Directory -ItemType Directory -ErrorAction Stop
             }
             catch {
@@ -55,14 +53,13 @@ function Export-ObjectToFile {
         }
     }
     process {
-        # if object is null, then exit
-        if ($null -eq $Object) {
-            return
-        }
-
         $arrayList.AddRange($Object)
     }
     end {
+        if ($arrayList.Count -eq 0) {
+            return
+        }
+
         try {
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
             switch($FileType){
