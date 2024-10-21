@@ -10,8 +10,8 @@ function Get-SdnServer {
         Specifies the resource reference for the resource.
     .PARAMETER Certificate
         Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
