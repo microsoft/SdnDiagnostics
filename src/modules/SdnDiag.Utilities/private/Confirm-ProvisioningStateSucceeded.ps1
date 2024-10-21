@@ -14,6 +14,9 @@ function Confirm-ProvisioningStateSucceeded {
         [System.Management.Automation.Credential()]$Credential,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$CertificateThumbprint,
+
+        [Parameter(Mandatory = $false)]
         [Switch]$DisableKeepAlive,
 
         [Parameter(Mandatory = $false)]
@@ -23,13 +26,19 @@ function Confirm-ProvisioningStateSucceeded {
         [Int]$TimeoutInSec = 120
     )
 
-    $splat = @{
+    $params = @{
         Uri              = $Uri
-        Credential       = $Credential
         DisableKeepAlive = $DisableKeepAlive
         UseBasicParsing  = $UseBasicParsing
         Method           = 'Get'
         ErrorAction      = 'Stop'
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
+        $params.Add('CertificateThumbprint', $CertificateThumbprint)
+    }
+    else {
+        $params.Add('Credential', $Credential)
     }
 
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -39,7 +48,7 @@ function Confirm-ProvisioningStateSucceeded {
             throw New-Object System.TimeoutException("ProvisioningState for $($result.resourceId) did not succeed within the alloted time")
         }
 
-        $result = Invoke-RestMethodWithRetry @Splat
+        $result = Invoke-RestMethodWithRetry @params
         switch ($result.properties.provisioningState) {
             'Updating' {
                 "ProvisioningState for $($result.resourceId) is updating. Waiting for completion..." | Trace-Output

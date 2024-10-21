@@ -54,8 +54,24 @@ function Get-SdnResource {
         [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$CertificateThumbprint
     )
+
+    $params = @{
+        UseBasicParsing = $true
+        ErrorAction     = 'Stop'
+        Method          = 'Get'
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
+        $params.Add('CertificateThumbprint', $CertificateThumbprint)
+    }
+    else {
+        $params.Add('Credential', $Credential)
+    }
 
     switch ($PSCmdlet.ParameterSetName) {
         'InstanceId' {
@@ -75,11 +91,12 @@ function Get-SdnResource {
     }
 
     "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
+    $params.Add('Uri', $uri)
 
     # gracefully handle System.Net.WebException responses such as 404 to throw warning
     # anything else we want to throw terminating exception and capture for debugging purposes
     try {
-        $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
+        $result = Invoke-RestMethodWithRetry @params
     }
     catch [System.Net.WebException] {
         if ($_.Exception.Response.StatusCode -eq 'NotFound') {

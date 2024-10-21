@@ -47,15 +47,33 @@ function Set-SdnResource {
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$CertificateThumbprint
     )
 
     $restParams = @{
         Uri     = $null
         Method  = 'Get'
-        Credential = $Credential
         UseBasicParsing = $true
         ErrorAction = 'Stop'
+    }
+
+    $confirmParams = @{
+        Uri = $null
+        TimeoutInSec = 300
+        UseBasicParsing = $true
+        ErrorAction = 'Stop'
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
+        $restParams.Add('CertificateThumbprint', $CertificateThumbprint)
+        $confirmParams.Add('CertificateThumbprint', $CertificateThumbprint)
+    }
+    else {
+        $restParams.Add('Credential', $Credential)
+        $confirmParams.Add('Credential', $Credential)
     }
 
     try {
@@ -70,6 +88,7 @@ function Set-SdnResource {
         }
 
         $restParams.Uri = $uri
+        $confirmParams.Uri = $uri
 
         # perform a query against the resource to ensure it exists
         # as we only support operations against existing resources within this function
@@ -98,7 +117,7 @@ function Set-SdnResource {
 
         if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with PUT to configure the properties of $uri`n`t$jsonBody")) {
             $null = Invoke-RestMethodWithRetry @restParams
-            $resourceState = Confirm-ProvisioningStateSucceeded -Uri $restParams.Uri -Credential $restParams.Credential -TimeoutInSec 300 -UseBasicParsing -ErrorAction Stop
+            $resourceState = Confirm-ProvisioningStateSucceeded @confirmParams
             return $resourceState
         }
     }
