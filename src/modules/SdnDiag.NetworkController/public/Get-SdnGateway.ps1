@@ -8,6 +8,8 @@ function Get-SdnGateway {
         Specifies the unique identifier for the resource.
     .PARAMETER ResourceRef
         Specifies the resource reference for the resource.
+    .PARAMETER Certificate
+        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER ManagementAddressOnly
@@ -42,6 +44,11 @@ function Get-SdnGateway {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [X509Certificate]$Certificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
@@ -54,7 +61,12 @@ function Get-SdnGateway {
 
     $params = @{
         NcUri = $NcUri
-        Credential = $Credential
+    }
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
+    }
+    else {
+        $params.Add('Credential', $Credential)
     }
 
     switch ($PSCmdlet.ParameterSetName) {
