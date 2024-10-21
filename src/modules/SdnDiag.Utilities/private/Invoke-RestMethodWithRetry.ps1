@@ -1,4 +1,6 @@
 function Invoke-RestMethodWithRetry {
+
+    [CmdletBinding(DefaultParameterSetName = 'Credential')]
     param(
         [Parameter(Mandatory = $true)]
         [System.Uri]$Uri,
@@ -21,7 +23,10 @@ function Invoke-RestMethodWithRetry {
         [Parameter(Mandatory = $false)]
         [Switch] $UseBasicParsing,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
+        [System.String]$CertificateThumbprint,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]$Credential,
 
@@ -58,11 +63,18 @@ function Invoke-RestMethodWithRetry {
         $params.Add('UseBasicParsing', $true)
     }
 
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
-    }
-    else {
-        $params.Add('UseDefaultCredentials', $true)
+    switch ($PSCmdlet.ParameterSetName) {
+        'Certificate' {
+            $params.Add('CertificateThumbprint', $CertificateThumbprint)
+        }
+        'Credential' {
+            if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+                $params.Add('Credential', $Credential)
+            }
+            else {
+                $params.Add('UseDefaultCredentials', $true)
+            }
+        }
     }
 
     $counter = 0
