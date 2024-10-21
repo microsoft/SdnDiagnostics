@@ -19,36 +19,64 @@ function Invoke-SdnNetworkControllerStateDump {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
+        [System.String]$CertificateThumbprint,
+
+        [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300,
 
         [Parameter(Mandatory = $false)]
         [int]$PollingInterval = 1
     )
 
+    $putParams = @{
+        Uri             = $null
+        Method          = 'Put'
+        Headers         = @{"Accept" = "application/json" }
+        Content         = "application/json; charset=UTF-8"
+        Body            = "{}"
+        UseBasicParsing = $true
+    }
+
+    $getResourceParams = @{
+        NcUri           = $NcUri
+        ResourceRef     = 'diagnostics/networkControllerState'
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
+        $getParams.Add('CertificateThumbprint', $CertificateThumbprint)
+        $putParams.Add('CertificateThumbprint', $CertificateThumbprint)
+    }
+    else {
+        $getParams.Add('Credential', $Credential)
+        $putParams.Add('Credential', $Credential)
+    }
+
     try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
         [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
 
+        $putParams.Uri = $uri
+        $getParams.Uri = $uri
+
         # trigger IMOS dump
         "Generate In Memory Object State (IMOS) dump by executing PUT operation against {0}" -f $uri | Trace-Output
-        $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
-        -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
+        $null = Invoke-WebRequestWithRetry @putParams
 
         # monitor until the provisionState for the object is not in 'Updating' state
         while ($true) {
             Start-Sleep -Seconds $PollingInterval
             if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
+                $stopWatch.Stop()
                 throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
             }
 
-            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState' -Credential $Credential
+            $result = Get-SdnResource @getResourceParams
             if ($result.properties.provisioningState -ine 'Updating') {
                 break
             }
         }
 
         $stopWatch.Stop()
-
         if ($result.properties.provisioningState -ine 'Succeeded') {
             $msg = "Unable to generate IMOS dump. ProvisioningState: {0}" -f $result.properties.provisioningState
             throw New-Object System.Exception($msg)

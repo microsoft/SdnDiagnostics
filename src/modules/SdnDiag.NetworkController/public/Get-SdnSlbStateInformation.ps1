@@ -8,6 +8,9 @@ function Get-SdnSlbStateInformation {
         Specifies the VIP address to return information for. If omitted, returns all VIPs.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER CertificateThumbprint
+        Specifies the digital public key certificate (X509) of a user account that has permission to send the request. Enter the certificate thumbprint of the certificate.
+        To see the certificate thumbprint, use the Get-Item or Get-ChildItem command to find the certificate in Cert:\CurrentUser\My.
     .PARAMETER ExecutionTimeout
         Specify the timeout duration to wait before automatically terminated. If omitted, defaults to 600 seconds.
     .PARAMETER PollingInterval
@@ -22,7 +25,7 @@ function Get-SdnSlbStateInformation {
         Get-SdnSlbStateInformation -NcUri "https://nc.contoso.com" -ExecutionTimeout 1200
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Credential')]
     param (
         [Parameter(Mandatory = $true)]
         [uri]$NcUri,
@@ -30,10 +33,13 @@ function Get-SdnSlbStateInformation {
         [Parameter(Mandatory = $false)]
         [IPAddress]$VirtualIPAddress,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertificateThumbprint')]
+        [System.String]$CertificateThumbprint,
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 600,
@@ -42,28 +48,53 @@ function Get-SdnSlbStateInformation {
         [int]$PollingInterval = 5
     )
 
-    try {
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'SlbState'
-        "Gathering SLB state information from {0}" -f $uri | Trace-Output -Level:Verbose
+    $putParams = @{
+        Uri             = $null
+        Method          = 'Put'
+        Headers         = @{"Accept" = "application/json" }
+        Content         = "application/json; charset=UTF-8"
+        Body            = "{}"
+        UseBasicParsing = $true
+    }
 
+    $getParams = @{
+        $uri            = $null
+        UseBasicParsing = $true
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
+        $putParams.Add('CertificateThumbprint', $CertificateThumbprint)
+        $getParams.Add('CertificateThumbprint', $CertificateThumbprint)
+    }
+    else {
+        $putParams.Add('Credential', $Credential)
+        $getParams.Add('Credential', $Credential)
+    }
+
+    try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
 
-        $putResult = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
-        -Content "application/json; charset=UTF-8" -Headers @{"Accept" = "application/json"}
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'SlbState'
+        "Gathering SLB state information from {0}" -f $uri | Trace-Output -Level:Verbose
+        $putParams.Uri = $uri
+
+        $putResult = Invoke-WebRequestWithRetry @putParams
 
         $resultObject = ConvertFrom-Json $putResult.Content
         "Response received $($putResult.Content)" | Trace-Output -Level:Verbose
         [System.String]$operationURI = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'SlbStateResults' -OperationId $resultObject.properties.operationId
+        $getParams.Uri = $operationURI
 
         while ($true) {
             if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
+                $stopWatch.Stop()
                 $msg = "Unable to get results for OperationId: {0}. Operation timed out" -f $operationId
                 throw New-Object System.TimeoutException($msg)
             }
 
             Start-Sleep -Seconds $PollingInterval
 
-            $stateResult = Invoke-WebRequestWithRetry -Uri $operationURI -UseBasicParsing -Credential $Credential
+            $stateResult = Invoke-WebRequestWithRetry @getParams
             $stateResult = $stateResult.Content | ConvertFrom-Json
             if ($stateResult.properties.provisioningState -ine 'Updating') {
                 break

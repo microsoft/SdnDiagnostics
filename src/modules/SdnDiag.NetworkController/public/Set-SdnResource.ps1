@@ -14,6 +14,9 @@ function Set-SdnResource {
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER CertificateThumbprint
+        Specifies the digital public key certificate (X509) of a user account that has permission to send the request. Enter the certificate thumbprint of the certificate.
+        To see the certificate thumbprint, use the Get-Item or Get-ChildItem command to find the certificate in Cert:\CurrentUser\My.
     .EXAMPLE
         PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/networkInterfaces/contoso-nic1" -Object $object
     .EXAMPLE
@@ -49,7 +52,8 @@ function Set-SdnResource {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.String]$CertificateThumbprint
     )
 
