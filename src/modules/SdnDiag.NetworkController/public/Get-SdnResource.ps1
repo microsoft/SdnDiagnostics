@@ -16,9 +16,8 @@ function Get-SdnResource {
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER CertificateThumbprint
-        Specifies the digital public key certificate (X509) of a user account that has permission to send the request. Enter the certificate thumbprint of the certificate.
-        To see the certificate thumbprint, use the Get-Item or Get-ChildItem command to find the certificate in Cert:\CurrentUser\My.
+    .PARAMETER Certificate
+        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource PublicIPAddresses
     .EXAMPLE
@@ -62,7 +61,7 @@ function Get-SdnResource {
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
-        [System.String]$CertificateThumbprint
+        [X509Certificate]$Certificate
     )
 
     $params = @{
@@ -71,8 +70,8 @@ function Get-SdnResource {
         Method          = 'Get'
     }
 
-    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
-        $params.Add('CertificateThumbprint', $CertificateThumbprint)
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
     }
     else {
         $params.Add('Credential', $Credential)

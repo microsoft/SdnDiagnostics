@@ -14,7 +14,7 @@ function Confirm-ProvisioningStateSucceeded {
         [System.Management.Automation.Credential()]$Credential,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$CertificateThumbprint,
+        [X509Certificate]$Certificate,
 
         [Parameter(Mandatory = $false)]
         [Switch]$DisableKeepAlive,
@@ -34,8 +34,8 @@ function Confirm-ProvisioningStateSucceeded {
         ErrorAction      = 'Stop'
     }
 
-    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
-        $params.Add('CertificateThumbprint', $CertificateThumbprint)
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
     }
     else {
         $params.Add('Credential', $Credential)

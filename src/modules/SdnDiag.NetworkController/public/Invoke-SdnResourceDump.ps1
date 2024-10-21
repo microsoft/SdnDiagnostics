@@ -4,6 +4,8 @@ function Invoke-SdnResourceDump {
         Performs API request to all available northbound endpoints for NC and dumps out the resources to json file.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Certificate
+        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
 	.PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
@@ -14,7 +16,7 @@ function Invoke-SdnResourceDump {
         PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Credential')]
     param (
         [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
@@ -22,11 +24,24 @@ function Invoke-SdnResourceDump {
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
+        [X509Certificate]$Certificate
     )
+
+    $params = @{
+        NcUri = $NcUri
+    }
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
+    }
+    else {
+        $params.Add('Credential', $Credential)
+    }
 
     try {
         "Generating resource dump for Network Controller NB API endpoints" | Trace-Output
@@ -35,7 +50,7 @@ function Invoke-SdnResourceDump {
             $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
         }
 
-        $apiVersion = (Get-SdnDiscovery -NcUri $NcUri.AbsoluteUri -Credential $Credential).currentRestVersion
+        $apiVersion = (Get-SdnDiscovery @params).currentRestVersion
         if ($null -ieq $apiVersion) {
             $apiVersion = 'v1'
         }
@@ -46,6 +61,13 @@ function Invoke-SdnResourceDump {
         foreach ($key in $config.properties.apiResources.Keys) {
             $value = $config.Properties.apiResources[$key]
 
+            if ($params.ContainsKey('ResourceRef')) {
+                $params.ResourceRef = $value.uri
+            }
+            else {
+                $params.Add('ResourceRef', $value.uri)
+            }
+
             # skip any resources that are not designed to be exported
             if ($value.includeInResourceDump -ieq $false) {
                 continue
@@ -53,7 +75,7 @@ function Invoke-SdnResourceDump {
 
             [int]$minVersionInt = $value.minVersion.Replace('v','').Replace('V','')
             if ($minVersionInt -le $apiVersionInt) {
-                $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $value.uri -Credential $Credential
+                $sdnResource = Get-SdnResource @params
                 if ($sdnResource) {
 
                     # parse the value if we are enumerating credentials property as we

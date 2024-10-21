@@ -24,7 +24,7 @@ function Invoke-WebRequestWithRetry {
         [Switch] $UseBasicParsing,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$CertificateThumbprint,
+        [X509Certificate]$Certificate,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -63,8 +63,8 @@ function Invoke-WebRequestWithRetry {
         $params.Add('UseBasicParsing', $true)
     }
 
-    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
-        $params.Add('CertificateThumbprint', $CertificateThumbprint)
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
     }
     else {
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {

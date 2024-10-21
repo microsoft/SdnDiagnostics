@@ -8,9 +8,8 @@ function Get-SdnSlbStateInformation {
         Specifies the VIP address to return information for. If omitted, returns all VIPs.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER CertificateThumbprint
-        Specifies the digital public key certificate (X509) of a user account that has permission to send the request. Enter the certificate thumbprint of the certificate.
-        To see the certificate thumbprint, use the Get-Item or Get-ChildItem command to find the certificate in Cert:\CurrentUser\My.
+    .PARAMETER Certificate
+        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER ExecutionTimeout
         Specify the timeout duration to wait before automatically terminated. If omitted, defaults to 600 seconds.
     .PARAMETER PollingInterval
@@ -38,8 +37,8 @@ function Get-SdnSlbStateInformation {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'CertificateThumbprint')]
-        [System.String]$CertificateThumbprint,
+        [Parameter(Mandatory = $false, ParameterSetName = 'Certificate')]
+        [X509Certificate]$Certificate,
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 600,
@@ -62,9 +61,9 @@ function Get-SdnSlbStateInformation {
         UseBasicParsing = $true
     }
 
-    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
-        $putParams.Add('CertificateThumbprint', $CertificateThumbprint)
-        $getParams.Add('CertificateThumbprint', $CertificateThumbprint)
+    if ($Certificate) {
+        $putParams.Add('Certificate', $Certificate)
+        $getParams.Add('Certificate', $Certificate)
     }
     else {
         $putParams.Add('Credential', $Credential)

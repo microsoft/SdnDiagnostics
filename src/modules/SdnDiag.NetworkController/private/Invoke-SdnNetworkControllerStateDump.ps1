@@ -19,7 +19,7 @@ function Invoke-SdnNetworkControllerStateDump {
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$CertificateThumbprint,
+        [X509Certificate]$Certificate,
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300,
@@ -42,9 +42,9 @@ function Invoke-SdnNetworkControllerStateDump {
         ResourceRef     = 'diagnostics/networkControllerState'
     }
 
-    if (-NOT [string]::IsNullOrEmpty($CertificateThumbprint)) {
-        $getParams.Add('CertificateThumbprint', $CertificateThumbprint)
-        $putParams.Add('CertificateThumbprint', $CertificateThumbprint)
+    if ($Certificate) {
+        $getParams.Add('Certificate', $Certificate)
+        $putParams.Add('Certificate', $Certificate)
     }
     else {
         $getParams.Add('Credential', $Credential)
