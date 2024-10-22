@@ -75,7 +75,18 @@ function Invoke-SdnResourceDump {
 
             [int]$minVersionInt = $value.minVersion.Replace('v','').Replace('V','')
             if ($minVersionInt -le $apiVersionInt) {
-                $sdnResource = Get-SdnResource @params
+
+                # because we do not know what resources are available, we need to catch any exceptions
+                # that may occur when trying to get the resource
+                # in events we log a warning, we just want to redirect the warning stream to null
+                try {
+                    $sdnResource = Get-SdnResource @params 3>$null
+                }
+                catch {
+                    $_ | Trace-Exception
+                    continue
+                }
+
                 if ($sdnResource) {
 
                     # parse the value if we are enumerating credentials property as we

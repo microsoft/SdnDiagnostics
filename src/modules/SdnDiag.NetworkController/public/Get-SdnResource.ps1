@@ -104,16 +104,8 @@ function Get-SdnResource {
     }
     catch [System.Net.WebException] {
         if ($_.Exception.Response.StatusCode -eq 'NotFound') {
-
-            # if the resource is iDNSServer configuration, we want to return null instead of throwing a warning
-            # as this may be expected behavior if the iDNSServer is not configured
-            if ($_.Exception.Response.ResponseUri.AbsoluteUri -ilike '*/idnsserver/configuration') {
-                return $null
-            }
-            else {
-                "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
-                return $null
-            }
+            "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
+            return $null
         }
         else {
             throw $_
