@@ -153,11 +153,11 @@ function Start-SdnCertificateRotation {
     $ncRestParams = @{
         NcUri = $null
     }
-    if ($NcRestCertificate) {
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
-        $ncRestParams.Add('NcRestCertificate', $NcRestCredential)
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
     # ensure that the module is running as local administrator
@@ -374,7 +374,7 @@ function Start-SdnCertificateRotation {
 
         if ($restCertExpired -or !$isNetworkControllerHealthy) {
             # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
-            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
+            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential
         }
 
         #####################################
@@ -614,7 +614,7 @@ function Start-SdnDataCollection {
     $filteredDataCollectionNodes = @()
 
     $ncRestParams = @{}
-    if ($NcRestCertificate) {
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
