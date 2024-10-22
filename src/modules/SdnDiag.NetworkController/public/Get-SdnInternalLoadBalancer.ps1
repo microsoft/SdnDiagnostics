@@ -10,12 +10,15 @@ function Get-SdnInternalLoadBalancer {
             Specify the provider address IP that is associated with the Internal Load Balancer.
         .PARAMETER Credential
             Specifies a user account that has permission to the Hyper-V Hosts within the SDN Fabric. The default is the current user.
+        .PARAMETER NcRestCertificate
+            Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+            Enter a variable that contains a certificate or a command or expression that gets the certificate.
         .PARAMETER NcRestCredential
-            Specifies a user account that has permission to query the Network Controller NB API endpoint. The default is the current user.
+            Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
         .EXAMPLE
             Get-SdnInternalLoadBalancer -NcUri https://nc.contoso.com -IPAddress 10.10.0.50
         .EXAMPLE
-            Get-SdnInternalLoadBalancer -NcUri https://nc.contoso.com -Credential (Get-Credential)
+            Get-SdnInternalLoadBalancer -NcUri https://nc.contoso.com -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -43,23 +46,37 @@ function Get-SdnInternalLoadBalancer {
         [Parameter(Mandatory = $false, ParameterSetName = 'ProviderAddress')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'IPAddress')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ProviderAddress')]
+        [X509Certificate]$NcRestCertificate
     )
 
     $array = @()
     $subnetHash = [System.Collections.Hashtable]::new()
     $frontendHash = [System.Collections.Hashtable]::new()
 
+    $ncRestParams = @{
+        NcUri = $NcUri
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
     try {
-        $servers = Get-SdnServer -NcUri $NcUri -Credential $NcRestCredential -ManagementAddressOnly
+        $servers = Get-SdnServer @ncRestParams -ManagementAddressOnly
         $ovsdbAddressMappings = Get-SdnOvsdbAddressMapping -ComputerName $servers -Credential $Credential | Where-Object {$_.mappingType -eq 'learning_disabled'}
-        $loadBalancers = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -Resource LoadBalancers
-        $virtualNetworks = Get-SdnResource -NcUri $NcUri -Credential $NcRestCredential -Resource VirtualNetworks
+        $loadBalancers = Get-SdnResource @ncRestParams -Resource LoadBalancers
+        $virtualNetworks = Get-SdnResource @ncRestParams -Resource VirtualNetworks
 
         # if this returns null, this is due to no tenant internal load balancers have been provisioned on the system
         # in which case all the further processing is not needed
         if($null -eq $ovsdbAddressMappings){
-            "No tenant Internal Load Balancer references found within OVSDB" | Trace-Output -Level:Verbose
             return $null
         }
 

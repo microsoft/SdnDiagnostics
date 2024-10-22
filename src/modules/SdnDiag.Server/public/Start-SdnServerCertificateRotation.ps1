@@ -4,8 +4,11 @@ function Start-SdnServerCertificateRotation {
         Performs a certificate rotation operation for the Servers.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action on the Server and Network Controller nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER GenerateCertificate
         Switch to determine if certificate rotate function should generate self-signed certificates.
     .PARAMETER CertPath
@@ -40,6 +43,11 @@ function Start-SdnServerCertificateRotation {
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [System.String]$CertPath,
@@ -87,9 +95,32 @@ function Start-SdnServerCertificateRotation {
         }
     }
 
-    $array = @()
-    $headers = @{"Accept"="application/json"}
-    $content = "application/json; charset=UTF-8"
+    $ncRestParams = @{
+        NcUri = $null
+    }
+    $putRestParams = @{
+        Body = $null
+        Content = "application/json; charset=UTF-8"
+        Headers = @{"Accept"="application/json"}
+        Method = 'Put'
+        Uri = $null
+        UseBasicParsing = $true
+    }
+    $confirmStateParams = @{
+        TimeoutInSec = 600
+        UseBasicParsing = $true
+    }
+
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $confirmStateParams.Add('Certificate', $NcRestCertificate)
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        $putRestParams.Add('Certificate', $NcRestCertificate)
+    }
+    else {
+        $confirmStateParams.Add('Credential', $NcRestCredential)
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        $putRestParams.Add('Credential', $NcRestCredential)
+    }
 
     try {
         "Starting certificate rotation" | Trace-Output
@@ -109,7 +140,8 @@ function Start-SdnServerCertificateRotation {
             throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
         }
 
-        $servers = Get-SdnServer -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ErrorAction Stop
+        $ncRestParams.NcUri = $sdnFabricDetails.NcUrl
+        $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
@@ -153,10 +185,10 @@ function Start-SdnServerCertificateRotation {
         # to update the base64 encoding for the certificate that NC should use when communicating with the server resource
         foreach ($obj in $array) {
             "Updating certificate information for {0}" -f $obj.ResourceRef | Trace-Output
-            $server = Get-SdnResource -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential -ResourceRef $obj.ResourceRef
+            $server = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
             $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
-            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl  -ResourceRef $server.resourceRef
+            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $server.resourceRef
             if ($server.properties.certificate) {
                 $server.properties.certificate = $encoding
             }
@@ -165,10 +197,12 @@ function Start-SdnServerCertificateRotation {
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
                 $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
             }
-            $jsonBody = $server | ConvertTo-Json -Depth 100
 
-            $null = Invoke-RestMethodWithRetry -Method 'Put' -UseBasicParsing -Uri $endpoint -Headers $headers -ContentType $content -Body $jsonBody -Credential $NcRestCredential
-            if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $endpoint -Credential $NcRestCredential -UseBasicParsing)) {
+            $putRestParams.Uri = $endpoint
+            $putRestParams.Body = ($server | ConvertTo-Json -Depth 100)
+
+            $null = Invoke-RestMethodWithRetry @putRestParams
+            if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $putRestParams.Uri @confirmStateParams)) {
                 throw New-Object System.Exception("ProvisioningState is not succeeded")
             }
             else {

@@ -4,7 +4,7 @@ function Test-NcHostAgentConnectionToApiService {
         Validates the TCP connection between Server and primary replica of Api service within Network Controller.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
@@ -14,11 +14,26 @@ function Test-NcHostAgentConnectionToApiService {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
@@ -32,7 +47,7 @@ function Test-NcHostAgentConnectionToApiService {
 
     try {
         "Validating connectivity between Server and primary replica of API service within Network Controller" | Trace-Output
-        $servers = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential
+        $servers = Get-SdnServer @ncRestParams
 
         # if no load balancer muxes configured within the environment, return back the health object to caller
         if ($null -ieq $servers) {
@@ -54,7 +69,7 @@ function Test-NcHostAgentConnectionToApiService {
         # we expect the NCHostAgent to have an active connection to ApiService within Network Controller via port 6640, which informs
         # Network Controller that the host is operational and ready to receive policy configuration updates
         foreach ($server in $servers) {
-            [System.Array]$connectionAddress = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceId $server.resourceId -ManagementAddressOnly -Credential $NcRestCredential
+            [System.Array]$connectionAddress = Get-SdnServer @ncRestParams -ResourceId $server.resourceId -ManagementAddressOnly
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $connectionAddress[0] -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {
                 "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Error

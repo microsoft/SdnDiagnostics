@@ -1,6 +1,6 @@
 function Get-PublicIpReference {
     <##>
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [uri]$NcUri,
@@ -8,14 +8,28 @@ function Get-PublicIpReference {
         [Parameter(Mandatory = $true)]
         [System.Object]$IpConfiguration,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
+    $restParams = @{
+        NcUri = $NcUri
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $restParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $restParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
+    try {
         # check for an instance-level public IP address that is directly associated
         # with the ipconfiguration and return back to calling function
         if ($IpConfiguration.properties.publicIPAddress) {
@@ -31,7 +45,7 @@ function Get-PublicIpReference {
         "Checking for any backend address pool associated with {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
         if ($IpConfiguration.properties.loadBalancerBackendAddressPools) {
             "Located backend address pool associations for {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
-            $loadBalancers = Get-SdnResource -NcUri $NcUri.AbsoluteUri -Resource:LoadBalancers -Credential $Credential
+            $loadBalancers = Get-SdnResource -Resource:LoadBalancers @restParams
             $allBackendPoolRefs = @($IpConfiguration.properties.loadBalancerBackendAddressPools.resourceRef)
 
             $backendHash = [System.Collections.Hashtable]::new()

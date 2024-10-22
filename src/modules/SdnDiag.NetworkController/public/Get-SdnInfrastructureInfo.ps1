@@ -7,8 +7,8 @@ function Get-SdnInfrastructureInfo {
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER Certificate
+		Specifies a user account that has permission to Network Controller. The default is the current user.
+    .PARAMETER NcRestCertificate
         Specifies the client certificate that is used for a secure web request to Network Controller REST API. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
 		Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
@@ -20,13 +20,10 @@ function Get-SdnInfrastructureInfo {
         PS> Get-SdnInfrastructureInfo -NetworkController 'NC01' -Credential (Get-Credential) -NcRestCredential (Get-Credential)
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Credential')]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $false)]
         [String]$NetworkController = $env:COMPUTERNAME,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-        [X509Certificate]$Certificate,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -42,7 +39,10 @@ function Get-SdnInfrastructureInfo {
         })]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
@@ -59,11 +59,13 @@ function Get-SdnInfrastructureInfo {
         NcUri       = $null
         ErrorAction = 'Continue'
     }
-    if ($Certificate) {
-        $restParams.Add('Certificate', $Certificate)
-    }
-    else {
-        $restParams.Add('Credential', $NcRestCredential)
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $restParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $restParams.Add('NcRestCredential', $NcRestCredential)
+        }
     }
 
     try {
@@ -96,7 +98,6 @@ function Get-SdnInfrastructureInfo {
         }
         elseif ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.NcUrl)) {
             $result = Get-SdnNetworkControllerRestURL -NetworkController $NetworkController -Credential $Credential
-
             if ([string]::IsNullOrEmpty($result)) {
                 throw New-Object System.NullReferenceException("Unable to locate REST API endpoint for Network Controller. Please specify REST API with -RestUri parameter.")
             }
@@ -118,21 +119,19 @@ function Get-SdnInfrastructureInfo {
             [System.Array]$global:SdnDiagnostics.EnvironmentInfo.NetworkController = Get-SdnNetworkControllerNode -NetworkController $NetworkController -ServerNameOnly -Credential $Credential -ErrorAction Continue
         }
 
-        $restParams.Add('ManagementAddressOnly', $true)
-
         # get the load balancer muxes
         if ([System.String]::IsNullOrEmpty($global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux)) {
-            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux @restParams
+            [System.Array]$global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux = Get-SdnLoadBalancerMux @restParams -ManagementAddressOnly
         }
 
         # get the gateways
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Gateway)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway @restParams
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Gateway = Get-SdnGateway @restParams -ManagementAddressOnly
         }
 
         # get the hypervisor hosts
         if ([System.String]::IsNullOrEmpty($Global:SdnDiagnostics.EnvironmentInfo.Server)) {
-            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer @restParams
+            [System.Array]$Global:SdnDiagnostics.EnvironmentInfo.Server = Get-SdnServer @restParams -ManagementAddressOnly
         }
 
         # populate the global cache that contains the names of the nodes for the roles defined above

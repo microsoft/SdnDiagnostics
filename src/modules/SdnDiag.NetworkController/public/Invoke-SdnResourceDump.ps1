@@ -4,19 +4,19 @@ function Invoke-SdnResourceDump {
         Performs API request to all available northbound endpoints for NC and dumps out the resources to json file.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
-    .PARAMETER Certificate
+    .PARAMETER NcRestCertificate
         Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
-	.PARAMETER Credential
+	.PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Invoke-SdnResourceDump
     .EXAMPLE
         PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com"
     .EXAMPLE
-        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
+        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -NcRestCredential (Get-Credential)
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Credential')]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
@@ -24,23 +24,25 @@ function Invoke-SdnResourceDump {
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
-        [X509Certificate]$Certificate
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $params = @{
         NcUri = $NcUri
     }
-    if ($Certificate) {
-        $params.Add('Certificate', $Certificate)
-    }
-    else {
-        $params.Add('Credential', $Credential)
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $params.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $params.Add('NcRestCredential', $NcRestCredential)
+        }
     }
 
     try {

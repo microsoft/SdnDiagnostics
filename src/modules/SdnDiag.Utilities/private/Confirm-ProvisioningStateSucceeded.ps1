@@ -27,7 +27,7 @@ function Confirm-ProvisioningStateSucceeded {
     )
 
     $params = @{
-        Uri              = $Uri
+        Uri              = $NcUri
         DisableKeepAlive = $DisableKeepAlive
         UseBasicParsing  = $UseBasicParsing
         Method           = 'Get'

@@ -64,17 +64,17 @@ function Get-SdnResource {
         [X509Certificate]$Certificate
     )
 
-    $params = @{
+    $restParams = @{
         UseBasicParsing = $true
         ErrorAction     = 'Stop'
         Method          = 'Get'
     }
 
     if ($Certificate) {
-        $params.Add('Certificate', $Certificate)
+        $restParams.Add('Certificate', $Certificate)
     }
     else {
-        $params.Add('Credential', $Credential)
+        $restParams.Add('Credential', $Credential)
     }
 
     switch ($PSCmdlet.ParameterSetName) {
@@ -95,12 +95,12 @@ function Get-SdnResource {
     }
 
     "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
-    $params.Add('Uri', $uri)
+    $restParams.Add('Uri', $uri)
 
     # gracefully handle System.Net.WebException responses such as 404 to throw warning
     # anything else we want to throw terminating exception and capture for debugging purposes
     try {
-        $result = Invoke-RestMethodWithRetry @params
+        $result = Invoke-RestMethodWithRetry @restParams
     }
     catch [System.Net.WebException] {
         if ($_.Exception.Response.StatusCode -eq 'NotFound') {

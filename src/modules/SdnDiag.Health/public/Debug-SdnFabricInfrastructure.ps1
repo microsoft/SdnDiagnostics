@@ -10,8 +10,11 @@ function Debug-SdnFabricInfrastructure {
         The specific SDN role(s) to perform tests and validations for. If ommitted, defaults to all roles.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-	.PARAMETER NcRestCredential
-		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .EXAMPLE
         PS> Debug-SdnFabricInfrastructure
     .EXAMPLE
@@ -41,7 +44,11 @@ function Debug-SdnFabricInfrastructure {
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [X509Certificate]$NcRestCertificate
     )
 
     if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
@@ -105,7 +112,6 @@ function Debug-SdnFabricInfrastructure {
 
             $restApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
-                NcRestCredential        = $NcRestCredential
             }
 
             $computerCredParams = @{
@@ -115,8 +121,16 @@ function Debug-SdnFabricInfrastructure {
 
             $computerCredAndRestApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
-                NcRestCredential        = $NcRestCredential
                 Credential              = $Credential
+            }
+
+            if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+                $restApiParams.Add('NcRestCertificate', $NcRestCertificate)
+                $computerCredAndRestApiParams.Add('NcRestCertificate', $NcRestCertificate)
+            }
+            else {
+                $restApiParams.Add('NcRestCredential', $NcRestCredential)
+                $computerCredAndRestApiParams.Add('NcRestCredential', $NcRestCredential)
             }
 
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics

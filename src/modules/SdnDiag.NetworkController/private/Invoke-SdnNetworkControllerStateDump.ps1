@@ -4,22 +4,27 @@ function Invoke-SdnNetworkControllerStateDump {
         Executes a PUT operation against REST API endpoint for Network Controller to trigger a IMOS dump of Network Controller services.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER ExecutionTimeout
         Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation. If omitted, defaults to 300 seconds.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
-        [X509Certificate]$Certificate,
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300,
@@ -42,21 +47,23 @@ function Invoke-SdnNetworkControllerStateDump {
         ResourceRef     = 'diagnostics/networkControllerState'
     }
 
-    if ($Certificate) {
-        $getParams.Add('Certificate', $Certificate)
-        $putParams.Add('Certificate', $Certificate)
-    }
-    else {
-        $getParams.Add('Credential', $Credential)
-        $putParams.Add('Credential', $Credential)
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $getResourceParams.Add('Certificate', $NcRestCertificate)
+            $putParams.Add('Certificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $getResourceParams.Add('Credential', $NcRestCredential)
+            $putParams.Add('Credential', $NcRestCredential)
+        }
     }
 
     try {
         $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
+        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef 'diagnostics/networkControllerState'
 
         $putParams.Uri = $uri
-        $getParams.Uri = $uri
+        $getResourceParams.Uri = $uri
 
         # trigger IMOS dump
         "Generate In Memory Object State (IMOS) dump by executing PUT operation against {0}" -f $uri | Trace-Output

@@ -8,24 +8,25 @@ function Get-SdnLoadBalancerMux {
         Specifies the unique identifier for the resource.
     .PARAMETER ResourceRef
         Specifies the resource reference for the resource.
-    .PARAMETER Certificate
-        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnLoadBalancerMux -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef '/LoadBalancerMuxes/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -44,14 +45,14 @@ function Get-SdnLoadBalancerMux {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [X509Certificate]$Certificate,
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
@@ -59,31 +60,29 @@ function Get-SdnLoadBalancerMux {
         [switch]$ManagementAddressOnly
     )
 
-    $params = @{
+    $ncRestParams = @{
         NcUri = $NcUri
     }
-    if ($Certificate) {
-        $params.Add('Certificate', $Certificate)
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
-        $params.Add('Credential', $Credential)
-    }
-
-    switch ($PSCmdlet.ParameterSetName) {
-        'ResourceId' {
-            $params.Add('Resource', 'LoadBalancerMuxes')
-            $params.Add('ResourceId', $ResourceId)
-        }
-        'ResourceRef' {
-            $params.Add('ResourceRef', $ResourceRef)
-        }
-        default {
-            $params.Add('Resource', 'LoadBalancerMuxes')
-        }
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
     try {
-        $result = Get-SdnResource @params
+        switch ($PSCmdlet.ParameterSetName) {
+            'ResourceId' {
+                $result = Get-SdnResource @ncRestParams -Resource 'LoadBalancerMuxes' -ResourceId $ResourceId
+            }
+            'ResourceRef' {
+                $result = Get-SdnResource @ncRestParams -ResourceRef $ResourceRef
+            }
+            default {
+                $result = Get-SdnResource @ncRestParams -Resource 'LoadBalancerMuxes'
+            }
+        }
+
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){
@@ -94,7 +93,7 @@ function Get-SdnLoadBalancerMux {
             if($ManagementAddressOnly){
                 $connections = @()
                 foreach ($resource in $result) {
-                    $virtualServerMgmtAddress = Get-SdnVirtualServer -NcUri $NcUri.AbsoluteUri -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly -Credential $Credential
+                    $virtualServerMgmtAddress = Get-SdnVirtualServer @ncRestParams -ResourceRef $resource.properties.virtualserver.ResourceRef -ManagementAddressOnly
                     $connections += $virtualServerMgmtAddress
                 }
 
