@@ -61,12 +61,17 @@ function Debug-SdnFabricInfrastructure {
         Confirm-IsNetworkController
     }
 
-    try {
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCertificate $NcRestCertificate
+    }
+    else {
         $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        if($null -eq $environmentInfo){
-            throw New-Object System.NullReferenceException("Unable to retrieve environment details")
-        }
+    }
+    if($null -eq $environmentInfo){
+        throw New-Object System.NullReferenceException("Unable to retrieve environment details")
+    }
 
+    try {
         # if we opted to specify the ComputerName rather than Role, we need to determine which role
         # the computer names are associated with
         if ($PSCmdlet.ParameterSetName -ieq 'ComputerName') {
@@ -207,7 +212,12 @@ function Debug-SdnFabricInfrastructure {
             # add the individual role health report to the aggregate report
             $aggregateHealthReport += $roleHealthReport
         }
-
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+    finally {
         if ($aggregateHealthReport) {
 
             # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
@@ -231,13 +241,11 @@ function Debug-SdnFabricInfrastructure {
 
             # save the aggregate health report to cache so we can use it for further analysis
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
-
-            "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
-            return $script:SdnDiagnostics_Health.Cache
         }
     }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+
+    if ($script:SdnDiagnostics_Health.Cache) {
+        "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
+        return $script:SdnDiagnostics_Health.Cache
     }
 }
