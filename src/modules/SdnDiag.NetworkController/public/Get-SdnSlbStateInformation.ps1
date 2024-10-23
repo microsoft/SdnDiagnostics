@@ -58,7 +58,7 @@ function Get-SdnSlbStateInformation {
     }
 
     $getParams = @{
-        $uri            = $null
+        Uri             = $null
         UseBasicParsing = $true
     }
 
