@@ -615,7 +615,7 @@ function Start-SdnDataCollection {
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
     $filteredDataCollectionNodes = @()
 
-    $ncRestParams = @{ NcUri = $null }
+    $ncRestParams = @{}
     if ($PSBoundParameters.ContainsKey('NcUri')) {
         $ncRestParams.Add('NcUri', $NcUri)
     }
@@ -804,7 +804,9 @@ function Start-SdnDataCollection {
         # ensure that the NcUrl is populated before we start collecting data
         # in scenarios where certificate is not trusted or expired, we will not be able to collect data
         if (-NOT ([System.String]::IsNullOrEmpty($sdnFabricDetails.NcUrl))) {
-            $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+            if (-NOT ($ncRestParams.ContainsKey('NcUri'))) {
+                $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+            }
 
             $slbStateInfo = Get-SdnSlbStateInformation @ncRestParams
             $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
