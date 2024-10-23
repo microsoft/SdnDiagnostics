@@ -14,10 +14,11 @@ function Get-SdnResource {
         Specify the unique Instance ID of the resource.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER Certificate
-        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource PublicIPAddresses
     .EXAMPLE
@@ -25,7 +26,7 @@ function Get-SdnResource {
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
     .EXAMPLE
-        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a" -Credential (Get-Credential)
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a" -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -56,12 +57,12 @@ function Get-SdnResource {
         [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
-        [X509Certificate]$Certificate
+        [X509Certificate]$NcRestCertificate
     )
 
     $restParams = @{
@@ -70,23 +71,23 @@ function Get-SdnResource {
         Method          = 'Get'
     }
 
-    if ($Certificate) {
-        $restParams.Add('Certificate', $Certificate)
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restParams.Add('Certificate', $NcRestCertificate)
     }
     else {
-        $restParams.Add('Credential', $Credential)
+        $restParams.Add('Credential', $NcRestCredential)
     }
 
     switch ($PSCmdlet.ParameterSetName) {
         'InstanceId' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
             [System.String]$uri = "{0}/{1}" -f $uri, $InstanceId.Trim()
         }
         'ResourceRef' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
         }
         'Resource' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $Resource
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceName $Resource
 
             if ($ResourceID) {
                 [System.String]$uri = "{0}/{1}" -f $uri, $ResourceId.Trim()

@@ -16,7 +16,7 @@ function Get-SdnNetworkControllerState {
     .PARAMETER ExecutionTimeout
         Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation. If omitted, defaults to 300 seconds.
     .EXAMPLE
-        PS> Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -NetworkController $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-SdnNetworkControllerState -NetworkController 'Contoso-NC01' -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
@@ -45,13 +45,15 @@ function Get-SdnNetworkControllerState {
     )
 
     $ncRestParams = @{
-        NcUri = $NcUri
+        NcUri = $null
     }
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
+            $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
             $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
         }
         'RestCredential' {
+            $restCredParam = @{ NcRestCredential = $NcRestCredential }
             $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         }
     }
@@ -80,7 +82,9 @@ function Get-SdnNetworkControllerState {
             }
         }
 
-        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam
+        $ncRestParams.NcUri = $infraInfo.NcUrl
+
         # invoke scriptblock to clean up any stale NetworkControllerState files
         Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $netControllerStatePath.FullName
 

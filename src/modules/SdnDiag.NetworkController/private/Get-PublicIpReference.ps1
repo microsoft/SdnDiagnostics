@@ -1,5 +1,4 @@
 function Get-PublicIpReference {
-    <##>
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
@@ -45,9 +44,9 @@ function Get-PublicIpReference {
         "Checking for any backend address pool associated with {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
         if ($IpConfiguration.properties.loadBalancerBackendAddressPools) {
             "Located backend address pool associations for {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
-            $loadBalancers = Get-SdnResource -Resource:LoadBalancers @restParams
             $allBackendPoolRefs = @($IpConfiguration.properties.loadBalancerBackendAddressPools.resourceRef)
 
+            $loadBalancers = Get-SdnResource -Resource:LoadBalancers @restParams
             $backendHash = [System.Collections.Hashtable]::new()
             foreach ($group in $loadBalancers.properties.backendAddressPools | Group-Object resourceRef) {
                 [void]$backendHash.Add($group.Name, $group.Group)
@@ -79,11 +78,11 @@ function Get-PublicIpReference {
         else {
             "Unable to locate any backend pools associated with {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
         }
-
-        return $null
     }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    return $null
 }

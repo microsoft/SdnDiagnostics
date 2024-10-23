@@ -114,11 +114,13 @@ function Start-SdnMuxCertificateRotation {
     }
 
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
         $confirmStateParams.Add('Certificate', $NcRestCertificate)
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
         $putRestParams.Add('Certificate', $NcRestCertificate)
     }
     else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
         $confirmStateParams.Add('Credential', $NcRestCredential)
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         $putRestParams.Add('Credential', $NcRestCredential)
@@ -137,7 +139,7 @@ function Start-SdnMuxCertificateRotation {
         }
 
         [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential -ErrorAction Stop
+        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
         if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
             throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
         }
@@ -191,7 +193,6 @@ function Start-SdnMuxCertificateRotation {
             $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
             $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
-            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $virtualServer.resourceRef
             if ($virtualServer.properties.certificate) {
                 $virtualServer.properties.certificate = $encoding
             }
@@ -200,9 +201,10 @@ function Start-SdnMuxCertificateRotation {
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
                 $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
             }
-
-            $putRestParams.Uri = $endpoint
             $putRestParams.Body = ($virtualServer | ConvertTo-Json -Depth 100)
+
+            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $virtualServer.resourceRef
+            $putRestParams.Uri = $endpoint
 
             $null = Invoke-RestMethodWithRetry @putRestParams
             if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $putRestParams.Uri @confirmStateParams)) {

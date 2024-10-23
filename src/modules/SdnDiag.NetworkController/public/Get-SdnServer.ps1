@@ -16,17 +16,17 @@ function Get-SdnServer {
     .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]

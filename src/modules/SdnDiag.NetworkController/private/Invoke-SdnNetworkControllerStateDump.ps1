@@ -42,57 +42,42 @@ function Invoke-SdnNetworkControllerStateDump {
         UseBasicParsing = $true
     }
 
-    $getResourceParams = @{
-        NcUri           = $NcUri
-        ResourceRef     = 'diagnostics/networkControllerState'
+    $confirmParams = @{
+        UseBasicParsing = $true
+        TimeoutInSec = $ExecutionTimeOut
     }
 
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
-            $getResourceParams.Add('Certificate', $NcRestCertificate)
+            $confirmParams.Add('NcRestCertificate', $NcRestCertificate)
             $putParams.Add('Certificate', $NcRestCertificate)
         }
         'RestCredential' {
-            $getResourceParams.Add('Credential', $NcRestCredential)
+            $confirmParams.Add('NcRestCredential', $NcRestCredential)
             $putParams.Add('Credential', $NcRestCredential)
         }
     }
 
+    [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef 'diagnostics/networkControllerState'
+    $putParams.Uri = $uri
+
     try {
-        $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef 'diagnostics/networkControllerState'
-
-        $putParams.Uri = $uri
-        $getResourceParams.Uri = $uri
-
         # trigger IMOS dump
         "Generate In Memory Object State (IMOS) dump by executing PUT operation against {0}" -f $uri | Trace-Output
         $null = Invoke-WebRequestWithRetry @putParams
 
         # monitor until the provisionState for the object is not in 'Updating' state
-        while ($true) {
-            Start-Sleep -Seconds $PollingInterval
-            if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
-                $stopWatch.Stop()
-                throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
-            }
-
-            $result = Get-SdnResource @getResourceParams
-            if ($result.properties.provisioningState -ine 'Updating') {
-                break
-            }
+        if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $putParams.Uri @confirmParams)) {
+            throw New-Object System.Exception("Unable to generate IMOS dump")
         }
-
-        $stopWatch.Stop()
-        if ($result.properties.provisioningState -ine 'Succeeded') {
-            $msg = "Unable to generate IMOS dump. ProvisioningState: {0}" -f $result.properties.provisioningState
-            throw New-Object System.Exception($msg)
+        else {
+            return $true
         }
-
-        return $true
     }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    return $false
 }

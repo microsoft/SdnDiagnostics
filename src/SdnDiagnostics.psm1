@@ -154,9 +154,11 @@ function Start-SdnCertificateRotation {
         NcUri = $null
     }
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
@@ -236,7 +238,7 @@ function Start-SdnCertificateRotation {
         }
         else {
             # determine fabric information and current version settings for network controller
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential @restParams
+            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential @restCredParam
             $ncClusterSettings = Get-NetworkControllerCluster
             $ncSettings = @{
                 NetworkControllerVersion        = (Get-NetworkController).Version
@@ -443,7 +445,7 @@ function Start-SdnCertificateRotation {
         # we now want to check to see if nc is healthy and if we need to install the rest cert (for self-signed) to southbound devices
         if ($postRotateSBRestCert) {
             if ($selfSignedRestCertFile) {
-                $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force
+                $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential @restCredParam -Force
                 $southBoundNodes = @()
                 if ($null -ne $sdnFabricDetails.LoadBalancerMux) {
                     $southBoundNodes += $sdnFabricDetails.LoadBalancerMux
@@ -613,11 +615,16 @@ function Start-SdnDataCollection {
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
     $filteredDataCollectionNodes = @()
 
-    $ncRestParams = @{}
+    $ncRestParams = @{ NcUri = $null }
+    if ($PSBoundParameters.ContainsKey('NcUri')) {
+        $ncRestParams.Add('NcUri', $NcUri)
+    }
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
@@ -705,12 +712,7 @@ function Start-SdnDataCollection {
         "Results will be saved to {0}" -f $OutputDirectory.FullName | Trace-Output
 
         # generate a mapping of the environment
-        if ($NcUri) {
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcUri $NcUri
-        }
-        else {
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential
-        }
+        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @ncRestParams
         $sdnFabricDetails | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnInfrastructureInfo'
 
         # determine if network controller is using default logging mechanism to local devices or network share
@@ -807,7 +809,7 @@ function Start-SdnDataCollection {
             $slbStateInfo = Get-SdnSlbStateInformation @ncRestParams
             $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
             Invoke-SdnResourceDump @ncRestParams -OutputDirectory $OutputDirectory.FullName
-            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
+            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential @restCredParam
         }
 
         Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential

@@ -62,11 +62,13 @@ function Debug-SdnFabricInfrastructure {
     }
 
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
-        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCertificate $NcRestCertificate
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
     }
     else {
-        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
     }
+
+    $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam
     if($null -eq $environmentInfo){
         throw New-Object System.NullReferenceException("Unable to retrieve environment details")
     }
@@ -118,6 +120,7 @@ function Debug-SdnFabricInfrastructure {
             $restApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
             }
+            $restApiParams += $restCredParam
 
             $computerCredParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
@@ -128,15 +131,7 @@ function Debug-SdnFabricInfrastructure {
                 SdnEnvironmentObject    = $sdnFabricDetails
                 Credential              = $Credential
             }
-
-            if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
-                $restApiParams.Add('NcRestCertificate', $NcRestCertificate)
-                $computerCredAndRestApiParams.Add('NcRestCertificate', $NcRestCertificate)
-            }
-            else {
-                $restApiParams.Add('NcRestCredential', $NcRestCredential)
-                $computerCredAndRestApiParams.Add('NcRestCredential', $NcRestCredential)
-            }
+            $computerCredAndRestApiParams += $restCredParam
 
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
