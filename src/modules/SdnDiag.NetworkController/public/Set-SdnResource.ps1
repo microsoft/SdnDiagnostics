@@ -82,11 +82,11 @@ function Set-SdnResource {
 
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restParams.Add('Certificate', $NcRestCertificate)
-        $confirmParams.Add('Certificate', $NcRestCertificate)
+        $confirmParams.Add('NcRestCertificate', $NcRestCertificate)
     }
     else {
         $restParams.Add('Credential', $NcRestCredential)
-        $confirmParams.Add('Credential', $NcRestCredential)
+        $confirmParams.Add('NcRestCredential', $NcRestCredential)
     }
 
     try {
@@ -126,7 +126,7 @@ function Set-SdnResource {
 
         if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with PUT to configure the properties of $($putRestParams.Uri)`n`t$jsonBody")) {
             $null = Invoke-RestMethodWithRetry @putRestParams
-            if (Confirm-ProvisioningStateSucceeded -Uri $putRestParams.Uri @confirmParams) {
+            if (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmParams) {
                 $result = Invoke-RestMethodWithRetry @restParams
                 return $result
             }

@@ -67,7 +67,7 @@ function Invoke-SdnNetworkControllerStateDump {
         $null = Invoke-WebRequestWithRetry @putParams
 
         # monitor until the provisionState for the object is not in 'Updating' state
-        if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $putParams.Uri @confirmParams)) {
+        if (-NOT (Confirm-ProvisioningStateSucceeded -NcUri $putParams.Uri @confirmParams)) {
             throw New-Object System.Exception("Unable to generate IMOS dump")
         }
         else {

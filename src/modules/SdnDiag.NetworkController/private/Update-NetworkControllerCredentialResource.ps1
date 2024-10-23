@@ -46,12 +46,12 @@ function Update-NetworkControllerCredentialResource {
 
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
-            $confirmStateParams.Add('Certificate', $NcRestCertificate)
+            $confirmStateParams.Add('NcRestCertificate', $NcRestCertificate)
             $putParams.Add('Certificate', $NcRestCertificate)
             $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
         }
         'RestCredential' {
-            $confirmStateParams.Add('Credential', $NcRestCredential)
+            $confirmStateParams.Add('NcRestCredential', $NcRestCredential)
             $putParams.Add('Credential', $NcRestCredential)
             $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         }
@@ -78,7 +78,7 @@ function Update-NetworkControllerCredentialResource {
             # and confirm the provisioning state is succeeded
             $null = Invoke-WebRequestWithRetry @putParams
             try {
-                Confirm-ProvisioningStateSucceeded -Uri $putParams.Uri @confirmStateParams
+                Confirm-ProvisioningStateSucceeded -NcUri $putParams.Uri @confirmStateParams
             }
             catch {
                 $_ | Trace-Exception

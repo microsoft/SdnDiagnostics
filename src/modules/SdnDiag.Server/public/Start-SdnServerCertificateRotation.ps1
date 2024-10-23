@@ -113,16 +113,16 @@ function Start-SdnServerCertificateRotation {
 
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
-        $confirmStateParams.Add('Certificate', $NcRestCertificate)
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
         $putRestParams.Add('Certificate', $NcRestCertificate)
     }
     else {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
-        $confirmStateParams.Add('Credential', $NcRestCredential)
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         $putRestParams.Add('Credential', $NcRestCredential)
     }
+    $confirmStateParams += $restCredParam
+
 
     try {
         "Starting certificate rotation" | Trace-Output
@@ -204,7 +204,7 @@ function Start-SdnServerCertificateRotation {
             $putRestParams.Uri = $endpoint
 
             $null = Invoke-RestMethodWithRetry @putRestParams
-            if (-NOT (Confirm-ProvisioningStateSucceeded -Uri $putRestParams.Uri @confirmStateParams)) {
+            if (-NOT (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmStateParams)) {
                 throw New-Object System.Exception("ProvisioningState is not succeeded")
             }
             else {

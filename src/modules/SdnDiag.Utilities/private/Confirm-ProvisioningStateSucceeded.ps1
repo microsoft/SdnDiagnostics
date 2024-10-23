@@ -4,17 +4,17 @@ function Confirm-ProvisioningStateSucceeded {
         Used to verify the resource within the NC NB API is succeeded
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param(
         [Parameter(Mandatory = $true)]
-        [System.Uri]$Uri,
+        [System.Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]$Credential,
+        [System.Management.Automation.Credential()]$NcRestCredential,
 
-        [Parameter(Mandatory = $false)]
-        [X509Certificate]$Certificate,
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $false)]
         [Switch]$DisableKeepAlive,
@@ -34,11 +34,13 @@ function Confirm-ProvisioningStateSucceeded {
         ErrorAction      = 'Stop'
     }
 
-    if ($Certificate) {
-        $params.Add('Certificate', $Certificate)
-    }
-    else {
-        $params.Add('Credential', $Credential)
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $params.Add('Certificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $params.Add('Credential', $NcRestCredential)
+        }
     }
 
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
