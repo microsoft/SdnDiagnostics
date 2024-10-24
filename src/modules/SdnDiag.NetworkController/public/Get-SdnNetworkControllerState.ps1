@@ -7,16 +7,19 @@ function Get-SdnNetworkControllerState {
     .PARAMETER OutputDirectory
         Directory location to save results. By default it will create a new sub-folder called NetworkControllerState that the files will be copied to
 	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
-	.PARAMETER NcRestCredential
-		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+		Specifies a user account that has permission to Network Controller. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER ExecutionTimeout
         Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation. If omitted, defaults to 300 seconds.
     .EXAMPLE
-        PS> Get-SdnNcImosDumpFiles -NcUri "https://nc.contoso.com" -NetworkController $NetworkControllers -OutputDirectory "C:\Temp\CSS_SDN"
+        PS> Get-SdnNetworkControllerState -NetworkController 'Contoso-NC01' -OutputDirectory "C:\Temp\CSS_SDN"
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [System.String]$NetworkController,
@@ -29,14 +32,32 @@ function Get-SdnNetworkControllerState {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300
     )
+
+    $ncRestParams = @{
+        NcUri = $null
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $restCredParam = @{ NcRestCredential = $NcRestCredential }
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
+
     try {
         "Collecting In Memory Object State (IMOS) for Network Controller" | Trace-Output
         $config = Get-SdnModuleConfiguration -Role:NetworkController
@@ -61,13 +82,15 @@ function Get-SdnNetworkControllerState {
             }
         }
 
-        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
+        $infraInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam
+        $ncRestParams.NcUri = $infraInfo.NcUrl
+
         # invoke scriptblock to clean up any stale NetworkControllerState files
         Invoke-PSRemoteCommand -ComputerName $infraInfo.NetworkController -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $netControllerStatePath.FullName
 
         # invoke the call to generate the files
         # once the operation completes and returns true, then enumerate through the Network Controllers defined to collect the files
-        $result = Invoke-SdnNetworkControllerStateDump -NcUri $infraInfo.NcUrl -Credential $NcRestCredential -ExecutionTimeOut $ExecutionTimeOut
+        $result = Invoke-SdnNetworkControllerStateDump @ncRestParams -ExecutionTimeOut $ExecutionTimeOut
         if ($result) {
             foreach ($ncVM in $infraInfo.NetworkController) {
                 Copy-FileFromRemoteComputer -Path "$($config.properties.netControllerStatePath)\*" -ComputerName $ncVM -Destination $outputDir.FullName

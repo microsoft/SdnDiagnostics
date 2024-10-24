@@ -4,19 +4,27 @@ function Invoke-SdnNetworkControllerStateDump {
         Executes a PUT operation against REST API endpoint for Network Controller to trigger a IMOS dump of Network Controller services.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER ExecutionTimeout
         Specify the execution timeout (seconds) on how long you want to wait for operation to complete before cancelling operation. If omitted, defaults to 300 seconds.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $false)]
         [int]$ExecutionTimeOut = 300,
@@ -25,39 +33,51 @@ function Invoke-SdnNetworkControllerStateDump {
         [int]$PollingInterval = 1
     )
 
-    try {
-        $stopWatch = [system.diagnostics.stopwatch]::StartNew()
-        [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState'
+    $putParams = @{
+        Uri             = $null
+        Method          = 'Put'
+        Headers         = @{"Accept" = "application/json" }
+        Content         = "application/json; charset=UTF-8"
+        Body            = "{}"
+        UseBasicParsing = $true
+    }
 
+    $confirmParams = @{
+        UseBasicParsing = $true
+        TimeoutInSec = $ExecutionTimeOut
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $confirmParams.Add('NcRestCertificate', $NcRestCertificate)
+            $putParams.Add('Certificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $confirmParams.Add('NcRestCredential', $NcRestCredential)
+            $putParams.Add('Credential', $NcRestCredential)
+        }
+    }
+
+    [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef 'diagnostics/networkControllerState'
+    $putParams.Uri = $uri
+
+    try {
         # trigger IMOS dump
         "Generate In Memory Object State (IMOS) dump by executing PUT operation against {0}" -f $uri | Trace-Output
-        $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -Body "{}" -UseBasicParsing `
-        -Headers @{"Accept"="application/json"} -Content "application/json; charset=UTF-8"
+        $null = Invoke-WebRequestWithRetry @putParams
 
         # monitor until the provisionState for the object is not in 'Updating' state
-        while ($true) {
-            Start-Sleep -Seconds $PollingInterval
-            if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeOut) {
-                throw New-Object System.TimeoutException("Operation did not complete within the specified time limit")
-            }
-
-            $result = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef 'diagnostics/networkControllerState' -Credential $Credential
-            if ($result.properties.provisioningState -ine 'Updating') {
-                break
-            }
+        if (-NOT (Confirm-ProvisioningStateSucceeded -NcUri $putParams.Uri @confirmParams)) {
+            throw New-Object System.Exception("Unable to generate IMOS dump")
         }
-
-        $stopWatch.Stop()
-
-        if ($result.properties.provisioningState -ine 'Succeeded') {
-            $msg = "Unable to generate IMOS dump. ProvisioningState: {0}" -f $result.properties.provisioningState
-            throw New-Object System.Exception($msg)
+        else {
+            return $true
         }
-
-        return $true
     }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    return $false
 }

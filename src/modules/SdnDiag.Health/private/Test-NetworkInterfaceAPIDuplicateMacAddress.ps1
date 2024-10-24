@@ -4,16 +4,31 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
         Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
@@ -21,7 +36,7 @@ function Test-NetworkInterfaceAPIDuplicateMacAddress {
     try {
         "Validate no duplicate MAC addresses for network interfaces in Network Controller" | Trace-Output
 
-        $networkInterfaces = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource:NetworkInterfaces -Credential $NcRestCredential
+        $networkInterfaces = Get-SdnResource @ncRestParams -Resource:NetworkInterfaces
         if($null -eq $networkInterfaces){
             # if there are no network interfaces, then there is nothing to validate
             # pass back the health object to the caller

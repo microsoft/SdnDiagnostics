@@ -4,7 +4,7 @@ function Test-NetworkControllerCertCredential {
         Query the NC Cert credential used to connect to SDN Servers, ensure cert exist.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
@@ -14,11 +14,26 @@ function Test-NetworkControllerCertCredential {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $arrayList = [System.Collections.ArrayList]::new()
@@ -27,7 +42,7 @@ function Test-NetworkControllerCertCredential {
         "Validate cert credential resource of SDN Servers. Ensure certificate exists on each of the Network Controller " | Trace-Output
 
         # enumerate each server's conection->credential object into the array
-        $servers = Get-SdnServer -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential
+        $servers = Get-SdnServer @ncRestParams
         $serverCredentialRefs = [System.Collections.Hashtable]::new()
         foreach ($server in $servers) {
             # find the first connection with credential type of X509Certificate
@@ -48,7 +63,7 @@ function Test-NetworkControllerCertCredential {
 
         # iterate the credential object to validate certificate on each NC
         foreach ($credRef in $serverCredentialRefs.Keys) {
-            $credObj = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential -ResourceRef $credRef
+            $credObj = Get-SdnResource @ncRestParams -ResourceRef $credRef
             if ($null -ne $credObj) {
                 $thumbPrint = $credObj.properties.value
                 $scriptBlock = {

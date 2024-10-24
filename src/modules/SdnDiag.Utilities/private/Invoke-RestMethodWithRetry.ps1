@@ -1,4 +1,6 @@
 function Invoke-RestMethodWithRetry {
+
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [System.Uri]$Uri,
@@ -22,6 +24,9 @@ function Invoke-RestMethodWithRetry {
         [Switch] $UseBasicParsing,
 
         [Parameter(Mandatory = $false)]
+        [X509Certificate]$Certificate,
+
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]$Credential,
 
@@ -31,10 +36,10 @@ function Invoke-RestMethodWithRetry {
         [Parameter(Mandatory = $false)]
         [Switch]$Retry,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$MaxRetry = 3,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$RetryIntervalInSeconds = 30
     )
 
@@ -58,11 +63,16 @@ function Invoke-RestMethodWithRetry {
         $params.Add('UseBasicParsing', $true)
     }
 
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
     }
     else {
-        $params.Add('UseDefaultCredentials', $true)
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $params.Add('Credential', $Credential)
+        }
+        else {
+            $params.Add('UseDefaultCredentials', $true)
+        }
     }
 
     $counter = 0

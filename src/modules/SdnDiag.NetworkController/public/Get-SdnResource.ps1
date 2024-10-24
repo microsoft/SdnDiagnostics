@@ -14,8 +14,11 @@ function Get-SdnResource {
         Specify the unique Instance ID of the resource.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
-    .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource PublicIPAddresses
     .EXAMPLE
@@ -23,7 +26,7 @@ function Get-SdnResource {
     .EXAMPLE
         PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a"
     .EXAMPLE
-        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a" -Credential (Get-Credential)
+        PS> Get-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/publicIPAddresses/d9266251-a3ba-4ac5-859e-2c3a7c70352a" -NcRestCredential (Get-Credential)
     #>
 
     [CmdletBinding()]
@@ -54,19 +57,37 @@ function Get-SdnResource {
         [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $restParams = @{
+        UseBasicParsing = $true
+        ErrorAction     = 'Stop'
+        Method          = 'Get'
+    }
+
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restParams.Add('Certificate', $NcRestCertificate)
+    }
+    else {
+        $restParams.Add('Credential', $NcRestCredential)
+    }
 
     switch ($PSCmdlet.ParameterSetName) {
         'InstanceId' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceName 'internalResourceInstances'
             [System.String]$uri = "{0}/{1}" -f $uri, $InstanceId.Trim()
         }
         'ResourceRef' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceRef $ResourceRef
         }
         'Resource' {
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ApiVersion $ApiVersion -ResourceName $Resource
+            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ApiVersion $ApiVersion -ResourceName $Resource
 
             if ($ResourceID) {
                 [System.String]$uri = "{0}/{1}" -f $uri, $ResourceId.Trim()
@@ -75,24 +96,17 @@ function Get-SdnResource {
     }
 
     "{0} {1}" -f $method, $uri | Trace-Output -Level:Verbose
+    $restParams.Add('Uri', $uri)
 
     # gracefully handle System.Net.WebException responses such as 404 to throw warning
     # anything else we want to throw terminating exception and capture for debugging purposes
     try {
-        $result = Invoke-RestMethodWithRetry -Uri $uri -Method 'GET' -UseBasicParsing -Credential $Credential -ErrorAction Stop
+        $result = Invoke-RestMethodWithRetry @restParams
     }
     catch [System.Net.WebException] {
         if ($_.Exception.Response.StatusCode -eq 'NotFound') {
-
-            # if the resource is iDNSServer configuration, we want to return null instead of throwing a warning
-            # as this may be expected behavior if the iDNSServer is not configured
-            if ($_.Exception.Response.ResponseUri.AbsoluteUri -ilike '*/idnsserver/configuration') {
-                return $null
-            }
-            else {
-                "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
-                return $null
-            }
+            "{0} ({1})" -f $_.Exception.Message, $_.Exception.Response.ResponseUri.AbsoluteUri | Write-Warning
+            return $null
         }
         else {
             throw $_

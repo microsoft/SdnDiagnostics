@@ -1,4 +1,6 @@
 function Invoke-WebRequestWithRetry {
+
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [System.Uri]$Uri,
@@ -22,19 +24,22 @@ function Invoke-WebRequestWithRetry {
         [Switch] $UseBasicParsing,
 
         [Parameter(Mandatory = $false)]
+        [X509Certificate]$Certificate,
+
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]$Credential,
 
         [Parameter(Mandatory = $false)]
         [int]$TimeoutInSec = 600,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Switch]$Retry,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$MaxRetry = 3,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$RetryIntervalInSeconds = 30
     )
 
@@ -58,11 +63,16 @@ function Invoke-WebRequestWithRetry {
         $params.Add('UseBasicParsing', $true)
     }
 
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
+    if ($Certificate) {
+        $params.Add('Certificate', $Certificate)
     }
     else {
-        $params.Add('UseDefaultCredentials', $true)
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $params.Add('Credential', $Credential)
+        }
+        else {
+            $params.Add('UseDefaultCredentials', $true)
+        }
     }
 
     $counter = 0

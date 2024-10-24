@@ -4,16 +4,31 @@ function Test-ResourceProvisioningState {
         Validate that the provisioningState of the resources.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
@@ -21,7 +36,7 @@ function Test-ResourceProvisioningState {
     try {
         "Validating provisioning state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
 
-        $sdnResources = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Resource $SdnEnvironmentObject.Role.ResourceName -Credential $NcRestCredential
+        $sdnResources = Get-SdnResource @ncRestParams -Resource $SdnEnvironmentObject.Role.ResourceName
         foreach ($object in $sdnResources) {
             # examine the provisioning state of the resources and display errors to the screen
             $msg = "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState

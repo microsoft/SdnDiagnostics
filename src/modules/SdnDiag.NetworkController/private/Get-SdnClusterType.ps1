@@ -24,9 +24,9 @@ function Get-SdnClusterType {
     )
 
     $sb = {
-        # with failover cluster, the ApiService will run as a service within windows
+        # with failover cluster, the SDNApiService will run as a service within windows
         # so we can check if the service exists to determine if it is a failover cluster configuration regardless if running
-        $service = Get-Service -Name 'ApiService' -ErrorAction Ignore
+        $service = Get-Service -Name 'SDNApiService' -ErrorAction Ignore
         if ($service) {
             return 'FailoverCluster'
         }

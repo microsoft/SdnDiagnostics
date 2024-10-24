@@ -4,17 +4,19 @@ function Invoke-SdnResourceDump {
         Performs API request to all available northbound endpoints for NC and dumps out the resources to json file.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
-	.PARAMETER Credential
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request. Enter a variable that contains a certificate or a command or expression that gets the certificate.
+	.PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         PS> Invoke-SdnResourceDump
     .EXAMPLE
         PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com"
     .EXAMPLE
-        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -Credential (Get-Credential)
+        PS> Invoke-SdnResourceDump -NcUri "https://nc.contoso.com" -NcRestCredential (Get-Credential)
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
@@ -22,11 +24,26 @@ function Invoke-SdnResourceDump {
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    $params = @{
+        NcUri = $NcUri
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $params.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $params.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     try {
         "Generating resource dump for Network Controller NB API endpoints" | Trace-Output
@@ -35,7 +52,7 @@ function Invoke-SdnResourceDump {
             $null = New-Item -Path $outputDir.FullName -ItemType Directory -Force
         }
 
-        $apiVersion = (Get-SdnDiscovery -NcUri $NcUri.AbsoluteUri -Credential $Credential).currentRestVersion
+        $apiVersion = (Get-SdnDiscovery @params).currentRestVersion
         if ($null -ieq $apiVersion) {
             $apiVersion = 'v1'
         }
@@ -46,6 +63,13 @@ function Invoke-SdnResourceDump {
         foreach ($key in $config.properties.apiResources.Keys) {
             $value = $config.Properties.apiResources[$key]
 
+            if ($params.ContainsKey('ResourceRef')) {
+                $params.ResourceRef = $value.uri
+            }
+            else {
+                $params.Add('ResourceRef', $value.uri)
+            }
+
             # skip any resources that are not designed to be exported
             if ($value.includeInResourceDump -ieq $false) {
                 continue
@@ -53,7 +77,18 @@ function Invoke-SdnResourceDump {
 
             [int]$minVersionInt = $value.minVersion.Replace('v','').Replace('V','')
             if ($minVersionInt -le $apiVersionInt) {
-                $sdnResource = Get-SdnResource -NcUri $NcUri.AbsoluteUri -ResourceRef $value.uri -Credential $Credential
+
+                # because we do not know what resources are available, we need to catch any exceptions
+                # that may occur when trying to get the resource
+                # in events we log a warning, we just want to redirect the warning stream to null
+                try {
+                    $sdnResource = Get-SdnResource @params 3>$null
+                }
+                catch {
+                    $_ | Trace-Exception
+                    continue
+                }
+
                 if ($sdnResource) {
 
                     # parse the value if we are enumerating credentials property as we

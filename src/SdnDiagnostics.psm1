@@ -89,8 +89,10 @@ function Start-SdnCertificateRotation {
         Performs a controller certificate rotate operation for Network Controller Northbound API, Southbound communications and Network Controller nodes.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+		Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER CertPath
         Path directory where certificate(s) .pfx files are located for use with certificate rotation.
     .PARAMETER GenerateCertificate
@@ -113,6 +115,11 @@ function Start-SdnCertificateRotation {
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [X509Certificate]$NcRestCertificate,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
@@ -142,6 +149,18 @@ function Start-SdnCertificateRotation {
         [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
         [switch]$Force
     )
+
+    $ncRestParams = @{
+        NcUri = $null
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
 
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -190,7 +209,7 @@ function Start-SdnCertificateRotation {
 
         # Get the Network Controller Info Offline (NC Cluster Down case)
         $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
-
+        $ncRestParams.NcUri = "https://$($NcInfraInfo.NcRestName)"
         if ($NcInfraInfo.ClusterCredentialType -ieq 'X509') {
             $rotateNCNodeCerts = $true
         }
@@ -219,7 +238,7 @@ function Start-SdnCertificateRotation {
         }
         else {
             # determine fabric information and current version settings for network controller
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential -NcRestCredential $NcRestCredential
+            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $env:COMPUTERNAME -Credential $Credential @restCredParam
             $ncClusterSettings = Get-NetworkControllerCluster
             $ncSettings = @{
                 NetworkControllerVersion        = (Get-NetworkController).Version
@@ -357,7 +376,7 @@ function Start-SdnCertificateRotation {
 
         if ($restCertExpired -or !$isNetworkControllerHealthy) {
             # Use this for certificate if either rest cert expired or nc unhealthy, get-networkcontroller failed
-            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential -NcRestCredential $NcRestCredential
+            Start-SdnExpiredCertificateRotation -CertRotateConfig $CertRotateConfig -Credential $Credential
         }
 
         #####################################
@@ -412,8 +431,7 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE SOUTHBOUND CERTIFICATE CREDENTIALS ==" | Trace-Output
 
-        $null = Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -Credential $NcRestCredential `
-            -NewRestCertThumbprint $CertRotateConfig["NcRestCert"] -ErrorAction Stop
+        $null = Update-NetworkControllerCredentialResource @ncRestParams -NewRestCertThumbprint $CertRotateConfig["NcRestCert"] -ErrorAction Stop
 
         "Southbound certificate rotation completed" | Trace-Output
 
@@ -427,7 +445,7 @@ function Start-SdnCertificateRotation {
         # we now want to check to see if nc is healthy and if we need to install the rest cert (for self-signed) to southbound devices
         if ($postRotateSBRestCert) {
             if ($selfSignedRestCertFile) {
-                $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential -NcRestCredential $NcRestCredential -Force
+                $sdnFabricDetails = Get-SdnInfrastructureInfo -Credential $Credential @restCredParam -Force
                 $southBoundNodes = @()
                 if ($null -ne $sdnFabricDetails.LoadBalancerMux) {
                     $southBoundNodes += $sdnFabricDetails.LoadBalancerMux
@@ -507,9 +525,11 @@ function Start-SdnDataCollection {
     .PARAMETER ToDate
         Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
     .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user.
+		Specifies a user account that has permission to SDN Infrastructure Nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+		Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER Limit
         Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
     .PARAMETER ConvertETW
@@ -575,6 +595,10 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
@@ -590,6 +614,20 @@ function Start-SdnDataCollection {
     $ErrorActionPreference = 'Continue'
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
     $filteredDataCollectionNodes = @()
+
+    $ncRestParams = @{}
+    if ($PSBoundParameters.ContainsKey('NcUri')) {
+        $ncRestParams.Add('NcUri', $NcUri)
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
 
     $dataCollectionObject = [PSCustomObject]@{
@@ -674,12 +712,7 @@ function Start-SdnDataCollection {
         "Results will be saved to {0}" -f $OutputDirectory.FullName | Trace-Output
 
         # generate a mapping of the environment
-        if ($NcUri) {
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcUri $NcUri.AbsoluteUri -NcRestCredential $NcRestCredential
-        }
-        else {
-            $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        }
+        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @ncRestParams
         $sdnFabricDetails | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnInfrastructureInfo'
 
         # determine if network controller is using default logging mechanism to local devices or network share
@@ -771,10 +804,14 @@ function Start-SdnDataCollection {
         # ensure that the NcUrl is populated before we start collecting data
         # in scenarios where certificate is not trusted or expired, we will not be able to collect data
         if (-NOT ([System.String]::IsNullOrEmpty($sdnFabricDetails.NcUrl))) {
-            $slbStateInfo = Get-SdnSlbStateInformation -NcUri $sdnFabricDetails.NcUrl -Credential $NcRestCredential
+            if (-NOT ($ncRestParams.ContainsKey('NcUri'))) {
+                $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+            }
+
+            $slbStateInfo = Get-SdnSlbStateInformation @ncRestParams
             $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
-            Invoke-SdnResourceDump -NcUri $sdnFabricDetails.NcUrl -OutputDirectory $OutputDirectory.FullName -Credential $NcRestCredential
-            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential -NcRestCredential $NcRestCredential
+            Invoke-SdnResourceDump @ncRestParams -OutputDirectory $OutputDirectory.FullName
+            Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential @restCredParam
         }
 
         Get-SdnNetworkControllerClusterInfo -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential
@@ -890,14 +927,11 @@ function Start-SdnDataCollection {
 
                     # if the role is a server, collect the audit logs if they are available
                     if ($group.Name -ieq 'Server') {
-                        $splat = @{
-                            NcUri            = $sdnFabricDetails.NcUrl
-                            NcRestCredential = $NcRestCredential
-                            OutputDirectory  = "$($OutputDirectory.FullName)\AuditLogs"
-                            ComputerName     = $dataNodes
-                            Credential       = $Credential
-                        }
-                        Get-SdnAuditLog @splat
+                        $auditParams = $ncRestParams
+                        $auditParams.Add('OutputDirectory', "$($OutputDirectory.FullName)\AuditLogs")
+                        $auditParams.Add('ComputerName', $dataNodes)
+                        $auditParams.Add('Credential', $Credential)
+                        Get-SdnAuditLog @auditParams
                     }
                 }
 
