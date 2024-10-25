@@ -95,6 +95,7 @@ function Start-SdnServerCertificateRotation {
         }
     }
 
+    $array = @()
     $ncRestParams = @{
         NcUri = $null
     }
