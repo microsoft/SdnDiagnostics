@@ -84,6 +84,7 @@ function Start-SdnExpiredCertificateRotation {
     }
 
     # stop service fabric service
+    Trace-Output -Message "Stopping Service Fabric Service"
     $stopSfService = Invoke-PSRemoteCommand -ComputerName $NcNodeList.IpAddressOrFQDN -Credential $Credential -ScriptBlock $stopServiceFabricSB `
     -AsJob -PassThru -Activity 'Stopping Service Fabric Service on Network Controller' -ExecutionTimeOut 900
 
