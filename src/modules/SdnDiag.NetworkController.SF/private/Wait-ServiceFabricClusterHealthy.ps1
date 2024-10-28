@@ -91,7 +91,7 @@ function Wait-ServiceFabricClusterHealthy {
                     }
                 }
                 if ($allServiceHealth -and $services.Count -gt 0) {
-                    "All service fabric service has been healthy" | Trace-Output -Level:Warning
+                    "All service fabric services marked healthy" | Trace-Output
                     return $allServiceHealth
                 }
 

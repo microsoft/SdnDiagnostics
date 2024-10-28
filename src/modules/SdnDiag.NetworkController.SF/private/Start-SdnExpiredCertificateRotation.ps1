@@ -47,18 +47,14 @@ function Start-SdnExpiredCertificateRotation {
     }
 
     $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
-    Trace-Output -Message "Network Controller Infrastrucutre Info detected:"
-    Trace-Output -Message "ClusterCredentialType: $($NcInfraInfo.ClusterCredentialType)"
-    Trace-Output -Message "NcRestName: $($NcInfraInfo.NcRestName)"
-
+    Trace-Output -Message "Network Controller information detected detected:`n`tClusterCredentialType: {0}`n`tRestName: {1}" -f $NcInfraInfo.ClusterCredentialType, $NcInfraInfo.NcRestName
     $NcNodeList = $NcInfraInfo.NodeList
 
     if ($null -eq $NcNodeList -or $NcNodeList.Count -eq 0) {
-        Trace-Output -Message "Failed to get NC Node List from NetworkController: $(HostName)" -Level:Error
+        throw New-Object System.NullReferenceException("Failed to get NC Node List from NetworkController: $(HostName)")
     }
 
     Trace-Output -Message "NcNodeList: $($NcNodeList.IpAddressOrFQDN)"
-
     Trace-Output -Message "Validate CertRotateConfig"
     if(!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)){
         Trace-Output -Message "Invalid CertRotateConfig, please correct the configuration and try again" -Level:Error
