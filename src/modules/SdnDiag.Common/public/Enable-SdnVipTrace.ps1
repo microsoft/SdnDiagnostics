@@ -63,10 +63,10 @@ function Enable-SdnVipTrace {
 
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
-            $ncRestParams.Add('Certificate', $NcRestCertificate)
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
         }
         'RestCredential' {
-            $ncRestParams.Add('Credential', $NcRestCredential)
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         }
     }
 
