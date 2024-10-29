@@ -47,7 +47,7 @@ function Start-SdnExpiredCertificateRotation {
     }
 
     $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
-    Trace-Output -Message "Network Controller information detected detected:`n`tClusterCredentialType: {0}`n`tRestName: {1}" -f $NcInfraInfo.ClusterCredentialType, $NcInfraInfo.NcRestName
+    Trace-Output -Message "Network Controller information detected:`n`tClusterCredentialType: {0}`n`tRestName: {1}" -f $NcInfraInfo.ClusterCredentialType, $NcInfraInfo.NcRestName
     $NcNodeList = $NcInfraInfo.NodeList
 
     if ($null -eq $NcNodeList -or $NcNodeList.Count -eq 0) {
