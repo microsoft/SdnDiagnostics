@@ -1,5 +1,5 @@
 function Test-MuxBgpConnectionState {
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
@@ -9,11 +9,26 @@ function Test-MuxBgpConnectionState {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
@@ -28,7 +43,7 @@ function Test-MuxBgpConnectionState {
 
     try {
         "Validating the BGP connectivity between LoadBalancerMuxes and Top of Rack (ToR) Switches." | Trace-Output
-        $loadBalancerMux = Get-SdnLoadBalancerMux -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential
+        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams
 
         # if no load balancer muxes configured within the environment, return back the health object to caller
         if ($null -ieq $loadBalancerMux) {
@@ -37,7 +52,7 @@ function Test-MuxBgpConnectionState {
 
         # enumerate through the load balancer muxes in the environment and validate the BGP connection state
         foreach ($mux in $loadBalancerMux) {
-            $virtualServer = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceRef $mux.properties.virtualServer.resourceRef -Credential $NcRestCredential
+            $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $mux.properties.virtualServer.resourceRef
             [string]$virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
             $peerRouters = $mux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
             foreach ($router in $peerRouters) {

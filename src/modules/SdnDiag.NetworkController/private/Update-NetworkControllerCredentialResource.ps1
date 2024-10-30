@@ -10,6 +10,7 @@ function Update-NetworkControllerCredentialResource {
         Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [System.String]
@@ -19,23 +20,48 @@ function Update-NetworkControllerCredentialResource {
         [System.String]
         $NewRestCertThumbprint,
 
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+    $putParams = @{
+        Uri             = $null
+        Method          = 'Put'
+        Headers         = @{"Accept" = "application/json" }
+        Content         = "application/json; charset=UTF-8"
+        Body            = "{}"
+        UseBasicParsing = $true
+    }
+    $confirmStateParams = @{
+        TimeoutInSec = 600
+        UseBasicParsing = $true
+    }
+    $ncRestParams = @{
+        NcUri = $NcUri
+    }
 
-    $headers = @{"Accept"="application/json"}
-    $content = "application/json; charset=UTF-8"
-    $timeoutInMinutes = 10
-    $array = @()
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $confirmStateParams.Add('NcRestCertificate', $NcRestCertificate)
+            $putParams.Add('Certificate', $NcRestCertificate)
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $confirmStateParams.Add('NcRestCredential', $NcRestCredential)
+            $putParams.Add('Credential', $NcRestCredential)
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
-    $servers = Get-SdnServer -NcUri $NcUri -Credential $Credential
+    $servers = Get-SdnServer @ncRestParams
     foreach ($object in $servers) {
         "Processing X509 connections for {0}" -f $object.resourceRef | Trace-Output
         foreach ($connection in $servers.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }) {
-            $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-
-            $cred = Get-SdnResource -NcUri $NcUri -ResourceRef $connection.credential.resourceRef -Credential $Credential
+            $cred = Get-SdnResource @ncRestParams -ResourceRef $connection.credential.resourceRef
 
             # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
             if ($cred.properties.value -ieq $NewRestCertThumbprint) {
@@ -45,40 +71,19 @@ function Update-NetworkControllerCredentialResource {
 
             "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $NewRestCertThumbprint | Trace-Output
             $cred.properties.value = $NewRestCertThumbprint
-            $credBody = $cred | ConvertTo-Json -Depth 100
+            $putParams.Body = $cred | ConvertTo-Json -Depth 100
+            $putParams.Uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef $cred.resourceRef
 
-            [System.String]$uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef $cred.resourceRef
-            $null = Invoke-WebRequestWithRetry -Method 'Put' -Uri $uri -Credential $Credential -UseBasicParsing `
-            -Headers $headers -ContentType $content -Body $credBody
-
-            while ($true) {
-                if ($stopWatch.Elapsed.TotalMinutes -ge $timeoutInMinutes) {
-                    $stopWatch.Stop()
-                    throw New-Object System.TimeoutException("Update of $($cred.resourceRef) did not complete within the alloted time")
-                }
-
-                $result = Invoke-RestMethodWithRetry -Method 'Get' -Uri $uri -Credential $Credential -UseBasicParsing
-                if ($result.properties.provisioningState -ieq 'Updating') {
-                    "Status: {0}" -f $result.properties.provisioningState | Trace-Output
-                    Start-Sleep -Seconds 15
-                }
-                elseif ($result.properties.provisioningState -ieq 'Failed') {
-                    $stopWatch.Stop()
-                    throw New-Object System.Exception("Failed to update $($cred.resourceRef)")
-                }
-                elseif ($result.properties.provisioningState -ieq 'Succeeded') {
-                    "Successfully updated {0}" -f $cred.resourceRef | Trace-Output
-                    break
-                }
-                else {
-                    $stopWatch.Stop()
-                    throw New-Object System.Exception("Failed to update $($cred.resourceRef) with $($result.properties.provisioningState)")
-                }
+            # update the credential resource with new certificate thumbprint
+            # and confirm the provisioning state is succeeded
+            $null = Invoke-WebRequestWithRetry @putParams
+            try {
+                Confirm-ProvisioningStateSucceeded -NcUri $putParams.Uri @confirmStateParams
             }
-
-            $array += $result
+            catch {
+                $_ | Trace-Exception
+                $_ | Write-Error
+            }
         }
     }
-
-    return $array
 }

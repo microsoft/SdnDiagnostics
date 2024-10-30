@@ -20,16 +20,15 @@ function Start-SdnExpiredCertificateRotation {
         Start-SdnExpiredCertificateRotation -NetworkController nc01
     #>
 
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
         [hashtable]
         $CertRotateConfig,
+
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $NcUpdateFolder = "$(Get-WorkingDirectory)\NcCertUpdate_{0}" -f (Get-FormattedDateTimeUTC)
@@ -122,15 +121,4 @@ function Start-SdnExpiredCertificateRotation {
     # Step 7 Restart
     Trace-Output -Message "Step 7 Restarting Service Fabric Cluster after configuration change"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential -Restart
-
-<#     Trace-Output -Message "Step 7.2 Rotate Network Controller Certificate"
-    #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
-
-    # Step 8 Update REST CERT credential
-    Trace-Output -Message "Step 8 Update REST CERT credential"
-    # Step 8.1 Wait for NC App Healthy
-    Trace-Output -Message "Step 8.1 Wiating for Network Controller App Ready"
-    #Wait-NetworkControllerAppHealthy -Interval 60
-    Trace-Output -Message "Step 8.2 Updating REST CERT Credential object calling REST API" #>
-    #Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -NewRestCertThumbprint $NcRestCertThumbprint -Credential $NcRestCredential
 }
