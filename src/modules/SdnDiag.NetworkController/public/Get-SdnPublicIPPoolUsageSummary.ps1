@@ -7,27 +7,44 @@ function Get-SdnPublicIPPoolUsageSummary {
         This helps operators quickly locate which resources are associated with a public IP address, in addition to identify available vs non-available IP addresses.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
-        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
 
     $array = @()
+    $ncRestParams = @{
+        NcUri = $NcUri
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     try {
-        $logicalNetworks = Get-SdnResource -NcUri $NcUri -Resource LogicalNetworks -Credential $NcRestCredential | Where-Object {$_.properties.subnets.properties.isPublic -ieq $true}
-        $loadBalancers = Get-SdnResource -NcUri $NcUri -Resource LoadBalancers -Credential $NcRestCredential
-        $publicIpAddresses = Get-SdnResource -NcUri $NcUri -Resource PublicIPAddresses -Credential $NcRestCredential
+        $logicalNetworks = Get-SdnResource -Resource LogicalNetworks @ncRestParams | Where-Object {$_.properties.subnets.properties.isPublic -ieq $true}
+        $loadBalancers = Get-SdnResource -Resource LoadBalancers @ncRestParams
+        $publicIpAddresses = Get-SdnResource -Resource PublicIPAddresses @ncRestParams
 
         foreach ($subnet in $logicalNetworks.properties.subnets) {
             foreach ($ipPool in $subnet.properties.ipPools) {

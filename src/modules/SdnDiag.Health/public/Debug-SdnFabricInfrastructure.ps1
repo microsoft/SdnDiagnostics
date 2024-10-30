@@ -10,8 +10,11 @@ function Debug-SdnFabricInfrastructure {
         The specific SDN role(s) to perform tests and validations for. If ommitted, defaults to all roles.
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-	.PARAMETER NcRestCredential
-		Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .EXAMPLE
         PS> Debug-SdnFabricInfrastructure
     .EXAMPLE
@@ -41,7 +44,11 @@ function Debug-SdnFabricInfrastructure {
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [X509Certificate]$NcRestCertificate
     )
 
     if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
@@ -54,12 +61,19 @@ function Debug-SdnFabricInfrastructure {
         Confirm-IsNetworkController
     }
 
-    try {
-        $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential -NcRestCredential $NcRestCredential
-        if($null -eq $environmentInfo){
-            throw New-Object System.NullReferenceException("Unable to retrieve environment details")
-        }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
+    }
+    else {
+        $restCredParam = @{ NcRestCredential = $NcRestCredential }
+    }
 
+    $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam
+    if($null -eq $environmentInfo){
+        throw New-Object System.NullReferenceException("Unable to retrieve environment details")
+    }
+
+    try {
         # if we opted to specify the ComputerName rather than Role, we need to determine which role
         # the computer names are associated with
         if ($PSCmdlet.ParameterSetName -ieq 'ComputerName') {
@@ -105,8 +119,8 @@ function Debug-SdnFabricInfrastructure {
 
             $restApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
-                NcRestCredential        = $NcRestCredential
             }
+            $restApiParams += $restCredParam
 
             $computerCredParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
@@ -115,9 +129,9 @@ function Debug-SdnFabricInfrastructure {
 
             $computerCredAndRestApiParams = @{
                 SdnEnvironmentObject    = $sdnFabricDetails
-                NcRestCredential        = $NcRestCredential
                 Credential              = $Credential
             }
+            $computerCredAndRestApiParams += $restCredParam
 
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
@@ -193,7 +207,12 @@ function Debug-SdnFabricInfrastructure {
             # add the individual role health report to the aggregate report
             $aggregateHealthReport += $roleHealthReport
         }
-
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+    finally {
         if ($aggregateHealthReport) {
 
             # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
@@ -217,13 +236,11 @@ function Debug-SdnFabricInfrastructure {
 
             # save the aggregate health report to cache so we can use it for further analysis
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
-
-            "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
-            return $script:SdnDiagnostics_Health.Cache
         }
     }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+
+    if ($script:SdnDiagnostics_Health.Cache) {
+        "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
+        return $script:SdnDiagnostics_Health.Cache
     }
 }

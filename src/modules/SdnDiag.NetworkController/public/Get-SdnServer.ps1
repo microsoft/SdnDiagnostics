@@ -8,22 +8,25 @@ function Get-SdnServer {
         Specifies the unique identifier for the resource.
     .PARAMETER ResourceRef
         Specifies the resource reference for the resource.
-	.PARAMETER Credential
-		Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER ManagementAddressOnly
         Optional parameter to only return back the Management Address value.
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential)
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential)
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e'
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceId 'f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     .EXAMPLE
-        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -Credential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
+        PS> Get-SdnServer -NcUri 'https://NC.FQDN' -NcRestCredential (Get-Credential) -ResourceRef 'Servers/f5e3b3e0-1b7a-4b9e-8b9e-5b5e3b3e0f5e' -ManagementAddressOnly
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
@@ -42,9 +45,14 @@ function Get-SdnServer {
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceId')]
@@ -52,26 +60,29 @@ function Get-SdnServer {
         [switch]$ManagementAddressOnly
     )
 
-    $params = @{
+    $ncRestParams = @{
         NcUri = $NcUri
-        Credential = $Credential
     }
-
-    switch ($PSCmdlet.ParameterSetName) {
-        'ResourceId' {
-            $params.Add('Resource', 'Servers')
-            $params.Add('ResourceId', $ResourceId)
-        }
-        'ResourceRef' {
-            $params.Add('ResourceRef', $ResourceRef)
-        }
-        default {
-            $params.Add('Resource', 'Servers')
-        }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
     try {
-        $result = Get-SdnResource @params
+        switch ($PSCmdlet.ParameterSetName) {
+            'ResourceId' {
+                $result = Get-SdnResource @ncRestParams -Resource 'Servers' -ResourceId $ResourceId
+            }
+            'ResourceRef' {
+                $result = Get-SdnResource @ncRestParams -ResourceRef $ResourceRef
+            }
+            default {
+                $result = Get-SdnResource @ncRestParams -Resource 'Servers'
+            }
+        }
+
         if ($result) {
             foreach($obj in $result){
                 if($obj.properties.provisioningState -ne 'Succeeded'){

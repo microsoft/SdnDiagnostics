@@ -1,4 +1,6 @@
 function Invoke-RestMethodWithRetry {
+
+    [CmdletBinding(DefaultParameterSetName = 'Credential')]
     param(
         [Parameter(Mandatory = $true)]
         [System.Uri]$Uri,
@@ -21,7 +23,10 @@ function Invoke-RestMethodWithRetry {
         [Parameter(Mandatory = $false)]
         [Switch] $UseBasicParsing,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'Certificate')]
+        [X509Certificate]$Certificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Credential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]$Credential,
 
@@ -31,10 +36,10 @@ function Invoke-RestMethodWithRetry {
         [Parameter(Mandatory = $false)]
         [Switch]$Retry,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$MaxRetry = 3,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Retry')]
+        [Parameter(Mandatory = $false)]
         [Int]$RetryIntervalInSeconds = 30
     )
 
@@ -50,19 +55,26 @@ function Invoke-RestMethodWithRetry {
         $params.Add('Body', $Body)
     }
 
-    if ($DisableKeepAlive.IsPresent) {
+    if ($DisableKeepAlive) {
         $params.Add('DisableKeepAlive', $true)
     }
 
-    if ($UseBasicParsing.IsPresent) {
+    if ($UseBasicParsing) {
         $params.Add('UseBasicParsing', $true)
     }
 
-    if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-        $params.Add('Credential', $Credential)
-    }
-    else {
-        $params.Add('UseDefaultCredentials', $true)
+    switch ($PSCmdlet.ParameterSetName) {
+        'Certificate' {
+            $params.Add('Certificate', $Certificate)
+        }
+        'Credential' {
+            if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+                $params.Add('Credential', $Credential)
+            }
+            else {
+                $params.Add('UseDefaultCredentials', $true)
+            }
+        }
     }
 
     $counter = 0

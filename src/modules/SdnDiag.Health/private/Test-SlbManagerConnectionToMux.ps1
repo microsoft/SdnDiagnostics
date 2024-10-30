@@ -4,7 +4,7 @@ function Test-SlbManagerConnectionToMux {
         Validates the TCP connection between LoadBalancerMuxes and primary replica of SlbManager service within Network Controller.
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
         [SdnFabricEnvObject]$SdnEnvironmentObject,
@@ -14,11 +14,26 @@ function Test-SlbManagerConnectionToMux {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
     )
+
+    $ncRestParams = @{
+        NcUri = $SdnEnvironmentObject.NcUrl
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
 
     $sdnHealthObject = [SdnHealth]::new()
     $array = @()
@@ -32,7 +47,7 @@ function Test-SlbManagerConnectionToMux {
 
     try {
         "Validating connectivity between LoadBalancerMuxes and primary replica of SlbManager service within Network Controller" | Trace-Output
-        $loadBalancerMux = Get-SdnLoadBalancerMux -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -Credential $NcRestCredential
+        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams
 
         # if no load balancer muxes configured within the environment, return back the health object to caller
         if ($null -ieq $loadBalancerMux) {
@@ -53,7 +68,7 @@ function Test-SlbManagerConnectionToMux {
         # enumerate through the load balancer muxes in the environment and validate the TCP connection state
         # we expect the primary replica for SlbManager within Network Controller to have an active connection for DIP:VIP programming to the Muxes
         foreach ($mux in $loadBalancerMux) {
-            $virtualServer = Get-SdnResource -NcUri $SdnEnvironmentObject.NcUrl.AbsoluteUri -ResourceRef $mux.properties.virtualServer.resourceRef -Credential $NcRestCredential
+            $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $mux.properties.virtualServer.resourceRef
             $virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
             $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
             if (-NOT $connectionExists) {

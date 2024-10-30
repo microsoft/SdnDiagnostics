@@ -22,22 +22,39 @@ function Copy-ServiceFabricManifestToNetworkController {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $stopServiceFabricSB = {
+        Stop-Service -Name 'FabricHostSvc' -Force -ErrorAction Ignore 3>$null # redirect warning to null
+        if ((Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore).Status -eq 'Stopped') {
+            return $true
+        }
+        else {
+            return $false
+        }
+    }
+
     try {
         if ($NcNodeList.Count -eq 0) {
             Trace-Output -Message "No NC VMs found" -Level:Error
             return
         }
-        Trace-Output -Message "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
 
+        # stop service fabric service
         Trace-Output -Message "Stopping Service Fabric Service"
-        foreach ($nc in $NcNodeList.IpAddressOrFQDN) {
-            Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock {
-                Write-Host "[$(HostName)] Stopping Service Fabric Service"
-                Stop-Service FabricHostSvc -Force
+        $stopSfService = Invoke-PSRemoteCommand -ComputerName $NcNodeList.IpAddressOrFQDN -Credential $Credential -ScriptBlock $stopServiceFabricSB `
+        -AsJob -PassThru -Activity 'Stopping Service Fabric Service on Network Controller' -ExecutionTimeOut 900
+
+        # enumerate the results of stopping service fabric service
+        # if any of the service fabric service is not stopped, throw an exception as we do not want to proceed further
+        $stopSfService | ForEach-Object {
+            if ($_) {
+                "Service Fabric Service stopped on {0}" -f $_.PSComputerName | Trace-Output
+            }
+            else {
+                throw "Failed to stop Service Fabric Service on $($_.PSComputerName)"
             }
         }
 
-
+        Trace-Output -Message "Copying Service Fabric Manifests to NC VMs: $($NcNodeList.IpAddressOrFQDN)"
         $NcNodeList | ForEach-Object {
             $fabricFolder = "$env:ProgramData\Microsoft\Service Fabric\$($_.NodeName)\Fabric"
 

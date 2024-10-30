@@ -20,35 +20,40 @@ function Start-SdnExpiredCertificateRotation {
         Start-SdnExpiredCertificateRotation -NetworkController nc01
     #>
 
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
         [hashtable]
         $CertRotateConfig,
+
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $NcUpdateFolder = "$(Get-WorkingDirectory)\NcCertUpdate_{0}" -f (Get-FormattedDateTimeUTC)
     $ManifestFolder = "$NcUpdateFolder\manifest"
     $ManifestFolderNew = "$NcUpdateFolder\manifest_new"
 
-    $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
-    Trace-Output -Message "Network Controller Infrastrucutre Info detected:"
-    Trace-Output -Message "ClusterCredentialType: $($NcInfraInfo.ClusterCredentialType)"
-    Trace-Output -Message "NcRestName: $($NcInfraInfo.NcRestName)"
+    $stopServiceFabricSB = {
+        Stop-Service -Name 'FabricHostSvc' -Force -ErrorAction Ignore 3>$null # redirect warning to null
+        if ((Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore).Status -eq 'Stopped') {
+            return $true
+        }
+        else {
+            return $false
+        }
+    }
 
+    $NcInfraInfo = Get-SdnNetworkControllerInfoOffline -Credential $Credential
+    Trace-Output -Message "Network Controller information detected:`n`tClusterCredentialType: {0}`n`tRestName: {1}" -f $NcInfraInfo.ClusterCredentialType, $NcInfraInfo.NcRestName
     $NcNodeList = $NcInfraInfo.NodeList
 
     if ($null -eq $NcNodeList -or $NcNodeList.Count -eq 0) {
-        Trace-Output -Message "Failed to get NC Node List from NetworkController: $(HostName)" -Level:Error
+        throw New-Object System.NullReferenceException("Failed to get NC Node List from NetworkController: $(HostName)")
     }
 
     Trace-Output -Message "NcNodeList: $($NcNodeList.IpAddressOrFQDN)"
-
     Trace-Output -Message "Validate CertRotateConfig"
     if(!(Test-SdnCertificateRotationConfig -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential)){
         Trace-Output -Message "Invalid CertRotateConfig, please correct the configuration and try again" -Level:Error
@@ -59,8 +64,6 @@ function Start-SdnExpiredCertificateRotation {
         Trace-Output -Message "Failed to get NcRestName using current secret certificate thumbprint. This might indicate the certificate not found on $(HOSTNAME). We won't be able to recover." -Level:Error
         throw New-Object System.NotSupportedException("Current NC Rest Cert not found, Certificate Rotation cannot be continue.")
     }
-
-    $NcVms = $NcNodeList.IpAddressOrFQDN
 
     if (Test-Path $NcUpdateFolder) {
         $items = Get-ChildItem $NcUpdateFolder
@@ -75,10 +78,19 @@ function Start-SdnExpiredCertificateRotation {
         }
     }
 
-    foreach ($nc in $NcVms) {
-        Invoke-Command -ComputerName $nc -ScriptBlock {
-            Write-Host "[$(HostName)] Stopping Service Fabric Service"
-            Stop-Service FabricHostSvc -Force
+    # stop service fabric service
+    Trace-Output -Message "Stopping Service Fabric Service"
+    $stopSfService = Invoke-PSRemoteCommand -ComputerName $NcNodeList.IpAddressOrFQDN -Credential $Credential -ScriptBlock $stopServiceFabricSB `
+    -AsJob -PassThru -Activity 'Stopping Service Fabric Service on Network Controller' -ExecutionTimeOut 900
+
+    # enumerate the results of stopping service fabric service
+    # if any of the service fabric service is not stopped, throw an exception as we do not want to proceed further
+    $stopSfService | ForEach-Object {
+        if ($_) {
+            "Service Fabric Service stopped on {0}" -f $_.PSComputerName | Trace-Output
+        }
+        else {
+            throw "Failed to stop Service Fabric Service on $($_.PSComputerName)"
         }
     }
 
@@ -122,15 +134,4 @@ function Start-SdnExpiredCertificateRotation {
     # Step 7 Restart
     Trace-Output -Message "Step 7 Restarting Service Fabric Cluster after configuration change"
     $clusterHealthy = Wait-ServiceFabricClusterHealthy -NcNodeList $NcNodeList -CertRotateConfig $CertRotateConfig -Credential $Credential -Restart
-
-<#     Trace-Output -Message "Step 7.2 Rotate Network Controller Certificate"
-    #$null = Invoke-CertRotateCommand -Command 'Set-NetworkController' -Credential $Credential -Thumbprint $NcRestCertThumbprint
-
-    # Step 8 Update REST CERT credential
-    Trace-Output -Message "Step 8 Update REST CERT credential"
-    # Step 8.1 Wait for NC App Healthy
-    Trace-Output -Message "Step 8.1 Wiating for Network Controller App Ready"
-    #Wait-NetworkControllerAppHealthy -Interval 60
-    Trace-Output -Message "Step 8.2 Updating REST CERT Credential object calling REST API" #>
-    #Update-NetworkControllerCredentialResource -NcUri "https://$($NcInfraInfo.NcRestName)" -NewRestCertThumbprint $NcRestCertThumbprint -Credential $NcRestCredential
 }
