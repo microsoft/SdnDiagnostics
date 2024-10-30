@@ -110,8 +110,8 @@ function Invoke-CertRotateCommand {
         # then invoke the command to start the certificate rotate
         try {
             if ($waitBeforeRetry) {
-                "Waiting 2 minutes before retrying operation..." | Trace-Output
-                Start-Sleep -Seconds 120
+                "Waiting 5 minutes before retrying operation..." | Trace-Output
+                Start-Sleep -Seconds 300
             }
 
             "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
@@ -155,6 +155,20 @@ function Invoke-CertRotateCommand {
                 $waitBeforeRetry = $true
             }
             else {
+                $stopWatch.Stop()
+                throw $_
+            }
+        }
+        catch [System.Management.Automation.ErrorRecord] {
+            switch -Wildcard ($_.Exception) {
+                '*The I/O operation has been aborted because of either a thread exit or an application request*' {
+                    "Retryable exception caught`n`t$_" | Trace-Output -Level:Warning
+                    $waitBeforeRetry = $true
+                    break
+                }
+            }
+
+            default {
                 $stopWatch.Stop()
                 throw $_
             }

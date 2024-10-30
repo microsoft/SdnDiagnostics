@@ -462,6 +462,13 @@ function Start-SdnCertificateRotation {
 
                     "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
                     [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
+                    Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
+                        param($arg0)
+                        if (-NOT (Test-Path -Path $arg0 -PathType Container)) {
+                            $null = New-Item -Path $arg0 -ItemType Directory -Force
+                        }
+                    } -ArgumentList @($CertPath.FullName)
+
                     Copy-FileToRemoteComputer -ComputerName $southBoundNodes -Credential $Credential -Path $selfSignedRestCertFile.FullName -Destination $remoteFilePath
                     $null = Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {
                         param([Parameter(Position = 0)][String]$param1, [Parameter(Position = 1)][String]$param2)
