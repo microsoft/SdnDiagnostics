@@ -60,7 +60,8 @@ function New-SdnNetworkControllerNodeCertificate {
             $CertPath = Get-Item -Path $Path
         }
 
-        $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate).Subject
+        # if we return multiple certificates, we want to select the first one as the subject should be the same
+        $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate)[0].Subject
         $certificate = New-SdnCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
