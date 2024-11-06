@@ -30,7 +30,7 @@ function Get-SdnNetworkControllerNodeCertificate {
             switch ($networkControllerNode.FindCertificateBy) {
                 'FindBySubjectName' {
                     "`tFindBySubjectName: {0}" -f $networkControllerNode.NodeCertSubjectName | Trace-Output -Level:Verbose
-                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject $networkControllerNode.NodeCertSubjectName
+                    $certificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Subject "CN=$($networkControllerNode.NodeCertSubjectName)"
                 }
 
                 'FindByThumbprint' {

@@ -460,6 +460,11 @@ function Start-SdnCertificateRotation {
                     # ensure that we have the latest version of sdnDiagnostics module on the southbound devices
                     Install-SdnDiagnostics -ComputerName $southBoundNodes -Credential $Credential -ErrorAction Stop
 
+                    if ($selfSignedRestCertFile.Extension -ieq '.pfx') {
+                        $cerName = $selfSignedRestCertFile.Name.Replace('.pfx', '.cer').Replace('_','.')
+                        $selfSignedRestCertFile = Get-ChildItem -Path (Split-Path -Path $selfSignedRestCertFile.FullName -Parent) | Where-Object {$_.Name -ilike "*$cerName"}
+                    }
+
                     "[REST CERT] Installing self-signed certificate to {0}" -f ($southBoundNodes -join ', ') | Trace-Output
                     [System.String]$remoteFilePath = Join-Path -Path $CertPath.FullName -ChildPath $selfSignedRestCertFile.Name
                     Invoke-PSRemoteCommand -ComputerName $southBoundNodes -Credential $Credential -ScriptBlock {

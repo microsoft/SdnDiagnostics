@@ -143,6 +143,12 @@ function Invoke-CertRotateCommand {
                     break
                 }
 
+                '*The I/O operation has been aborted because of either a thread exit or an application request*' {
+                    "Retryable exception caught`n`t$_" | Trace-Output -Level:Warning
+                    $waitBeforeRetry = $true
+                    break
+                }
+
                 default {
                     $stopWatch.Stop()
                     throw $_
@@ -155,20 +161,6 @@ function Invoke-CertRotateCommand {
                 $waitBeforeRetry = $true
             }
             else {
-                $stopWatch.Stop()
-                throw $_
-            }
-        }
-        catch [System.Management.Automation.ErrorRecord] {
-            switch -Wildcard ($_.Exception) {
-                '*The I/O operation has been aborted because of either a thread exit or an application request*' {
-                    "Retryable exception caught`n`t$_" | Trace-Output -Level:Warning
-                    $waitBeforeRetry = $true
-                    break
-                }
-            }
-
-            default {
                 $stopWatch.Stop()
                 throw $_
             }
