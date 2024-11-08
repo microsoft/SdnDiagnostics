@@ -44,13 +44,12 @@ function Initialize-DataCollection {
     }
 
     # confirm sufficient disk space
-    [System.Char]$driveLetter = (Split-Path -Path $FilePath.FullName -Qualifier).Replace(':','')
     switch ($PSCmdlet.ParameterSetName) {
         'GB' {
-            $diskSpace = Confirm-DiskSpace -DriveLetter $driveLetter -MinimumGB $MinimumGB
+            $diskSpace = Confirm-DiskSpace -FilePath $FilePath.FullName -MinimumGB $MinimumGB
         }
         'MB' {
-            $diskSpace = Confirm-DiskSpace -DriveLetter $driveLetter -MinimumMB $MinimumMB
+            $diskSpace = Confirm-DiskSpace -FilePath $FilePath.FullName -MinimumMB $MinimumMB
         }
     }
 
