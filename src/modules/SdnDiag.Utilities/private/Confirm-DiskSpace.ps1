@@ -3,7 +3,7 @@ function Confirm-DiskSpace {
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'GB')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MB')]
-        [System.Char]$DriveLetter,
+        [System.String]$FilePath,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'GB')]
         $MinimumGB,
@@ -11,6 +11,30 @@ function Confirm-DiskSpace {
         [Parameter(Mandatory = $true, ParameterSetName = 'MB')]
         $MinimumMB
     )
+
+       # try cluster first, then local machine
+       try 
+       {
+           
+           $csvs = Get-ClusterSharedVolume | Select-Object SharedVolumeInfo
+           if ($null -ne $csvs) {
+               foreach($csv in $csvs) 
+               {
+                   if(-not [string]::IsNullOrEmpty(($csv.SharedVolumeInfo.FriendlyVolumeName)) -and  `
+                           $null -ne $csv.SharedVolumeInfo.Partition -and `
+                           $FilePath.StartsWith($csv.SharedVolumeInfo.FriendlyVolumeName, [System.StringComparison]::OrdinalIgnoreCase) -and `
+                           (($csv.SharedVolumeInfo.Partition.FreeSpace/1GB -gt $MinimumGB) -and ($csv.SharedVolumeInfo.Partition.FreeSpace/1MB -gt $MinimumMB)))
+                   {
+                       "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $($csv.SharedVolumeInfo.Partition.FreeSpace/1GB)  | Trace-Output -Level:Verbose
+                       return $true
+                   }
+               }
+           }
+       }
+       catch
+       { }
+
+    [System.Char]$driveLetter = (Split-Path -Path $FilePath -Qualifier).Replace(':','')
 
     $drive = Get-PSDrive $DriveLetter -ErrorAction Stop
     if ($null -eq $drive) {
