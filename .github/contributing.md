@@ -12,13 +12,14 @@ When contributing to this project, ensure you:
 ## Creating functions
 When creating functions:
 
-1. Functions should be placed under `src\modules\[ModuleName]\[Private | Public]\Verb-FunctionName.ps1`.
+1. Functions should be placed under the respective module that they execute under based on the role.
 1. If your function should be exported and available after module import, be sure to add your function to the export list in `src\SdnDiagnostics.psd1` under `FunctionsToExport`.
 
 # Build validation and testing
 1. To generate a local build of the module, run `.\build.ps1` which will generate an SdnDiagnostics module package to `~\out\build\SdnDiagnostics`.
 1. Copy the module to `C:\Program Files\WindowsPowerShell\Modules`.
     - Remove any existing modules if they are present.
+    - Folder path structure should resemble `\SdnDiagnostics\{version}`
 1. Import the module using `Import-Module -Name SdnDiagnostics -Force`.
     - If you have already imported the `SdnDiagnostics` module and need to re-import, you first must `Remove-Module -Name SdnDiagnostics` and then perform the `Import-Module` operation. This will ensure that the nested modules, classes and enums are loaded correctly.
 1. Install the modules to the SDN nodes in the dataplane.
