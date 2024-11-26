@@ -2464,13 +2464,13 @@ function Get-SdnModuleConfiguration {
         [string]$Role = $Role -replace '_', '.'
     }
 
-    $path = "SdnDiag.{0}\SdnDiag.{0}.Config.psd1" -f $Role
-    $moduleConfig = Get-Item -Path $PSScriptRoot\..\$path -ErrorAction SilentlyContinue
+    $path = "SdnDiag.{0}.Config.psd1" -f $Role
+    $moduleConfig = Get-Item -Path (Join-Path -Path $PSScriptRoot -ChildPath $path) -ErrorAction SilentlyContinue
     if ($moduleConfig) {
-        $configurationData = Import-PowerShellDataFile -Path $moduleConfig.FullName
+        $moduleConfigData = Import-PowerShellDataFile -Path $moduleConfig.FullName
     }
 
-    return $configurationData
+    return $moduleConfigData
 }
 
 function Install-SdnDiagnostics {
