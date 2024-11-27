@@ -124,14 +124,20 @@ function Test-ServiceState {
 
     $sdnHealthObject = [SdnHealthTest]::new()
     $failureDetected = $false
+    $array = @()
 
     try {
-        $ServiceName | ForEach-Object {
-            $result = Get-Service -Name $_ -ErrorAction Ignore
+        foreach ($service in $ServiceName) {
+            $result = Get-Service -Name $service -ErrorAction Ignore
             if ($result) {
+                $array += [PSCustomObject]@{
+                    ServiceName = $result.Name
+                    Status      = $result.Status
+                }
+
                 if ($result.Status -ine 'Running') {
                     $failureDetected = $true
-                    $sdnHealthObject.Remediation += "[$_] Start the service"
+                    $sdnHealthObject.Remediation += "[$service] Start the service"
                 }
             }
         }
@@ -140,6 +146,7 @@ function Test-ServiceState {
             $sdnHealthObject.Result = 'FAIL'
         }
 
+        $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
     catch {
