@@ -1,6 +1,7 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+Import-Module $PSScriptRoot\SdnDiag.LoadBalancerMux.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 

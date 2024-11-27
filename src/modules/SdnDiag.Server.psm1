@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
+Import-Module $PSScriptRoot\SdnDiag.Server.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Server.Config.psd1"
@@ -1483,32 +1484,26 @@ function Get-SdnNetAdapterEncapOverheadConfig {
             foreach ($physicalNicIfDesc in $switch.NetAdapterInterfaceDescriptions) {
 
                 # get the encap overhead settings for each of the network interfaces within the vm switch team
-                $encapOverhead = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*Encapoverhead" -ErrorAction SilentlyContinue
-                if ($null -eq $encapoverhead) {
-                    "Network interface {0} does not support EncapOverhead." -f $physicalNicIfDesc | Trace-Output -Level:Warning
-                }
-                else {
+                $encapOverhead = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*Encapoverhead" -ErrorAction Ignore
+                if ($encapoverhead) {
                     $supportsEncapOverhead = $true
                     [int]$encapOverheadValue = $encapoverhead.DisplayValue
                 }
 
                 # get the jumbo packet settings for each of the network interfaces within the vm switch team
-                $jumboPacket = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*JumboPacket" -ErrorAction SilentlyContinue
-                if ($null -eq $jumboPacket) {
-                    "Network interface {0} does not support JumboPacket." -f $physicalNicIfDesc | Trace-Output -Level:Warning
-                }
-                else {
+                $jumboPacket = Get-NetAdapterAdvancedProperty -InterfaceDescription $physicalNicIfDesc -RegistryKeyword "*JumboPacket" -ErrorAction Ignore
+                if ($jumboPacket) {
                     $supportsJumboPacket = $true
                     [int]$jumboPacketValue = $jumboPacket.RegistryValue[0]
                 }
 
                 $object = [PSCustomObject]@{
-                    Switch               = $switch.Name
-                    NetworkInterface     = $physicalNicIfDesc
-                    EncapOverheadEnabled = $supportsEncapOverhead
-                    EncapOverheadValue   = $encapOverheadValue
-                    JumboPacketEnabled   = $supportsJumboPacket
-                    JumboPacketValue     = $jumboPacketValue
+                    Switch                         = $switch.Name
+                    NetAdapterInterfaceDescription = $physicalNicIfDesc
+                    EncapOverheadEnabled           = $supportsEncapOverhead
+                    EncapOverheadValue             = $encapOverheadValue
+                    JumboPacketEnabled             = $supportsJumboPacket
+                    JumboPacketValue               = $jumboPacketValue
                 }
 
                 # add each network interface to the interface array

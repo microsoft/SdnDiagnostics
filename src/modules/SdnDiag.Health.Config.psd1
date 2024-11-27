@@ -8,7 +8,7 @@
             Impact = "Intermittent packet loss may occur under certain conditions when routing traffic within the logical network."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
         }
-        'Test-HostRootStoreNonRootCert' = @{
+        'Test-NonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
             Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
             PublicDocUrl = ""
