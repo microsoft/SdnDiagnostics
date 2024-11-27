@@ -1,8 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-Import-Module $PSScriptRoot\SdnDiagnostics.Helper.psm1
-
 New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
@@ -41,6 +39,120 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # in some instances where powershell has been left open for a long time, we can leave behind sessions that are no longer valid
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
+
+##########################
+#### CLASSES & ENUMS #####
+##########################
+
+##########################
+#### ARG COMPLETERS ######
+##########################
+
+$argScriptBlock = @{
+    AllFabricNodes = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.FabricNodes
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($computerName | Sort-Object)
+        }
+
+        return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+
+    GatewayNodes = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.Gateway
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($computerName | Sort-Object)
+        }
+
+        return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+
+    NetworkControllerNodes = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.NetworkController
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($computerName | Sort-Object)
+        }
+
+        return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+
+    ServerNodes = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.Server
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($computerName | Sort-Object)
+        }
+
+        return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+
+    LoadBalancerMuxNodes = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $computerName = $Global:SdnDiagnostics.EnvironmentInfo.LoadBalancerMux
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($computerName | Sort-Object)
+        }
+
+        return $computerName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
+}
+
+$fabricNodeParamCommands = (
+    'Invoke-SdnCommand',
+    'Start-SdnDataCollection',
+    'Start-SdnNetshTrace',
+    'Stop-SdnNetshTrace'
+)
+
+Register-ArgumentCompleter -CommandName $fabricNodeParamCommands -ParameterName 'ComputerName' -ScriptBlock $argScriptBlock.AllFabricNodes
+
+$networkControllerParamCommands = (
+    'Debug-SdnFabricInfrastructure',
+    'Start-SdnDataCollection',
+    'Get-SdnNetworkController',
+    'Get-SdnNetworkControllerNode',
+    'Get-SdnNetworkControllerFC',
+    'Get-SdnNetworkControllerFCNode',
+    'Get-SdnNetworkControllerSF',
+    'Get-SdnNetworkControllerSFNode',
+    'Get-SdnNetworkControllerClusterInfo',
+    'Get-SdnNetworkControllerState',
+    'Get-SdnServiceFabricApplicationHealth',
+    'Get-SdnServiceFabricClusterHealth',
+    'Get-SdnServiceFabricClusterManifest',
+    'Get-SdnServiceFabricNode',
+    'Get-SdnServiceFabricReplica',
+    'Get-SdnServiceFabricService',
+    'Invoke-SdnServiceFabricCommand',
+    'Move-SdnServiceFabricReplica'
+)
+
+Register-ArgumentCompleter -CommandName $networkControllerParamCommands -ParameterName 'NetworkController' -ScriptBlock $argScriptBlock.NetworkControllerNodes
+
+$serverParamCommands = (
+    'Get-SdnOvsdbAddressMapping',
+    'Get-SdnOvsdbFirewallRule',
+    'Get-SdnOvsdbGlobalTable',
+    'Get-SdnOvsdbPhysicalPort',
+    'Get-SdnOvsdbUcastMacRemoteTable',
+    'Get-SdnProviderAddress',
+    'Get-SdnVfpVmSwitchPort',
+    'Get-SdnVMNetworkAdapter'
+)
+
+Register-ArgumentCompleter -CommandName $serverParamCommands -ParameterName 'ComputerName' -ScriptBlock $argScriptBlock.ServerNodes
+
+##########################
+####### FUNCTIONS ########
+##########################
 
 function Get-SdnConfigState {
     <#
