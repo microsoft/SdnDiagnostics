@@ -57,36 +57,43 @@ function Confirm-DiskSpace {
         $MinimumMB
     )
 
-       # try cluster first, then local machine
-       try
-       {
+    # if the file path is a cluster storage, we want to check the CSVs
+    if ($FilePath -ilike "*\ClusterStorage\*") {
+        $csvs = Get-ClusterSharedVolume | Select-Object SharedVolumeInfo
+        if ($null -ne $csvs) {
+            foreach ($csv in $csvs) {
 
-           $csvs = Get-ClusterSharedVolume | Select-Object SharedVolumeInfo
-           if ($null -ne $csvs) {
-               foreach($csv in $csvs)
-               {
-                   if(-not [string]::IsNullOrEmpty(($csv.SharedVolumeInfo.FriendlyVolumeName)) -and  `
-                           $null -ne $csv.SharedVolumeInfo.Partition -and `
-                           $FilePath.StartsWith($csv.SharedVolumeInfo.FriendlyVolumeName, [System.StringComparison]::OrdinalIgnoreCase) -and `
-                           (($csv.SharedVolumeInfo.Partition.FreeSpace/1GB -gt $MinimumGB) -and ($csv.SharedVolumeInfo.Partition.FreeSpace/1MB -gt $MinimumMB)))
-                   {
-                       "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $($csv.SharedVolumeInfo.Partition.FreeSpace/1GB)  | Trace-Output -Level:Verbose
-                       return $true
-                   }
-               }
-           }
-       }
-       catch
-       { }
+                # if the friendly volume name is empty, we want to skip
+                if ([string]::IsNullOrEmpty($csv.SharedVolumeInfo.FriendlyVolumeName)) {
+                    continue
+                }
 
-    [System.Char]$driveLetter = (Split-Path -Path $FilePath -Qualifier).Replace(':','')
+                # if the file path starts with the friendly volume name, we want to check the partition
+                if ($FilePath.StartsWith($csv.SharedVolumeInfo.FriendlyVolumeName, [System.StringComparison]::OrdinalIgnoreCase)) {
+                    if ($null -ne $csv.SharedVolumeInfo.Partition) {
+                        $freeSpace = Format-ByteSize -Bytes $csv.SharedVolumeInfo.Partition.FreeSpace
 
-    $drive = Get-PSDrive $DriveLetter -ErrorAction Stop
-    if ($null -eq $drive) {
-        throw New-Object System.NullReferenceException("Unable to retrieve PSDrive information")
+                        break
+                    }
+                }
+            }
+        }
+    }
+    else {
+        [System.Char]$driveLetter = (Split-Path -Path $FilePath -Qualifier).Replace(':','')
+
+        $drive = Get-PSDrive $DriveLetter -ErrorAction Stop
+        if ($null -eq $drive) {
+            throw New-Object System.NullReferenceException("Unable to retrieve PSDrive information")
+        }
+
+        $freeSpace = Format-ByteSize -Bytes $drive.Free
     }
 
-    $freeSpace = Format-ByteSize -Bytes $drive.Free
+    if ($null -eq $freeSpace) {
+        throw New-Object System.NullReferenceException("Unable to retrieve free space information")
+    }
+
     switch ($PSCmdlet.ParameterSetName) {
         'GB' {
             "Required: {0} GB | Available: {1} GB" -f ([float]$MinimumGB).ToString(), $freeSpace.GB | Trace-Output -Level:Verbose
