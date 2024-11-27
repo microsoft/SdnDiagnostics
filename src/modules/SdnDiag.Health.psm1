@@ -115,6 +115,39 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
     }
 }
 
+function Test-ServiceState {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [String[]]$ServiceName
+    )
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+    $failureDetected = $false
+
+    try {
+        $ServiceName | ForEach-Object {
+            $result = Get-Service -Name $_ -ErrorAction Ignore
+            if ($result) {
+                if ($result.Status -ine 'Running') {
+                    $failureDetected = $true
+                    $sdnHealthObject.Remediation += "[$_] Start the service"
+                }
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function Write-HealthValidationInfo {
     [CmdletBinding()]
     param (

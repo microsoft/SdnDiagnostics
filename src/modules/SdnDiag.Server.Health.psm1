@@ -37,6 +37,7 @@ function Debug-SdnServer {
     )
 
     $config = Get-SdnModuleConfiguration -Role 'Server'
+    [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
         Role = 'Server'
     }
@@ -52,6 +53,7 @@ function Debug-SdnServer {
             Test-ServerHostId -InstanceId $serverResource.InstanceId
             Test-VfpDuplicateMacAddress
             Test-VMNetAdapterDuplicateMacAddress
+            Test-ServiceState -ServiceName $services
         )
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL

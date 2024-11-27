@@ -15,7 +15,7 @@ Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 ####### FUNCTIONS ########
 ##########################
 
-function Debug-SdnLoadBalancerMux {
+function Debug-SdnGateway {
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
@@ -36,10 +36,10 @@ function Debug-SdnLoadBalancerMux {
         [X509Certificate]$NcRestCertificate
     )
 
-    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
+    $config = Get-SdnModuleConfiguration -Role 'Gateway'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
-        Role = 'NetworkController'
+        Role = 'Gateway'
     }
 
     $ncRestParams = $PSBoundParameters
