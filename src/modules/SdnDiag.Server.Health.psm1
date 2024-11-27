@@ -43,18 +43,26 @@ function Debug-SdnServer {
     }
 
     $ncRestParams = $PSBoundParameters
+    $serverResource = Get-SdnResource @ncRestParams -Resource:Servers -ErrorAction Ignore
 
     try {
-        $serverResource = Get-SdnResource @ncRestParams -Resource:Servers
-
+        # these tests are executed locally and have no dependencies on network controller rest API being available
         $healthReport.HealthValidation += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-EncapOverhead
-            Test-ServerHostId -InstanceId $serverResource.InstanceId
             Test-VfpDuplicateMacAddress
             Test-VMNetAdapterDuplicateMacAddress
             Test-ServiceState -ServiceName $services
+            Test-ProviderNetwork
         )
+
+        # these tests have dependencies on network controller rest API being available
+        # and will only be executed if we have been able to get the data from the network controller
+        if ($serverResource) {
+            $healthReport.HealthValidation += @(
+                Test-ServerHostId -InstanceId $serverResource.InstanceId
+            )
+        }
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
         # if any of the tests completed with Warning, we will set the aggregate result to Warning
@@ -223,6 +231,62 @@ function Test-VMNetAdapterDuplicateMacAddress {
             VMNetworkAdapters          = $vmNetAdapters
         }
 
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Test-ProviderNetwork {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+    $failureDetected = $false
+
+    try {
+        $addressMapping = Get-SdnOvsdbAddressMapping
+        if ($null -eq $addressMapping -or $addressMapping.Count -eq 0) {
+            return $sdnHealthObject
+        }
+
+        $providerAddreses = $addressMapping.ProviderAddress | Sort-Object -Unique
+        $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $providerAddreses
+
+        foreach ($destination in $connectivityResults) {
+            $sourceIPAddress = $destination.SourceAddress[0]
+            $destinationIPAddress = $destination.DestinationAddress[0]
+            $jumboPacketResult = $destination | Where-Object {$_.BufferSize -gt 1472}
+            $standardPacketResult = $destination | Where-Object {$_.BufferSize -le 1472}
+
+            if ($destination.Status -ine 'Success') {
+                $remediationMsg = $null
+                $failureDetected = $true
+
+                # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
+                if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure') {
+                    $remediationMsg = "Unable to ping Provider Addresses. Ensure ICMP enabled on $sourceIPAddress and $destinationIPAddress. If issue persists, investigate physical network."
+                    $sdnHealthObject.Remediation += $remediationMsg
+                }
+
+                # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
+                # either on the physical nic or within the physical switches between the provider addresses
+                if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success') {
+                    $remediationMsg = "Ensure the physical network between $sourceIPAddress and $destinationIPAddress are configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660."
+                    $sdnHealthObject.Remediation += $remediationMsg
+                }
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+
+        $sdnHealthObject.Properties = [PSCustomObject]@{
+            PingResults = $connectivityResults
+        }
         return $sdnHealthObject
     }
     catch {
