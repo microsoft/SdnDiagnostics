@@ -16,31 +16,6 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
 #### CLASSES & ENUMS #####
 ##########################
 
-<# REMOVE ME!!!
-class SdnHealth {
-    [String]$Name = (Get-PSCallStack)[1].Command
-    [SdnHealthResult]$Result = 'PASS'
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [Object]$Properties
-    [String[]]$Remediation
-}
-
-class SdnFabricEnvObject {
-    [String[]]$ComputerName
-    [Uri]$NcUrl
-    [Object]$Role
-    [Object]$EnvironmentInfo
-}
-
-
-class SdnFabricHealthReport {
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [String]$Role
-    [SdnHealthResult]$Result = 'PASS'
-    [Object[]]$HealthValidation
-}
-#>
-
 class SdnHealthTest {
     [String]$Name = (Get-PSCallStack)[1].Command
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
@@ -51,7 +26,7 @@ class SdnHealthTest {
     [String[]]$Remediation
 }
 
-class SdnHealthReport {
+class SdnRoleHealthReport {
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [String]$Role
     [ValidateSet('PASS', 'FAIL', 'WARNING')]

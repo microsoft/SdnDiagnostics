@@ -37,7 +37,7 @@ function Debug-SdnServer {
     )
 
     $config = Get-SdnModuleConfiguration -Role 'Server'
-    $healthReport = [SdnHealthReport]@{
+    $healthReport = [SdnRoleHealthReport]@{
         Role = 'Server'
     }
 
@@ -50,6 +50,8 @@ function Debug-SdnServer {
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-EncapOverhead
             Test-ServerHostId -InstanceId $serverResource.InstanceId
+            Test-VfpDuplicateMacAddress
+            Test-VMNetAdapterDuplicateMacAddress
         )
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
@@ -73,7 +75,6 @@ function Debug-SdnServer {
         $_ | Write-Error
     }
 }
-
 
 function Test-EncapOverhead {
     <#
@@ -158,6 +159,66 @@ function Test-ServerHostId {
             $sdnHealthObject.Properties = [PSCustomObject]@{
                 HostID = $regHostId
             }
+        }
+
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Test-VfpDuplicateMacAddress {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        $vfpPorts = Get-SdnVfpVmSwitchPort
+        $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
+        if ($duplicateObjects) {
+            $sdnHealthObject.Result = 'FAIL'
+
+            $duplicateObjects | ForEach-Object {
+                $sdnHealthObject.Remediation += "[$($_.Name)] Resolve the duplicate MAC address issue with VFP."
+            }
+        }
+
+        $sdnHealthObject.Properties = [PSCustomObject]@{
+            DuplicateVfpPorts = $duplicateObjects.Group
+            VfpPorts          = $vfpPorts
+        }
+
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Test-VMNetAdapterDuplicateMacAddress {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        $vmNetAdapters = Get-SdnVMNetworkAdapter
+        $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
+        if ($duplicateObjects) {
+            $sdnHealthObject.Result = 'FAIL'
+
+            $duplicateObjects | ForEach-Object {
+                $sdnHealthObject.Remediation += "[$($_.Name)] Resolve the duplicate MAC address issue with VMNetworkAdapters."
+            }
+        }
+
+        $sdnHealthObject.Properties = [PSCustomObject]@{
+            DuplicateVMNetworkAdapters = $duplicateObjects.Group
+            VMNetworkAdapters          = $vmNetAdapters
         }
 
         return $sdnHealthObject

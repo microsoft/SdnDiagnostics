@@ -83,7 +83,7 @@
             Impact = "SLB Manager will not be able to program VIP:DIP mappings to the Load Balancer Mux(es) which will impact routing of Virtual IPs."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
         }
-        'Test-VfpDuplicatePort' = @{
+        'Test-VfpDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected within Virtual Filtering Platform (VFP)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
             PublicDocUrl = ""
