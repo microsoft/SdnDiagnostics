@@ -5,6 +5,8 @@ using module .\SdnDiag.Health.psm1
 
 Import-Module $PSScriptRoot\SdnDiag.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
+Import-Module $PSScriptRoot\SdnDiag.NetworkController.FC.Health.psm1
+Import-Module $PSScriptRoot\SdnDiag.NetworkController.SF.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 ##########################
@@ -15,7 +17,7 @@ Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 ####### FUNCTIONS ########
 ##########################
 
-function Debug-SdnLoadBalancerMux {
+function Debug-SdnNetworkController {
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true)]
@@ -37,7 +39,6 @@ function Debug-SdnLoadBalancerMux {
     )
 
     $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-    [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
         Role = 'NetworkController'
     }
@@ -45,10 +46,27 @@ function Debug-SdnLoadBalancerMux {
     $ncRestParams = $PSBoundParameters
 
     try {
+        # execute tests for network controller, regardless of the cluster type
         $healthReport.HealthValidation += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
-            Test-ServiceState -ServiceName $services
         )
+
+        # execute tests based on the cluster type
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'FailoverCluster' {
+                $healthReport.HealthValidation += @()
+            }
+            'ServiceFabric' {
+                $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                [string[]]$services_sf = $config_sf.properties.services.Keys
+                $healthReport.HealthValidation += @(
+                    Test-ServiceState -ServiceName $services_sf
+                    Test-ServiceFabricApplicationHealth
+                    Test-ServiceFabricClusterHealth
+                    Test-ServiceFabricNodeStatus
+                )
+            }
+        }
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
         # if any of the tests completed with Warning, we will set the aggregate result to Warning

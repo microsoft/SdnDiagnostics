@@ -155,6 +155,54 @@ function Test-ServiceState {
     }
 }
 
+function Test-DiagnosticsCleanupTaskEnabled {
+    <#
+    .SYNOPSIS
+        Ensures the scheduled task responsible for etl compression is enabled and running
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+        'FailoverCluster' {
+            $taskName = "FcDiagnostics"
+        }
+        'ServiceFabric' {
+            $taskName = "SDN Diagnostics Task"
+        }
+    }
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        # check to see if logging is enabled on the registry key
+        $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled' -ErrorAction Ignore
+
+        # in this scenario, logging is currently disabled so scheduled task will not be available
+        if (-NOT $isLoggingEnabled ) {
+            return $sdnHealthObject
+        }
+
+        try {
+            $result = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+            if ($result.State -ieq 'Disabled') {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable $taskName."
+            }
+        }
+        catch {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function Write-HealthValidationInfo {
     [CmdletBinding()]
     param (
@@ -431,4 +479,3 @@ function Get-SdnFabricInfrastructureResult {
 
     return $cacheResults
 }
-

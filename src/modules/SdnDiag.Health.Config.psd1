@@ -43,7 +43,7 @@
             Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
-        'Test-ScheduledTaskEnabled' = @{
+        'Test-DiagnosticsCleanupTaskEnabled' = @{
             Description = "Scheduled task is not enabled on the SDN infrastructure node(s)."
             Impact = "Unconstrained log files may grow and consume disk space."
             PublicDocUrl = ""
