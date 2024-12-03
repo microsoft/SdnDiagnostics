@@ -1,10 +1,14 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module .\SdnDiag.HealthFault.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.FC.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.SF.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
+Import-Module $PSScriptRoot\SdnDiag.HealthFault.psm1
+
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Health.Config.psd1"
 New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
@@ -86,7 +90,11 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
     #>
 
     [CmdletBinding()]
-    param ()
+    param (
+
+        [Parameter(Mandatory = $false)]
+        [bool] $GenerateFault = $false
+    )
 
     $sdnHealthObject = [SdnHealthTest]::new()
     $array = @()
@@ -107,6 +115,36 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
         }
 
         $sdnHealthObject.Properties = $array
+
+        if($GenerateFault) {
+
+            ##########################################################################################
+            ## ServiceState Fault Template
+            ##########################################################################################
+            # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
+            # $KeyFaultingObjectID             (ARC ID)    : [HostName]
+            # $KeyFaultingObjectType           (CODE)      : "NonSelfSignedCertificateInTrustedRootStore"
+            # $FaultingObjectLocation          (SOURCE)    : "CertificateConfiguration"
+            # $FaultDescription                (MESSAGE)   : "A non self signed ceritificate was found in trusted root store. This may lead to authentication problems."
+            # $FaultActionRemediation          (ACTION)    : "Investigate and remove certificate with subject [SubjectNamesCsv]"
+            # * Fault may be issued from each node
+            ##########################################################################################
+          
+            $subjectNames = [string]::Join(",", $array.Subject)
+            $healthFault = [SdnFaultInfo]::new()
+            $healthFault.KeyFaultingObjectDescription = $Env:COMPUTERNAME
+            $healthFault.KeyFaultingObjectID = $Env:COMPUTERNAME
+            $healthFault.KeyFaultingObjectType = "NonSelfSignedCertificateInTrustedRootStore"
+            $healthFault.FaultingObjectLocation = "CertificateConfiguration"
+            $healthFault.FaultDescription =  "A non self signed ceritificate was found in trusted root store. This may lead to authentication problems."
+            $healthFault.FaultActionRemediation =  "Investigate and remove certificate with subject(s) $($subjectNames)."
+
+            if( $rootCerts -or $rootCerts.Count -gt 0) {
+                CreateorUpdateFault -Fault $healthFault
+            } else {
+                DeleteFault -Fault $healthFault
+            }
+        }
         return $sdnHealthObject
     }
     catch {
@@ -119,13 +157,16 @@ function Test-ServiceState {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [String[]]$ServiceName
+        [String[]]$ServiceName,
+
+        [Parameter(Mandatory = $false)]
+        [String[]]$GenerateFault = $false
     )
 
     $sdnHealthObject = [SdnHealthTest]::new()
     $failureDetected = $false
     $array = @()
-
+    
     try {
         foreach ($service in $ServiceName) {
             $result = Get-Service -Name $service -ErrorAction Ignore
@@ -134,18 +175,48 @@ function Test-ServiceState {
                     ServiceName = $result.Name
                     Status      = $result.Status
                 }
-
+                
                 if ($result.Status -ine 'Running') {
                     $failureDetected = $true
                     $sdnHealthObject.Remediation += "[$service] Start the service"
                 }
+                
+                # generate/clear fault
+                if($GenerateFault -and (IsSdnService -ServiceName $ServiceName) -eq $true) {
+
+                    ##########################################################################################
+                    ## ServiceState Fault Template
+                    ##########################################################################################
+                    # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
+                    # $KeyFaultingObjectID             (ARC ID)    : [ServiceName]
+                    # $KeyFaultingObjectType           (CODE)      : [ServiceDown]
+                    # $FaultingObjectLocation          (SOURCE)    : [ServiceName]
+                    # $FaultDescription                (MESSAGE)   : Service [ServiceName] is not up.
+                    # $FaultActionRemediation          (ACTION)    : [ServiceName] Start the service
+                    # *ServiceState faults will be reported from each node 
+                    ##########################################################################################
+
+                    Write-Host "Updating fault for $($ServiceName)"
+                    $healthFault = [SdnFaultInfo]::new()
+                    $healthFault.KeyFaultingObjectDescription = $Env:COMPUTERNAME
+                    $healthFault.KeyFaultingObjectID = $ServiceName
+                    $healthFault.KeyFaultingObjectType = "ServiceDown"
+                    $healthFault.FaultingObjectLocation = $ServiceName
+                    $healthFault.KeyFaultingObjectDescription = "Start the cluster service role $($ServiceName)"
+                    $healthFault.FaultingObjectLocation = $ServiceName
+
+                    if($result.Status -ine 'Running')  {
+                        DeleteFault -Fault $healthFault
+                    } else {
+                        CreateorUpdateFault -Fault $healthFault
+                    }
+                } 
             }
         }
 
         if ($failureDetected) {
             $sdnHealthObject.Result = 'FAIL'
         }
-
         $sdnHealthObject.Properties = $array
         return $sdnHealthObject
     }
@@ -154,6 +225,85 @@ function Test-ServiceState {
         $_ | Write-Error
     }
 }
+
+function Test-SdnClusterServiceState {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [String[]]$ServiceName,
+
+        [Parameter(Mandatory = $false)]
+        [String[]]$GenerateFault = $false
+    )
+
+    # todo: handle case when this is executed on non-cluster
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+    $failureDetected = $false
+    $array = @()
+    
+    try {
+        foreach ($service in $ServiceName) {
+            $result = Get-ClusterGroup -Name $service -ErrorAction Ignore
+            if ($result) {
+                $array += [PSCustomObject]@{
+                    ServiceName = $result.Name
+                    Status      = $result.State
+                }
+                
+                if ($result.State -ine 'Online') {
+                    $failureDetected = $true
+                    $sdnHealthObject.Remediation += "[$service] Start the service"
+                }
+                
+                # generate/clear fault
+                if($GenerateFault -and (IsSdnFcClusterServiceRole -ServiceName $ServiceName) -eq $true `
+                    -and (IsCurrentNodeClusterOwner -eq $true)) {
+
+                    ##########################################################################################
+                    ## FailoverClusterServiceState Fault Template
+                    ##########################################################################################
+                    # $KeyFaultingObjectDescription    (SDN ID)    : [ServiceName]
+                    # $KeyFaultingObjectID             (ARC ID)    : [ServiceName]
+                    # $KeyFaultingObjectType           (CODE)      : [ServiceDown]
+                    # $FaultingObjectLocation          (SOURCE)    : [ServiceName]
+                    # $FaultDescription                (MESSAGE)   : Service [ServiceName] is not up.
+                    # $FaultActionRemediation          (ACTION)    : [ServiceName] Start the service
+                    # *ServiceState faults will be reported only on one (primary) cluster node 
+                    ##########################################################################################
+                    
+                    Write-Host "Updating fault for $($ServiceName)"
+                    $healthFault = [SdnFaultInfo]::new()
+                    $healthFault.KeyFaultingObjectDescription = $ServiceName
+                    $healthFault.KeyFaultingObjectID = $ServiceName
+                    $healthFault.KeyFaultingObjectType = "ServiceDown"
+                    $healthFault.FaultingObjectLocation = $ServiceName
+                    $healthFault.FaultDescription = "Service $($ServiceName) is down on Failover Cluster"
+                    $healthFault.FaultActionRemediation = "Start the cluster service role $($ServiceName)"
+
+                    if($result.State -eq 'Offline')  {
+                        CreateorUpdateFault -Fault $healthFault -Verbose
+                    } else {
+                        DeleteFault -Fault $healthFault -Verbose
+                    }
+                } 
+            } else {
+                # todo: handle cluster errors when FC fails to return a cluster group
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+        $sdnHealthObject.Properties = $array
+        return $sdnHealthObject
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 
 function Test-DiagnosticsCleanupTaskEnabled {
     <#

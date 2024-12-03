@@ -54,7 +54,13 @@ function Debug-SdnNetworkController {
         # execute tests based on the cluster type
         switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
-                $healthReport.HealthValidation += @()
+                $config_fc = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
+                # helper has no instance, and thus we filter it out
+                [string[]]$services_fc = ($config_fc.Properties.Services.Values.properties.Ownergroupname | ?{$_ -ne $null -and $_ -ne ""})
+                $healthReport.HealthValidation += @(
+                    Test-SdnClusterServiceState -ServiceName $services_fc
+                )
+
             }
             'ServiceFabric' {
                 $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'

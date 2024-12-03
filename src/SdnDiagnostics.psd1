@@ -33,6 +33,7 @@
         'modules\SdnDiag.Common.psm1'
         'modules\SdnDiag.Gateway.psm1'
         'modules\SdnDiag.Health.psm1'
+        'modules\SdnDiag.HealthFault.psm1'
         'modules\SdnDiag.LoadBalancerMux.psm1'
         'modules\SdnDiag.NetworkController.psm1'
         'modules\SdnDiag.NetworkController.FC.psm1'
