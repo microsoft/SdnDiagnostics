@@ -2,7 +2,6 @@
 # Licensed under the MIT License.
 
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
-Import-Module $PSScriptRoot\SdnDiag.Server.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Server.Config.psd1"
