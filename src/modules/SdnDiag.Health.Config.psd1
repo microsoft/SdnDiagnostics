@@ -8,7 +8,7 @@
             Impact = "Intermittent packet loss may occur under certain conditions when routing traffic within the logical network."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#check-mtu-and-jumbo-frame-support-on-hnv-provider-logical-network"
         }
-        'Test-HostRootStoreNonRootCert' = @{
+        'Test-NonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
             Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
             PublicDocUrl = ""
@@ -43,7 +43,7 @@
             Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
-        'Test-ScheduledTaskEnabled' = @{
+        'Test-DiagnosticsCleanupTaskEnabled' = @{
             Description = "Scheduled task is not enabled on the SDN infrastructure node(s)."
             Impact = "Unconstrained log files may grow and consume disk space."
             PublicDocUrl = ""
@@ -83,7 +83,7 @@
             Impact = "SLB Manager will not be able to program VIP:DIP mappings to the Load Balancer Mux(es) which will impact routing of Virtual IPs."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
         }
-        'Test-VfpDuplicatePort' = @{
+        'Test-VfpDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected within Virtual Filtering Platform (VFP)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
             PublicDocUrl = ""
