@@ -31,12 +31,16 @@
     # Modules to import as nested modules of the module specified in RootModule/ModuleToProcess
     NestedModules = @(
         'modules\SdnDiag.Common.psm1'
+        'modules\SdnDiag.Gateway.Health.psm1'
         'modules\SdnDiag.Gateway.psm1'
         'modules\SdnDiag.Health.psm1'
         'modules\SdnDiag.LoadBalancerMux.psm1'
+        'modules\SdnDiag.LoadBalancerMux.Health.psm1'
         'modules\SdnDiag.NetworkController.psm1'
+        'modules\SdnDiag.NetworkController.Health.psm1'
         'modules\SdnDiag.NetworkController.FC.psm1'
         'modules\SdnDiag.NetworkController.SF.psm1'
+        'modules\SdnDiag.NetworkController.SF.Health.psm1'
         'modules\SdnDiag.Server.psm1'
         'modules\SdnDiag.Server.Health.psm1'
         'modules\SdnDiag.Utilities.psm1'
@@ -56,6 +60,9 @@
         'Copy-SdnFileToComputer',
         'Convert-SdnEtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
+        'Debug-SdnGateway',
+        'Debug-SdnLoadBalancerMux',
+        'Debug-SdnNetworkController',
         'Debug-SdnServer',
         'Disable-SdnRasGatewayTracing',
         'Enable-SdnRasGatewayTracing',

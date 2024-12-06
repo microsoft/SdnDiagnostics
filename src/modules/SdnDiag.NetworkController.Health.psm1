@@ -5,7 +5,6 @@ using module .\SdnDiag.Health.psm1
 
 Import-Module $PSScriptRoot\SdnDiag.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
-Import-Module $PSScriptRoot\SdnDiag.NetworkController.FC.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.SF.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
@@ -83,7 +82,6 @@ function Debug-SdnNetworkController {
         }
 
         return $healthReport
-
     }
     catch {
         $_ | Trace-Exception

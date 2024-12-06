@@ -77,13 +77,12 @@ function Debug-SdnServer {
                 break
             }
         }
-
-        return $healthReport
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-EncapOverhead {
@@ -132,13 +131,12 @@ function Test-EncapOverhead {
                 # do nothing here at this time as may be expected if no workloads deployed to host
             }
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-ServerHostId {
@@ -171,12 +169,12 @@ function Test-ServerHostId {
             }
         }
 
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-VfpDuplicateMacAddress {
@@ -200,13 +198,12 @@ function Test-VfpDuplicateMacAddress {
             DuplicateVfpPorts = $duplicateObjects.Group
             VfpPorts          = $vfpPorts
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-VMNetAdapterDuplicateMacAddress {
@@ -230,13 +227,12 @@ function Test-VMNetAdapterDuplicateMacAddress {
             DuplicateVMNetworkAdapters = $duplicateObjects.Group
             VMNetworkAdapters          = $vmNetAdapters
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-ProviderNetwork {
@@ -290,7 +286,8 @@ function Test-ProviderNetwork {
         return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }

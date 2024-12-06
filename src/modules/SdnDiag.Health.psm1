@@ -143,12 +143,12 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
         }
 
         $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-ServiceState {
@@ -186,9 +186,10 @@ function Test-ServiceState {
         return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-DiagnosticsCleanupTaskEnabled {
@@ -230,13 +231,12 @@ function Test-DiagnosticsCleanupTaskEnabled {
         catch {
             $sdnHealthObject.Result = 'FAIL'
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Debug-SdnFabricInfrastructure {

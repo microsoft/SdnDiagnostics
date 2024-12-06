@@ -27,18 +27,17 @@ function Test-ServiceFabricApplicationHealth {
     $sdnHealthObject = [SdnHealthTest]::new()
 
     try {
-        $applicationHealth = Get-SdnServiceFabricApplicationHealth
+        $applicationHealth = Get-SdnServiceFabricApplicationHealth -ErrorAction Stop
         if ($applicationHealth.AggregatedHealthState -ine 'Ok') {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation += "Examine the Service Fabric Application Health for Network Controller to determine why the health is not OK."
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-ServiceFabricClusterHealth {
@@ -53,18 +52,17 @@ function Test-ServiceFabricClusterHealth {
     $sdnHealthObject = [SdnHealthTest]::new()
 
     try {
-        $clusterHealth = Get-SdnServiceFabricClusterHealth
+        $clusterHealth = Get-SdnServiceFabricClusterHealth -ErrorAction Stop
         if ($clusterHealth.AggregatedHealthState -ine 'Ok') {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation += "Examine the Service Fabric Cluster Health for Network Controller to determine why the health is not OK."
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
 
 function Test-ServiceFabricNodeStatus {
@@ -74,20 +72,12 @@ function Test-ServiceFabricNodeStatus {
     #>
 
     [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
+    param ()
 
     $sdnHealthObject = [SdnHealthTest]::new()
 
     try {
-        $ncNodes = Get-SdnServiceFabricNode
+        $ncNodes = Get-SdnServiceFabricNode -NodeName $env:COMPUTERNAME -ErrorAction Stop
         if ($null -eq $ncNodes) {
             $sdnHealthObject.Result = 'FAIL'
             return $sdnHealthObject
@@ -97,11 +87,10 @@ function Test-ServiceFabricNodeStatus {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
         }
-
-        return $sdnHealthObject
     }
     catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
+        $sdnHealthObject.Result = 'FAIL'
     }
+
+    return $sdnHealthObject
 }
