@@ -291,3 +291,37 @@ function Test-ProviderNetwork {
 
     return $sdnHealthObject
 }
+
+function Test-HostAgentConnectionState {
+    [CmdletBinding()]
+    param()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        $tcpConnection = Get-NetTCPConnection -RemotePort 6640 -ErrorAction Ignore | Where-Object { $_.State -eq "Established" }
+        if ($null -eq $tcpConnection) {
+            $sdnHealthObject.Result = 'FAIL'
+            return $sdnHealthObject
+        }
+
+        if ($tcpConnection.ConnectionState -ine 'Connected') {
+            $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
+            if ($serviceState.Status -ine 'Running') {
+                $sdnHealthObject.Result = 'WARNING'
+                $sdnHealthObject.Remediation += "Ensure the NCHostAgent service is running."
+            }
+            else {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Ensure that Network Controller ApiService is healthy and operational. Investigate and fix TCP / TLS connectivity issues."
+            }
+        }
+
+        $sdnHealthObject.Properties = $tcpConnection
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
+}

@@ -45,9 +45,16 @@ function Debug-SdnLoadBalancerMux {
     $ncRestParams = $PSBoundParameters
 
     try {
+        $muxCertRegKey = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux" -Name MuxCert
+        $virtualServers = Get-SdnResource -Resource VirtualServers @ncRestParams
+        $muxVirtualServer = $virtualServers | Where-Object {$_.properties.connections.managementaddresses -contains $muxCertRegKey.MuxCert}
+        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams | Where-Object {$_.properties.virtualserver.resourceRef -ieq $muxVirtualServer.resourceRef}
+        $peerRouters = $loadBalancerMux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
+
         $healthReport.HealthValidation += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-ServiceState -ServiceName $services
+            Test-MuxBgpConnectionState -RouterIPAddress $peerRouters
         )
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
@@ -71,4 +78,35 @@ function Debug-SdnLoadBalancerMux {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+}
+
+function Test-MuxBgpConnectionState {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$RouterIPAddress
+    )
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        foreach ($router in $RouterIPAddress) {
+            $tcpConnection = Get-NetTCPConnection -RemotePort 179 -RemoteAddress $router -ErrorAction Ignore
+            if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Examine the TCP connectivity for router $router to determine why TCP connection is not established."
+            }
+
+            if ($tcpConnection) {
+                $sdnHealthObject.Properties += [PSCustomObject]@{
+                    NetTCPConnection = $tcpConnection
+                }
+            }
+        }
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
 }
