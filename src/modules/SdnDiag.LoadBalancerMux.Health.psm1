@@ -53,8 +53,10 @@ function Debug-SdnLoadBalancerMux {
 
         $healthReport.HealthValidation += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-ServiceState -ServiceName $services
-            Test-MuxBgpConnectionState -RouterIPAddress $peerRouters
+            Test-MuxConnectionStateToRouter -RouterIPAddress $peerRouters
+            Test-MuxConnectionStateToSlbManager
         )
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
@@ -80,7 +82,12 @@ function Debug-SdnLoadBalancerMux {
     }
 }
 
-function Test-MuxBgpConnectionState {
+function Test-MuxConnectionStateToRouter {
+    <#
+    SYNOPSIS
+        Validates the TCP connectivity for BGP endpoint to the routers.
+    #>
+
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -101,6 +108,35 @@ function Test-MuxBgpConnectionState {
                 $sdnHealthObject.Properties += [PSCustomObject]@{
                     NetTCPConnection = $tcpConnection
                 }
+            }
+        }
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
+}
+
+function Test-MuxConnectionStateToSlbManager {
+    <#
+        SYNOPSIS
+        Validates the TCP / TLS connectivity to the SlbManager service.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    try {
+        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore
+        if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+            $sdnHealthObject.Result = 'FAIL'
+            $sdnHealthObject.Remediation += "Move SlbManager service primary role to another node. Examine the TCP / TLS connectivity for the SlbManager service."
+        }
+
+        if ($tcpConnection) {
+            $sdnHealthObject.Properties = [PSCustomObject]@{
+                NetTCPConnection = $tcpConnection
             }
         }
     }

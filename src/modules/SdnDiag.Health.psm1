@@ -34,6 +34,13 @@ class SdnRoleHealthReport {
     [Object[]]$HealthValidation
 }
 
+class SdnFabricHealthReport {
+    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
+    [ValidateSet('PASS', 'FAIL', 'WARNING')]
+    [String]$Result = 'PASS'
+    [Object[]]$SdnRoleHealthReport
+}
+
 ##########################
 #### ARG COMPLETERS ######
 ##########################
@@ -199,16 +206,10 @@ function Test-DiagnosticsCleanupTaskEnabled {
     #>
 
     [CmdletBinding()]
-    param ()
-
-    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
-        'FailoverCluster' {
-            $taskName = "FcDiagnostics"
-        }
-        'ServiceFabric' {
-            $taskName = "SDN Diagnostics Task"
-        }
-    }
+    param (
+        [Parameter(Mandatory = $false)]
+        [String]$TaskName
+    )
 
     $sdnHealthObject = [SdnHealthTest]::new()
 
@@ -222,10 +223,10 @@ function Test-DiagnosticsCleanupTaskEnabled {
         }
 
         try {
-            $result = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+            $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
             if ($result.State -ieq 'Disabled') {
                 $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable $taskName."
+                $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable $TaskName."
             }
         }
         catch {
@@ -291,10 +292,6 @@ function Debug-SdnFabricInfrastructure {
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
         [X509Certificate]$NcRestCertificate
     )
-
-    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
-        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
-    }
 
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()

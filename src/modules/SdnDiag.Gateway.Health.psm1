@@ -47,6 +47,7 @@ function Debug-SdnGateway {
     try {
         $healthReport.HealthValidation += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-ServiceState -ServiceName $services
         )
 

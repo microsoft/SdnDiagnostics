@@ -53,12 +53,16 @@ function Debug-SdnNetworkController {
         # execute tests based on the cluster type
         switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
-                $healthReport.HealthValidation += @()
+                $config_fc = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
+                $healthReport.HealthValidation += @(
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'FcDiagnostics'
+                )
             }
             'ServiceFabric' {
                 $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
                 [string[]]$services_sf = $config_sf.properties.services.Keys
                 $healthReport.HealthValidation += @(
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
                     Test-ServiceState -ServiceName $services_sf
                     Test-ServiceFabricApplicationHealth
                     Test-ServiceFabricClusterHealth
