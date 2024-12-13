@@ -36,6 +36,7 @@ function Debug-SdnLoadBalancerMux {
         [X509Certificate]$NcRestCertificate
     )
 
+    Confirm-IsLoadBalancerMux
     $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
@@ -51,19 +52,20 @@ function Debug-SdnLoadBalancerMux {
         $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams | Where-Object {$_.properties.virtualserver.resourceRef -ieq $muxVirtualServer.resourceRef}
         $peerRouters = $loadBalancerMux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
 
-        $healthReport.HealthValidation += @(
+        $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-ServiceState -ServiceName $services
             Test-MuxConnectionStateToRouter -RouterIPAddress $peerRouters
             Test-MuxConnectionStateToSlbManager
+            Test-NetworkControllerApiNameResolution -NcUri $NcUri
         )
 
         # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
         # if any of the tests completed with Warning, we will set the aggregate result to Warning
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
-        foreach ($healthStatus in $healthReport.HealthValidation) {
+        foreach ($healthStatus in $healthReport.HealthTest) {
             if ($healthStatus.Result -eq 'Warning') {
                 $healthReport.Result = $healthStatus.Result
             }
@@ -126,6 +128,8 @@ function Test-MuxConnectionStateToSlbManager {
 
     [CmdletBinding()]
     param()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
 
     try {
         $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore

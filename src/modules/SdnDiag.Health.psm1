@@ -31,14 +31,14 @@ class SdnRoleHealthReport {
     [String]$Role
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
     [String]$Result = 'PASS'
-    [Object[]]$HealthValidation
+    [SdnHealthTest[]]$HealthTest
 }
 
 class SdnFabricHealthReport {
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
     [String]$Result = 'PASS'
-    [Object[]]$SdnRoleHealthReport
+    [SdnRoleHealthReport[]]$RoleTest
 }
 
 ##########################
@@ -120,124 +120,6 @@ function Write-HealthValidationInfo {
     $outputString += "`r`n"
 
     $outputString | Write-Host -ForegroundColor Yellow
-}
-
-function Test-NonSelfSignedCertificateInTrustedRootStore {
-    <#
-    .SYNOPSIS
-        Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
-    #>
-
-    [CmdletBinding()]
-    param ()
-
-    $sdnHealthObject = [SdnHealthTest]::new()
-    $array = @()
-
-    try {
-        $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
-        if ($rootCerts -or $rootCerts.Count -gt 0) {
-            $sdnHealthObject.Result = 'FAIL'
-
-            $rootCerts | ForEach-Object {
-                $sdnHealthObject.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
-                $array += [PSCustomObject]@{
-                    Thumbprint = $rootCert.Thumbprint
-                    Subject    = $rootCert.Subject
-                    Issuer     = $rootCert.Issuer
-                }
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-    }
-    catch {
-        $sdnHealthObject.Result = 'FAIL'
-    }
-
-    return $sdnHealthObject
-}
-
-function Test-ServiceState {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [String[]]$ServiceName
-    )
-
-    $sdnHealthObject = [SdnHealthTest]::new()
-    $failureDetected = $false
-    $array = @()
-
-    try {
-        foreach ($service in $ServiceName) {
-            $result = Get-Service -Name $service -ErrorAction Ignore
-            if ($result) {
-                $array += [PSCustomObject]@{
-                    ServiceName = $result.Name
-                    Status      = $result.Status
-                }
-
-                if ($result.Status -ine 'Running') {
-                    $failureDetected = $true
-                    $sdnHealthObject.Remediation += "[$service] Start the service"
-                }
-            }
-        }
-
-        if ($failureDetected) {
-            $sdnHealthObject.Result = 'FAIL'
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $sdnHealthObject.Result = 'FAIL'
-    }
-
-    return $sdnHealthObject
-}
-
-function Test-DiagnosticsCleanupTaskEnabled {
-    <#
-    .SYNOPSIS
-        Ensures the scheduled task responsible for etl compression is enabled and running
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $false)]
-        [String]$TaskName
-    )
-
-    $sdnHealthObject = [SdnHealthTest]::new()
-
-    try {
-        # check to see if logging is enabled on the registry key
-        $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled' -ErrorAction Ignore
-
-        # in this scenario, logging is currently disabled so scheduled task will not be available
-        if (-NOT $isLoggingEnabled ) {
-            return $sdnHealthObject
-        }
-
-        try {
-            $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
-            if ($result.State -ieq 'Disabled') {
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable $TaskName."
-            }
-        }
-        catch {
-            $sdnHealthObject.Result = 'FAIL'
-        }
-    }
-    catch {
-        $sdnHealthObject.Result = 'FAIL'
-    }
-
-    return $sdnHealthObject
 }
 
 function Debug-SdnFabricInfrastructure {
@@ -356,43 +238,28 @@ function Debug-SdnFabricInfrastructure {
             }
 
             $restApiParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
+                NcUrl = $sdnFabricDetails.NcUrl
             }
             $restApiParams += $restCredParam
-
-            $computerCredParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
-                Credential              = $Credential
-            }
-
-            $computerCredAndRestApiParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
-                Credential              = $Credential
-            }
-            $computerCredAndRestApiParams += $restCredParam
 
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
 
-            # perform the health validations for the appropriate roles that were specified directly
-            # or determined via which ComputerNames were defined
-            switch ($object) {
-                'Gateway' {
-                    $roleHealthReport.HealthValidation += @()
-                }
-
-                'LoadBalancerMux' {
-                    $roleHealthReport.HealthValidation += @()
-                }
-
-                'NetworkController' {
-                    $roleHealthReport.HealthValidation += @()
-                }
-
-                'Server' {
-                    $roleHealthReport.HealthValidation += @()
-                }
+            $params = @{
+                ComputerName = $sdnFabricDetails.ComputerName
+                Credential = $Credential
+                ScriptBlock = $null
+                ArgumentList = $restCredParam
             }
+
+            switch ($object) {
+                'Gateway' { $restParams.ScriptBlock = { Debug-SdnGateway } }
+                'LoadBalancerMux' { $restParams.ScriptBlock = { Debug-SdnLoadBalancerMux } }
+                'NetworkController' { $restParams.ScriptBlock = { Debug-SdnNetworkController } }
+                'Server' { $restParams.ScriptBlock = { Debug-SdnServer } }
+            }
+
+            Invoke-SdnCommand @params
 
             # add the individual role health report to the aggregate report
             $aggregateHealthReport += $roleHealthReport
@@ -475,4 +342,163 @@ function Get-SdnFabricInfrastructureResult {
     }
 
     return $cacheResults
+}
+
+function Test-NonSelfSignedCertificateInTrustedRootStore {
+    <#
+    .SYNOPSIS
+        Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+    $array = @()
+
+    try {
+        $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
+        if ($rootCerts -or $rootCerts.Count -gt 0) {
+            $sdnHealthObject.Result = 'FAIL'
+
+            $rootCerts | ForEach-Object {
+                $sdnHealthObject.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
+                $array += [PSCustomObject]@{
+                    Thumbprint = $rootCert.Thumbprint
+                    Subject    = $rootCert.Subject
+                    Issuer     = $rootCert.Issuer
+                }
+            }
+        }
+
+        $sdnHealthObject.Properties = $array
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
+}
+
+function Test-ServiceState {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [String[]]$ServiceName
+    )
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+    $failureDetected = $false
+    $array = @()
+
+    try {
+        foreach ($service in $ServiceName) {
+            $result = Get-Service -Name $service -ErrorAction Ignore
+            if ($result) {
+                $array += [PSCustomObject]@{
+                    ServiceName = $result.Name
+                    Status      = $result.Status
+                }
+
+                if ($result.Status -ine 'Running') {
+                    $failureDetected = $true
+                    $sdnHealthObject.Remediation += "[$service] Start the service"
+                }
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+
+        $sdnHealthObject.Properties = $array
+        return $sdnHealthObject
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
+}
+
+function Test-DiagnosticsCleanupTaskEnabled {
+    <#
+    .SYNOPSIS
+        Ensures the scheduled task responsible for etl compression is enabled and running
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('FcDiagnostics', 'SDN Diagnostics Task')]
+        [String]$TaskName
+    )
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        # check to see if logging is enabled on the registry key
+        $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled' -ErrorAction Ignore
+
+        # in this scenario, logging is currently disabled so scheduled task will not be available
+        if (-NOT $isLoggingEnabled ) {
+            return $sdnHealthObject
+        }
+
+        try {
+            $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+            if ($result.State -ieq 'Disabled') {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask -TaskName $TaskName'."
+            }
+        }
+        catch {
+            $sdnHealthObject.Result = 'FAIL'
+        }
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
+}
+
+function Test-NetworkControllerApiNameResolution {
+    <#
+    .SYNOPSIS
+        Validates that the Network Controller API is resolvable via DNS
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri
+    )
+
+    $sdnHealthObject = [SdnHealthTest]::new()
+
+    try {
+        # check to see if the Uri is an IP address or a DNS name
+        # if it is a DNS name, we need to ensure that it is resolvable
+        # if it is an IP address, we can skip the DNS resolution check
+        $isIpAddress = [System.Net.IPAddress]::TryParse($NcUri.Host, [ref]$null)
+        if (-NOT $isIpAddress) {
+            $dnsResult = Resolve-DnsName -Name $NcUri.Host -ErrorAction Ignore
+            if ($null -eq $dnsResult) {
+                $sdnHealthObject.Result = 'FAIL'
+                $sdnHealthObject.Remediation += "Ensure that the DNS server(s) are reachable and DNS record exists."
+            }
+        }
+    }
+    catch {
+        $sdnHealthObject.Result = 'FAIL'
+    }
+
+    return $sdnHealthObject
 }

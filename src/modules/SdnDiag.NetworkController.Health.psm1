@@ -46,7 +46,7 @@ function Debug-SdnNetworkController {
 
     try {
         # execute tests for network controller, regardless of the cluster type
-        $healthReport.HealthValidation += @(
+        $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
         )
 
@@ -54,14 +54,14 @@ function Debug-SdnNetworkController {
         switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
                 $config_fc = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-                $healthReport.HealthValidation += @(
+                $healthReport.HealthTest += @(
                     Test-DiagnosticsCleanupTaskEnabled -TaskName 'FcDiagnostics'
                 )
             }
             'ServiceFabric' {
                 $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
                 [string[]]$services_sf = $config_sf.properties.services.Keys
-                $healthReport.HealthValidation += @(
+                $healthReport.HealthTest += @(
                     Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
                     Test-ServiceState -ServiceName $services_sf
                     Test-ServiceFabricApplicationHealth
@@ -75,7 +75,7 @@ function Debug-SdnNetworkController {
         # if any of the tests completed with Warning, we will set the aggregate result to Warning
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
-        foreach ($healthStatus in $healthReport.HealthValidation) {
+        foreach ($healthStatus in $healthReport.HealthTest) {
             if ($healthStatus.Result -eq 'Warning') {
                 $healthReport.Result = $healthStatus.Result
             }

@@ -175,6 +175,30 @@ function Confirm-IsNetworkController {
     }
 }
 
+function Confirm-IsLoadBalancerMux {
+    $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
+    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+    if (-NOT ($confirmFeatures)) {
+        throw New-Object System.NotSupportedException("The current machine is not a LoadBalancerMux. Run this on LoadBalancerMux.")
+    }
+}
+
+function Confirm-IsServer {
+    $config = Get-SdnModuleConfiguration -Role 'Server'
+    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+    if (-NOT ($confirmFeatures)) {
+        throw New-Object System.NotSupportedException("The current machine is not a Server. Run this on Server.")
+    }
+}
+
+function Confirm-IsRasGateway {
+    $config = Get-SdnModuleConfiguration -Role 'Gateway'
+    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
+    if (-NOT ($confirmFeatures)) {
+        throw New-Object System.NotSupportedException("The current machine is not a Gateway. Run this on Gateway.")
+    }
+}
+
 function Confirm-ProvisioningStateSucceeded {
     <#
     .SYNOPSIS

@@ -1873,6 +1873,7 @@ function Repair-SdnDiagnosticsScheduledTask {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
+        [ValidateSet('FcDiagnostics', 'SDN Diagnostics Task')]
         [string]$TaskName
     )
 

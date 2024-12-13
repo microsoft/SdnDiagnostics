@@ -36,6 +36,7 @@ function Debug-SdnGateway {
         [X509Certificate]$NcRestCertificate
     )
 
+    Confirm-IsRasGateway
     $config = Get-SdnModuleConfiguration -Role 'Gateway'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
@@ -45,7 +46,7 @@ function Debug-SdnGateway {
     $ncRestParams = $PSBoundParameters
 
     try {
-        $healthReport.HealthValidation += @(
+        $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-ServiceState -ServiceName $services
@@ -55,7 +56,7 @@ function Debug-SdnGateway {
         # if any of the tests completed with Warning, we will set the aggregate result to Warning
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
-        foreach ($healthStatus in $healthReport.HealthValidation) {
+        foreach ($healthStatus in $healthReport.HealthTest) {
             if ($healthStatus.Result -eq 'Warning') {
                 $healthReport.Result = $healthStatus.Result
             }

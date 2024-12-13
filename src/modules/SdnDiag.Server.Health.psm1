@@ -36,6 +36,7 @@ function Debug-SdnServer {
         [X509Certificate]$NcRestCertificate
     )
 
+    Confirm-IsServer
     $config = Get-SdnModuleConfiguration -Role 'Server'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = [SdnRoleHealthReport]@{
@@ -47,7 +48,7 @@ function Debug-SdnServer {
 
     try {
         # these tests are executed locally and have no dependencies on network controller rest API being available
-        $healthReport.HealthValidation += @(
+        $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-EncapOverhead
             Test-VfpDuplicateMacAddress
@@ -55,12 +56,13 @@ function Debug-SdnServer {
             Test-ServiceState -ServiceName $services
             Test-ProviderNetwork
             Test-HostAgentConnectionStateToApiService
+            Test-NetworkControllerApiNameResolution -NcUri $NcUri
         )
 
         # these tests have dependencies on network controller rest API being available
         # and will only be executed if we have been able to get the data from the network controller
         if ($serverResource) {
-            $healthReport.HealthValidation += @(
+            $healthReport.HealthTest += @(
                 Test-ServerHostId -InstanceId $serverResource.InstanceId
             )
         }
@@ -69,7 +71,7 @@ function Debug-SdnServer {
         # if any of the tests completed with Warning, we will set the aggregate result to Warning
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
-        foreach ($healthStatus in $healthReport.HealthValidation) {
+        foreach ($healthStatus in $healthReport.HealthTest) {
             if ($healthStatus.Result -eq 'Warning') {
                 $healthReport.Result = $healthStatus.Result
             }
@@ -80,10 +82,10 @@ function Debug-SdnServer {
         }
     }
     catch {
-        $sdnHealthObject.Result = 'FAIL'
+        $healthReport.Result = 'FAIL'
     }
 
-    return $sdnHealthObject
+    return $healthReport
 }
 
 function Test-EncapOverhead {
