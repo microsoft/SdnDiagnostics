@@ -20,7 +20,6 @@ class SdnHealthTest {
     [String]$Name = (Get-PSCallStack)[1].Command
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
     [String]$Result = 'PASS'
-    [String]$ComputerName = $env:COMPUTERNAME
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
     [String[]]$Remediation
@@ -28,6 +27,7 @@ class SdnHealthTest {
 
 class SdnRoleHealthReport {
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
+    [String]$ComputerName = $env:COMPUTERNAME
     [String]$Role
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
     [String]$Result = 'PASS'
@@ -496,7 +496,7 @@ function Debug-SdnServer {
 
     # return the health report as a JSON object to the caller to prevent deserialization issues
     # when invoking this function from a remote session
-    return ($healthReport | ConvertTo-Json -Depth 4)
+    return ($healthReport | ConvertTo-Json -Depth 5)
 }
 
 function Debug-SdnLoadBalancerMux {
@@ -1043,7 +1043,6 @@ function Test-HostAgentConnectionStateToApiService {
 ###################################
 ###### NC HEALTH VALIDATIONS ######
 ###################################
-
 
 function Test-ServiceFabricApplicationHealth {
     <#
