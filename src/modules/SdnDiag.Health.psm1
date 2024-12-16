@@ -36,6 +36,7 @@ class SdnRoleHealthReport {
 
 class SdnFabricHealthReport {
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
+    [String]$Role
     [ValidateSet('PASS', 'FAIL', 'WARNING')]
     [String]$Result = 'PASS'
     [Collections.Generic.List[SdnRoleHealthReport]]$RoleTest
@@ -215,7 +216,8 @@ function Debug-SdnFabricInfrastructure {
                 Role = $object.ToString()
             }
 
-            $sdnFabricDetails = [SdnFabricEnvObject]@{
+            $sdnFabricDetails = [PSCustomObject]@{
+                ComputerName = $null
                 NcUrl = $environmentInfo.NcUrl
                 Role  = $config
                 EnvironmentInfo = $environmentInfo
@@ -238,7 +240,7 @@ function Debug-SdnFabricInfrastructure {
             }
 
             $restApiParams = @{
-                NcUrl = $sdnFabricDetails.NcUrl
+                NcUri = $sdnFabricDetails.NcUrl
             }
             $restApiParams += $restCredParam
 
@@ -249,17 +251,18 @@ function Debug-SdnFabricInfrastructure {
                 ComputerName = $sdnFabricDetails.ComputerName
                 Credential = $Credential
                 ScriptBlock = $null
-                ArgumentList = $restCredParam
+                ArgumentList = @($restApiParams)
             }
 
             switch ($object) {
-                'Gateway' { $restParams.ScriptBlock = { Debug-SdnGateway } }
-                'LoadBalancerMux' { $restParams.ScriptBlock = { Debug-SdnLoadBalancerMux } }
-                'NetworkController' { $restParams.ScriptBlock = { Debug-SdnNetworkController } }
-                'Server' { $restParams.ScriptBlock = { Debug-SdnServer } }
+                'Gateway' { $params.ScriptBlock = { param($boundParams) Debug-SdnGateway @boundParams } }
+                'LoadBalancerMux' { $params.ScriptBlock = { param($boundParams) Debug-SdnLoadBalancerMux @boundParams } }
+                'NetworkController' { $params.ScriptBlock = { param($boundParams) Debug-SdnNetworkController @boundParams } }
+                'Server' { $params.ScriptBlock = { param($boundParams) Debug-SdnServer @boundParams } }
             }
 
-            Invoke-SdnCommand @params
+            $jsonResult = Invoke-PSRemoteCommand @params
+            $jsonObject = $jsonResult | ConvertFrom-Json
 
             # add the individual role health report to the aggregate report
             $aggregateHealthReport += $roleHealthReport
@@ -1018,8 +1021,6 @@ function Test-HostAgentConnectionStateToApiService {
         }
 
         if ($tcpConnection) {
-            $sdnHealthObject.Properties = $tcpConnection
-
             if ($tcpConnection.ConnectionState -ine 'Connected') {
                 $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
                 if ($serviceState.Status -ine 'Running') {
@@ -1149,12 +1150,6 @@ function Test-MuxConnectionStateToRouter {
                 $sdnHealthObject.Result = 'FAIL'
                 $sdnHealthObject.Remediation += "Examine the TCP connectivity for router $router to determine why TCP connection is not established."
             }
-
-            if ($tcpConnection) {
-                $sdnHealthObject.Properties += [PSCustomObject]@{
-                    NetTCPConnection = $tcpConnection
-                }
-            }
         }
     }
     catch {
@@ -1180,12 +1175,6 @@ function Test-MuxConnectionStateToSlbManager {
         if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
             $sdnHealthObject.Result = 'FAIL'
             $sdnHealthObject.Remediation += "Move SlbManager service primary role to another node. Examine the TCP / TLS connectivity for the SlbManager service."
-        }
-
-        if ($tcpConnection) {
-            $sdnHealthObject.Properties = [PSCustomObject]@{
-                NetTCPConnection = $tcpConnection
-            }
         }
     }
     catch {
