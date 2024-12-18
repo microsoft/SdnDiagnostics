@@ -55,6 +55,10 @@
         'Copy-SdnFileToComputer',
         'Convert-SdnEtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
+        'Debug-SdnGateway',
+        'Debug-SdnLoadBalancerMux',
+        'Debug-SdnNetworkController',
+        'Debug-SdnServer',
         'Disable-SdnRasGatewayTracing',
         'Enable-SdnRasGatewayTracing',
         'Enable-SdnVipTrace'
