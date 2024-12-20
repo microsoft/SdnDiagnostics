@@ -16,76 +16,6 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
 #### CLASSES & ENUMS #####
 ##########################
 
-class SdnHealthTest {
-    [String]$Name = (Get-PSCallStack)[1].Command
-    [ValidateSet('PASS', 'FAIL', 'WARNING')]
-    [String]$Result = 'PASS'
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [Object]$Properties
-    hidden [int]$PropertyDepth = 2
-    [String[]]$Remediation
-
-    # Method to serialize the object to JSON
-    [String] Serialize() {
-        return $this | ConvertTo-Json -Depth $this.PropertyDepth -Compress
-    }
-
-    # Static method to deserialize JSON to an SdnHealthTest object
-    static [SdnHealthTest] Deserialize([String]$json) {
-        $obj = $json | ConvertFrom-Json
-        $healthTest = [SdnHealthTest]::new()
-        $healthTest.Init($obj)
-        return $healthTest
-    }
-
-    # Instance method to initialize the object properties
-    [void] Init([Object]$obj) {
-        foreach ($Property in $obj.PSObject.Properties) {
-            if([bool]($this.PSobject.Properties.Name -ieq $Property.Name)){
-                $this."$($Property.Name)" = $Property.Value;
-            }
-        }
-    }
-}
-
-class SdnRoleHealthReport {
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [String]$ComputerName = $env:COMPUTERNAME
-    [String]$Role
-    [ValidateSet('PASS', 'FAIL', 'WARNING')]
-    [String]$Result = 'PASS'
-    [SdnHealthTest[]]$HealthTest
-
-    # Method to serialize the object to JSON
-    [String] Serialize() {
-        return $this | ConvertTo-Json -Depth 5 -Compress
-    }
-
-    # Static method to deserialize JSON to an SdnRoleHealthReport object
-    static [SdnRoleHealthReport] Deserialize([String]$json) {
-        $obj = $json | ConvertFrom-Json
-        $healthReport = [SdnRoleHealthReport]::new()
-        $healthReport.Init($obj)
-        return $healthReport
-    }
-
-    # Instance method to initialize the object properties
-    [void] Init([Object]$obj) {
-        foreach ($Property in $obj.PSObject.Properties) {
-            if([bool]($this.PSobject.Properties.Name -ieq $Property.Name)){
-                $this."$($Property.Name)" = $Property.Value;
-            }
-        }
-    }
-}
-
-class SdnFabricHealthReport {
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [String]$Role
-    [ValidateSet('PASS', 'FAIL', 'WARNING')]
-    [String]$Result = 'PASS'
-    [Collections.Generic.List[SdnRoleHealthReport]]$RoleTest
-}
 
 ##########################
 #### ARG COMPLETERS ######
@@ -118,6 +48,56 @@ Register-ArgumentCompleter -CommandName 'Get-SdnFabricInfrastructureResult' -Par
 ##########################
 ####### FUNCTIONS ########
 ##########################
+
+function New-SdnHealthTest {
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String]$Name = (Get-PSCallStack)[0].Command
+    )
+
+    $object = [PSCustomObject]@{
+        Name = $Name
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        OccurrenceTime = [System.DateTime]::UtcNow
+        Properties = @()
+        Remediation = @()
+    }
+
+    return $object
+}
+
+function New-SdnRoleHealthReport {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$Role
+    )
+
+    $object = [PSCustomObject]@{
+        Role = $Role
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        OccurrenceTime = [System.DateTime]::UtcNow
+        HealthTest = @() # array of New-SdnHealthTest objects
+    }
+
+    return $object
+}
+
+function New-SdnFabricHealthReport {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$Role
+    )
+
+    $object = [PSCustomObject]@{
+        OccurrenceTime = [System.DateTime]::UtcNow
+        Role = $Role
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        RoleTest = @() # array of New-SdnRoleHealthReport objects
+    }
+
+    return $object
+}
+
 
 function Get-HealthData {
     param (
@@ -257,10 +237,7 @@ function Debug-SdnFabricInfrastructure {
             "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Verbose
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
 
-            $roleHealthReport = [SdnFabricHealthReport]@{
-                Role = $object.ToString()
-            }
-
+            $roleHealthReport = New-SdnFabricHealthReport -Role $object.ToString()
             $sdnFabricDetails = [PSCustomObject]@{
                 ComputerName = $null
                 NcUrl = $environmentInfo.NcUrl
@@ -411,9 +388,7 @@ function Debug-SdnNetworkController {
     )
 
     Confirm-IsNetworkController
-    $healthReport = [SdnRoleHealthReport]@{
-        Role = 'NetworkController'
-    }
+    $healthReport = New-SdnRoleHealthReport -Role 'NetworkController'
 
     try {
         # execute tests for network controller, regardless of the cluster type
@@ -422,17 +397,16 @@ function Debug-SdnNetworkController {
         )
 
         # execute tests based on the cluster type
-        $testResults = @()
         switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
             'FailoverCluster' {
-                $testResults += @(
+                $healthReport.HealthTest += @(
                     Test-DiagnosticsCleanupTaskEnabled -TaskName 'FcDiagnostics'
                 )
             }
             'ServiceFabric' {
                 $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
                 [string[]]$services_sf = $config_sf.properties.services.Keys
-                $testResults += @(
+                $healthReport.HealthTest += @(
                     Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
                     Test-ServiceState -ServiceName $services_sf
                     Test-ServiceFabricApplicationHealth
@@ -442,19 +416,12 @@ function Debug-SdnNetworkController {
             }
         }
 
-        # we need to deserialize the test results from JSON back into SdnHealthTest so we can
-        # add to SdnRoleHealthReport.HealthTest
-        foreach ($test in $testResults) {
-            $healthObject = [SdnHealthTest]::Deserialize($test)
-            $healthReport.HealthTest += $healthObject
-        }
-
-        # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
-        # if any of the tests completed with Warning, we will set the aggregate result to Warning
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'Warning') {
+            if ($test.Result -eq 'WARN') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -468,8 +435,7 @@ function Debug-SdnNetworkController {
         $healthReport.Result = 'FAIL'
     }
 
-    # return the health report as a JSON object to the caller to prevent deserialization issues
-    return ( $healthReport.Serialize() )
+    return $healthReport
 }
 
 function Debug-SdnServer {
@@ -496,17 +462,14 @@ function Debug-SdnServer {
     Confirm-IsServer
     $config = Get-SdnModuleConfiguration -Role 'Server'
     [string[]]$services = $config.properties.services.Keys
-    $healthReport = [SdnRoleHealthReport]@{
-        Role = 'Server'
-    }
+    $healthReport = New-SdnRoleHealthReport -Role 'Server'
 
     $ncRestParams = $PSBoundParameters
     $serverResource = Get-SdnResource @ncRestParams -Resource:Servers -ErrorAction Ignore
 
     try {
         # these tests are executed locally and have no dependencies on network controller rest API being available
-        $testResults = @()
-        $testResults += @(
+        $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
             Test-EncapOverhead
             Test-VfpDuplicateMacAddress
@@ -520,24 +483,17 @@ function Debug-SdnServer {
         # these tests have dependencies on network controller rest API being available
         # and will only be executed if we have been able to get the data from the network controller
         if ($serverResource) {
-            $testResults += @(
+            $healthReport.HealthTest += @(
                 Test-ServerHostId -InstanceId $serverResource.InstanceId
             )
         }
 
-        # we need to deserialize the test results from JSON back into SdnHealthTest so we can
-        # add to SdnRoleHealthReport.HealthTest
-        foreach ($test in $testResults) {
-            $healthObject = [SdnHealthTest]::Deserialize($test)
-            $healthReport.HealthTest += $healthObject
-        }
-
-        # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
-        # if any of the tests completed with Warning, we will set the aggregate result to Warning
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'Warning') {
+            if ($test.Result -eq 'WARN') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -551,8 +507,7 @@ function Debug-SdnServer {
         $healthReport.Result = 'FAIL'
     }
 
-    # return the health report as a JSON object to the caller to prevent deserialization issues
-    return ( $healthReport.Serialize() )
+    return $healthReport
 }
 
 function Debug-SdnLoadBalancerMux {
@@ -579,9 +534,7 @@ function Debug-SdnLoadBalancerMux {
     Confirm-IsLoadBalancerMux
     $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
     [string[]]$services = $config.properties.services.Keys
-    $healthReport = [SdnRoleHealthReport]@{
-        Role = 'LoadBalancerMux'
-    }
+    $healthReport = New-SdnRoleHealthReport -Role 'LoadBalancerMux'
 
     $ncRestParams = $PSBoundParameters
 
@@ -609,12 +562,12 @@ function Debug-SdnLoadBalancerMux {
             $healthReport.HealthTest += $healthObject
         }
 
-        # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
-        # if any of the tests completed with Warning, we will set the aggregate result to Warning
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'Warning') {
+            if ($test.Result -eq 'WARN') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -628,23 +581,12 @@ function Debug-SdnLoadBalancerMux {
         $healthReport.Result = 'FAIL'
     }
 
-    # return the health report as a JSON object to the caller to prevent deserialization issues
-    return ( $healthReport.Serialize() )
+    return $healthReport
 }
 
 function Debug-SdnGateway {
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate')]
-        [String[]]$ComputerName,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
         [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential')]
         [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
         [ValidateScript({
@@ -664,88 +606,46 @@ function Debug-SdnGateway {
         [X509Certificate]$NcRestCertificate
     )
 
-    function Debug-SdnGatewayLocal {
-        [CmdletBinding()]
-        param()
+    Confirm-IsRasGateway
+    $config = Get-SdnModuleConfiguration -Role 'Gateway'
+    [string[]]$services = $config.properties.services.Keys
+    $healthReport = New-SdnRoleHealthReport -Role 'Gateway'
 
-        Confirm-IsRasGateway
-        $config = Get-SdnModuleConfiguration -Role 'Gateway'
-        [string[]]$services = $config.properties.services.Keys
-        $healthReport = [SdnRoleHealthReport]@{
-            Role = 'Gateway'
-        }
-
-        try {
-            $testResults = @()
-            $testResults += @(
-                Test-NonSelfSignedCertificateInTrustedRootStore
-                Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
-                Test-ServiceState -ServiceName $services
-            )
-
-            # we need to deserialize the test results from JSON back into SdnHealthTest so we can
-            # add to SdnRoleHealthReport.HealthTest
-            foreach ($test in $testResults) {
-                $healthObject = [SdnHealthTest]::Deserialize($test)
-                $healthReport.HealthTest += $healthObject
-            }
-
-            # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
-            # if any of the tests completed with Warning, we will set the aggregate result to Warning
-            # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
-            # we will skip tests with PASS, as that is the default value
-            foreach ($test in $healthReport.HealthTest) {
-                if ($test.Result -eq 'Warning') {
-                    $healthReport.Result = $test.Result
-                }
-                elseif ($test.Result -eq 'FAIL') {
-                    $healthReport.Result = $test.Result
-                    break
-                }
-            }
-        }
-        catch {
-            $_ | Trace-Exception
-            $healthReport.Result = 'FAIL'
-        }
-
-        # return the health report as a JSON object to the caller to prevent deserialization issues
-        return ( $healthReport.Serialize() )
-    }
-
-    $healthReportArray = @()
-    $remoteParams = @{
+    $ncRestParams = @{
         NcUri = $NcUri
     }
     switch ($PSCmdlet.ParameterSetName) {
-        'RestCredential' { $remoteParams += @{ NcRestCredential = $NcRestCredential } }
-        'RestCertificate' { $remoteParams += @{ NcRestCertificate = $NcRestCertificate } }
+        'RestCredential' { $ncRestParams += @{ NcRestCredential = $NcRestCredential } }
+        'RestCertificate' { $ncRestParams += @{ NcRestCertificate = $NcRestCertificate } }
     }
 
-    # with the ComputerName parameter, we are running the tests remotely on the gateway node(s)
-    # so we will call the Invoke-PSRemoteCommand function to execute the tests and then deserialize the results
-    # and return the array of health reports
-    if ($PSBoundParameters.ContainsKey('ComputerName')) {
-        $healthReportArray = @()
-        $healthReportResults = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { param($boundParams) Debug-SdnGateway @boundParams } -ArgumentList @($remoteParams)
-        foreach ($report in $healthReportResults) {
-            $healthReport = [SdnRoleHealthReport]::Deserialize($report)
-            $healthReportArray += $healthReport
-        }
+    try {
+        $healthReport.HealthTest += @(
+            Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-ServiceState -ServiceName $services
+        )
 
-        return $healthReportArray
-    }
-
-    # in this scenario, we are running the tests locally on the gateway node
-    # so we will just call the internal function to execute the tests
-    else {
-        if (!$PSSenderInfo) {
-            return ( [SdnRoleHealthReport]::Deserialize($localHealthReportResults) )
-        }
-        else {
-            return $localHealthReportResults
+        # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
+        # if any of the tests completed with Warning, we will set the aggregate result to Warning
+        # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+        # we will skip tests with PASS, as that is the default value
+        foreach ($test in $healthReport.HealthTest) {
+            if ($test.Result -eq 'Warning') {
+                $healthReport.Result = $test.Result
+            }
+            elseif ($test.Result -eq 'FAIL') {
+                $healthReport.Result = $test.Result
+                break
+            }
         }
     }
+    catch {
+        $_ | Trace-Exception
+        $healthReport.Result = 'FAIL'
+    }
+
+    return ( $healthReport )
 }
 
 ###################################
@@ -761,7 +661,7 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
     $array = @()
 
     try {
@@ -785,7 +685,7 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-ServiceState {
@@ -795,7 +695,7 @@ function Test-ServiceState {
         [String[]]$ServiceName
     )
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
     $failureDetected = $false
     $array = @()
 
@@ -822,13 +722,15 @@ function Test-ServiceState {
             $sdnHealthTest.Result = 'FAIL'
         }
 
-        $sdnHealthTest.Properties = $array
+        if ($array) {
+            $sdnHealthTest.Properties = $array
+        }
     }
     catch {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-DiagnosticsCleanupTaskEnabled {
@@ -844,7 +746,7 @@ function Test-DiagnosticsCleanupTaskEnabled {
         [String]$TaskName
     )
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         # check to see if logging is enabled on the registry key
@@ -868,7 +770,7 @@ function Test-DiagnosticsCleanupTaskEnabled {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-NetworkControllerApiNameResolution {
@@ -889,7 +791,7 @@ function Test-NetworkControllerApiNameResolution {
         [Uri]$NcUri
     )
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         # check to see if the Uri is an IP address or a DNS name
@@ -908,7 +810,7 @@ function Test-NetworkControllerApiNameResolution {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 ###################################
@@ -926,7 +828,7 @@ function Test-EncapOverhead {
 
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $encapOverheadResults = Get-SdnNetAdapterEncapOverheadConfig
@@ -966,7 +868,7 @@ function Test-EncapOverhead {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-ServerHostId {
@@ -981,7 +883,7 @@ function Test-ServerHostId {
         [string[]]$InstanceId
     )
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
     $regkeyPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters'
 
     try {
@@ -1003,14 +905,14 @@ function Test-ServerHostId {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-VfpDuplicateMacAddress {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $vfpPorts = Get-SdnVfpVmSwitchPort
@@ -1032,14 +934,14 @@ function Test-VfpDuplicateMacAddress {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-VMNetAdapterDuplicateMacAddress {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $vmNetAdapters = Get-SdnVMNetworkAdapter
@@ -1061,14 +963,14 @@ function Test-VMNetAdapterDuplicateMacAddress {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-ProviderNetwork {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
     $failureDetected = $false
 
     try {
@@ -1117,14 +1019,14 @@ function Test-ProviderNetwork {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-HostAgentConnectionStateToApiService {
     [CmdletBinding()]
     param()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $tcpConnection = Get-NetTCPConnection -RemotePort 6640 -ErrorAction Ignore
@@ -1136,7 +1038,7 @@ function Test-HostAgentConnectionStateToApiService {
             if ($tcpConnection.ConnectionState -ine 'Connected') {
                 $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
                 if ($serviceState.Status -ine 'Running') {
-                    $sdnHealthTest.Result = 'WARNING'
+                    $sdnHealthTest.Result = 'WARN'
                     $sdnHealthTest.Remediation += "Ensure the NCHostAgent service is running."
                 }
                 else {
@@ -1150,7 +1052,7 @@ function Test-HostAgentConnectionStateToApiService {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 ###################################
@@ -1166,7 +1068,7 @@ function Test-ServiceFabricApplicationHealth {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $applicationHealth = Get-SdnServiceFabricApplicationHealth -ErrorAction Stop
@@ -1179,7 +1081,7 @@ function Test-ServiceFabricApplicationHealth {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-ServiceFabricClusterHealth {
@@ -1191,7 +1093,7 @@ function Test-ServiceFabricClusterHealth {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $clusterHealth = Get-SdnServiceFabricClusterHealth -ErrorAction Stop
@@ -1204,7 +1106,7 @@ function Test-ServiceFabricClusterHealth {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-ServiceFabricNodeStatus {
@@ -1216,7 +1118,7 @@ function Test-ServiceFabricNodeStatus {
     [CmdletBinding()]
     param ()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $ncNodes = Get-SdnServiceFabricNode -NodeName $env:COMPUTERNAME -ErrorAction Stop
@@ -1234,7 +1136,7 @@ function Test-ServiceFabricNodeStatus {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 ###################################
@@ -1253,7 +1155,7 @@ function Test-MuxConnectionStateToRouter {
         [string[]]$RouterIPAddress
     )
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         foreach ($router in $RouterIPAddress) {
@@ -1268,7 +1170,7 @@ function Test-MuxConnectionStateToRouter {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
 
 function Test-MuxConnectionStateToSlbManager {
@@ -1280,7 +1182,7 @@ function Test-MuxConnectionStateToSlbManager {
     [CmdletBinding()]
     param()
 
-    $sdnHealthTest = [SdnHealthTest]::new()
+    $sdnHealthTest = New-SdnHealthTest
 
     try {
         $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore
@@ -1293,5 +1195,5 @@ function Test-MuxConnectionStateToSlbManager {
         $sdnHealthTest.Result = 'FAIL'
     }
 
-    return ( $sdnHealthTest.Serialize() )
+    return $sdnHealthTest
 }
