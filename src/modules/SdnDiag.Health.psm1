@@ -16,33 +16,6 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
 #### CLASSES & ENUMS #####
 ##########################
 
-enum SdnHealthResult {
-    PASS
-    FAIL
-    WARNING
-}
-
-class SdnHealth {
-    [String]$Name = (Get-PSCallStack)[1].Command
-    [SdnHealthResult]$Result = 'PASS'
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [Object]$Properties
-    [String[]]$Remediation
-}
-
-class SdnFabricEnvObject {
-    [String[]]$ComputerName
-    [Uri]$NcUrl
-    [Object]$Role
-    [Object]$EnvironmentInfo
-}
-
-class SdnFabricHealthReport {
-    [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
-    [String]$Role
-    [SdnHealthResult]$Result = 'PASS'
-    [Object[]]$HealthValidation
-}
 
 ##########################
 #### ARG COMPLETERS ######
@@ -76,6 +49,56 @@ Register-ArgumentCompleter -CommandName 'Get-SdnFabricInfrastructureResult' -Par
 ####### FUNCTIONS ########
 ##########################
 
+function New-SdnHealthTest {
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String]$Name = (Get-PSCallStack)[0].Command
+    )
+
+    $object = [PSCustomObject]@{
+        Name = $Name
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        OccurrenceTime = [System.DateTime]::UtcNow
+        Properties = @()
+        Remediation = @()
+    }
+
+    return $object
+}
+
+function New-SdnRoleHealthReport {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$Role
+    )
+
+    $object = [PSCustomObject]@{
+        Role = $Role
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        OccurrenceTime = [System.DateTime]::UtcNow
+        HealthTest = @() # array of New-SdnHealthTest objects
+    }
+
+    return $object
+}
+
+function New-SdnFabricHealthReport {
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$Role
+    )
+
+    $object = [PSCustomObject]@{
+        OccurrenceTime = [System.DateTime]::UtcNow
+        Role = $Role
+        Result = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        RoleTest = @() # array of New-SdnRoleHealthReport objects
+    }
+
+    return $object
+}
+
+
 function Get-HealthData {
     param (
         [Parameter(Mandatory = $true)]
@@ -87,1565 +110,6 @@ function Get-HealthData {
 
     $results = $script:SdnDiagnostics_Health.Config[$Property]
     return ($results[$Id])
-}
-
-function Test-EncapOverhead {
-    <#
-    .SYNOPSIS
-        Retrieves the VMSwitch across servers in the dataplane to confirm that the network interfaces support EncapOverhead or JumboPackets
-        and that the settings are configured as expected
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    [int]$encapOverheadExpectedValue = 160
-    [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating the network interfaces across the SDN dataplane support Encap Overhead or Jumbo Packets" | Trace-Output
-
-        $encapOverheadResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {Get-SdnNetAdapterEncapOverheadConfig}
-        if($null -eq $encapOverheadResults){
-            $sdnHealthObject.Result = 'FAIL'
-        }
-        else {
-            foreach($object in ($encapOverheadResults | Group-Object -Property PSComputerName)){
-                foreach($interface in $object.Group){
-                    "[{0}] {1}" -f $object.Name, ($interface | Out-String -Width 4096) | Trace-Output -Level:Verbose
-
-                    if($interface.EncapOverheadEnabled -eq $false -or $interface.EncapOverheadValue -lt $encapOverheadExpectedValue){
-                        "EncapOverhead settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Verbose
-                        $encapDisabled = $true
-                    }
-
-                    if($interface.JumboPacketEnabled -eq $false -or $interface.JumboPacketValue -lt $jumboPacketExpectedValue){
-                        "JumboPacket settings for {0} on {1} are disabled or not configured correctly" -f $interface.NetworkInterface, $object.Name | Trace-Output -Level:Verbose
-                        $jumboPacketDisabled = $true
-                    }
-
-                    # if both encapoverhead and jumbo packets are not set, this is indication the physical network cannot support VXLAN encapsulation
-                    # and as such, environment would experience intermittent packet loss
-                    if ($encapDisabled -and $jumboPacketDisabled) {
-                        $sdnHealthObject.Result = 'FAIL'
-                        $sdnHealthObject.Remediation += "Ensure EncapOverhead and JumboPacket for interface {0} on {1} are enabled and configured correctly." -f $interface.NetworkInterface, $object.Name
-
-                        "EncapOverhead and JumboPacket for interface {0} on {1} are disabled or not configured correctly." -f $interface.NetworkInterface, $object.Name  | Trace-Output -Level:Error
-                    }
-
-                    $array += $interface
-                }
-            }
-
-            $sdnHealthObject.Properties = $array
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-HostRootStoreNonRootCert {
-    <#
-    .SYNOPSIS
-        Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating Certificates under Root CA Store" | Trace-Output
-
-        $scriptBlock = {
-            $nonRootCerts = @()
-            $rootCerts = Get-ChildItem Cert:LocalMachine\Root
-            foreach ($rootCert in $rootCerts) {
-                if ($rootCert.Subject -ne $rootCert.Issuer) {
-                    $certInfo = [PSCustomObject]@{
-                        Thumbprint = $rootCert.Thumbprint
-                        Subject    = $rootCert.Subject
-                        Issuer     = $rootCert.Issuer
-                    }
-
-                    $nonRootCerts += $certInfo
-                }
-            }
-            return $nonRootCerts
-        }
-
-        foreach($node in $SdnEnvironmentObject.ComputerName){
-            $nonRootCerts = Invoke-PSRemoteCommand -ComputerName $node -Credential $Credential -ScriptBlock $scriptBlock -PassThru
-            # If any node have Non Root Certs in Trusted Root Store. Issue detected.
-            if($nonRootCerts.Count -gt 0){
-                $sdnHealthObject.Result = 'FAIL'
-
-                $object = [PSCustomObject]@{
-                    ComputerName = $node
-                    NonRootCerts = $nonRootCerts
-                }
-
-                foreach($nonRootCert in $nonRootCerts) {
-                    $sdnHealthObject.Remediation += "Remove Certificate Thumbprint:{0} Subject:{1} from Host:{2}" -f $nonRootCert.Thumbprint, $nonRootCert.Subject, $node
-                }
-
-                $array += $object
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-MuxBgpConnectionState {
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    $netConnectionExistsScriptBlock = {
-        param([Parameter(Position = 0)][String]$arg0)
-        $tcpConnection = Get-NetTCPConnection -RemotePort 179 -RemoteAddress $arg0 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
-        if ($tcpConnection) {
-            return $true
-        }
-    }
-
-    try {
-        "Validating the BGP connectivity between LoadBalancerMuxes and Top of Rack (ToR) Switches." | Trace-Output
-        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams
-
-        # if no load balancer muxes configured within the environment, return back the health object to caller
-        if ($null -ieq $loadBalancerMux) {
-            return $sdnHealthObject
-        }
-
-        # enumerate through the load balancer muxes in the environment and validate the BGP connection state
-        foreach ($mux in $loadBalancerMux) {
-            $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $mux.properties.virtualServer.resourceRef
-            [string]$virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
-            $peerRouters = $mux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
-            foreach ($router in $peerRouters) {
-                $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock -ArgumentList $router
-                if (-NOT $connectionExists) {
-                    "{0} is not connected to {1}" -f $virtualServerConnection, $router | Trace-Output -Level:Error
-                    $sdnHealthObject.Result = 'FAIL'
-                    $sdnHealthObject.Remediation += "Fix BGP Peering between $($virtualServerConnection) and $($router)."
-
-                    # create a custom object to store the load balancer mux and the router that it is not connected to
-                    # this will be added to the array
-                    $object = [PSCustomObject]@{
-                        LoadBalancerMux = $virtualServerConnection
-                        TopOfRackSwitch = $router
-                    }
-
-                    $array += $object
-                }
-                else {
-                    "{0} is connected to {1}" -f $virtualServerConnection, $router | Trace-Output -Level:Verbose
-                }
-            }
-        }
-
-        # if the array is not empty, add it to the health object
-        if ($array) {
-            $sdnHealthObject.Properties = $array
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-NcHostAgentConnectionToApiService {
-    <#
-    .SYNOPSIS
-        Validates the TCP connection between Server and primary replica of Api service within Network Controller.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    $netConnectionExistsScriptBlock = {
-        $tcpConnection = Get-NetTCPConnection -RemotePort 6640 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
-        if ($tcpConnection) {
-            return $true
-        }
-    }
-
-    try {
-        "Validating connectivity between Server and primary replica of API service within Network Controller" | Trace-Output
-        $servers = Get-SdnServer @ncRestParams
-
-        # if no load balancer muxes configured within the environment, return back the health object to caller
-        if ($null -ieq $servers) {
-            return $sdnHealthObject
-        }
-
-        # get the current primary replica of Network Controller
-        # if we cannot return the primary replica, then something is critically wrong with Network Controller
-        # in which case we should mark this test as failed and return back to the caller with guidance to fix the SlbManagerService
-        $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController[0] -ServiceTypeName 'ApiService' -Credential $Credential -Primary
-        if ($null -ieq $primaryReplicaNode) {
-            "Unable to return primary replica of ApiService" | Trace-Output -Level:Error
-            $sdnHealthObject.Result = 'FAIL'
-            $sdnHealthObject.Remediation = "Fix the primary replica of ApiService within Network Controller."
-            return $sdnHealthObject
-        }
-
-        # enumerate through the servers in the environment and validate the TCP connection state
-        # we expect the NCHostAgent to have an active connection to ApiService within Network Controller via port 6640, which informs
-        # Network Controller that the host is operational and ready to receive policy configuration updates
-        foreach ($server in $servers) {
-            [System.Array]$connectionAddress = Get-SdnServer @ncRestParams -ResourceId $server.resourceId -ManagementAddressOnly
-            $connectionExists = Invoke-PSRemoteCommand -ComputerName $connectionAddress[0] -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
-            if (-NOT $connectionExists) {
-                "{0} is not connected to ApiService of Network Controller" -f $server.resourceRef | Trace-Output -Level:Error
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Ensure NCHostAgent service is started. Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($server.resourceRef)."
-
-                $object = [PSCustomObject]@{
-                    Server = $server.resourceRef
-                    ApiPrimaryReplica = $primaryReplicaNode.ReplicaAddress
-                }
-
-                $array += $object
-            }
-            else {
-                "{0} is connected to {1}" -f $server.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-NcUrlNameResolution {
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-
-    try {
-        "Validate that the Network Controller NB API URL resolves to the correct IP address" | Trace-Output
-
-        $ncApiReplicaPrimary = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential -ServiceTypeName 'ApiService' -Primary
-        if ($null -eq $ncApiReplicaPrimary) {
-            "Unable to find the primary replica for the ApiService" | Trace-Output -Level:Warning
-            return $sdnHealthObject
-        }
-
-        $networkController = Get-SdnNetworkController -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
-        if ($null -eq $networkController) {
-            "Unable to retrieve results from Get-SdnNetworkController" | Trace-Output -Level:Warning
-            return $sdnHealthObject
-        }
-
-        # depending on the configuration returned, will determine if we need to use the RestIPAddress or RestName
-        $nbApiName = $networkController.ServerCertificate.Subject.Split('=')[1].Trim()
-
-        if ($networkController.RestIPAddress) {
-            $expectedIPAddress = $($networkController.RestIPAddress).Split('/')[0].Trim() # we expect to be in IP/CIDR format
-            "Network Controller is configured with static RestIPAddress: {0}" -f $expectedIPAddress | Trace-Output -Level:Verbose
-        }
-        else {
-            "Network Controller is configured with RestName" | Trace-Output -Level:Verbose
-            $ncNodeName = $ncApiReplicaPrimary.ReplicaAddress.Split(':')[0].Trim()
-            $isIpAddress = [System.Net.IPAddress]::TryParse($ncNodeName, [ref]$null)
-            if ($isIpAddress) {
-                $expectedIPAddress = $ncNodeName.ToString()
-            }
-            else {
-                $dnsResultNetworkControllerNode = Resolve-DnsName -Name $ncNodeName -NoHostsFile -ErrorAction SilentlyContinue
-                if ($null -ieq $dnsResultNetworkControllerNode) {
-                    "Unable to resolve IP address for {0}" -f $ncNodeName | Trace-Output -Level:Warning
-                    return $sdnHealthObject
-                }
-                else {
-                    $expectedIPAddress = $dnsResultNetworkControllerNode.IPAddress
-                    "ApiService replica primary is hosted on {0} with an IP address of {1}" -f $ncApiReplicaPrimary.ReplicaAddress, $expectedIPAddress | Trace-Output -Level:Verbose
-                }
-            }
-        }
-
-        # in this scenario, the certificate is using an IP address as the subject, so we will need to compare the IP address to the expected IP address
-        # if they match, we will return a success
-        $isIpAddress = [System.Net.IPAddress]::TryParse($nbApiName, [ref]$null)
-        if ($isIpAddress -and ($nbApiName -ieq $expectedIPAddress)) {
-            return $sdnHealthObject
-        }
-
-        # perform some DNS resolution to ensure that the NB API URL resolves to the correct IP address
-        $dnsResult = Resolve-DnsName -Name $nbApiName -NoHostsFile -ErrorAction SilentlyContinue
-        if ($null -ieq $dnsResult) {
-            $sdnHealthObject.Result = 'FAIL'
-
-            "Unable to resolve DNS name for {0}" -f $nbApiName | Trace-Output -Level:Warning
-            return $sdnHealthObject
-        }
-        elseif ($dnsResult[0].IPAddress -ine $expectedIPAddress) {
-            $sdnHealthObject.Result = 'FAIL'
-            $sdnHealthObject.Remediation = 'Ensure that the DNS name for the Network Controller NB API URL resolves to the correct IP address.'
-
-            "DNS name for {0} resolves to {1} instead of {2}" -f $nbApiName, $dnsResult[0].IPAddress, $expectedIPAddress | Trace-Output -Level:Warning
-            return $sdnHealthObject
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-NetworkControllerCertCredential {
-    <#
-    .SYNOPSIS
-        Query the NC Cert credential used to connect to SDN Servers, ensure cert exist.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $arrayList = [System.Collections.ArrayList]::new()
-
-    try {
-        "Validate cert credential resource of SDN Servers. Ensure certificate exists on each of the Network Controller " | Trace-Output
-
-        # enumerate each server's conection->credential object into the array
-        $servers = Get-SdnServer @ncRestParams
-        $serverCredentialRefs = [System.Collections.Hashtable]::new()
-        foreach ($server in $servers) {
-            # find the first connection with credential type of X509Certificate
-            $serverConnection = $server.properties.connections | Where-Object {$_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName"} | Select-Object -First 1;
-            if ($null -ne $serverConnection) {
-                $credRef = $serverConnection.credential[0].resourceRef
-                "Adding credential {0} for server {1} for validation" -f $credRef, $serverConnection.managementAddresses[0] | Trace-Output -Level:Verbose
-                if ($null -ne $credRef) {
-                    if (-NOT $serverCredentialRefs.ContainsKey($credRef)) {
-                        $serverList = [System.Collections.ArrayList]::new()
-                        $serverCredentialRefs.Add($credRef, $serverList)
-                    }
-
-                    [void]$serverCredentialRefs[$credRef].Add($server)
-                }
-            }
-        }
-
-        # iterate the credential object to validate certificate on each NC
-        foreach ($credRef in $serverCredentialRefs.Keys) {
-            $credObj = Get-SdnResource @ncRestParams -ResourceRef $credRef
-            if ($null -ne $credObj) {
-                $thumbPrint = $credObj.properties.value
-                $scriptBlock = {
-                    param([Parameter(Position = 0)][String]$param1)
-
-                    if (-NOT (Test-Path -Path Cert:\LocalMachine\My\$param1)) {
-                        return $false
-                    }
-                    else {
-                        return $true
-                    }
-                }
-
-                # invoke command on each NC seperately so to record which NC missing certificate
-                foreach ($nc in $SdnEnvironmentObject.ComputerName) {
-                    "Validating certificate [{0}] on NC {1}" -f $thumbPrint, $nc | Trace-Output -Level:Verbose
-                    $result = Invoke-PSRemoteCommand -ComputerName $nc -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $thumbPrint
-                    if ($result -ne $true) {
-                        # if any NC missing certificate, it indicate issue detected
-                        $sdnHealthObject.Result = 'FAIL'
-                        $sdnHealthObject.Remediation += "Install certificate [$thumbPrint] on Network Controller [$nc]"
-                        $object = [PSCustomObject]@{
-                            NetworkController  = $nc
-                            CertificateMissing = $thumbPrint
-                            AffectedServers    = $serverCredentialRefs[$credRef]
-                        }
-
-                        [void]$arrayList.Add($object)
-                    }
-                }
-
-            }
-        }
-
-        $sdnHealthObject.Properties = $arrayList
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-NetworkInterfaceAPIDuplicateMacAddress {
-    <#
-    .SYNOPSIS
-        Validate there are no adapters within the Network Controller Network Interfaces API that are duplicate.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validate no duplicate MAC addresses for network interfaces in Network Controller" | Trace-Output
-
-        $networkInterfaces = Get-SdnResource @ncRestParams -Resource:NetworkInterfaces
-        if($null -eq $networkInterfaces){
-            # if there are no network interfaces, then there is nothing to validate
-            # pass back the health object to the caller
-            return $sdnHealthObject
-        }
-
-        $duplicateObjects = $networkInterfaces.properties | Group-Object -Property privateMacAddress | Where-Object {$_.Count -ge 2}
-        if($duplicateObjects){
-            $sdnHealthObject.Result = 'FAIL'
-
-            # since there can be multiple grouped objects, we need to enumerate each duplicate group
-            foreach($obj in $duplicateObjects){
-                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within Network Controller Network Interfaces"
-
-                $duplicateInterfaces = $networkInterfaces | Where-Object {$_.properties.privateMacAddress -eq $obj.Name}
-                $array += $duplicateInterfaces
-
-                "Located {0} virtual machines associated with MAC address {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
-                    ($duplicateInterfaces `
-                    | Select-Object @{n="ResourceRef";e={"`t$($_.resourceRef)"}} `
-                    | Select-Object -ExpandProperty ResourceRef `
-                    | Out-String `
-                ) | Trace-Output -Level:Error
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ProviderNetwork {
-    <#
-    .SYNOPSIS
-        Performs ICMP tests across the computers defined to confirm that jumbo packets are able to successfully traverse between the provider addresses on each host
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating Provider Address network has connectivity across the SDN dataplane" | Trace-Output
-
-        $providerAddresses = (Get-SdnProviderAddress -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential).ProviderAddress
-        if ($null -eq $providerAddresses){
-            "No provider addresses were found on the hosts." | Trace-Output
-        }
-        else {
-            $connectivityResults = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock {
-                param([Parameter(Position = 0)][String[]]$param1)
-                Test-SdnProviderAddressConnectivity -ProviderAddress $param1
-            } -ArgumentList $providerAddresses
-
-            foreach($computer in $connectivityResults | Group-Object PSComputerName){
-                foreach($destinationAddress in $computer.Group){
-                    $jumboPacketResult = $destinationAddress | Where-Object {$_.BufferSize -gt 1472}
-                    $standardPacketResult = $destinationAddress | Where-Object {$_.BufferSize -le 1472}
-
-                    if($destinationAddress.Status -ine 'Success'){
-                        $sdnHealthObject.Result = 'FAIL'
-
-                        # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
-                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure'){
-                            $remediationMsg = "Ensure ICMP enabled on {0} and {1}. If issue persists, investigate physical network." -f $destinationAddress[0].DestinationAddress, $destinationAddress[0].SourceAddress
-                            $sdnHealthObject.Remediation += $remediationMsg
-
-                            "Cannot ping {0} from {1} ({2})." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Error
-                        }
-
-                        # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
-                        # either on the physical nic or within the physical switches between the provider addresses
-                        if($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success'){
-                            $remediationMsg += "Ensure the physical network between {0} and {1} configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660." `
-                            -f $destinationAddress[0].DestinationAddress, $destinationAddress[0].SourceAddress
-                            $sdnHealthObject.Remediation += $remediationMsg
-
-                            "Cannot send jumbo packets to {0} from {1} ({2})." `
-                            -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output -Level:Error
-                        }
-                    }
-                    else {
-                        "Successfully sent jumbo packet to {0} from {1} ({2})" `
-                        -f $destinationAddress[0].DestinationAddress, $computer.Name, $destinationAddress[0].SourceAddress | Trace-Output
-                    }
-
-                    $array += $destinationAddress
-                }
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ResourceConfigurationState {
-    <#
-    .SYNOPSIS
-        Validate that the configurationState of the resources.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating configuration state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
-
-        $sdnResources = Get-SdnResource @ncRestParams -Resource $SdnEnvironmentObject.Role.ResourceName
-        foreach ($object in $sdnResources) {
-
-            # if we have a resource that is not in a success state, we will skip validation
-            # as we do not expect configurationState to be accurate if provisioningState is not Success
-            if ($object.properties.provisioningState -ine 'Succeeded') {
-                continue
-            }
-
-            # examine the configuration state of the resources and display errors to the screen
-            $errorMessages = @()
-            switch ($object.properties.configurationState.Status) {
-                'Warning' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthObject.Result -ne 'FAIL') {
-                        $sdnHealthObject.Result = 'WARNING'
-                    }
-
-                    $traceLevel = 'Warning'
-                }
-
-                'Failure' {
-                    $sdnHealthObject.Result = 'FAIL'
-                    $traceLevel = 'Error'
-                }
-
-                'InProgress' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthObject.Result -ne 'FAIL') {
-                        $sdnHealthObject.Result = 'WARNING'
-                    }
-
-                    $traceLevel = 'Warning'
-                }
-
-                'Uninitialized' {
-                    # in scenarios where state is redundant, we will not fail the test
-                    if ($object.properties.state -ieq 'Redundant') {
-                        # do nothing
-                    }
-                    else {
-                        # if we already have a failure, we will not change the result to warning
-                        if ($sdnHealthObject.Result -ne 'FAIL') {
-                            $sdnHealthObject.Result = 'WARNING'
-                        }
-
-                        $traceLevel = 'Warning'
-                    }
-                }
-
-                default {
-                    $traceLevel = 'Verbose'
-                }
-            }
-
-            if ($object.properties.configurationState.detailedInfo) {
-                foreach ($detail in $object.properties.configurationState.detailedInfo) {
-                    switch ($detail.code) {
-                        'Success' {
-                            # do nothing
-                        }
-
-                        default {
-                            $errorMessages += $detail.message
-                            try {
-                                $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
-                                $sdnHealthObject.Remediation += "[{0}] {1}" -f $object.resourceRef, $errorDetails.Action
-                            }
-                            catch {
-                                "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
-                                $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $object.resourceRef
-                                $sdnHealthObject.Remediation += $remediationString
-                            }
-                        }
-                    }
-                }
-
-                # print the overall configuration state to screen, with each of the messages that were captured
-                # as part of the detailedinfo property
-                if ($errorMessages) {
-                    $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
-                }
-                else {
-                    $msg = "{0} is reporting configurationState status {1}" -f $object.resourceRef, $object.properties.configurationState.Status
-                }
-
-                $msg | Trace-Output -Level $traceLevel.ToString()
-            }
-
-            $details = [PSCustomObject]@{
-                resourceRef        = $object.resourceRef
-                configurationState = $object.properties.configurationState
-            }
-
-            $array += $details
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ResourceProvisioningState {
-    <#
-    .SYNOPSIS
-        Validate that the provisioningState of the resources.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating provisioning state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
-
-        $sdnResources = Get-SdnResource @ncRestParams -Resource $SdnEnvironmentObject.Role.ResourceName
-        foreach ($object in $sdnResources) {
-            # examine the provisioning state of the resources and display errors to the screen
-            $msg = "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState
-
-            switch ($object.properties.provisioningState) {
-                'Failed' {
-                    $sdnHealthObject.Result = 'FAIL'
-                    $msg | Trace-Output -Level:Error
-
-                    $sdnHealthObject.Remediation += "[$($object.resourceRef)] Examine the Network Controller logs to determine why provisioning is $($object.properties.provisioningState)."
-                }
-
-                'Updating' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthObject.Result -ne 'FAIL') {
-                        $sdnHealthObject.Result = 'WARNING'
-                    }
-
-                    # since we do not know what operations happened prior to this, we will log a warning
-                    # and ask the user to monitor the provisioningState
-                    $msg | Trace-Output -Level:Warning
-                    $sdnHealthObject.Remediation += "[$($object.resourceRef)] Is reporting $($object.properties.provisioningState). Monitor to ensure that provisioningState moves to Succeeded."
-                }
-
-                default {
-                    # this should cover scenario where provisioningState is 'Deleting' or Succeeded
-                    $msg | Trace-Output -Level:Verbose
-                }
-            }
-
-            $details = [PSCustomObject]@{
-                resourceRef       = $object.resourceRef
-                provisioningState = $object.properties.provisioningState
-            }
-
-            $array += $details
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ScheduledTaskEnabled {
-    <#
-    .SYNOPSIS
-        Ensures the scheduled task responsible for etl compression is enabled and running
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    $scriptBlock = {
-
-        $object = [PSCustomObject]@{
-            TaskName = 'SDN Diagnostics Task'
-            State = $null
-        }
-
-        try {
-            # check to see if logging is enabled on the registry key
-            # if it is not, return the object with the state set to 'Logging Disabled'
-            $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled'
-            if (-NOT $isLoggingEnabled ) {
-                $object.State = 'Logging Disabled'
-                return $object
-            }
-
-            $result = Get-ScheduledTask -TaskName 'SDN Diagnostics Task' -ErrorAction Stop
-            if ($result) {
-                $object.State = $result.State.ToString()
-                return $object
-            }
-        }
-        catch {
-            # if the scheduled task does not exist, return the object with the state set to 'Not Found'
-            $object.State = 'Not Found'
-            return $object
-        }
-    }
-
-    try {
-        $scheduledTaskReady = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
-        foreach ($result in $scheduledTaskReady) {
-            switch ($result.State) {
-                'Logging Disabled' {
-                    "SDN Diagnostics Task is not available on {0} because logging is disabled." -f $result.PSComputerName | Trace-Output -Level:Verbose
-                }
-                'Not Found' {
-                    "Unable to locate SDN Diagnostics Task on {0}." -f $result.PSComputerName | Trace-Output -Level:Error
-                    $sdnHealthObject.Result = 'FAIL'
-                }
-                'Disabled' {
-                    "SDN Diagnostics Task is disabled on {0}." -f $result.PSComputerName | Trace-Output -Level:Error
-                    $sdnHealthObject.Result = 'FAIL'
-                    $sdnHealthObject.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask' to enable the 'SDN Diagnostics Task' scheduled task on $($result.PSComputerName)."
-                }
-                default {
-                    "SDN Diagnostics Task is {0} on {1}." -f $result.State, $result.PSComputerName | Trace-Output -Level:Verbose
-                }
-            }
-
-            $array += [PSCustomObject]@{
-                State = $result.State
-                Computer = $result.PSComputerName
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServerHostId {
-    <#
-    .SYNOPSIS
-        Queries the NCHostAgent HostID registry key value across the hypervisor hosts to ensure the HostID matches known InstanceID results from NC Servers API.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validating Server HostID registry matches known InstanceIDs from Network Controller Servers API." | Trace-Output
-
-        $scriptBlock = {
-            $result = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostId' -ErrorAction SilentlyContinue
-            return $result.HostID
-        }
-
-        $servers = Get-SdnResource @ncRestParams -Resource $SdnEnvironmentObject.Role.ResourceName
-        $hostId = Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -ScriptBlock $scriptBlock -AsJob -PassThru
-        foreach($id in $hostId){
-            if($id -inotin $servers.instanceId){
-                "{0}'s HostID {1} does not match known instanceID results in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Error
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Update the HostId registry key on $($id.PSComputerName) to match the InstanceId of the Server resource in Network Controller"
-
-                $object = [PSCustomObject]@{
-                    HostID = $id
-                    Computer = $id.PSComputerName
-                }
-
-                $array += $object
-            }
-            else {
-                "{0}'s HostID {1} matches known InstanceID in Network Controller Server REST API" -f $id.PSComputerName, $id | Trace-Output -Level:Verbose
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServiceFabricApplicationHealth {
-    <#
-    .SYNOPSIS
-        Validate the health of the Network Controller application within Service Fabric.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-
-    try {
-        "Validating the Service Fabric Application Health for Network Controller" | Trace-Output
-
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
-        if($null -eq $ncNodes){
-            throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
-        }
-
-        $applicationHealth = Get-SdnServiceFabricApplicationHealth -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
-        if ($applicationHealth.AggregatedHealthState -ine 'Ok') {
-            $sdnHealthObject.Result = 'FAIL'
-            $sdnHealthObject.Remediation += "Examine the Service Fabric Application Health for Network Controller to determine why the health is not OK."
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServiceFabricClusterHealth {
-    <#
-    .SYNOPSIS
-        Validate the health of the Network Controller cluster within Service Fabric.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-
-    try {
-        "Validating the Service Fabric Cluster Health for Network Controller" | Trace-Output
-
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
-        if($null -eq $ncNodes){
-            throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
-        }
-
-        $clusterHealth = Get-SdnServiceFabricClusterHealth -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential
-        if ($clusterHealth.AggregatedHealthState -ine 'Ok') {
-            $sdnHealthObject.Result = 'FAIL'
-            $sdnHealthObject.Remediation += "Examine the Service Fabric Cluster Health for Network Controller to determine why the health is not OK."
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServiceFabricNodeStatus {
-    <#
-    .SYNOPSIS
-        Validate the health of the Network Controller nodes within Service Fabric.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-
-    try {
-        "Validating the Service Fabric Nodes for Network Controller" | Trace-Output
-
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
-        if($null -eq $ncNodes){
-            throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
-        }
-
-        foreach ($node in $ncNodes) {
-            if ($node.NodeStatus -ine 'Up') {
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
-            }
-        }
-
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServiceFabricPartitionDatabaseSize {
-    <#
-    .SYNOPSIS
-        Validate the Service Fabric partition size for each of the services running on Network Controller.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validate the size of the Service Fabric Partition Databases for Network Controller services" | Trace-Output
-
-        $ncNodes = Get-SdnServiceFabricNode -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $credential
-        if($null -eq $ncNodes){
-            throw New-Object System.NullReferenceException("Unable to retrieve service fabric nodes")
-        }
-
-        foreach($node in $ncNodes){
-            $ncApp = Invoke-SdnServiceFabricCommand -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential -ScriptBlock {
-                param([Parameter(Position = 0)][String]$param1)
-
-                # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
-                $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
-                Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' -NodeName $param1
-            } -ArgumentList @($node.NodeName.ToString())
-
-            $ncAppWorkDir = $ncApp.WorkDirectory
-            if($null -eq $ncAppWorkDir){
-                throw New-Object System.NullReferenceException("Unable to retrieve working directory path")
-            }
-
-            # Only stateful service have the database file
-            $ncServices = Get-SdnServiceFabricService -NetworkController $SdnEnvironmentObject.ComputerName[0] -Credential $Credential | Where-Object {$_.ServiceKind -eq "Stateful"}
-
-            foreach ($ncService in $ncServices){
-                $replica = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.ComputerName[0] -ServiceName $ncService.ServiceName -Credential $Credential | Where-Object {$_.NodeName -eq $node.NodeName}
-                $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
-                $imosStoreFile = Invoke-PSRemoteCommand -ComputerName $node.NodeName -Credential $Credential -ScriptBlock {
-                    param([Parameter(Position = 0)][String]$param1)
-                    if (Test-Path -Path $param1) {
-                        return (Get-Item -Path $param1)
-                    }
-                    else {
-                        return $null
-                    }
-                } -ArgumentList @($imosStorePath)
-
-                if($null -ne $imosStoreFile){
-                    $formatedByteSize = Format-ByteSize -Bytes $imosStoreFile.Length
-
-                    $imosInfo = [PSCustomObject]@{
-                        Node = $node.NodeName
-                        Service = $ncService.ServiceName
-                        ImosSize = $formatedByteSize.GB
-                    }
-
-                    # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
-                    # need to perform InvariantCulture to ensure that the decimal separator is a period
-                    if([float]::Parse($formatedByteSize.GB, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture) -gt 4){
-                        "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Warning
-
-                        $sdnHealthObject.Result = 'FAIL'
-                        $sdnHealthObject.Remediation = "Engage Microsoft CSS for further support"
-                    }
-                    else {
-                        "[{0}] Service {1} is reporting {2} GB in size" -f $node.NodeName, $ncService.ServiceName, $formatedByteSize.GB | Trace-Output -Level:Verbose
-                    }
-
-                    $array += $imosInfo
-                }
-                else {
-                    "No ImosStore file for service {0} found on node {1} from {2}" -f $ncService.ServiceName, $node.NodeName, $imosStorePath | Trace-Output -Level:Warning
-                }
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-ServiceState {
-    <#
-    .SYNOPSIS
-        Confirms that critical services for gateway are running
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-    $serviceStateResults = @()
-
-    try {
-        [string[]]$services = $SdnEnvironmentObject.Role.Properties.Services.Keys
-        if ([string]::IsNullOrEmpty($services)) {
-            return $sdnHealthObject
-        }
-
-        "Validating {0} service state for {1}" -f ($services -join ', '), ($SdnEnvironmentObject.ComputerName -join ', ') | Trace-Output
-
-        $scriptBlock = {
-            param([Parameter(Position = 0)][String]$param1)
-
-            $result = Get-Service -Name $param1 -ErrorAction SilentlyContinue
-            return $result
-        }
-
-        foreach ($service in $services) {
-            $serviceStateResults += Invoke-PSRemoteCommand -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential -Scriptblock $scriptBlock -ArgumentList $service
-        }
-
-        foreach($result in $serviceStateResults){
-            $array += $result
-
-            if($result.Status -ine 'Running'){
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Start $($result.Name) service on $($result.PSComputerName)"
-
-                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Error
-            }
-            else {
-                "{0} is {1} on {2}" -f $result.Name, $result.Status, $result.PSComputerName | Trace-Output -Level:Verbose
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-SlbManagerConnectionToMux {
-    <#
-    .SYNOPSIS
-        Validates the TCP connection between LoadBalancerMuxes and primary replica of SlbManager service within Network Controller.
-    #>
-
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
-
-    $ncRestParams = @{
-        NcUri = $SdnEnvironmentObject.NcUrl
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    $netConnectionExistsScriptBlock = {
-        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction SilentlyContinue | Where-Object { $_.State -eq "Established" }
-        if ($tcpConnection) {
-            return $true
-        }
-    }
-
-    try {
-        "Validating connectivity between LoadBalancerMuxes and primary replica of SlbManager service within Network Controller" | Trace-Output
-        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams
-
-        # if no load balancer muxes configured within the environment, return back the health object to caller
-        if ($null -ieq $loadBalancerMux) {
-            return $sdnHealthObject
-        }
-
-        # get the current primary replica of Network Controller
-        # if we cannot return the primary replica, then something is critically wrong with Network Controller
-        # in which case we should mark this test as failed and return back to the caller with guidance to fix the SlbManagerService
-        $primaryReplicaNode = Get-SdnServiceFabricReplica -NetworkController $SdnEnvironmentObject.EnvironmentInfo.NetworkController[0] -ServiceTypeName 'SlbManagerService' -Credential $NcRestCredential -Primary
-        if ($null -ieq $primaryReplicaNode) {
-            "Unable to return primary replica of SlbManagerService" | Trace-Output -Level:Error
-            $sdnHealthObject.Result = 'FAIL'
-            $sdnHealthObject.Remediation = "Fix the primary replica of SlbManagerService within Network Controller."
-            return $sdnHealthObject
-        }
-
-        # enumerate through the load balancer muxes in the environment and validate the TCP connection state
-        # we expect the primary replica for SlbManager within Network Controller to have an active connection for DIP:VIP programming to the Muxes
-        foreach ($mux in $loadBalancerMux) {
-            $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $mux.properties.virtualServer.resourceRef
-            $virtualServerConnection = $virtualServer.properties.connections[0].managementAddresses
-            $connectionExists = Invoke-PSRemoteCommand -ComputerName $virtualServerConnection -Credential $Credential -ScriptBlock $netConnectionExistsScriptBlock
-            if (-NOT $connectionExists) {
-                "{0} is not connected to SlbManager of Network Controller" -f $mux.resourceRef | Trace-Output -Level:Error
-                $sdnHealthObject.Result = 'FAIL'
-                $sdnHealthObject.Remediation += "Investigate and fix TCP connectivity or x509 authentication between $($primaryReplicaNode.ReplicaAddress) and $($mux.resourceRef)."
-
-                $object = [PSCustomObject]@{
-                    LoadBalancerMux = $mux.resourceRef
-                    SlbManagerPrimaryReplica = $primaryReplicaNode.ReplicaAddress
-                }
-
-                $array += $object
-            }
-            else {
-                "{0} is connected to {1}" -f $mux.resourceRef, $primaryReplicaNode.ReplicaAddress | Trace-Output -Level:Verbose
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-VfpDuplicatePort {
-    <#
-    .SYNOPSIS
-        Validate there are no ports within VFP layer that may have duplicate MAC addresses.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validate no duplicate MAC addresses for ports within Virtual Filtering Platform (VFP)" | Trace-Output
-
-        $vfpPorts = Get-SdnVfpVmSwitchPort -ComputerName $SdnEnvironmentObject.ComputerName -Credential $Credential
-        $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
-        if($duplicateObjects){
-            $array += $duplicateObjects
-            $sdnHealthObject.Result = 'FAIL'
-
-            # since there can be multiple grouped objects, we need to enumerate each duplicate group
-            foreach($obj in $duplicateObjects){
-                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within VFP"
-
-                "Located {0} VFP ports associated with {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
-                    ($obj.Group `
-                    | Select-Object @{n="Portname";e={"`t$($_.Portname)"}} `
-                    | Select-Object -ExpandProperty Portname `
-                    | Out-String `
-                ) | Trace-Output -Level:Error
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
-}
-
-function Test-VMNetAdapterDuplicateMacAddress {
-    <#
-    .SYNOPSIS
-        Validate there are no adapters within hyper-v dataplane that may have duplicate MAC addresses.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [SdnFabricEnvObject]$SdnEnvironmentObject,
-
-        [Parameter(Mandatory = $false)]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
-    )
-
-    $sdnHealthObject = [SdnHealth]::new()
-    $array = @()
-
-    try {
-        "Validate no duplicate MAC addresses for network adapters within Hyper-V" | Trace-Output
-
-        $vmNetAdapters = Get-SdnVMNetworkAdapter -ComputerName $SdnEnvironmentObject.ComputerName -AsJob -PassThru -Timeout 900 -Credential $Credential
-        $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
-        if($duplicateObjects){
-            $array += $duplicateObjects
-            $sdnHealthObject.Result = 'FAIL'
-
-            # since there can be multiple grouped objects, we need to enumerate each duplicate group
-            foreach($obj in $duplicateObjects){
-                $sdnHealthObject.Remediation += "Remove the duplicate MAC addresses for $($obj.Name) within Hyper-V"
-                "Located {0} virtual machines associated with MAC address {1}:`r`n`n{2}`r`n" -f $obj.Count, $obj.Name, `
-                    ($obj.Group `
-                    | Select-Object @{n="VMName";e={"`t$($_.VMName)"}} `
-                    | Select-Object -ExpandProperty VMName `
-                    | Out-String `
-                ) | Trace-Output -Level:Error
-            }
-        }
-
-        $sdnHealthObject.Properties = $array
-        return $sdnHealthObject
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error
-    }
 }
 
 function Write-HealthValidationInfo {
@@ -1737,10 +201,6 @@ function Debug-SdnFabricInfrastructure {
         [X509Certificate]$NcRestCertificate
     )
 
-    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
-        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
-    }
-
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
@@ -1777,11 +237,9 @@ function Debug-SdnFabricInfrastructure {
             "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Verbose
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
 
-            $roleHealthReport = [SdnFabricHealthReport]@{
-                Role = $object.ToString()
-            }
-
-            $sdnFabricDetails = [SdnFabricEnvObject]@{
+            $roleHealthReport = New-SdnFabricHealthReport -Role $object.ToString()
+            $sdnFabricDetails = [PSCustomObject]@{
+                ComputerName = $null
                 NcUrl = $environmentInfo.NcUrl
                 Role  = $config
                 EnvironmentInfo = $environmentInfo
@@ -1804,90 +262,25 @@ function Debug-SdnFabricInfrastructure {
             }
 
             $restApiParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
+                NcUri = $sdnFabricDetails.NcUrl
             }
             $restApiParams += $restCredParam
-
-            $computerCredParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
-                Credential              = $Credential
-            }
-
-            $computerCredAndRestApiParams = @{
-                SdnEnvironmentObject    = $sdnFabricDetails
-                Credential              = $Credential
-            }
-            $computerCredAndRestApiParams += $restCredParam
 
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
 
-            # perform the health validations for the appropriate roles that were specified directly
-            # or determined via which ComputerNames were defined
-            switch ($object) {
-                'Gateway' {
-                    $roleHealthReport.HealthValidation += @(
-                        Test-ResourceProvisioningState @restApiParams
-                        Test-ResourceConfigurationState @restApiParams
-                        Test-ServiceState @computerCredParams
-                        Test-ScheduledTaskEnabled @computerCredParams
-                    )
-                }
-
-                'LoadBalancerMux' {
-                    $roleHealthReport.HealthValidation += @(
-                        Test-ResourceProvisioningState @restApiParams
-                        Test-ResourceConfigurationState @restApiParams
-                        Test-ServiceState @computerCredParams
-                        Test-ScheduledTaskEnabled @computerCredParams
-                        Test-MuxBgpConnectionState @computerCredAndRestApiParams
-                        Test-SlbManagerConnectionToMux @computerCredAndRestApiParams
-                    )
-                }
-
-                'NetworkController' {
-                    $roleHealthReport.HealthValidation += @(
-                        Test-NcUrlNameResolution @computerCredAndRestApiParams
-                        Test-ServiceState @computerCredParams
-                        Test-ServiceFabricPartitionDatabaseSize @computerCredParams
-                        Test-ServiceFabricClusterHealth @computerCredParams
-                        Test-ServiceFabricApplicationHealth @computerCredParams
-                        Test-ServiceFabricNodeStatus @computerCredParams
-                        Test-NetworkInterfaceAPIDuplicateMacAddress @restApiParams
-                        Test-ScheduledTaskEnabled @computerCredParams
-                        Test-NetworkControllerCertCredential @computerCredAndRestApiParams
-                    )
-                }
-
-                'Server' {
-                    $roleHealthReport.HealthValidation += @(
-                        Test-ResourceProvisioningState @restApiParams
-                        Test-ResourceConfigurationState @restApiParams
-                        Test-EncapOverhead @computerCredParams
-                        Test-ProviderNetwork @computerCredParams
-                        Test-ServiceState @computerCredParams
-                        Test-ServerHostId @computerCredAndRestApiParams
-                        Test-VfpDuplicatePort @computerCredParams
-                        Test-VMNetAdapterDuplicateMacAddress @computerCredParams
-                        Test-HostRootStoreNonRootCert @computerCredParams
-                        Test-ScheduledTaskEnabled @computerCredParams
-                        Test-NcHostAgentConnectionToApiService @computerCredAndRestApiParams
-                    )
-                }
+            $params = @{
+                ComputerName = $sdnFabricDetails.ComputerName
+                Credential = $Credential
+                ScriptBlock = $null
+                ArgumentList = @($restApiParams)
             }
 
-            # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
-            # if any of the tests completed with Warning, we will set the aggregate result to Warning
-            # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
-            # we will skip tests with PASS, as that is the default value
-            foreach ($healthStatus in $roleHealthReport.HealthValidation) {
-                if ($healthStatus.Result -eq 'Warning') {
-                    $roleHealthReport.Result = $healthStatus.Result
-                }
-                elseif ($healthStatus.Result -eq 'FAIL') {
-                    $roleHealthReport.Result = $healthStatus.Result
-                    break
-                }
+            switch ($object) {
+                'Gateway' { $params.ScriptBlock = { param($boundParams) Debug-SdnGateway @boundParams } }
+                'LoadBalancerMux' { $params.ScriptBlock = { param($boundParams) Debug-SdnLoadBalancerMux @boundParams } }
+                'NetworkController' { $params.ScriptBlock = { param($boundParams) Debug-SdnNetworkController @boundParams } }
+                'Server' { $params.ScriptBlock = { param($boundParams) Debug-SdnServer @boundParams } }
             }
 
             # add the individual role health report to the aggregate report
@@ -1973,3 +366,834 @@ function Get-SdnFabricInfrastructureResult {
     return $cacheResults
 }
 
+function Debug-SdnNetworkController {
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    Confirm-IsNetworkController
+    $healthReport = New-SdnRoleHealthReport -Role 'NetworkController'
+
+    try {
+        # execute tests for network controller, regardless of the cluster type
+        $healthReport.HealthTest += @(
+            Test-NonSelfSignedCertificateInTrustedRootStore
+        )
+
+        # execute tests based on the cluster type
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'FailoverCluster' {
+                $healthReport.HealthTest += @(
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'FcDiagnostics'
+                )
+            }
+            'ServiceFabric' {
+                $config_sf = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                [string[]]$services_sf = $config_sf.properties.services.Keys
+                $healthReport.HealthTest += @(
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+                    Test-ServiceState -ServiceName $services_sf
+                    Test-ServiceFabricApplicationHealth
+                    Test-ServiceFabricClusterHealth
+                    Test-ServiceFabricNodeStatus
+                )
+            }
+        }
+
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+        # we will skip tests with PASS, as that is the default value
+        foreach ($test in $healthReport.HealthTest) {
+            if ($test.Result -eq 'WARN') {
+                $healthReport.Result = $test.Result
+            }
+            elseif ($test.Result -eq 'FAIL') {
+                $healthReport.Result = $test.Result
+                break
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $healthReport.Result = 'FAIL'
+    }
+
+    return $healthReport
+}
+
+function Debug-SdnServer {
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    Confirm-IsServer
+    $config = Get-SdnModuleConfiguration -Role 'Server'
+    [string[]]$services = $config.properties.services.Keys
+    $healthReport = New-SdnRoleHealthReport -Role 'Server'
+
+    $ncRestParams = $PSBoundParameters
+    $serverResource = Get-SdnResource @ncRestParams -Resource:Servers -ErrorAction Ignore
+
+    try {
+        # these tests are executed locally and have no dependencies on network controller rest API being available
+        $healthReport.HealthTest += @(
+            Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-EncapOverhead
+            Test-VfpDuplicateMacAddress
+            Test-VMNetAdapterDuplicateMacAddress
+            Test-ServiceState -ServiceName $services
+            Test-ProviderNetwork
+            Test-HostAgentConnectionStateToApiService
+            Test-NetworkControllerApiNameResolution -NcUri $NcUri
+        )
+
+        # these tests have dependencies on network controller rest API being available
+        # and will only be executed if we have been able to get the data from the network controller
+        if ($serverResource) {
+            $healthReport.HealthTest += @(
+                Test-ServerHostId -InstanceId $serverResource.InstanceId
+            )
+        }
+
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+        # we will skip tests with PASS, as that is the default value
+        foreach ($test in $healthReport.HealthTest) {
+            if ($test.Result -eq 'WARN') {
+                $healthReport.Result = $test.Result
+            }
+            elseif ($test.Result -eq 'FAIL') {
+                $healthReport.Result = $test.Result
+                break
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $healthReport.Result = 'FAIL'
+    }
+
+    return $healthReport
+}
+
+function Debug-SdnLoadBalancerMux {
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    Confirm-IsLoadBalancerMux
+    $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
+    [string[]]$services = $config.properties.services.Keys
+    $healthReport = New-SdnRoleHealthReport -Role 'LoadBalancerMux'
+
+    $ncRestParams = $PSBoundParameters
+
+    try {
+        $muxCertRegKey = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux" -Name MuxCert
+        $virtualServers = Get-SdnResource -Resource VirtualServers @ncRestParams
+        $muxVirtualServer = $virtualServers | Where-Object {$_.properties.connections.managementaddresses -contains $muxCertRegKey.MuxCert}
+        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams | Where-Object {$_.properties.virtualserver.resourceRef -ieq $muxVirtualServer.resourceRef}
+        $peerRouters = $loadBalancerMux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
+
+        $testResults = @()
+        $testResults += @(
+            Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-ServiceState -ServiceName $services
+            Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-MuxConnectionStateToRouter -RouterIPAddress $peerRouters
+            Test-MuxConnectionStateToSlbManager
+            Test-NetworkControllerApiNameResolution -NcUri $NcUri
+        )
+
+        # we need to deserialize the test results from JSON back into SdnHealthTest so we can
+        # add to SdnRoleHealthReport.HealthTest
+        foreach ($test in $testResults) {
+            $healthObject = [SdnHealthTest]::Deserialize($test)
+            $healthReport.HealthTest += $healthObject
+        }
+
+        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
+        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+        # we will skip tests with PASS, as that is the default value
+        foreach ($test in $healthReport.HealthTest) {
+            if ($test.Result -eq 'WARN') {
+                $healthReport.Result = $test.Result
+            }
+            elseif ($test.Result -eq 'FAIL') {
+                $healthReport.Result = $test.Result
+                break
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $healthReport.Result = 'FAIL'
+    }
+
+    return $healthReport
+}
+
+function Debug-SdnGateway {
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    Confirm-IsRasGateway
+    $config = Get-SdnModuleConfiguration -Role 'Gateway'
+    [string[]]$services = $config.properties.services.Keys
+    $healthReport = New-SdnRoleHealthReport -Role 'Gateway'
+
+    $ncRestParams = @{
+        NcUri = $NcUri
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCredential' { $ncRestParams += @{ NcRestCredential = $NcRestCredential } }
+        'RestCertificate' { $ncRestParams += @{ NcRestCertificate = $NcRestCertificate } }
+    }
+
+    try {
+        $healthReport.HealthTest += @(
+            Test-NonSelfSignedCertificateInTrustedRootStore
+            Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-ServiceState -ServiceName $services
+        )
+
+        # enumerate all the tests performed so we can determine if any completed with Warning or FAIL
+        # if any of the tests completed with Warning, we will set the aggregate result to Warning
+        # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
+        # we will skip tests with PASS, as that is the default value
+        foreach ($test in $healthReport.HealthTest) {
+            if ($test.Result -eq 'Warning') {
+                $healthReport.Result = $test.Result
+            }
+            elseif ($test.Result -eq 'FAIL') {
+                $healthReport.Result = $test.Result
+                break
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $healthReport.Result = 'FAIL'
+    }
+
+    return ( $healthReport )
+}
+
+###################################
+#### COMMON HEALTH VALIDATIONS ####
+###################################
+
+function Test-NonSelfSignedCertificateInTrustedRootStore {
+    <#
+    .SYNOPSIS
+        Validate the Cert in Host's Root CA Store to detect if any Non Root Cert exist
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+    $array = @()
+
+    try {
+        $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
+        if ($rootCerts -or $rootCerts.Count -gt 0) {
+            $sdnHealthTest.Result = 'FAIL'
+
+            $rootCerts | ForEach-Object {
+                $sdnHealthTest.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
+                $array += [PSCustomObject]@{
+                    Thumbprint = $rootCert.Thumbprint
+                    Subject    = $rootCert.Subject
+                    Issuer     = $rootCert.Issuer
+                }
+            }
+        }
+
+        $sdnHealthTest.Properties = $array
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-ServiceState {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [String[]]$ServiceName
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+    $failureDetected = $false
+    $array = @()
+
+    try {
+        foreach ($service in $ServiceName) {
+            $result = Get-Service -Name $service -ErrorAction Ignore
+            if ($result) {
+                $array += [PSCustomObject]@{
+                    ServiceName = $result.Name
+                    Status      = $result.Status
+                }
+
+                if ($result.Status -ine 'Running') {
+                    $failureDetected = $true
+                    $sdnHealthTest.Remediation += "[$service] Start the service"
+                }
+            }
+            else {
+                $failureDetected = $true
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+
+        if ($array) {
+            $sdnHealthTest.Properties = $array
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-DiagnosticsCleanupTaskEnabled {
+    <#
+    .SYNOPSIS
+        Ensures the scheduled task responsible for etl compression is enabled and running
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('FcDiagnostics', 'SDN Diagnostics Task')]
+        [String]$TaskName
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        # check to see if logging is enabled on the registry key
+        $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled' -ErrorAction Ignore
+
+        # in this scenario, logging is currently disabled so scheduled task will not be available
+        if ($isLoggingEnabled ) {
+            try {
+                $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
+                if ($result.State -ieq 'Disabled') {
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask -TaskName $TaskName'."
+                }
+            }
+            catch {
+                $sdnHealthTest.Result = 'FAIL'
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-NetworkControllerApiNameResolution {
+    <#
+    .SYNOPSIS
+        Validates that the Network Controller API is resolvable via DNS
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        # check to see if the Uri is an IP address or a DNS name
+        # if it is a DNS name, we need to ensure that it is resolvable
+        # if it is an IP address, we can skip the DNS resolution check
+        $isIpAddress = [System.Net.IPAddress]::TryParse($NcUri.Host, [ref]$null)
+        if (-NOT $isIpAddress) {
+            $dnsResult = Resolve-DnsName -Name $NcUri.Host -ErrorAction Ignore
+            if ($null -eq $dnsResult) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation += "Ensure that the DNS server(s) are reachable and DNS record exists."
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+###################################
+#### SERVER HEALTH VALIDATIONS ####
+###################################
+
+function Test-EncapOverhead {
+    <#
+    .SYNOPSIS
+
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    [int]$encapOverheadExpectedValue = 160
+    [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $encapOverheadResults = Get-SdnNetAdapterEncapOverheadConfig
+        if ($null -eq $encapOverheadResults) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+        else {
+            $encapOverheadResults | ForEach-Object {
+                # if encapoverhead is not enabled, this is most commonly due to network adapter firmware or driver
+                # recommendations are to update the firmware and driver to the latest version and make sure not using default inbox drivers
+                if ($_.EncapOverheadEnabled -eq $false) {
+
+                    # in this scenario, encapoverhead is disabled and we have the expected jumbo packet value
+                    # packets will be allowed to traverse the network without being dropped after adding VXLAN/GRE headers
+                    if ($_.JumboPacketValue -ge $jumboPacketExpectedValue) {
+                        # will not do anything as configuring the jumbo packet is viable workaround if encapoverhead is not supported on the network adapter
+                        # this is a PASS scenario
+                    }
+
+                    # in this scenario, encapoverhead is disabled and we do not have the expected jumbo packet value
+                    # this will result in a failure on the test as it will result in packets being dropped if we exceed default MTU
+                    if ($_.JumboPacketValue -lt $jumboPacketExpectedValue) {
+                        $sdnHealthTest.Result = 'FAIL'
+                        $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
+                    }
+
+                }
+
+                # in this case, the encapoverhead is enabled but the value is less than the expected value
+                if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
+                    # do nothing here at this time as may be expected if no workloads deployed to host
+                }
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-ServerHostId {
+    <#
+    .SYNOPSIS
+        Queries the NCHostAgent HostID registry key value across the hypervisor hosts to ensure the HostID matches known InstanceID results from NC Servers API.
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$InstanceId
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+    $regkeyPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters'
+
+    try {
+        $regHostId = Get-ItemProperty -Path $regkeyPath -Name 'HostId' -ErrorAction Ignore
+        if ($null -ieq $regHostId) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+        else {
+            if ($regHostId.HostId -inotin $InstanceId) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the correct InstanceId from the NC Servers API."
+                $sdnHealthTest.Properties = [PSCustomObject]@{
+                    HostID = $regHostId
+                }
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-VfpDuplicateMacAddress {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $vfpPorts = Get-SdnVfpVmSwitchPort
+        $duplicateObjects = $vfpPorts | Where-Object {$_.MACaddress -ne '00-00-00-00-00-00' -and $null -ne $_.MacAddress} | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
+        if ($duplicateObjects) {
+            $sdnHealthTest.Result = 'FAIL'
+
+            $duplicateObjects | ForEach-Object {
+                $sdnHealthTest.Remediation += "[$($_.Name)] Resolve the duplicate MAC address issue with VFP."
+            }
+        }
+
+        $sdnHealthTest.Properties = [PSCustomObject]@{
+            DuplicateVfpPorts = $duplicateObjects.Group
+            VfpPorts          = $vfpPorts
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-VMNetAdapterDuplicateMacAddress {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $vmNetAdapters = Get-SdnVMNetworkAdapter
+        $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object {$_.Count -ge 2}
+        if ($duplicateObjects) {
+            $sdnHealthTest.Result = 'FAIL'
+
+            $duplicateObjects | ForEach-Object {
+                $sdnHealthTest.Remediation += "[$($_.Name)] Resolve the duplicate MAC address issue with VMNetworkAdapters."
+            }
+        }
+
+        $sdnHealthTest.Properties = [PSCustomObject]@{
+            DuplicateVMNetworkAdapters = $duplicateObjects.Group
+            VMNetworkAdapters          = $vmNetAdapters
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-ProviderNetwork {
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+    $failureDetected = $false
+
+    try {
+        $addressMapping = Get-SdnOvsdbAddressMapping
+        if (-NOT ($null -eq $addressMapping -or $addressMapping.Count -eq 0)) {
+            $providerAddreses = $addressMapping.ProviderAddress | Sort-Object -Unique
+            $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $providerAddreses
+
+            foreach ($destination in $connectivityResults) {
+                $sourceIPAddress = $destination.SourceAddress[0]
+                $destinationIPAddress = $destination.DestinationAddress[0]
+                $jumboPacketResult = $destination | Where-Object {$_.BufferSize -gt 1472}
+                $standardPacketResult = $destination | Where-Object {$_.BufferSize -le 1472}
+
+                if ($destination.Status -ine 'Success') {
+                    $remediationMsg = $null
+                    $failureDetected = $true
+
+                    # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
+                    if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure') {
+                        $remediationMsg = "Unable to ping Provider Addresses. Ensure ICMP enabled on $sourceIPAddress and $destinationIPAddress. If issue persists, investigate physical network."
+                        $sdnHealthTest.Remediation += $remediationMsg
+                    }
+
+                    # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
+                    # either on the physical nic or within the physical switches between the provider addresses
+                    if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success') {
+                        $remediationMsg = "Ensure the physical network between $sourceIPAddress and $destinationIPAddress are configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660."
+                        $sdnHealthTest.Remediation += $remediationMsg
+                    }
+                }
+            }
+        }
+
+        if ($failureDetected) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+        if ($connectivityResults) {
+            $sdnHealthTest.Properties = [PSCustomObject]@{
+                PingResult = $connectivityResults
+            }
+            $sdnHealthTest.PropertyDepth = 5
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-HostAgentConnectionStateToApiService {
+    [CmdletBinding()]
+    param()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $tcpConnection = Get-NetTCPConnection -RemotePort 6640 -ErrorAction Ignore
+        if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+
+        if ($tcpConnection) {
+            if ($tcpConnection.ConnectionState -ine 'Connected') {
+                $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
+                if ($serviceState.Status -ine 'Running') {
+                    $sdnHealthTest.Result = 'WARN'
+                    $sdnHealthTest.Remediation += "Ensure the NCHostAgent service is running."
+                }
+                else {
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += "Ensure that Network Controller ApiService is healthy and operational. Investigate and fix TCP / TLS connectivity issues."
+                }
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+###################################
+###### NC HEALTH VALIDATIONS ######
+###################################
+
+function Test-ServiceFabricApplicationHealth {
+    <#
+    .SYNOPSIS
+        Validate the health of the Network Controller application within Service Fabric.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $applicationHealth = Get-SdnServiceFabricApplicationHealth -ErrorAction Stop
+        if ($applicationHealth.AggregatedHealthState -ine 'Ok') {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Examine the Service Fabric Application Health for Network Controller to determine why the health is not OK."
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-ServiceFabricClusterHealth {
+    <#
+    .SYNOPSIS
+        Validate the health of the Network Controller cluster within Service Fabric.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $clusterHealth = Get-SdnServiceFabricClusterHealth -ErrorAction Stop
+        if ($clusterHealth.AggregatedHealthState -ine 'Ok') {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Examine the Service Fabric Cluster Health for Network Controller to determine why the health is not OK."
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-ServiceFabricNodeStatus {
+    <#
+    .SYNOPSIS
+        Validate the health of the Network Controller nodes within Service Fabric.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $ncNodes = Get-SdnServiceFabricNode -NodeName $env:COMPUTERNAME -ErrorAction Stop
+        if ($null -eq $ncNodes) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+        else {
+            if ($ncNodes.NodeStatus -ine 'Up') {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+###################################
+##### MUX HEALTH VALIDATIONS ######
+###################################
+
+function Test-MuxConnectionStateToRouter {
+    <#
+    SYNOPSIS
+        Validates the TCP connectivity for BGP endpoint to the routers.
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$RouterIPAddress
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($router in $RouterIPAddress) {
+            $tcpConnection = Get-NetTCPConnection -RemotePort 179 -RemoteAddress $router -ErrorAction Ignore
+            if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation += "Examine the TCP connectivity for router $router to determine why TCP connection is not established."
+            }
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-MuxConnectionStateToSlbManager {
+    <#
+        SYNOPSIS
+        Validates the TCP / TLS connectivity to the SlbManager service.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore
+        if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Move SlbManager service primary role to another node. Examine the TCP / TLS connectivity for the SlbManager service."
+        }
+    }
+    catch {
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}

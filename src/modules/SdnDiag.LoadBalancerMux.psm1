@@ -13,6 +13,48 @@ New-Variable -Name 'SdnDiagnostics_SLB' -Scope 'Script' -Force -Value @{
 #### CLASSES & ENUMS #####
 ##########################
 
+class MuxConfig {
+    [ipaddress]$SourceIP4Address
+    [ipaddress]$SourceIP6Address
+    [int]$MaxFlowEntries
+    [int]$FlowIdleTimeout
+    [int]$HalfFlowIdleTimeout
+    [int]$FlowEntriesWatermark
+    [int]$CoeffecientForMovingAverage
+    [int]$BandwidthCalculationTimeInterval
+    [int]$AggregateBandwidthWatermark
+    [int]$ElephantBandwidthThreshold
+    [int]$AggregateBandwidthLimitForElephant
+    [int]$MaxDropProbability
+    [int]$MaxBandwidthUtilizationForDrop
+    [int]$InitialHashTableSize
+    [int]$MaxHashTableUsagePct
+    [int]$MinHashTableUsagePct
+    [int]$HashTableResizeFactor
+    [int]$HashPrimeNumber
+    [int]$FlowSamplingIntervalInSec
+    [string]$MUXFlags
+}
+
+class MuxStatistics {
+    [string]$Type
+    [int]$TotalPackets
+    [int]$SynPackets
+    [int]$PacketsPerSecond
+    [int]$DroppedPackets
+    [int]$TotalBytes
+    [int]$FlowEntries
+    [int]$DroppedFlowEntries
+    [int]$TotalNumberOfHashTableBuckets
+    $FlowEntriesLimitUtilization
+    $FlowEntriesWatermarkUtilization
+    $AverageBandwidth
+    $BandwidthLimitUtilization
+    $BandwidthWatermarkUtilization
+    [int]$ElephantCount
+    [int]$FlowCacheMisses
+}
+
 ##########################
 #### ARG COMPLETERS ######
 ##########################
@@ -156,6 +198,67 @@ function Get-SdnMuxState {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+}
+
+function Get-SdnMuxConfig {
+    $muxConfig = [MuxConfig]::new()
+    $results = muxdrivercontrolconsole /GetMuxConfig
+    foreach ($i in $results) {
+        if ([string]::IsNullOrEmpty($i)) { continue }
+        if ($i.contains(":")){
+            $property = $i.Split(":")[0].Trim().Replace(" ", "")
+            $value = $i.Split(":")[1].Trim()
+
+            if ($property -iin $muxConfig.PSObject.Properties.Name) {
+                $muxConfig.$property = $value
+            }
+        }
+    }
+
+    return $muxConfig
+}
+
+function Get-SdnMuxStats {
+    $array = @()
+    $results = muxdrivercontrolconsole /GetMuxStats
+
+    foreach ($i in $results) {
+        if ([string]::IsNullOrEmpty($i)) { continue }
+
+        if ($i.contains(":")){
+            $property = $i.Split(":")[0].Trim().Replace(" ", "")
+            $value = $i.Split(":")[1].Trim()
+
+            if ($property -ilike "MuxStatisticsfor*") {
+                if ($muxStatistics) {
+                    $array += $muxStatistics
+                }
+
+                switch ($property) {
+                    "MuxStatisticsforIPv4Traffic" {
+                        $muxStatistics = [MuxStatistics]@{
+                            Type = "IPv4"
+                        }
+                    }
+                    "MuxStatisticsforIPv6Traffic" {
+                        $muxStatistics = [MuxStatistics]@{
+                            Type = "IPv6"
+                        }
+                    }
+                }
+            }
+
+            if ($property -iin $muxStatistics.PSObject.Properties.Name) {
+                $muxStatistics.$property = $value
+            }
+        }
+    }
+
+    if ($muxStatistics) {
+        $array += $muxStatistics
+    }
+
+    return $array
 }
 
 function Get-SdnMuxStatefulVip {
