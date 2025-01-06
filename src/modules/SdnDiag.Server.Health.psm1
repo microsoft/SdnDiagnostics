@@ -2,10 +2,12 @@
 # Licensed under the MIT License.
 
 using module .\SdnDiag.Health.psm1
+using module .\SdnDiag.HealthFault.psm1
 
 Import-Module $PSScriptRoot\SdnDiag.Health.psm1
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
+Import-Module $PSScriptRoot\SdnDiag.HealthFault.psm1
 
 ##########################
 #### CLASSES & ENUMS #####
@@ -93,16 +95,23 @@ function Test-EncapOverhead {
     #>
 
     [CmdletBinding()]
-    param ()
+    param (
+        [Parameter(Mandatory = $false)]
+        [bool] $GenerateFault = $false
+    )
 
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthObject = [SdnHealthTest]::new()
+    [bool] $misconfigurationFound = $false
+    [string[]] $misconfiguredNics = @()
 
     try {
         $encapOverheadResults = Get-SdnNetAdapterEncapOverheadConfig
         if ($null -eq $encapOverheadResults) {
             $sdnHealthObject.Result = 'FAIL'
+
+            # skip generation of fault if we cannot determine status confidently
             return $sdnHealthObject
         }
 
@@ -123,16 +132,46 @@ function Test-EncapOverhead {
                 if ($_.JumboPacketValue -lt $jumboPacketExpectedValue) {
                     $sdnHealthObject.Result = 'FAIL'
                     $sdnHealthObject.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
+
+                    $misconfigurationFound = $true
+                    $misconfiguredNics += $_.NetAdapterInterfaceDescription
                 }
-
             }
-
             # in this case, the encapoverhead is enabled but the value is less than the expected value
             if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
                 # do nothing here at this time as may be expected if no workloads deployed to host
             }
         }
+        
+        if($GenerateFault) {
+            $FAULTNAME = "InvalidEncapOverheadConfiguration"
+            ##########################################################################################
+            ## EncapOverhead Fault Template
+            ##########################################################################################
+            # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
+            # $KeyFaultingObjectID             (ARC ID)    : [NetworkAdapterIfDescsCsv]
+            # $KeyFaultingObjectType           (CODE)      : InvalidEncapOverheadConfiguration
+            # $FaultingObjectLocation          (SOURCE)    : [HostName]
+            # $FaultDescription                (MESSAGE)   : EncapOverhead is not enabled or configured correctly for <AdapterNames> on host <HostName>. 
+            # $FaultActionRemediation          (ACTION)    : JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration.
+            # *EncapOverhead Faults will be reported from each node 
+            ##########################################################################################
+            $sdnHealthFault = [SdnFaultInfo]::new()
+            $sdnHealthFault.KeyFaultingObjectDescription = $env:COMPUTERNAME
+            $sdnHealthFault.KeyFaultingObjectID = $misconfiguredNics -join ','
+            $sdnHealthFault.KeyFaultingObjectType = $FAULTNAME
+            $sdnHealthFault.FaultingObjectLocation = $env:COMPUTERNAME
+            $sdnHealthFault.FaultDescription = "EncapOverhead is not enabled or configured correctly for $misconfiguredNics on host $env:COMPUTERNAME."
+            $sdnHealthFault.FaultActionRemediation = "JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration."
 
+            if($misconfigurationFound -eq $true) {
+                CreateorUpdateFault -Fault $sdnHealthFault -Verbose
+            } else {
+                # clear all existing faults for host($FAULTNAME)
+                # todo: validate multiple hosts reporting the same fault
+                DeleteFaultBy -KeyFaultingObjectDescription $env:COMPUTERNAME -KeyFaultingObjectType $FAULTNAME -Verbose
+            }
+        }
         return $sdnHealthObject
     }
     catch {
@@ -293,4 +332,142 @@ function Test-ProviderNetwork {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+}
+
+function Test-ConfigurationState {
+    [CmdletBinding()]
+    param (
+        [bool] $GenerateFault = $false,
+        [string] $NcUri
+    )
+
+    if(-not $GenerateFault) {
+        Write-Output "Skipping fault generation"
+    }
+
+    # servers
+    $NcUri = "https://v-NC.v.masd.stbtest.microsoft.com"
+    
+    Import-Module NetworkController
+
+    # generate faults for servers
+    $servers = Get-NetworkControllerServer -ConnectionUri $NcUri 
+    $faultSet = GetFaultFromConfigurationState -resources $servers
+    ShowFaultSet -faults $faultSet
+    UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
+
+    # generate faults for vnics
+    $vnics = Get-NetworkControllerNetworkInterface -ConnectionUri $NcUri
+    $faultSet = GetFaultFromConfigurationState -resources $vnics
+    ShowFaultSet -faults $faultSet
+    UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
+}
+
+
+function GetFaultFromConfigurationState {
+    param(
+        [object[]] $resources
+    )
+
+    $resHash = @{}
+    $healthFaults = @()
+    # successful faults are just a stub holder for the resource 
+    # these are not created, but used for clearing out any older unhealthy states
+    # these have KeyFaultingObjectType set to string.empty
+    $successFaults = @()
+    
+    foreach ($resource in $resources) {
+
+        ##########################################################################################
+        ## ServiceState Fault Template (ServerResource)
+        ##########################################################################################
+        # $KeyFaultingObjectDescription    (SDN ID)    : [ResourceIRef]
+        # $KeyFaultingObjectID             (ARC ID)    : [ResourceMetadataID (if available) else ResourceRef]
+        # $KeyFaultingObjectType           (CODE)      : "ConfgiStateCode" (if 2 more errors are found with same other properties will be concatanated)
+        # $FaultingObjectLocation          (SOURCE)    : "Source (if keys of 2 errors collide they will be concatanated)"
+        # $FaultDescription                (MESSAGE)   : "ConfigStateMessage (2 or more if errors collide)."
+        # $FaultActionRemediation          (ACTION)    : "See <href> for more information on how to resolve this issue."
+        # * Config state faults issued only from the primary Node
+        ##########################################################################################
+
+        
+        if($null -ne $resource.Properties.ConfigurationState -and $null -ne $resource.Properties.ConfigurationState.DetailedInfo -and `
+            $resource.Properties.ConfigurationState.DetailedInfo.Count -gt 0) {
+
+            foreach($detailedInfo in $resource.Properties.ConfigurationState.DetailedInfo) {
+
+                # supression check for some of the known configuration states
+                if(IsConfigurationStateSkipped -Source $detailedInfo.Source -Message $detailedInfo.Message -Code $detailedInfo.Code) {
+                    continue
+                }
+                
+                # handle success cases
+                if($detailedInfo.Code -eq "Success") {
+                    $successFault = [SdnFaultInfo]::new()
+                    $successFault.KeyFaultingObjectDescription = $resource.ResourceRef
+                    $successFault.KeyFaultingObjectID = $resource.ResourceRef
+                    $successFault.KeyFaultingObjectType = [string]::Empty
+                    $successFault.FaultingObjectLocation = [string]::Empty
+                    $successFault.FaultDescription = [string]::Empty
+                    $successFaults += $successFault
+                    continue
+                }
+
+                # find any existing overlapping fault
+                $existingFault = $healthFaults | Where-Object {$_.KeyFaultingObjectDescription -eq $resource.ResourceRef -and `
+                    $_.KeyFaultingObjectType -eq $detailedInfo.Code}
+                    
+                    if($null -ne $existingFault) {
+                        
+                        $existingFault.FaultDescription += ("; " + $detailedInfo.Message)
+                        $existingFault.FaultingObjectLocation += ("; " + $detailedInfo.Source)
+                        
+                    } else {
+                        
+                        $healthFault = [SdnFaultInfo]::new()
+                        $healthFault.KeyFaultingObjectDescription = $resource.ResourceRef
+                        $healthFault.KeyFaultingObjectType = $detailedInfo.Code
+                        $healthFault.FaultingObjectLocation = $detailedInfo.Source
+                        $healthFault.FaultDescription += $detailedInfo.Message
+
+                        # add resource metadata if available
+                        if($null -ne $resource.Properties.ResourceMetadata) {
+                            $healthFault.KeyFaultingObjectID = $resource.Properties.ResourceMetadata
+                        } else {
+                            $healthFault.KeyFaultingObjectID = $resource.ResourceRef
+                        }
+
+                    }
+                    $healthFaults += $healthFault
+            }
+        } 
+        
+        # if configuration state is not available, we will clear out any existing faults
+        if($healthFaults.Count -eq 0) {
+            $successFault = [SdnFaultInfo]::new()
+            $successFault.KeyFaultingObjectDescription = $resource.ResourceRef
+            $successFault.KeyFaultingObjectType = [string]::Empty
+            $successFault.FaultingObjectLocation = [string]::Empty
+            $successFault.FaultDescription = [string]::Empty
+            $successFault.KeyFaultingObjectID = $resource.ResourceRef
+            $successFaults += $successFault
+        }
+    }
+    @($successFaults, $healthFaults)
+}
+
+function IsConfigurationStateSkipped {
+    param(
+        [string] $Source,
+        [string] $Message,
+        [string] $Code
+    )
+
+    if($Source -eq "SoftwareLoadbalancerManager") {
+        if($Code -eq "HostNotConnectedToController") {
+            return $true
+        }
+    }
+
+    $false
 }

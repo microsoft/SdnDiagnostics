@@ -28,6 +28,11 @@ class SdnHealthTest {
     [DateTime]$OccurrenceTime = [System.DateTime]::UtcNow
     [Object]$Properties
     [String[]]$Remediation
+    
+    SdnHealthTest() {
+        $this.Properties = @()
+        $this.Remediation = @()
+    }
 }
 
 class SdnRoleHealthReport {
@@ -107,9 +112,9 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
             $rootCerts | ForEach-Object {
                 $sdnHealthObject.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
                 $array += [PSCustomObject]@{
-                    Thumbprint = $rootCert.Thumbprint
-                    Subject    = $rootCert.Subject
-                    Issuer     = $rootCert.Issuer
+                    Thumbprint = $_.Thumbprint
+                    Subject    = $_.Subject
+                    Issuer     = $_.Issuer
                 }
             }
         }
@@ -140,9 +145,9 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
             $healthFault.FaultActionRemediation =  "Investigate and remove certificate with subject(s) $($subjectNames)."
 
             if( $rootCerts -or $rootCerts.Count -gt 0) {
-                CreateorUpdateFault -Fault $healthFault
+                CreateorUpdateFault -Fault $healthFault -Verbose
             } else {
-                DeleteFault -Fault $healthFault
+                DeleteFault -Fault $healthFault -Verbose
             }
         }
         return $sdnHealthObject
@@ -160,7 +165,7 @@ function Test-ServiceState {
         [String[]]$ServiceName,
 
         [Parameter(Mandatory = $false)]
-        [String[]]$GenerateFault = $false
+        [String]$GenerateFault = $false
     )
 
     $sdnHealthObject = [SdnHealthTest]::new()
@@ -182,7 +187,8 @@ function Test-ServiceState {
                 }
                 
                 # generate/clear fault
-                if($GenerateFault -and (IsSdnService -ServiceName $ServiceName) -eq $true) {
+                if($GenerateFault -eq $true) {
+                #  -and (IsSdnService -ServiceName $ServiceName) -eq $true) {
 
                     ##########################################################################################
                     ## ServiceState Fault Template
@@ -196,14 +202,14 @@ function Test-ServiceState {
                     # *ServiceState faults will be reported from each node 
                     ##########################################################################################
 
-                    Write-Host "Updating fault for $($ServiceName)"
+                    Write-Host "Updating fault for $($service)"
                     $healthFault = [SdnFaultInfo]::new()
                     $healthFault.KeyFaultingObjectDescription = $Env:COMPUTERNAME
-                    $healthFault.KeyFaultingObjectID = $ServiceName
+                    $healthFault.KeyFaultingObjectID = $service
                     $healthFault.KeyFaultingObjectType = "ServiceDown"
-                    $healthFault.FaultingObjectLocation = $ServiceName
-                    $healthFault.KeyFaultingObjectDescription = "Start the cluster service role $($ServiceName)"
-                    $healthFault.FaultingObjectLocation = $ServiceName
+                    $healthFault.FaultingObjectLocation = $service
+                    $healthFault.KeyFaultingObjectDescription = "Start the cluster service role $($service)"
+                    $healthFault.FaultingObjectLocation = $service
 
                     if($result.Status -ine 'Running')  {
                         DeleteFault -Fault $healthFault
@@ -256,30 +262,34 @@ function Test-SdnClusterServiceState {
                     $sdnHealthObject.Remediation += "[$service] Start the service"
                 }
                 
+                # Write-Host "here1"
+                # write-host (IsCurrentNodeClusterOwner -eq $true)
+                # write-host (IsSdnFcClusterServiceRole -ServiceName $ServiceName)
+                
                 # generate/clear fault
-                if($GenerateFault -and (IsSdnFcClusterServiceRole -ServiceName $ServiceName) -eq $true `
-                    -and (IsCurrentNodeClusterOwner -eq $true)) {
+                if($GenerateFault) {
 
+                    Write-Host "Generaintg Service fault for $service"
                     ##########################################################################################
                     ## FailoverClusterServiceState Fault Template
                     ##########################################################################################
                     # $KeyFaultingObjectDescription    (SDN ID)    : [ServiceName]
                     # $KeyFaultingObjectID             (ARC ID)    : [ServiceName]
-                    # $KeyFaultingObjectType           (CODE)      : [ServiceDown]
+                    # $KeyFaultingObjectType           (CODE)      : ServiceDown
                     # $FaultingObjectLocation          (SOURCE)    : [ServiceName]
                     # $FaultDescription                (MESSAGE)   : Service [ServiceName] is not up.
                     # $FaultActionRemediation          (ACTION)    : [ServiceName] Start the service
                     # *ServiceState faults will be reported only on one (primary) cluster node 
                     ##########################################################################################
                     
-                    Write-Host "Updating fault for $($ServiceName)"
+                    Write-Host "Updating fault for $($service)"
                     $healthFault = [SdnFaultInfo]::new()
-                    $healthFault.KeyFaultingObjectDescription = $ServiceName
-                    $healthFault.KeyFaultingObjectID = $ServiceName
+                    $healthFault.KeyFaultingObjectDescription = $service
+                    $healthFault.KeyFaultingObjectID = $service
                     $healthFault.KeyFaultingObjectType = "ServiceDown"
-                    $healthFault.FaultingObjectLocation = $ServiceName
-                    $healthFault.FaultDescription = "Service $($ServiceName) is down on Failover Cluster"
-                    $healthFault.FaultActionRemediation = "Start the cluster service role $($ServiceName)"
+                    $healthFault.FaultingObjectLocation = $service
+                    $healthFault.FaultDescription = "Service $($service) is down on Failover Cluster"
+                    $healthFault.FaultActionRemediation = "Start the cluster service role $($service)"
 
                     if($result.State -eq 'Offline')  {
                         CreateorUpdateFault -Fault $healthFault -Verbose
@@ -389,6 +399,90 @@ function Write-HealthValidationInfo {
     $outputString | Write-Host -ForegroundColor Yellow
 }
 
+function Test-SdnInfraFaults {
+<#
+    .SYNOPSIS
+    Executes a series of fabric validation tests to validate the state and health of the underlying components within the SDN fabric.
+#>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [bool] $GenerateFault = $false,
+
+        [Parameter(Mandatory = $false)]
+        [bool] $GenerateTelemerty = $false,
+
+        [Parameter(Mandatory = $false)]
+        [bool] $Verbose = $false
+    )
+
+try {
+
+    # todo : change logpath 
+    $transcriptFile = Join-Path -Path  $Env:TEMP  -ChildPath "SdnDiag.log"
+    try {
+        Start-Transcript -Path $transcriptFile -Append  
+    }
+    catch {
+        Write-Output "Failed to start transcript: $_"        
+    }
+
+    Import-Module .\SdnDiagnostics.psd1 -Force
+    Import-Module .\modules\SdnDiag.Server.Health.psm1 -Force
+
+    $NcUri = "https://v-NC.v.masd.stbtest.microsoft.com"
+    
+    #start running tests , and keep running them
+    [int] $sleepSeconds = 30
+    #do {
+        Write-Output "Running EncapOverhead test"
+        Test-EncapOverhead -GenerateFault $true | Write-Output
+
+        # test all SDN Services
+        $validServiceRoles = @(
+            "ApiService",
+            "ControllerService",
+            "FirewallService",
+            "FnmService",
+            "GatewayManager",
+            "ServiceInsertion",
+            "VSwitchService"
+        )
+        
+        Write-Output "Running NCServiceStateCheck test"
+        Test-SdnClusterServiceState -ServiceName $validServiceRoles -GenerateFault $true
+
+        # test all agent services
+        Write-Output "Running ServiceStateCheck test"
+        $agentServices = @(
+            'NcHostAgent',
+            'SlbHostAgent'
+        )
+        Test-ServiceState -ServiceName $validServiceRoles  -GenerateFault $true
+
+        # Test certificate related faults
+        Write-Output "Running NonSelfSignedInRoot test"
+        Test-NonSelfSignedCertificateInTrustedRootStore -GenerateFault $true | Write-Output
+
+        Test-ConfigurationState -NcUri $NcUri -GenerateFault $true 
+        # Start-Sleep -Seconds $sleepSeconds -Verbose
+
+
+    # } until($false);
+    
+    # run tests
+} catch {
+    Write-Output "Unhandled error occured: $_"
+    try {
+        Stop-Transcript
+    }
+    catch {
+        Write-Host "Failed to stop transcript: $_"
+    }
+}
+
+}
 function Debug-SdnFabricInfrastructure {
     <#
     .SYNOPSIS
