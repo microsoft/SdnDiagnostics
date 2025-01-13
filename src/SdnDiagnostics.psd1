@@ -149,6 +149,7 @@
         'Start-SdnMuxCertificateRotation',
         'Start-SdnServerCertificateRotation',
         'Start-SdnNetshTrace',
+        'Start-SdnHealthFault',
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
