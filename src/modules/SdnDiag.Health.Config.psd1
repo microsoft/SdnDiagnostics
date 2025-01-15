@@ -36,7 +36,7 @@
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
         }
         'Test-MuxConnectionStateToSlbManager' = @{
-            Description = "SLB Manager is not able to connect to the Mux(es)."
+            Description = "SLB Manager does not have connectivity established to Mux(es) via TCP 8560."
             Impact = "SLB Manager will not be able to program VIP:DIP mappings to the Load Balancer Mux(es) which will impact routing of Virtual IPs."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure-stack/hci/manage/troubleshoot-software-load-balancer"
         }
