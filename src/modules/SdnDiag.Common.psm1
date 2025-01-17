@@ -843,6 +843,10 @@ function Start-NetshTrace {
         [System.String]$Capture = 'No',
 
         [Parameter(Mandatory = $false)]
+        [ValidateSet('physical', 'vmswitch', 'Both')]
+        [System.String]$CaptureType = 'Both',
+
+        [Parameter(Mandatory = $false)]
         [ValidateSet('Yes', 'No')]
         [System.String]$Overwrite = 'Yes',
 
@@ -870,12 +874,12 @@ function Start-NetshTrace {
 
         # enable the network trace
         if ($TraceProviderString) {
-            $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5} correlation={6}" `
-                -f $Capture, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture={0} capturetype={1} {2} tracefile={3} maxsize={4} overwrite={5} report={6} correlation={7}" `
+                -f $Capture, $CaptureType, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
         }
         else {
-            $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}, correlation={5}" `
-                -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture={0} capturetype={1} tracefile={2} maxsize={3} overwrite={4} report={5}, correlation={6}" `
+                -f $Capture, $CaptureType, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
         }
 
         "Starting netsh trace" | Trace-Output
@@ -2057,6 +2061,8 @@ function Start-SdnNetshTrace {
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     .PARAMETER Capture
         Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default is No.
+    .PARAMETER CaptureType
+        Optional. Specifies if want to capture physical network or vmswitch. If unspecified, the default is Both.
     .PARAMETER Overwrite
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
     .PARAMETER Correlation
@@ -2091,6 +2097,11 @@ function Start-SdnNetshTrace {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [ValidateSet('physical', 'vmswitch', 'Both')]
+        [System.String]$CaptureType = 'Both',
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [ValidateSet('Yes', 'No')]
         [System.String]$Overwrite = 'Yes',
 
@@ -2122,6 +2133,7 @@ function Start-SdnNetshTrace {
         OutputDirectory = $OutputDirectory
         MaxTraceSize = $MaxTraceSize
         Capture = $Capture
+        CaptureType = $CaptureType
         Overwrite = $Overwrite
         Report = $Report
         Correlation = $Correlation
@@ -2136,17 +2148,17 @@ function Start-SdnNetshTrace {
             [Parameter(Position = 4)][String]$Overwrite,
             [Parameter(Position = 5)][String]$Report,
             [Parameter(Position = 6)][String]$Correlation,
-            [Parameter(Position = 7)][String]$Providers
+            [Parameter(Position = 7)][String]$Providers,
+            [Parameter(Position = 8)][string]$CaptureType
         )
 
-        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
-        -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Correlation $Correlation -Providers $Providers
+        Start-SdnNetshTrace @PSBoundParameters
     }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers)
+            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers, $params.CaptureType)
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
