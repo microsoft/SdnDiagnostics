@@ -2129,7 +2129,7 @@ function Start-SdnNetshTrace {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $params = @{
+    $traceParams = @{
         OutputDirectory = $OutputDirectory
         MaxTraceSize = $MaxTraceSize
         Capture = $Capture
@@ -2139,38 +2139,22 @@ function Start-SdnNetshTrace {
         Correlation = $Correlation
     }
 
-    $scriptBlock = {
-        param(
-            [Parameter(Position = 0)][String]$Role,
-            [Parameter(Position = 1)][String]$OutputDirectory,
-            [Parameter(Position = 2)][int]$MaxTraceSize,
-            [Parameter(Position = 3)][String]$Capture,
-            [Parameter(Position = 4)][String]$Overwrite,
-            [Parameter(Position = 5)][String]$Report,
-            [Parameter(Position = 6)][String]$Correlation,
-            [Parameter(Position = 7)][String]$Providers,
-            [Parameter(Position = 8)][string]$CaptureType
-        )
-
-        Start-SdnNetshTrace @PSBoundParameters
-    }
-
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers, $params.CaptureType)
+            $traceParams.Add('Role', $Role)
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Start-SdnNetshTrace } -ArgumentList @traceParams
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
             if ($traceProviderString) {
-                $params.Add('TraceProviderString', $traceProviderString)
+                $traceParams.Add('TraceProviderString', $traceProviderString)
                 "Trace providers configured: {0}" -f $traceProviderString | Trace-Output -Level:Verbose
             }
             elseif ($null -eq $traceProviderString) {
                 "No default trace providers found for role {0}." -f $Role | Trace-Output
-                if ($params.Capture -eq 'No') {
-                    $params.Capture = 'Yes'
-                    "Setting capture to {1}" -f $Role, $params.Capture | Trace-Output
+                if ($traceParams.Capture -eq 'No') {
+                    $traceParams.Capture = 'Yes'
+                    "Setting capture to {1}" -f $Role, $traceParams.Capture | Trace-Output
                 }
             }
 
@@ -2179,7 +2163,7 @@ function Start-SdnNetshTrace {
                 return
             }
 
-            Start-NetshTrace @params
+            Start-NetshTrace @traceParams
         }
     }
     catch {
