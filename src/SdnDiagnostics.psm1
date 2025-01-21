@@ -5,7 +5,6 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
         # defines the cluster configuration type, supported values are 'ServiceFabric', 'FailoverCluster'
-        # will default to 'ServiceFabric' on module import and updated once environment details have been retrieved
         ClusterConfigType = 'ServiceFabric'
         FailoverClusterConfig = @{
             Name = $null
@@ -39,6 +38,11 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # in some instances where powershell has been left open for a long time, we can leave behind sessions that are no longer valid
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
+
+# check to see if the module is running on FC cluster
+if (Confirm-IsFailoverClusterNC) {
+    $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType = 'FailoverCluster'
+}
 
 ##########################
 #### CLASSES & ENUMS #####

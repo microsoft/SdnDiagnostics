@@ -707,7 +707,7 @@ $argScriptBlock = @{
     }
     Name = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
-        $result = (Get-SdnFabricInfrastructureResult).HealthValidation
+        $result = (Get-SdnFabricInfrastructureResult).RoleTest.HealthTest
         if ([string]::IsNullOrEmpty($wordToComplete)) {
             return ($result.Name | Sort-Object -Unique)
         }
@@ -735,6 +735,7 @@ function New-SdnHealthTest {
         OccurrenceTime = [System.DateTime]::UtcNow
         Properties     = @()
         Remediation    = @()
+        HealthFault    = [PSCustomObject]@()
     }
 
     return $object
@@ -794,9 +795,6 @@ function Write-HealthValidationInfo {
         [String]$ComputerName,
 
         [Parameter(Mandatory = $true)]
-        [String]$Role,
-
-        [Parameter(Mandatory = $true)]
         [String]$Name,
 
         [Parameter(Mandatory = $false)]
@@ -805,14 +803,15 @@ function Write-HealthValidationInfo {
 
     $details = Get-HealthData -Property 'HealthValidations' -Id $Name
 
-    $outputString = "[$ComputerName [$Role]] $Name"
     $outputString += "`r`n`r`n"
     $outputString += "--------------------------`r`n"
+    $outputString += "[$ComputerName] $Name"
+    $outputString += "`r`n`r`n"
     $outputString += "Description:`t$($details.Description)`r`n"
     $outputString += "Impact:`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        $outputString += "Remediation:`r`n`t -$($Remediation -join "`r`n`t - ")`r`n"
+        $outputString += "Remediation:`r`n`t - $($Remediation -join "`r`n`t - ")`r`n"
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -821,7 +820,6 @@ function Write-HealthValidationInfo {
     }
 
     $outputString += "`r`n--------------------------`r`n"
-    $outputString += "`r`n"
 
     $outputString | Write-Host -ForegroundColor Yellow
 }
@@ -976,9 +974,8 @@ function Debug-SdnFabricInfrastructure {
             }
 
             $roleHealthReport.RoleTest += $healthReport
+            $aggregateHealthReport += $roleHealthReport
         }
-
-        $aggregateHealthReport += $roleHealthReport
     }
     catch {
         $_ | Trace-Exception
@@ -990,17 +987,21 @@ function Debug-SdnFabricInfrastructure {
             # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
             $aggregateHealthReport | ForEach-Object {
                 if ($_.Result -ine 'PASS') {
-                    $role = $_.Role
 
                     # enumerate all the individual role tests performed so we can determine if any completed that are not PASS
-                    $_.RoleTest.HealthTest | ForEach-Object {
-                        if ($_.Result -ine 'PASS') {
-                            # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
-                            # otherwise if we pass it directly, it will be treated as a single string
-                            $remediationList = [System.Collections.ArrayList]::new()
-                            $_.Remediation | ForEach-Object { [void]$remediationList.Add($_) }
+                    $_.RoleTest | ForEach-Object {
+                        $c = $_.ComputerName
+                        $_.HealthTest | ForEach-Object {
 
-                            Write-HealthValidationInfo -ComputerName $_.ComputerName -Role $role.ToString() -Name $_.Name -Remediation $remediationList
+                            # enum only the health tests that failed
+                            if ($_.Result -ine 'PASS') {
+                                # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
+                                # otherwise if we pass it directly, it will be treated as a single string
+                                $remediationList = [System.Collections.ArrayList]::new()
+                                $_.Remediation | ForEach-Object { [void]$remediationList.Add($_) }
+
+                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList
+                            }
                         }
                     }
                 }
@@ -1338,6 +1339,20 @@ function Debug-SdnServer {
     $serverResource = Get-SdnResource @ncRestParams -Resource:Servers -ErrorAction Ignore
 
     try {
+        # execute tests based on the cluster type
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'ServiceFabric' {
+                $healthReport.HealthTest += {
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+                }
+            }
+            'FailoverCluster' {
+                $healthReport.HealthTest += {
+                    Test-DiagnosticsCleanupTaskEnabled -TaskName 'FcDiagnostics'
+                }
+            }
+        }
+
         # these tests are executed locally and have no dependencies on network controller rest API being available
         $healthReport.HealthTest += @(
             Test-NonSelfSignedCertificateInTrustedRootStore
@@ -1589,6 +1604,7 @@ function Test-NonSelfSignedCertificateInTrustedRootStore {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
     finally {
@@ -1804,11 +1820,13 @@ function Test-DiagnosticsCleanupTaskEnabled {
                 }
             }
             catch {
+                $_ | Trace-Exception
                 $sdnHealthTest.Result = 'FAIL'
             }
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -1849,6 +1867,7 @@ function Test-NetworkControllerApiNameResolution {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -1950,6 +1969,7 @@ function Test-EncapOverhead {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -1987,6 +2007,7 @@ function Test-ServerHostId {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2016,6 +2037,7 @@ function Test-VfpDuplicateMacAddress {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2045,6 +2067,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2056,7 +2079,6 @@ function Test-ProviderNetwork {
     param ()
 
     $sdnHealthTest = New-SdnHealthTest
-    $failureDetected = $false
 
     try {
         $addressMapping = Get-SdnOvsdbAddressMapping
@@ -2065,6 +2087,7 @@ function Test-ProviderNetwork {
             $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $providerAddreses
 
             foreach ($destination in $connectivityResults) {
+                $failureDetected = $false
                 $sourceIPAddress = $destination.SourceAddress[0]
                 $destinationIPAddress = $destination.DestinationAddress[0]
                 $jumboPacketResult = $destination | Where-Object { $_.BufferSize -gt 1472 }
@@ -2097,10 +2120,10 @@ function Test-ProviderNetwork {
             $sdnHealthTest.Properties = [PSCustomObject]@{
                 PingResult = $connectivityResults
             }
-            $sdnHealthTest.PropertyDepth = 5
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2134,6 +2157,7 @@ function Test-HostAgentConnectionStateToApiService {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2163,6 +2187,7 @@ function Test-ServiceFabricApplicationHealth {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2188,6 +2213,7 @@ function Test-ServiceFabricClusterHealth {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2218,6 +2244,7 @@ function Test-ServiceFabricNodeStatus {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2310,6 +2337,7 @@ function Test-MuxConnectionStateToRouter {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
@@ -2335,6 +2363,7 @@ function Test-MuxConnectionStateToSlbManager {
         }
     }
     catch {
+        $_ | Trace-Exception
         $sdnHealthTest.Result = 'FAIL'
     }
 
