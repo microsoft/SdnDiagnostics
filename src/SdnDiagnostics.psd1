@@ -154,7 +154,14 @@
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
         'Test-SdnExpressBGP',
-        'Test-SdnProviderAddressConnectivity'
+        'Test-SdnProviderAddressConnectivity',
+        'Test-EncapOverhead',
+        'Test-ConfigurationState',
+        'Test-NonSelfSignedCertificateInTrustedRootStore',
+        'Test-SdnClusterServiceState',
+        'Start-HealthFaultsTranscript',
+        'Test-ServiceState'
+
     )
 
     # Variables to export from this module
