@@ -119,17 +119,13 @@ function Get-SdnNetworkControllerFC {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $networkControllerSB = {
-        Get-NetworkControllerOnFailoverCluster
-    }
-
     try {
         if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
             Confirm-IsNetworkController
-            $result = Invoke-Command -ScriptBlock $networkControllerSB
+            $result = Get-NetworkControllerOnFailoverCluster 4>$null
         }
         else {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock $networkControllerSB -Credential $Credential
+            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerOnFailoverCluster 4>$null } -Credential $Credential
         }
 
         return $result
@@ -290,3 +286,11 @@ function Get-SdnNetworkControllerFCNode {
     }
 }
 
+function Confirm-IsFailoverClusterNC {
+    $service = Get-Service -Name 'SDNApiService' -ErrorAction Ignore
+    if ($service) {
+        return $true
+    }
+
+    return $false
+}

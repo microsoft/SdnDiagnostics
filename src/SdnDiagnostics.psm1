@@ -40,6 +40,24 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
 
+$Global:SdnDiagnostics.Config.Mode = (Get-ProductNameFromRegistry)
+
+# check to see if the module is running on FC cluster
+if (Confirm-IsFailoverClusterNC) {
+    $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType = 'FailoverCluster'
+}
+
+# in Azure Local environment, the NetworkControllerFc module is not available in the default
+# powershell module paths. We need to import the module from the artifact path
+ if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI' -and $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'FailoverCluster') {
+    if ($null -ieq (Get-Module -Name 'NetworkControllerFc')) {
+        if (Get-Command -Name 'Get-AsArtifactPath' -ErrorAction Ignore) {
+            $nugetPath = Get-AsArtifactPath -NugetName 'Microsoft.AS.Network.Deploy.NC' 4> $null 3> $null # redirect warning and verbose to null
+            Import-Module "$nugetPath\content\Powershell\Roles\NC\NetworkControllerFc" -Global
+        }
+    }
+}
+
 ##########################
 #### CLASSES & ENUMS #####
 ##########################
