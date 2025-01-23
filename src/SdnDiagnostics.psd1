@@ -123,7 +123,7 @@
         'Invoke-SdnResourceDump',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
-        'New-SdnCertificate',
+        'New-SdnSelfSignedCertificate',
         'New-SdnCertificateRotationConfig',
         'New-SdnExpressBgpHost',
         'New-SdnMuxCertificate',

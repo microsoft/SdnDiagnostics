@@ -155,7 +155,7 @@ function Copy-CertificateToFabric {
             foreach ($controller in $FabricDetails.NetworkController) {
                 # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
                 # within the fabric and install under localmachine\root as appropriate
-                if ($certData.Subject -ieq $certData.Issuer) {
+                if (Confirm-IsCertSelfSigned -Certificate $certData) {
                     "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
                     $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
@@ -241,7 +241,7 @@ function Copy-CertificateToFabric {
 
                 # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
                 # within the fabric and install under localmachine\root as appropriate
-                if ($certData.Subject -ieq $certData.Issuer) {
+                if (Confirm-IsCertSelfSigned -Certificate $certData) {
                     "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
                     $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
@@ -273,7 +273,7 @@ function Copy-CertificateToFabric {
             foreach ($controller in $FabricDetails.NetworkController) {
                 # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
                 # within the fabric and install under localmachine\root as appropriate
-                if ($certData.Subject -ieq $certData.Issuer) {
+                if (Confirm-IsCertSelfSigned -Certificate $certData) {
                     "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
                     $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
@@ -365,7 +365,7 @@ function Copy-UserProvidedCertificateToFabric {
             $certificateConfig.RestCert = $restCertificate.pfxData.EndEntityCertificates.Thumbprint
         }
 
-        if ($cert.pfxdata.EndEntityCertificates.Subject -ieq $cert.pfxdata.EndEntityCertificates.Issuer) {
+        if (Confirm-IsCertSelfSigned -Certificate $cert.pfxdata.EndEntityCertificates) {
             $cert.SelfSigned = $true
         }
     }
@@ -1323,6 +1323,12 @@ function Get-SdnCertificate {
             Returns a list of the certificates within the given certificate store.
         .PARAMETER Path
             Defines the path within the certificate store. Path is expected to start with cert:\.
+        .PARAMETER Subject
+            Specifies the subject of the certificate to search for.
+        .PARAMETER Thumbprint
+            Specifies the thumbprint of the certificate to search for.
+        .PARAMETER NetworkControllerOid
+            Optional parameter that filters the certificates based on the Network Controller OID.
         .EXAMPLE
             PS> Get-SdnCertificate -Path "Cert:\LocalMachine\My"
     #>
@@ -1347,26 +1353,53 @@ function Get-SdnCertificate {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
         [ValidateNotNullorEmpty()]
-        [System.String]$Thumbprint
+        [System.String]$Thumbprint,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Subject')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Thumbprint')]
+        [switch]$NetworkControllerOid
     )
+
+    [string]$objectIdentifier = @('1.3.6.1.4.1.311.95.1.1.1') # this is a custom OID used for Network Controller
+    $array = @()
 
     try {
         $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
+        if ($null -eq $certificateList) {
+            return $null
+        }
+
+        if ($NetworkControllerOid) {
+            $certificateList | ForEach-Object {
+                if ($objectIdentifier -iin $_.EnhancedKeyUsageList.ObjectId) {
+                    $array += $_
+                }
+            }
+
+            # if no certificates are found based on the OID, search based on other criteria
+            if (!$array) {
+                "Unable to locate certificates that match Network Controller OID: {0}. Searching based on other criteria." -f $objectIdentifier | Trace-Output -Level:Warning
+                $array = $certificateList
+            }
+        }
+        else {
+            $array = $certificateList
+        }
 
         switch ($PSCmdlet.ParameterSetName) {
             'Subject' {
-                $filteredCert = $certificateList | Where-Object {$_.Subject -ieq $Subject}
+                $filteredCert = $array | Where-Object {$_.Subject -ieq $Subject}
             }
             'Thumbprint' {
-                $filteredCert = $certificateList | Where-Object {$_.Thumbprint -ieq $Thumbprint}
+                $filteredCert = $array | Where-Object {$_.Thumbprint -ieq $Thumbprint}
             }
             default {
-                return $certificateList
+                return $array
             }
         }
 
         if ($null -eq $filteredCert) {
-            "Unable to locate certificate using {0}" -f $PSCmdlet.ParameterSetName | Trace-Output -Level:Warning
             return $null
         }
 
@@ -1690,8 +1723,7 @@ function Import-SdnCertificate {
     }
 
     # determine if the certificates being used are self signed
-    if ($certObject.CertInfo.Subject -ieq $certObject.CertInfo.Issuer) {
-        "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
+    if (Confirm-IsCertSelfSigned -Certificate $certObject.CertInfo) {
         $certObject.SelfSigned = $true
 
         # check to see if we installed to root store with above operation
@@ -1808,7 +1840,7 @@ function Invoke-SdnGetNetView {
     }
 }
 
-function New-SdnCertificate {
+function New-SdnSelfSignedCertificate {
     <#
     .SYNOPSIS
         Creates a new self-signed certificate for use with SDN fabric.
@@ -1819,7 +1851,7 @@ function New-SdnCertificate {
     .PARAMETER NotAfter
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
     .EXAMPLE
-        PS> New-SdnCertificate -Subject rest.sdn.contoso -CertStoreLocation Cert:\LocalMachine\My
+        PS> New-SdnSelfSignedCertificate -Subject rest.sdn.contoso -CertStoreLocation Cert:\LocalMachine\My
     #>
 
     [CmdletBinding()]
@@ -1844,6 +1876,10 @@ function New-SdnCertificate {
     try {
         "Generating certificate with subject {0} under {1}" -f $Subject, $CertStoreLocation | Trace-Output
 
+        # create new self signed certificate with the following EnhancedKeyUsageList
+        # 1.3.6.1.5.5.7.3.1 - Server Authentication OID
+        # 1.3.6.1.5.5.7.3.2 - Client Authentication OID
+        # 1.3.6.1.4.1.311.95.1.1.1 - Network Controller OID
         $selfSignedCert = New-SelfSignedCertificate -Type Custom -KeySpec KeyExchange -Subject $Subject `
             -KeyExportPolicy Exportable -HashAlgorithm sha256 -KeyLength 2048 `
             -CertStoreLocation $CertStoreLocation -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.1,1.3.6.1.5.5.7.3.2,1.3.6.1.4.1.311.95.1.1.1") `
@@ -2248,3 +2284,17 @@ function Stop-SdnNetshTrace {
     }
 }
 
+function Confirm-IsCertSelfSigned {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+    )
+
+    if ($Certificate.Issuer -eq $Certificate.Subject) {
+        "Detected the certificate subject and issuer are the same. Setting SelfSigned to true" | Trace-Output -Level:Verbose
+        return $true
+    }
+
+    return $false
+}

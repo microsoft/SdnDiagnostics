@@ -2640,10 +2640,7 @@ function New-SdnServerCertificate {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     try {
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
@@ -2656,7 +2653,7 @@ function New-SdnServerCertificate {
 
         $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
         $subjectName = "CN={0}" -f $serverCert
-        $certificate = New-SdnCertificate -Subject $subjectName -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $subjectName -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate and save the file to directory
         # This allows the rest of the function to pick up these files and perform the steps as normal
@@ -2980,20 +2977,7 @@ function Start-SdnServerCertificateRotation {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
-
-    # add disclaimer that this feature is currently under preview
-    if (!$Force) {
-        "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues and help unblock your cert rotation." | Trace-Output -Level:Warning
-        $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? [Y/N]:"
-        if (-NOT $confirm) {
-            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-            return
-        }
-    }
+    Confirm-IsAdmin
 
     $array = @()
     $ncRestParams = @{

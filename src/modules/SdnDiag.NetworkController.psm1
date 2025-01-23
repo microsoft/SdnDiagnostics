@@ -2538,10 +2538,7 @@ function New-SdnNetworkControllerNodeCertificate {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     try {
         if ($null -eq $FabricDetails) {
@@ -2560,7 +2557,7 @@ function New-SdnNetworkControllerNodeCertificate {
 
         # if we return multiple certificates, we want to select the first one as the subject should be the same
         $nodeCertSubject = (Get-SdnNetworkControllerNodeCertificate)[0].Subject
-        $certificate = New-SdnCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $nodeCertSubject -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
         # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
@@ -2626,10 +2623,7 @@ function New-SdnNetworkControllerRestCertificate {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     try {
         if ($FabricDetails) {
@@ -2657,7 +2651,7 @@ function New-SdnNetworkControllerRestCertificate {
         }
 
         [System.String]$formattedSubject = "CN={0}" -f $RestName.Trim()
-        $certificate = New-SdnCertificate -Subject $formattedSubject -NotAfter $NotAfter
+        $certificate = New-SdnSelfSignedCertificate -Subject $formattedSubject -NotAfter $NotAfter
 
         # after the certificate has been generated, we want to export the certificate using the $CertPassword provided by the operator
         # and save the file to directory. This allows the rest of the function to pick up these files and perform the steps as normal
