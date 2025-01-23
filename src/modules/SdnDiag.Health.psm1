@@ -2,6 +2,7 @@
 # Licensed under the MIT License.
 
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
+Import-Module $PSScriptRoot\SdnDiag.Server.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.FC.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.SF.psm1
@@ -585,18 +586,23 @@ function InitFaults {
     New-Variable -Name 'LOG_CHANNEL' -Scope 'Script' -Force -Value 'Admin'
     New-Variable -Name 'LOG_SOURCE' -Scope 'Script' -Force -Value 'HealthService'
 
+    [bool] $eventLogFound = $false
     try {
+        $evtLog = Get-EventLog -LogName $script:LOG_NAME -Source $script:LOG_SOURCE -ErrorAction SilentlyContinue
+        if($null -ne $evtLog) {
+            $eventLogFound = $true
+        }
+    } catch {
+        #get-eventlog throws even on erroraction silentlycontinue
+    }
 
-        # create an event log source if it does not exist
-        if (-not (Get-EventLog -LogName $script:LOG_NAME -Source $script:LOG_SOURCE -ErrorAction SilentlyContinue)) {
+    try {
+        if($eventLogFound -eq $false) {
             New-EventLog -LogName $script:LOG_NAME -Source $script:LOG_SOURCE -ErrorAction SilentlyContinue
         }
+    } catch {
+        #failure to create event log is non-fatal
     }
-    catch {
-        Write-Error "Failed to create event log source"
-        throw $_
-    }
-
 }
 
 function IsSdnFcClusterServiceRole {
@@ -649,14 +655,13 @@ function IsCurrentNodeClusterOwner {
         This function is used to determine if the current node is the owner of the cluster. This is used to determine if the current node is the primary node in a cluster.
     #>
 
-    $activeNode = Get-ClusterResource  | ? { $_.OwnerGroup -eq "Cluster Group" -and $_.ResourceType -eq "IP Address" -and $_.Name -eq "Cluster IP Address" }
-    Write-Host "Active $($activeNode.OwnerNode)" | Out-Null
+    $activeNode = Get-ClusterResource -ErrorAction Ignore | ? { $_.OwnerGroup -eq "Cluster Group" -and $_.ResourceType -eq "IP Address" -and $_.Name -eq "Cluster IP Address" }
+    
     if ( $null -eq $activeNode ) {
+        Write-Host "Active $($activeNode.OwnerNode)" | Out-Null
         # todo : generate a fault on failing to generate a fault (or switch to different algorithm for picking the primary node)
         return $false
     }
-
-    Write-host "EnvComputerName: $($env:COMPUTERNAME)" | Out-Null
     return ($activeNode.OwnerNode -eq $env:COMPUTERNAME)
 }
 
@@ -1295,14 +1300,9 @@ function GetSdnResourceFromNc {
     )
     try {
         $NcUri = $NcUri.TrimEnd('/')
-        # kerberos is not supported yet
+        # todo: add support for kerberos later
         $resources = $null
-        # try all certificates from machine & user store
-        $certName = Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters\ -Name HostAgentCertificateCName
-        $certName = $certName.HostAgentCertificateCName
-        $certs = Get-ChildItem -Path Cert:\LocalMachine\My | ?{ $_.Subject -eq "CN=$certName" }
-        $certs += Get-ChildItem -Path Cert:\CurrentUser\My | ?{ $_.Subject -eq "CN=$certName" }
-        # also try without a client cert
+        $certs = Get-SdnServerCertificate
         $certs += $null
         [System.Array]::Reverse($certs)
 
@@ -1780,7 +1780,7 @@ function Test-ServiceState {
         [String[]]$ServiceName,
 
         [Parameter(Mandatory = $false)]
-        [String]$GenerateFault = $false
+        [bool]$GenerateFault = $false
     )
 
     Write-Verbose "Test-ServiceState invoked for $($ServiceName)"
@@ -1938,7 +1938,7 @@ function Test-SdnClusterServiceState {
                 }
             }
             else {
-                # todo: handle cluster errors when FC fails to return a cluster group
+                $sdnHealthObject.Result = 'FAIL'
             }
         }
 
@@ -2100,49 +2100,49 @@ function Test-EncapOverhead {
                         $misconfigurationFound = $true
                         $misconfiguredNics += $_.NetAdapterInterfaceDescription
                     }
-
                 }
 
                 # in this case, the encapoverhead is enabled but the value is less than the expected value
                 if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
                     # do nothing here at this time as may be expected if no workloads deployed to host
+                    # todo: add extended checks once vnet support is available, check against ovsdb
                 }
-            }
 
-            if ($GenerateFault) {
+                if ($GenerateFault) {
 
-                $FAULTNAME = "InvalidEncapOverheadConfiguration"
-                ##########################################################################################
-                ## EncapOverhead Fault Template
-                ##########################################################################################
-                # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
-                # $KeyFaultingObjectID             (ARC ID)    : [NetworkAdapterIfDescsCsv]
-                # $KeyFaultingObjectType           (CODE)      : InvalidEncapOverheadConfiguration
-                # $FaultingObjectLocation          (SOURCE)    : [HostName]
-                # $FaultDescription                (MESSAGE)   : EncapOverhead is not enabled or configured correctly for <AdapterNames> on host <HostName>.
-                # $FaultActionRemediation          (ACTION)    : JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration.
-                # *EncapOverhead Faults will be reported from each node
-                ##########################################################################################
+                    $FAULTNAME = "InvalidEncapOverheadConfiguration"
+                    ##########################################################################################
+                    ## EncapOverhead Fault Template
+                    ##########################################################################################
+                    # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
+                    # $KeyFaultingObjectID             (ARC ID)    : [NetworkAdapterIfDesc]
+                    # $KeyFaultingObjectType           (CODE)      : InvalidEncapOverheadConfiguration
+                    # $FaultingObjectLocation          (SOURCE)    : [HostName]
+                    # $FaultDescription                (MESSAGE)   : EncapOverhead is not enabled or configured correctly for <AdapterNames> on host <HostName>.
+                    # $FaultActionRemediation          (ACTION)    : JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration.
+                    # *EncapOverhead Faults will be reported from each node
+                    ##########################################################################################
 
-                $sdnHealthFault = [SdnFaultInfo]::new()
-                $sdnHealthFault.KeyFaultingObjectDescription = $env:COMPUTERNAME
-                $sdnHealthFault.KeyFaultingObjectID = $misconfiguredNics -join ','
-                $sdnHealthFault.KeyFaultingObjectType = $FAULTNAME
-                $sdnHealthFault.FaultingObjectLocation = $env:COMPUTERNAME
-                $sdnHealthFault.FaultDescription = "EncapOverhead is not enabled or configured correctly for $misconfiguredNics on host $env:COMPUTERNAME."
-                $sdnHealthFault.FaultActionRemediation = "JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration."
-                $sdnHealthFault.OccurrenceTime = [System.DateTime]::UtcNow
+                    $sdnHealthFault = [SdnFaultInfo]::new()
+                    $sdnHealthFault.KeyFaultingObjectDescription = $env:COMPUTERNAME
+                    $sdnHealthFault.KeyFaultingObjectID = $_.NetAdapterInterfaceDescription
+                    $sdnHealthFault.KeyFaultingObjectType = $FAULTNAME
+                    $sdnHealthFault.FaultingObjectLocation = $env:COMPUTERNAME
+                    $sdnHealthFault.FaultDescription = "EncapOverhead is not enabled or configured correctly for $($_.NetAdapterInterfaceDescription) on host $env:COMPUTERNAME."
+                    $sdnHealthFault.FaultActionRemediation = "JumboPacket should be enabled & EncapOverhead must be configured to support SDN. Please check NetworkATC configuration for configuring optimal networking configuration."
+                    $sdnHealthFault.OccurrenceTime = [System.DateTime]::UtcNow
 
-                if ($misconfigurationFound -eq $true) {
-                    CreateorUpdateFault -Fault $sdnHealthFault -Verbose
-                    $sdnHealthTest.HealthFault = ConvertFaultToPsObject -healthFault $healthFault -faultType "Create"
-                }
-                else {
-                    Write-Verbose "No fault(s) on EncapOverhead, clearing any existing ones"
-                    # clear all existing faults for host($FAULTNAME)
-                    # todo: validate multiple hosts reporting the same fault
-                    DeleteFaultBy -KeyFaultingObjectDescription $env:COMPUTERNAME -KeyFaultingObjectType $FAULTNAME
-                    $sdnHealthTest.HealthFault = ConvertFaultToPsObject -healthFault $healthFault -faultType "Delete"
+                    if ($misconfigurationFound -eq $true) {
+                        CreateorUpdateFault -Fault $sdnHealthFault -Verbose
+                        $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Create"
+                    }
+                    else {
+                        Write-Verbose "No fault(s) on EncapOverhead, clearing any existing ones"
+                        # clear all existing faults for host($FAULTNAME)
+                        # todo: validate multiple hosts reporting the same fault
+                        DeleteFaultBy -KeyFaultingObjectDescription $env:COMPUTERNAME -KeyFaultingObjectType $FAULTNAME
+                        $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Delete"
+                    }
                 }
             }
         }
