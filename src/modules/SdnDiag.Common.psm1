@@ -844,7 +844,7 @@ function Start-NetshTrace {
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('physical', 'vmswitch', 'Both')]
-        [System.String]$CaptureType = 'Both',
+        [System.String]$CaptureType = 'physical',
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('Yes', 'No')]
