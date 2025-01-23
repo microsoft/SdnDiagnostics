@@ -138,11 +138,11 @@ function ConvertFaultListToPsObjectList {
             OperationType            = $faultType
         }
     }
-    
+
     return $faultList
 }
 function ConvertFaultToPsObject {
-    
+
     <#
         .SYNOPSIS
         Converts a fault to a PSObject
@@ -445,7 +445,7 @@ function UpdateFaultSet {
 
     <#
         .SYNOPSIS
-        Updates the fault set and returns the health test object 
+        Updates the fault set and returns the health test object
 
         .PARAMETER successFaults
         The set of faults that were successful
@@ -476,7 +476,7 @@ function UpdateFaultSet {
         $convFault = ConvertFaultToPsObject -healthFault $fault -faultType "Create"
         $healthTest.HealthFault += $convFault
     }
-    
+
     $healthTest
 }
 
@@ -656,7 +656,7 @@ function IsCurrentNodeClusterOwner {
     #>
 
     $activeNode = Get-ClusterResource -ErrorAction Ignore | ? { $_.OwnerGroup -eq "Cluster Group" -and $_.ResourceType -eq "IP Address" -and $_.Name -eq "Cluster IP Address" }
-    
+
     if ( $null -eq $activeNode ) {
         Write-Host "Active $($activeNode.OwnerNode)" | Out-Null
         # todo : generate a fault on failing to generate a fault (or switch to different algorithm for picking the primary node)
@@ -1826,7 +1826,7 @@ function Test-ServiceState {
                 $healthFault.KeyFaultingObjectType = "ServiceDown"
                 $healthFault.FaultingObjectLocation = $service
                 $healthFault.FaultDescription = "Service $($service) is not up."
-                $healthFault.FaultActionRemediation = "Start the cluster service role $($service) from failover cluster manager" 
+                $healthFault.FaultActionRemediation = "Start the cluster service role $($service) from failover cluster manager"
                 $healthFault.OccurrenceTime = [System.DateTime]::UtcNow
 
 
@@ -2055,7 +2055,7 @@ function Test-EncapOverhead {
 
     .PARAMETER FaultCollection
         If specified, new generatesd faults will be added to the fault to the collection.
-        This is set in AZ local to publish telemetry. 
+        This is set in AZ local to publish telemetry.
         To avoid a hard depenedency across the modules, we pass the collection as generic ps objects.
     #>
 
@@ -2459,7 +2459,7 @@ function Test-ConfigurationState {
         # servers
         $items = Get-ItemProperty -Path HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters\
         $NcUri = "https://$($items.PeerCertificateCName)"
-        
+
         $configStateHealths = @()
 
 
@@ -2477,7 +2477,7 @@ function Test-ConfigurationState {
         ShowFaultSet -faultset $faultSet
         $vnicHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
         $vnicHealthTest.Name = "networkinterfaces"
-        $configStateHealths += $vnicHealthTest        
+        $configStateHealths += $vnicHealthTest
 
         # generate faults for lnets
         $vnics = GetSdnResourceFromNc -Resource 'LogicalNetworks' -NcUri $NcUri

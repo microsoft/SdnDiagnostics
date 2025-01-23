@@ -39,9 +39,27 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
 
+$Global:SdnDiagnostics.Config.Mode = (Get-ProductNameFromRegistry)
+
 # check to see if the module is running on FC cluster
 if (Confirm-IsFailoverClusterNC) {
     $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType = 'FailoverCluster'
+}
+
+# in Azure Local environment, the NetworkControllerFc module is not available in the default
+# powershell module paths. We need to import the module from the artifact path
+ if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI' -and $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'FailoverCluster') {
+    if ($null -ieq (Get-Module -Name 'NetworkControllerFc')) {
+        if (Get-Command -Name 'Get-AsArtifactPath' -ErrorAction Ignore) {
+            try {
+                $nugetPath = Get-AsArtifactPath -NugetName 'Microsoft.AS.Network.Deploy.NC'
+                Import-Module "$nugetPath\content\Powershell\Roles\NC\NetworkControllerFc" -Global
+            }
+            catch {
+                Write-Warning "Failed to import NetworkControllerFc module. Error: $_"
+            }
+        }
+    }
 }
 
 ##########################
@@ -279,10 +297,7 @@ function Start-SdnCertificateRotation {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
         throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
@@ -292,16 +307,6 @@ function Start-SdnCertificateRotation {
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
-    }
-
-    # add disclaimer that this feature is currently under preview
-    if (!$Force) {
-        "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues and help unblock your cert rotation." | Trace-Output -Level:Warning
-        $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? [Y/N]:"
-        if (-NOT $confirm) {
-            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-            return
-        }
     }
 
     try {

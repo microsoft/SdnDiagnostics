@@ -2676,3 +2676,16 @@ function Invoke-SdnCommand {
         $_ | Write-Error
     }
 }
+
+function Get-ProductNameFromRegistry {
+    $value = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
+
+    switch ($value.ProductName) {
+        'Azure Stack HCI' {
+            return 'AzureStackHCI'
+        }
+        default {
+            return 'WindowsServer'
+        }
+    }
+}
