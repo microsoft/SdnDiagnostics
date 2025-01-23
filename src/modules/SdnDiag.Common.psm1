@@ -442,7 +442,7 @@ function Export-RegistryKeyConfigDetails {
         }
 
         foreach($regKeyPath in $Path){
-            "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output
+            "Enumerating the registry key paths for {0}" -f $regkeyPath | Trace-Output -Level:Verbose
 
             $regKeyDirectories = @()
             $regKeyDirectories += Get-Item -Path $regKeyPath -ErrorAction SilentlyContinue
