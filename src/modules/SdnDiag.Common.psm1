@@ -874,12 +874,10 @@ function Start-NetshTrace {
 
         # enable the network trace
         if ($TraceProviderString) {
-            $cmd = "netsh trace start capture={0} capturetype={1} {2} tracefile={3} maxsize={4} overwrite={5} report={6} correlation={7}" `
-                -f $Capture, $CaptureType, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType $TraceProviderString tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report correlation=$Correlation"
         }
         else {
-            $cmd = "netsh trace start capture={0} capturetype={1} tracefile={2} maxsize={3} overwrite={4} report={5}, correlation={6}" `
-                -f $Capture, $CaptureType, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report, correlation=$Correlation"
         }
 
         "Starting netsh trace" | Trace-Output
@@ -2098,7 +2096,7 @@ function Start-SdnNetshTrace {
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [ValidateSet('physical', 'vmswitch', 'Both')]
-        [System.String]$CaptureType = 'Both',
+        [System.String]$CaptureType = 'Physical',
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
@@ -2137,6 +2135,14 @@ function Start-SdnNetshTrace {
         Overwrite = $Overwrite
         Report = $Report
         Correlation = $Correlation
+    }
+
+    # if the user did not specify the capture type, in normal instances we default to physical
+    # however for the server role, we want to define both for physical and vmswitch to capture the appropriate VLAN information
+    if (-NOT $PSBoundParameters.ContainsKey('CaptureType')) {
+        if ($Role -ieq 'Server') {
+            $traceParams.CaptureType = 'Both'
+        }
     }
 
     try {
