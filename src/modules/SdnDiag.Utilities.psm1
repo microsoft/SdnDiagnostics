@@ -2680,3 +2680,34 @@ function Get-ProductNameFromRegistry {
         }
     }
 }
+
+function Get-NugetArtifactPath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $false)]
+        [System.String]$Path = "$($env:SystemDrive)\NugetStore",
+
+        [Parameter(Mandatory = $true)]
+        [ValidateNotNullOrEmpty()]
+        [System.String]$NugetName,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$Version
+    )
+
+    $null = Import-Module PackageManagement -DisableNameChecking
+
+    $params = @{
+        Name = $NugetName
+        Destination = $Path
+        ProviderName = 'NuGet'
+    }
+    if ($Version) {
+        $params.Add('RequiredVersion', $Version)
+    }
+
+    $package = Get-Package @params
+    if ($package) {
+        return [System.IO.Path]::GetDirectoryName($package.Source)
+    }
+}

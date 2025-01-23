@@ -50,14 +50,12 @@ if (Confirm-IsFailoverClusterNC) {
 # powershell module paths. We need to import the module from the artifact path
  if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI' -and $Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'FailoverCluster') {
     if ($null -ieq (Get-Module -Name 'NetworkControllerFc')) {
-        if (Get-Command -Name 'Get-AsArtifactPath' -ErrorAction Ignore) {
-            try {
-                $nugetPath = Get-AsArtifactPath -NugetName 'Microsoft.AS.Network.Deploy.NC'
-                Import-Module "$nugetPath\content\Powershell\Roles\NC\NetworkControllerFc" -Global
-            }
-            catch {
-                Write-Warning "Failed to import NetworkControllerFc module. Error: $_"
-            }
+          try {
+            $nugetPath = Get-NugetArtifactPath -NugetName 'Microsoft.AS.Network.Deploy.NC'
+            Import-Module "$nugetPath\content\Powershell\Roles\NC\NetworkControllerFc" -Global
+        }
+        catch {
+            Write-Warning "Failed to import NetworkControllerFc module. Error: $_"
         }
     }
 }
