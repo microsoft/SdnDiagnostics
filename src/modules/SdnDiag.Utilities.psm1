@@ -175,15 +175,6 @@ function Confirm-IsNetworkController {
     }
 }
 
-function Confirm-IsFailoverClusterNC {
-    $service = Get-Service -Name 'SDNApiService' -ErrorAction Ignore
-    if ($service) {
-        return $true
-    }
-
-    return $false
-}
-
 function Confirm-IsLoadBalancerMux {
     $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
