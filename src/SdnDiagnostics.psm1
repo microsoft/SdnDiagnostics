@@ -275,10 +275,7 @@ function Start-SdnCertificateRotation {
     }
 
     # ensure that the module is running as local administrator
-    $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
-    if (-NOT $elevated) {
-        throw New-Object System.Exception("This function requires elevated permissions. Run PowerShell as an Administrator and import the module again.")
-    }
+    Confirm-IsAdmin
 
     if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
         throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
@@ -288,16 +285,6 @@ function Start-SdnCertificateRotation {
     $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
     if (-NOT ($confirmFeatures)) {
         throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
-    }
-
-    # add disclaimer that this feature is currently under preview
-    if (!$Force) {
-        "This feature is currently under preview. Please report any issues to https://github.com/microsoft/SdnDiagnostics/issues so we can accurately track any issues and help unblock your cert rotation." | Trace-Output -Level:Warning
-        $confirm = Confirm-UserInput -Message "Do you want to proceed with certificate rotation? [Y/N]:"
-        if (-NOT $confirm) {
-            "User has opted to abort the operation. Terminating operation" | Trace-Output -Level:Warning
-            return
-        }
     }
 
     try {

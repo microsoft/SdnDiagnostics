@@ -185,7 +185,7 @@ function Test-HostRootStoreNonRootCert {
             $nonRootCerts = @()
             $rootCerts = Get-ChildItem Cert:LocalMachine\Root
             foreach ($rootCert in $rootCerts) {
-                if ($rootCert.Subject -ne $rootCert.Issuer) {
+                if (-NOT (Confirm-IsCertSelfSigned -Certificate $rootCert)) {
                     $certInfo = [PSCustomObject]@{
                         Thumbprint = $rootCert.Thumbprint
                         Subject    = $rootCert.Subject
