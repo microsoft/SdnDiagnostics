@@ -1367,7 +1367,7 @@ function Get-SdnCertificate {
     try {
         $certificateList = Get-ChildItem -Path $Path -Recurse | Where-Object {$_.PSISContainer -eq $false} -ErrorAction Stop
         if ($null -eq $certificateList) {
-            return $null
+            throw New-Object System.NullReferenceException("No certificates found $Path")
         }
 
         if ($NetworkControllerOid) {
@@ -1378,8 +1378,8 @@ function Get-SdnCertificate {
             }
 
             # if no certificates are found based on the OID, search based on other criteria
-            if (!$array) {
-                "Unable to locate certificates that match Network Controller OID: {0}. Searching based on other criteria." -f $objectIdentifier | Trace-Output -Level:Warning
+            if ($null -eq $array) {
+                "Unable to locate certificates that match Network Controller OID: {0}." -f $objectIdentifier | Trace-Output -Level:Warning
                 $array = $certificateList
             }
         }
