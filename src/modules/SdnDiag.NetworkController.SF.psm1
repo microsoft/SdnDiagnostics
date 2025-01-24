@@ -816,17 +816,18 @@ function Invoke-CertRotateCommand {
                 Start-Sleep -Seconds 300
             }
 
-            "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
             "Command:{0} Params: {1}" -f $Command, ($params | ConvertTo-Json) | Trace-Output -Level:Verbose
-
             switch ($Command) {
                 'Set-NetworkController' {
+                    "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
                     Set-NetworkController @params
                 }
                 'Set-NetworkControllerCluster' {
+                    "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
                     Set-NetworkControllerCluster @params
                 }
                 'Set-NetworkControllerNode' {
+                    "Invoking {0} to configure thumbprint {1} for {2}" -f $Command, $cert.Thumbprint, $params.Name | Trace-Output
                     Set-NetworkControllerNode @params
                 }
             }
