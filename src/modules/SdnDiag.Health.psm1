@@ -254,6 +254,11 @@ function CreateorUpdateFault {
         [SdnFaultInfo] $Fault
     )
 
+    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
+    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+        return
+    }
+
     ValidateFault -Fault $Fault
     InitFaults
 
@@ -267,7 +272,7 @@ function CreateorUpdateFault {
         $script:entityTypeSubSystem = "Microsoft.Health.EntityType.Subsystem"
     }
     $retValue = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyFault( `
-            $Fault.KeyFaultingObjectDescription, # $entityType, `
+        $Fault.KeyFaultingObjectDescription, # $entityType, `
         $Fault.KeyFaultingObjectID, # $entityId, `
         $Fault.KeyFaultingObjectDescription, # "E Desc", `
         $Fault.FaultingObjectLocation, # $entityLocation, `
@@ -276,7 +281,7 @@ function CreateorUpdateFault {
         $Fault.KeyFaultingObjectType, # $faultType, `
         $HEALTH_URGENCY_UNHEALTHY, # `
         "Fault Title", `
-            $Fault.FaultDescription, # fault description
+        $Fault.FaultDescription, # fault description
         $Fault.FaultActionRemediation, # fault remediation action
         $HCI_MODIFY_FAULT_FLAG_NONE) | Out-Null
 
@@ -287,15 +292,15 @@ function CreateorUpdateFault {
         $Fault.FaultingObjectLocation, # $entityLocation, `
         $Fault.KeyFaultingObjectID, # $entityId, `
         $HCI_MODIFY_RELATIONSHIP_ACTION_MODIFY, `
-            $script:entityTypeSubSystem, `
-            $script:subsystemId, `
-            $null, `
-            $null, `
-            $script:subsystemId, `
-            "TestGroupKey", `
-            $HEALTH_URGENCY_UNHEALTHY, `
-            $HEALTH_RELATIONSHIP_COLLECTION, `
-            $HCI_MODIFY_RELATIONSHIP_FLAG_NONE) | Out-Null
+        $script:entityTypeSubSystem, `
+        $script:subsystemId, `
+        $null, `
+        $null, `
+        $script:subsystemId, `
+        "TestGroupKey", `
+        $HEALTH_URGENCY_UNHEALTHY, `
+        $HEALTH_RELATIONSHIP_COLLECTION, `
+        $HCI_MODIFY_RELATIONSHIP_FLAG_NONE) | Out-Null
 }
 
 function DeleteFaultBy {
@@ -322,6 +327,11 @@ function DeleteFaultBy {
         [string] $FaultingObjectLocation,
         [switch] $Verbose
     )
+
+    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
+    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+        return
+    }
 
     Write-Verbose "DeleteFault: "
     Write-Verbose "(KeyFaultingObjectDescription) $($KeyFaultingObjectDescription)"
@@ -382,9 +392,15 @@ function DeleteFaultById {
         [string] $faultUniqueID
     )
 
+    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
+    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+        return
+    }
+
     if ([string]::IsNullOrEmpty($faultUniqueID)) {
         throw "Empty faultID"
     }
+
     InitFaults
     Write-Verbose "DeleteFaultById $faultId"
     $fault = Get-HealthFault | ? { $_.FaultId -eq $faultUniqueID }
@@ -497,6 +513,11 @@ function DeleteFault {
         [SdnFaultInfo] $Fault
     )
 
+    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
+    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+        return
+    }
+
     ValidateFault -Fault $Fault
     InitFaults
 
@@ -507,7 +528,7 @@ function DeleteFault {
         $script:entityTypeSubSystem = "Microsoft.Health.EntityType.Subsystem"
     }
     [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyFault( `
-            $Fault.KeyFaultingObjectDescription, # $entityType, `
+        $Fault.KeyFaultingObjectDescription, # $entityType, `
         $Fault.KeyFaultingObjectID, # $entityId, `
         $Fault.KeyFaultingObjectDescription, # "E Desc", `
         $Fault.FaultingObjectLocation, # $entityLocation, `
@@ -516,7 +537,7 @@ function DeleteFault {
         $Fault.KeyFaultingObjectType, # $faultType, `
         $HEALTH_URGENCY_UNHEALTHY, # `
         "Fault Title", `
-            $Fault.FaultDescription, # fault description
+        $Fault.FaultDescription, # fault description
         $Fault.FaultActionRemediation, # fault remediation action
         $HCI_MODIFY_FAULT_FLAG_NONE) | Out-Null
 }
@@ -826,7 +847,7 @@ $argScriptBlock = @{
             return ($result.Role | Sort-Object -Unique)
         }
 
-        return $result.Role | Where-Object { $_.Role -like "*$wordToComplete*" } | Sort-Object
+        return $result.Role | Where-Object { $_ -like "*$wordToComplete*" } | Sort-Object
     }
     Name = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
@@ -835,7 +856,7 @@ $argScriptBlock = @{
             return ($result.Name | Sort-Object -Unique)
         }
 
-        return $result.Name | Where-Object { $_.Name -like "*$wordToComplete*" } | Sort-Object
+        return $result | Where-Object { $_.Name -like "*$wordToComplete*" } | Sort-Object
     }
 }
 
