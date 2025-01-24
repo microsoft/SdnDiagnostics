@@ -113,11 +113,6 @@
             Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
-        'Test-ServiceFabricPartitionDatabaseSize' = @{
-            Description = "Service Fabric partition database size has exceeded normal size expected."
-            Impact = "Performance of the Service Fabric Services may occur."
-            PublicDocUrl = ""
-        }
     }
     ConfigurationStateErrorCodes = @{
         'Unknown' = @{
