@@ -14,6 +14,19 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
     Config = $configurationData
 }
 
+# confirm that the current system is supported to generate health faults
+$displayVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'DisplayVersion'
+$productName = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
+if ($productName.ProductName -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedProducts){
+    $productSupported = $true
+}
+if ($displayVersion.DisplayVersion -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedBuilds){
+    $versionSupported = $true
+}
+if ($versionSupported -and $productSupported){
+    $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $true
+}
+
 ##########################
 #### CLASSES & ENUMS #####
 ##########################
@@ -254,8 +267,7 @@ function CreateorUpdateFault {
         [SdnFaultInfo] $Fault
     )
 
-    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
-    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+    if (-NOT $script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
 
@@ -328,8 +340,7 @@ function DeleteFaultBy {
         [switch] $Verbose
     )
 
-    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
-    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+    if (-NOT $script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
 
@@ -392,8 +403,7 @@ function DeleteFaultById {
         [string] $faultUniqueID
     )
 
-    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
-    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+    if (-NOT $script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
 
@@ -513,8 +523,7 @@ function DeleteFault {
         [SdnFaultInfo] $Fault
     )
 
-    # If the mode is not AzureStackHCI, exit the function as we will not have the required APIs
-    if ($Global:SdnDiagnostics.Config.Mode -ine 'AzureStackHCI') {
+    if (-NOT$script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
 

@@ -187,4 +187,13 @@
             Action = 'See if sufficient bandwidth is available for all VM''s if QOS reservation is used'
         }
     }
+
+    HealthFaultEnabled = $false
+    HealthFaultSupportedBuilds = @(
+        '24H2' # Build Number 26100
+    )
+    HealthFaultSupportedProducts = @(
+        'Azure Stack HCI'
+        'Windows Server 2025 Datacenter'
+    )
 }
