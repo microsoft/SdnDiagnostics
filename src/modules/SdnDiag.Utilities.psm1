@@ -1240,6 +1240,16 @@ function Get-UserInput {
     return Read-Host
 }
 
+function Get-SdnWorkingDirectory {
+    <#
+        .SYNOPSIS
+            Returns the working directory that is used for storing logs and other artifacts
+    #>
+
+    return (Get-WorkingDirectory)
+}
+
+
 function Get-WorkingDirectory {
 
     # check to see if the working directory has been configured into cache
@@ -1772,8 +1782,11 @@ function New-TraceOutputFile {
             $null = New-Item -Path $workingDir -ItemType Directory -Force
         }
 
+        # cleanup any stale trace files
+        Remove-OldTraceOutputFile
+
         # build the trace file path and set global variable
-        [System.String]$fileName = "SdnDiagnostics_TraceOutput_{0}.csv" -f (Get-Date).ToString('yyyyMMdd')
+        [System.String]$fileName = "SdnDiagnostics_TraceOutput_$($PID).csv"
         [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir -ChildPath $fileName
         Set-TraceOutputFile -Path $filePath.FullName
 
@@ -1783,6 +1796,25 @@ function New-TraceOutputFile {
     }
     catch {
         $_.Exception | Write-Error
+    }
+
+    return $filePath
+}
+
+function Remove-OldTraceOutputFile {
+    [CmdletBinding()]
+    param()
+
+    try {
+        $workingDir = (Get-WorkingDirectory)
+        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
+        $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
+        if ($staleFiles) {
+            $staleFiles | Remove-Item -Force
+        }
+    }
+    catch {
+        $_ | Write-Error
     }
 }
 
@@ -1798,7 +1830,7 @@ function New-WorkingDirectory {
         }
 
         # create the trace file
-        New-TraceOutputFile
+        $null = New-TraceOutputFile
     }
     catch {
         $_.Exception | Write-Error
@@ -2126,16 +2158,24 @@ function Trace-Output {
             }
         }
 
-        # write the event to trace file to be used for debugging purposes
-        $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
-        if ($mutexInstance) {
-            $traceEvent | Export-Csv -Append -NoTypeInformation -Path $traceFile
+        try {
+            # write the event to trace file to be used for debugging purposes
+            $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
+            if ($mutexInstance) {
+                $traceEvent | Export-Csv -Append -NoTypeInformation -Path $traceFile
+            }
+        }
+        catch {
+            $_ | Write-Error
+        }
+        finally {
+            if ($mutexInstance) {
+                $mutexInstance.ReleaseMutex()
+            }
         }
     }
     end {
-        if ($mutexInstance) {
-            $mutexInstance.ReleaseMutex()
-        }
+        # do nothing here
     }
 }
 
