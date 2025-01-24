@@ -153,15 +153,25 @@
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
-        'Test-SdnExpressBGP',
-        'Test-SdnProviderAddressConnectivity',
-        'Test-EncapOverhead',
-        'Test-ConfigurationState',
-        'Test-NonSelfSignedCertificateInTrustedRootStore',
         'Test-SdnClusterServiceState',
-        'Start-HealthFaultsTranscript',
-        'Test-ServiceState'
-
+        'Test-SdnDiagnosticsCleanupTaskEnabled',
+        'Test-SdnExpressBGP',
+        'Test-SdnHostAgentConnectionStateToApiService',
+        'Test-SdnEncapOverhead',
+        'Test-SdnProviderAddressConnectivity',
+        'Test-SdnProviderNetwork',
+        'Test-SdnMuxConnectionStateToRouter',
+        'Test-SdnMuxConnectionStateToSlbManager',
+        'Test-SdnNetworkControllerApiNameResolution',
+        'Test-SdnResourceConfigurationState',
+        'Test-SdnResourceProvisioningState',
+        'Test-SdnServiceFabricApplicationHealth',
+        'Test-SdnServiceFabricClusterHealth',
+        'Test-SdnServiceFabricNodeStatus',
+        'Test-SdnConfigurationState',
+        'Test-SdnNonSelfSignedCertificateInTrustedRootStore',
+        'Test-SdnClusterServiceState',
+        'Test-SdnServiceState'
     )
 
     # Variables to export from this module
