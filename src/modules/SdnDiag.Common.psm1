@@ -843,6 +843,10 @@ function Start-NetshTrace {
         [System.String]$Capture = 'No',
 
         [Parameter(Mandatory = $false)]
+        [ValidateSet('physical', 'vmswitch', 'Both')]
+        [System.String]$CaptureType = 'physical',
+
+        [Parameter(Mandatory = $false)]
         [ValidateSet('Yes', 'No')]
         [System.String]$Overwrite = 'Yes',
 
@@ -870,12 +874,10 @@ function Start-NetshTrace {
 
         # enable the network trace
         if ($TraceProviderString) {
-            $cmd = "netsh trace start capture={0} {1} tracefile={2} maxsize={3} overwrite={4} report={5} correlation={6}" `
-                -f $Capture, $TraceProviderString, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType $TraceProviderString tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report correlation=$Correlation"
         }
         else {
-            $cmd = "netsh trace start capture={0} tracefile={1} maxsize={2} overwrite={3} report={4}, correlation={5}" `
-                -f $Capture, $traceFile, $MaxTraceSize, $Overwrite, $Report, $Correlation
+            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report, correlation=$Correlation"
         }
 
         "Starting netsh trace" | Trace-Output
@@ -2093,6 +2095,8 @@ function Start-SdnNetshTrace {
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1024.
     .PARAMETER Capture
         Optional. Specifies whether packet capture is enabled in addition to trace events. If unspecified, the default is No.
+    .PARAMETER CaptureType
+        Optional. Specifies if want to capture physical network or vmswitch. If unspecified, the default is Both.
     .PARAMETER Overwrite
         Optional. Specifies whether this instance of the trace conversion command overwrites files that were rendered from previous trace conversions. If unspecified, the default is Yes.
     .PARAMETER Correlation
@@ -2127,6 +2131,11 @@ function Start-SdnNetshTrace {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [ValidateSet('physical', 'vmswitch', 'Both')]
+        [System.String]$CaptureType = 'Physical',
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
         [ValidateSet('Yes', 'No')]
         [System.String]$Overwrite = 'Yes',
 
@@ -2154,47 +2163,40 @@ function Start-SdnNetshTrace {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $params = @{
+    $traceParams = @{
         OutputDirectory = $OutputDirectory
         MaxTraceSize = $MaxTraceSize
         Capture = $Capture
+        CaptureType = $CaptureType
         Overwrite = $Overwrite
         Report = $Report
         Correlation = $Correlation
     }
 
-    $scriptBlock = {
-        param(
-            [Parameter(Position = 0)][String]$Role,
-            [Parameter(Position = 1)][String]$OutputDirectory,
-            [Parameter(Position = 2)][int]$MaxTraceSize,
-            [Parameter(Position = 3)][String]$Capture,
-            [Parameter(Position = 4)][String]$Overwrite,
-            [Parameter(Position = 5)][String]$Report,
-            [Parameter(Position = 6)][String]$Correlation,
-            [Parameter(Position = 7)][String]$Providers
-        )
-
-        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
-        -MaxTraceSize $MaxTraceSize -Capture $Capture -Overwrite $Overwrite -Report $Report -Correlation $Correlation -Providers $Providers
+    # if the user did not specify the capture type, in normal instances we default to physical
+    # however for the server role, we want to define both for physical and vmswitch to capture the appropriate VLAN information
+    if (-NOT $PSBoundParameters.ContainsKey('CaptureType')) {
+        if ($Role -ieq 'Server') {
+            $traceParams.CaptureType = 'Both'
+        }
     }
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
-            -ArgumentList @($Role, $params.OutputDirectory, $params.MaxTraceSize, $params.Capture, $params.Overwrite, $params.Report, $params.Correlation, $Providers)
+            $traceParams.Add('Role', $Role)
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Start-SdnNetshTrace } -ArgumentList @traceParams
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
             if ($traceProviderString) {
-                $params.Add('TraceProviderString', $traceProviderString)
+                $traceParams.Add('TraceProviderString', $traceProviderString)
                 "Trace providers configured: {0}" -f $traceProviderString | Trace-Output -Level:Verbose
             }
             elseif ($null -eq $traceProviderString) {
                 "No default trace providers found for role {0}." -f $Role | Trace-Output
-                if ($params.Capture -eq 'No') {
-                    $params.Capture = 'Yes'
-                    "Setting capture to {1}" -f $Role, $params.Capture | Trace-Output
+                if ($traceParams.Capture -eq 'No') {
+                    $traceParams.Capture = 'Yes'
+                    "Setting capture to {1}" -f $Role, $traceParams.Capture | Trace-Output
                 }
             }
 
@@ -2203,7 +2205,7 @@ function Start-SdnNetshTrace {
                 return
             }
 
-            Start-NetshTrace @params
+            Start-NetshTrace @traceParams
         }
     }
     catch {
