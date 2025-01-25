@@ -1909,16 +1909,11 @@ function Repair-SdnDiagnosticsScheduledTask {
     #>
 
     [CmdletBinding()]
-    param()
-
-    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
-        'FailoverCluster' {
-            $taskName = "FcDiagnostics"
-        }
-        'ServiceFabric' {
-            $taskName = "SDN Diagnostics Task"
-        }
-    }
+    param(
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('FcDiagnostics', 'SDN Diagnostics Task')]
+        [string]$TaskName
+    )
 
     try {
         $isLoggingEnabled = Get-ItemPropertyValue -Path "HKLM:\Software\Microsoft\NetworkController\Sdn\Diagnostics\Parameters" -Name 'IsLoggingEnabled'
@@ -1927,7 +1922,7 @@ function Repair-SdnDiagnosticsScheduledTask {
             return $null
         }
 
-        $scheduledTask = Get-ScheduledTask -TaskName $taskName -ErrorAction Stop
+        $scheduledTask = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
         if ($scheduledTask) {
             # if the scheduled task is disabled, enable it and start it
             if ($scheduledTask.State -ieq "Disabled") {
@@ -1935,13 +1930,13 @@ function Repair-SdnDiagnosticsScheduledTask {
                 $scheduledTask | Enable-ScheduledTask -ErrorAction Stop
 
                 "Starting scheduled task." | Trace-Output
-                Get-ScheduledTask -TaskName $taskName | Start-ScheduledTask -ErrorAction Stop
+                Get-ScheduledTask -TaskName $TaskName | Start-ScheduledTask -ErrorAction Stop
             }
             else {
                 "Scheduled task is already enabled." | Trace-Output
             }
 
-            return (Get-ScheduledTask -TaskName $taskName)
+            return (Get-ScheduledTask -TaskName $TaskName)
         }
         else {
             "Scheduled task does not exist." | Trace-Output -Level:Warning
@@ -2290,7 +2285,7 @@ function Confirm-IsCertSelfSigned {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [System.Security.Cryptography.X509Certificates.X509Certificate2]$Certificate
+        $Certificate
     )
 
     if ($Certificate.Issuer -eq $Certificate.Subject) {

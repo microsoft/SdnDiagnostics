@@ -816,17 +816,18 @@ function Invoke-CertRotateCommand {
                 Start-Sleep -Seconds 300
             }
 
-            "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
             "Command:{0} Params: {1}" -f $Command, ($params | ConvertTo-Json) | Trace-Output -Level:Verbose
-
             switch ($Command) {
                 'Set-NetworkController' {
+                    "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
                     Set-NetworkController @params
                 }
                 'Set-NetworkControllerCluster' {
+                    "Invoking {0} to configure thumbprint {1}" -f $Command, $cert.Thumbprint | Trace-Output
                     Set-NetworkControllerCluster @params
                 }
                 'Set-NetworkControllerNode' {
+                    "Invoking {0} to configure thumbprint {1} for {2}" -f $Command, $cert.Thumbprint, $params.Name | Trace-Output
                     Set-NetworkControllerNode @params
                 }
             }
@@ -2304,7 +2305,7 @@ function Get-SdnServiceFabricService {
             $sb = {
                 param([string]$param1, [string]$param2)
                 if (( Get-Service -Name 'FabricHostSvc').Status -ine 'Running' ) {
-                    throw "Service Fabric Service is currently not running."
+                    throw New-Object System.Exception("Service Fabric Service is currently not running.")
                 }
 
                 # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket

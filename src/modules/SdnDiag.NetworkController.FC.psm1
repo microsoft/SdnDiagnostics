@@ -122,10 +122,10 @@ function Get-SdnNetworkControllerFC {
     try {
         if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
             Confirm-IsNetworkController
-            $result = Get-NetworkControllerOnFailoverCluster 4>$null
+            $result = Get-NetworkControllerOnFailoverCluster
         }
         else {
-            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerOnFailoverCluster 4>$null } -Credential $Credential
+            $result = Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock { Get-NetworkControllerOnFailoverCluster } -Credential $Credential
         }
 
         return $result

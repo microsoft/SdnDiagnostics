@@ -55,6 +55,10 @@
         'Copy-SdnFileToComputer',
         'Convert-SdnEtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
+        'Debug-SdnGateway',
+        'Debug-SdnLoadBalancerMux',
+        'Debug-SdnNetworkController',
+        'Debug-SdnServer',
         'Disable-SdnRasGatewayTracing',
         'Enable-SdnRasGatewayTracing',
         'Enable-SdnVipTrace'
@@ -145,11 +149,29 @@
         'Start-SdnMuxCertificateRotation',
         'Start-SdnServerCertificateRotation',
         'Start-SdnNetshTrace',
+        'Start-SdnHealthFault',
         'Stop-SdnEtwTraceCapture',
         'Stop-SdnNetshTrace',
         'Test-SdnCertificateRotationConfig',
+        'Test-SdnClusterServiceState',
+        'Test-SdnDiagnosticsCleanupTaskEnabled',
         'Test-SdnExpressBGP',
-        'Test-SdnProviderAddressConnectivity'
+        'Test-SdnHostAgentConnectionStateToApiService',
+        'Test-SdnEncapOverhead',
+        'Test-SdnProviderAddressConnectivity',
+        'Test-SdnProviderNetwork',
+        'Test-SdnMuxConnectionStateToRouter',
+        'Test-SdnMuxConnectionStateToSlbManager',
+        'Test-SdnNetworkControllerApiNameResolution',
+        'Test-SdnResourceConfigurationState',
+        'Test-SdnResourceProvisioningState',
+        'Test-SdnServiceFabricApplicationHealth',
+        'Test-SdnServiceFabricClusterHealth',
+        'Test-SdnServiceFabricNodeStatus',
+        'Test-SdnConfigurationState',
+        'Test-SdnNonSelfSignedCertificateInTrustedRootStore',
+        'Test-SdnClusterServiceState',
+        'Test-SdnServiceState'
     )
 
     # Variables to export from this module
