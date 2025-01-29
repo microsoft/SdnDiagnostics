@@ -2179,7 +2179,7 @@ function Start-SdnNetshTrace {
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
             $traceParams.Add('Role', $Role)
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Start-SdnNetshTrace } -ArgumentList @traceParams
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Start-SdnNetshTrace } -ArgumentList $traceParams
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
