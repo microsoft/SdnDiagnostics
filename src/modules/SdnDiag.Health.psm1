@@ -2101,7 +2101,7 @@ function Test-SdnEncapOverhead {
 
                     # in this scenario, encapoverhead is disabled and we do not have the expected jumbo packet value
                     # this will result in a failure on the test as it will result in packets being dropped if we exceed default MTU
-                    if ($_.JumboPacketValue -lt $jumboPacketExpectedValue -and $providerAddressConfigured -ieq $false) {
+                    if ($_.JumboPacketValue -lt $jumboPacketExpectedValue -and $providerAddressConfigured) {
                         $sdnHealthTest.Result = 'FAIL'
                         $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
                         $misconfigurationFound = $true
