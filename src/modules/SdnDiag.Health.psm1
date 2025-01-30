@@ -497,13 +497,13 @@ function UpdateFaultSet {
 
     foreach ($fault in $successFaults) {
         DeleteFaultBy -KeyFaultingObjectDescription $fault.KeyFaultingObjectDescription
-        $convFault = ConvertFaultToPsObject -healthFault $fault -faultType "Delete"
+        $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Delete"
         $healthTest.HealthFault += $convFault
     }
 
     foreach ($fault in $failureFaults) {
         CreateOrUpdateFault -Fault $fault
-        $convFault = ConvertFaultToPsObject -healthFault $fault -faultType "Create"
+        $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Create"
         $healthTest.HealthFault += $convFault
     }
 
@@ -2142,14 +2142,14 @@ function Test-SdnEncapOverhead {
 
                 if ($misconfigurationFound -eq $true) {
                     CreateorUpdateFault -Fault $sdnHealthFault
-                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Create"
+                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Create"
                 }
                 else {
                     Write-Verbose "No fault(s) on EncapOverhead, clearing any existing ones"
                     # clear all existing faults for host($FAULTNAME)
                     # todo: validate multiple hosts reporting the same fault
                     DeleteFaultBy -KeyFaultingObjectDescription $env:COMPUTERNAME -KeyFaultingObjectType $FAULTNAME
-                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Delete"
+                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Delete"
                 }
             }
         }
