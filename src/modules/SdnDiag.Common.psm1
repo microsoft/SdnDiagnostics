@@ -2158,6 +2158,23 @@ function Start-SdnNetshTrace {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $scriptBlock = {
+        param(
+            [Parameter(Position = 0)][String]$Role,
+            [Parameter(Position = 1)][String]$OutputDirectory,
+            [Parameter(Position = 2)][int]$MaxTraceSize,
+            [Parameter(Position = 3)][String]$Capture,
+            [Parameter(Position = 4)][String]$CaptureType,
+            [Parameter(Position = 5)][String]$Overwrite,
+            [Parameter(Position = 6)][String]$Report,
+            [Parameter(Position = 7)][String]$Correlation,
+            [Parameter(Position = 8)][String]$Providers
+        )
+
+        Start-SdnNetshTrace -Role $Role -OutputDirectory $OutputDirectory `
+        -MaxTraceSize $MaxTraceSize -Capture $Capture -CaptureType $CaptureType -Overwrite $Overwrite -Report $Report -Correlation $Correlation -Providers $Providers
+    }
+
     $traceParams = @{
         OutputDirectory = $OutputDirectory
         MaxTraceSize = $MaxTraceSize
@@ -2178,8 +2195,8 @@ function Start-SdnNetshTrace {
 
     try {
         if ($PSCmdlet.ParameterSetName -eq 'Remote') {
-            $traceParams.Add('Role', $Role)
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Start-SdnNetshTrace } -ArgumentList $traceParams
+            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock `
+            -ArgumentList @($Role, $traceParams.OutputDirectory, $traceParams.MaxTraceSize, $traceParams.Capture, $traceParams.CaptureType, $traceParams.Overwrite, $traceParams.Report, $traceParams.Correlation, $Providers)
         }
         else {
             $traceProviderString = Get-TraceProviders -Role $Role -Providers $Providers -AsString
