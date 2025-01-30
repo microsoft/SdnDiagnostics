@@ -2072,13 +2072,15 @@ function Test-SdnEncapOverhead {
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthTest = New-SdnHealthTest
     [bool] $misconfigurationFound = $false
-    $providerAddressConfigured = $false
     [string[]] $misconfiguredNics = @()
 
     try {
+        # check to see if provider addresses are configured
+        # if not, we know that workloads have not been deployed and we can skip this test
+        # as none of the settings will be configured
         $providerAddreses = Get-SdnProviderAddress
-        if ($providerAddreses -or $providerAddreses.Count -gt 0) {
-            $providerAddressConfigured = $true
+        if ($null -ieq $providerAddreses -or $providerAddreses.Count -eq 0) {
+            return $sdnHealthTest
         }
 
         $encapOverheadResults = Get-SdnNetAdapterEncapOverheadConfig
@@ -2101,7 +2103,7 @@ function Test-SdnEncapOverhead {
 
                     # in this scenario, encapoverhead is disabled and we do not have the expected jumbo packet value
                     # this will result in a failure on the test as it will result in packets being dropped if we exceed default MTU
-                    if ($_.JumboPacketValue -lt $jumboPacketExpectedValue -and $providerAddressConfigured) {
+                    if ($_.JumboPacketValue -lt $jumboPacketExpectedValue) {
                         $sdnHealthTest.Result = 'FAIL'
                         $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
                         $misconfigurationFound = $true
@@ -2111,12 +2113,10 @@ function Test-SdnEncapOverhead {
 
                 # in this case, the encapoverhead is enabled but the value is less than the expected value
                 if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
-                    if ($providerAddressConfigured) {
-                        $sdnHealthTest.Result = 'FAIL'
-                        $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
-                        $misconfigurationFound = $true
-                        $misconfiguredNics += $_.NetAdapterInterfaceDescription
-                    }
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
+                    $misconfigurationFound = $true
+                    $misconfiguredNics += $_.NetAdapterInterfaceDescription
                 }
 
                 $FAULTNAME = "InvalidEncapOverheadConfiguration"
