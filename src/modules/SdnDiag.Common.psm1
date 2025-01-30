@@ -843,8 +843,8 @@ function Start-NetshTrace {
         [System.String]$Capture = 'No',
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('physical', 'vmswitch', 'Both')]
-        [System.String]$CaptureType = 'physical',
+        [ValidateSet('Physical', 'VMSwitch', 'Both')]
+        [System.String]$CaptureType = 'Physical',
 
         [Parameter(Mandatory = $false)]
         [ValidateSet('Yes', 'No')]
@@ -872,13 +872,17 @@ function Start-NetshTrace {
         }
         $traceFile = "{0}\{1}_{2}_netshTrace.etl" -f $OutputDirectory.FullName, $env:COMPUTERNAME, (Get-FormattedDateTimeUTC)
 
-        # enable the network trace
+        # build out the netsh trace command
+        # if the TraceProviderString parameter is set, then we will use that to configure the trace
+        # if the Capture parameter is set to Yes, then we will include the capturetype parameter
+        $cmd = "netsh trace start capture=$Capture"
+        if ($Capture -ieq 'Yes') {
+            $cmd += " capturetype=$CaptureType"
+        }
         if ($TraceProviderString) {
-            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType $TraceProviderString tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report correlation=$Correlation"
+            $cmd += " $TraceProviderString"
         }
-        else {
-            $cmd = "netsh trace start capture=$Capture capturetype=$CaptureType tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report, correlation=$Correlation"
-        }
+        $cmd += " tracefile=$traceFile maxsize=$MaxTraceSize overwrite=$Overwrite report=$Report correlation=$Correlation"
 
         "Starting netsh trace" | Trace-Output
         "Netsh trace cmd:`n`t{0}" -f $cmd | Trace-Output -Level:Verbose
@@ -2126,7 +2130,7 @@ function Start-SdnNetshTrace {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [ValidateSet('physical', 'vmswitch', 'Both')]
+        [ValidateSet('Physical', 'VMSwitch', 'Both')]
         [System.String]$CaptureType = 'Physical',
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
