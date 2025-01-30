@@ -497,13 +497,13 @@ function UpdateFaultSet {
 
     foreach ($fault in $successFaults) {
         DeleteFaultBy -KeyFaultingObjectDescription $fault.KeyFaultingObjectDescription
-        $convFault = ConvertFaultToPsObject -healthFault $fault -faultType "Delete"
+        $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Delete"
         $healthTest.HealthFault += $convFault
     }
 
     foreach ($fault in $failureFaults) {
         CreateOrUpdateFault -Fault $fault
-        $convFault = ConvertFaultToPsObject -healthFault $fault -faultType "Create"
+        $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Create"
         $healthTest.HealthFault += $convFault
     }
 
@@ -2075,6 +2075,14 @@ function Test-SdnEncapOverhead {
     [string[]] $misconfiguredNics = @()
 
     try {
+        # check to see if provider addresses are configured
+        # if not, we know that workloads have not been deployed and we can skip this test
+        # as none of the settings will be configured
+        $providerAddreses = Get-SdnProviderAddress
+        if ($null -ieq $providerAddreses -or $providerAddreses.Count -eq 0) {
+            return $sdnHealthTest
+        }
+
         $encapOverheadResults = Get-SdnNetAdapterEncapOverheadConfig
         if ($null -eq $encapOverheadResults) {
             # skip generation of fault if we cannot determine status confidently
@@ -2105,8 +2113,10 @@ function Test-SdnEncapOverhead {
 
                 # in this case, the encapoverhead is enabled but the value is less than the expected value
                 if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
-                    # do nothing here at this time as may be expected if no workloads deployed to host
-                    # todo: add extended checks once vnet support is available, check against ovsdb
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
+                    $misconfigurationFound = $true
+                    $misconfiguredNics += $_.NetAdapterInterfaceDescription
                 }
 
                 $FAULTNAME = "InvalidEncapOverheadConfiguration"
@@ -2132,16 +2142,20 @@ function Test-SdnEncapOverhead {
 
                 if ($misconfigurationFound -eq $true) {
                     CreateorUpdateFault -Fault $sdnHealthFault
-                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Create"
+                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Create"
                 }
                 else {
                     Write-Verbose "No fault(s) on EncapOverhead, clearing any existing ones"
                     # clear all existing faults for host($FAULTNAME)
                     # todo: validate multiple hosts reporting the same fault
                     DeleteFaultBy -KeyFaultingObjectDescription $env:COMPUTERNAME -KeyFaultingObjectType $FAULTNAME
-                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultType "Delete"
+                    $sdnHealthTest.HealthFault += ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Delete"
                 }
             }
+        }
+
+        if ($misconfiguredNics) {
+            $sdnHealthTest.Properties = $misconfiguredNics
         }
     }
     catch {
