@@ -3191,3 +3191,87 @@ function Test-SdnProviderAddressConnectivity {
     }
 }
 
+function Test-SdnVfpPortTuple {
+    <#
+    .SYNOPSIS
+        Simulates the processing of a packet by the Virtual Filtering Platform (VFP) for a specific port.
+    .PARAMETER PortName
+        The name of the VFP switch port.
+    .PARAMETER Direction
+        The direction of the traffic.
+    .PARAMETER SourceIP
+        The source IP address relative to the direction of the traffic.
+    .PARAMETER SourcePort
+        The source port relative to the direction of the traffic.
+    .PARAMETER DestinationIP
+        The destination IP address relative to the direction of the traffic.
+    .PARAMETER DestinationPort
+        The destination port relative to the direction of the traffic.
+    .PARAMETER Protocol
+        The protocol to use for the test.
+    .EXAMPLE
+        PS> Test-SdnVfpPortTuple -PortName 86650519-25b4-43a0-bae6-7f7a4561c8d9 -Direction OUT -Protocol TCP -SourceIP 10.0.0.6 -SourcePort 55555 -DestinationIP 10.0.0.9 -DestinationPort 443
+    .EXAMPLE
+        PS> Test-SdnVfpPortTuple -PortName 86650519-25b4-43a0-bae6-7f7a4561c8d9 -Direction IN -Protocol TCP -SourceIP 10.0.0.9 -SourcePort 443 -DestinationIP 10.0.0.6 -DestinationPort 55555
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [String]$PortName,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('IN','OUT')]
+        [String]$Direction,
+
+        [Parameter(Mandatory = $true)]
+        [ipaddress]$SourceIP,
+
+        [Parameter(Mandatory = $true)]
+        [int]$SourcePort,
+
+        [Parameter(Mandatory = $true)]
+        [ipaddress]$DestinationIP,
+
+        [Parameter(Mandatory = $true)]
+        [int]$DestinationPort,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('TCP','UDP')]
+        [String]$Protocol = 'TCP'
+    )
+
+    # convert the protocol to the appropriate ID
+    switch ($Protocol) {
+        'TCP' {
+            $protocolID = 6
+        }
+        'UDP' {
+            $protocolID = 17
+        }
+    }
+
+    try {
+        # make sure the port exists otherwise throw an exception
+        $vfpSwitchPort = Get-SdnVfpVmSwitchPort -PortName $PortName -ErrorAction Stop
+        if ($null -ieq $vfpSwitchPort) {
+            throw New-Object System.Exception("Unable to locate VFP switch port $PortName")
+        }
+
+        # command is structured as follows:
+        # vfpctrl /port <portname> /process-tuples '<protocolId> <sourceIP> <sourcePort> <destinationIP> <destinationPort> <direction> <flags>'
+        # protocolId: 6 = TCP, 17 = UDP
+        # direction: 1 = IN, 2 = OUT
+        # SourceIP: Source IP address or direction of the traffic relative to the direction
+        # SourcePort: Source port or direction of the traffic relative to the direction
+        # DestinationIP: Destination IP address or direction of the traffic relative to the direction
+        # DestinationPort: Destination port or direction of the traffic relative to the direction
+        # flags: 1 = TCP SYN, 2 = Monitoring Ping
+        $cmd = "vfpctrl /port $PortName /process-tuples '$protocolId $SourceIP $SourcePort $DestinationIP $DestinationPort $Direction 1'"
+        Invoke-Expression $cmd
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
