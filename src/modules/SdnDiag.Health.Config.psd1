@@ -191,6 +191,7 @@
     HealthFaultEnabled = $false
     HealthFaultSupportedBuilds = @(
         '24H2' # Build Number 26100
+        '23H2'
     )
     HealthFaultSupportedProducts = @(
         'Azure Stack HCI'
