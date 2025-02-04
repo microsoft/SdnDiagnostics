@@ -15,16 +15,20 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
 }
 
 # confirm that the current system is supported to generate health faults
-$displayVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'DisplayVersion'
-$productName = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
-if ($productName.ProductName -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedProducts){
-    $productSupported = $true
-}
-if ($displayVersion.DisplayVersion -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedBuilds){
-    $versionSupported = $true
-}
-if ($versionSupported -and $productSupported){
-    $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $true
+try {
+    $displayVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'DisplayVersion'
+    $productName = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
+    if ($productName.ProductName -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedProducts){
+        $productSupported = $true
+    }
+    if ($displayVersion.DisplayVersion -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedBuilds){
+        $versionSupported = $true
+    }
+    if ($versionSupported -and $productSupported){
+        $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $true
+    }
+} catch {
+    $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $false
 }
 
 ##########################
