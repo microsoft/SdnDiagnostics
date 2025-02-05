@@ -15,16 +15,20 @@ New-Variable -Name 'SdnDiagnostics_Health' -Scope 'Script' -Force -Value @{
 }
 
 # confirm that the current system is supported to generate health faults
-$displayVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'DisplayVersion'
-$productName = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
-if ($productName.ProductName -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedProducts){
-    $productSupported = $true
-}
-if ($displayVersion.DisplayVersion -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedBuilds){
-    $versionSupported = $true
-}
-if ($versionSupported -and $productSupported){
-    $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $true
+try {
+    $displayVersion = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'DisplayVersion'
+    $productName = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
+    if ($productName.ProductName -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedProducts){
+        $productSupported = $true
+    }
+    if ($displayVersion.DisplayVersion -iin $script:SdnDiagnostics_Health.Config.HealthFaultSupportedBuilds){
+        $versionSupported = $true
+    }
+    if ($versionSupported -and $productSupported){
+        $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $true
+    }
+} catch {
+    $script:SdnDiagnostics_Health.Config.HealthFaultEnabled = $false
 }
 
 ##########################
@@ -214,6 +218,8 @@ function LogHealthFault {
     Write-Verbose "    (FaultingObjectLocation) $($healthFault.FaultingObjectLocation)"
     Write-Verbose "    (FaultDescription) $($healthFault.FaultDescription)"
     Write-Verbose "    (FaultActionRemediation) $($healthFault.FaultActionRemediation)"
+    Write-Verbose "    (OccurrenceTime) $($healthFault.OccurrenceTime)"
+
 }
 
 function LogHealthFaultToEventLog {
@@ -230,7 +236,7 @@ function LogHealthFaultToEventLog {
     param(
         [object] $fault,
 
-        [ValidateSet("Create", "Delete")]
+        [ValidateSet("Create", "DeleteById", "DeleteByKeyFaultingObjectDescription","DeleteByFaultID")]
         [string] $operation
     )
 
@@ -261,12 +267,29 @@ function LogHealthFaultToEventLog {
     Write-Verbose "Source : $($LOG_SOURCE) Log : $($LOG_NAME) Message : $($eventLogMessage)"
     $evtObject.WriteEvent($eventInstance, @($eventLogMessage, $eventLogJson, $operation))
 }
+function ConvertWmiFaultToHealthFault {
+    [CmdletBinding()]
+    param(
+        [ValidateNotNull()]
+        [object] $wmiFault
+    )
+    $healthFault = [SdnFaultInfo]::new()
+    $healthFault.OccurrenceTime = $wmiFault.FaultTime
+    $healthFault.KeyFaultingObjectDescription = $wmiFault.FaultingObjectType
+    $healthFault.KeyFaultingObjectID = $wmiFault.FaultingObjectUniqueId
+    $healthFault.KeyFaultingObjectType = $wmiFault.FaultType
+    $healthFault.FaultingObjectLocation = $wmiFault.FaultingObjectLocation
+    $healthFault.FaultDescription = $wmiFault.Reason
+    $healthFault.FaultActionRemediation = $wmiFault.RecommendedActions
+    return $healthFault
+}
 
 function CreateorUpdateFault {
     param(
         [SdnFaultInfo] $Fault
     )
 
+    Write-Host "CreateorUpdateFault HealthFaultEnabled: $($script:SdnDiagnostics_Health.Config.HealthFaultEnabled)"
     if (-NOT $script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
@@ -283,6 +306,10 @@ function CreateorUpdateFault {
         $script:subsystemId = (get-storagesubsystem Cluster*).UniqueId
         $script:entityTypeSubSystem = "Microsoft.Health.EntityType.Subsystem"
     }
+
+    Write-Verbose "SubsystemID: $script:subsystemId"
+    Write-Verbose "EntityTypeSubSystem: $script:entityTypeSubSystem"
+
     $retValue = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyFault( `
         $Fault.KeyFaultingObjectDescription, # $entityType, `
         $Fault.KeyFaultingObjectID, # $entityId, `
@@ -445,14 +472,13 @@ function ShowFaultSet {
         .PARAMETER faultset
         The fault set to show
     #>
-
+    [CmdletBinding()]
     param([object[]]$faultset)
 
     Write-Verbose "Success Faults (for rest res):"
     if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
         if ($null -eq $faultset[0] -or $faultset[0].Count -eq 0) {
             Write-Verbose "(none)"
-            return
         }
         foreach ($faultInst in $faultset[0]) {
             LogHealthFault -healthFault $faultInst
@@ -463,7 +489,6 @@ function ShowFaultSet {
     if ($PSCmdlet.MyInvocation.BoundParameters["Verbose"].IsPresent) {
         if ($null -eq $faultset[1] -or $faultset[1].Count -eq 0) {
             Write-Verbose "(none)"
-            return
         }
         foreach ($faultInst in $faultset[1]) {
             LogHealthFault -healthFault $faultInst
@@ -476,37 +501,75 @@ function UpdateFaultSet {
     <#
         .SYNOPSIS
         Updates the fault set and returns the health test object
+        NOTE: the logic is specific for use ONLY with configuration based set of faults, not for any other type
 
         .PARAMETER successFaults
-        The set of faults that were successful
+        The set of faults indicating success (i.e. method expects a success fault to be present if a resource is healthy or does not indicate a config state error)
 
         .PARAMETER failureFaults
         The set of faults that failed
     #>
 
+    [CmdletBinding()]
     param(
         [object[]]$successFaults,
         [object[]]$failureFaults
     )
-
     $healthTest = New-SdnHealthTest
 
     if ($null -ne $failureFaults -and $failureFaults.Count -gt 0) {
         $healthTest.Result = "FAIL"
     }
+    # Template of config state faults for reference
+    ##########################################################################################
+    ## ServiceState Fault Template (ServerResource)
+    ##########################################################################################
+    # $KeyFaultingObjectDescription    (SDN ID)    : [ResourceRef]
+    # $KeyFaultingObjectID             (SOURCE)    : "ConfigStateSource"
+    # $KeyFaultingObjectType           (CODE)      : "ConfgiStateCode"
+    # $FaultingObjectLocation          (SOURCE)    : "Source"
+    # $FaultDescription                (MESSAGE)   : "ConfigStateMessage"
+    # $FaultActionRemediation          (ACTION)    : "See <href> for more information on how to resolve this issue."
+    # * Config state faults issued only from the primary Node
+    ##########################################################################################
 
     foreach ($fault in $successFaults) {
+        LogHealthFaultToEventLog -fault $Fault -operation DeleteByKeyFaultingObjectDescription
         DeleteFaultBy -KeyFaultingObjectDescription $fault.KeyFaultingObjectDescription
         $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Delete"
         $healthTest.HealthFault += $convFault
     }
-
+    # remove any existing faults which are not present now
+    $allFaults = Get-HealthFault
+    foreach($wmiFault in $allFaults) {
+        # only look at wmi sdn config state faults, skip others
+        $isSdnFault = IsSdnFault -wmiFault $wmiFault
+        if(-not $isSdnFault) {
+            continue
+        }
+        $found = $false
+        foreach($fault in $failureFaults) {
+            if ($wmiFault.FaultingObjectDescription -eq $fault.KeyFaultingObjectDescription -and `
+                $wmiFault.FaultingObjectUniqueId -eq $fault.KeyFaultingObjectID -and `
+                $wmiFault.FaultType -eq $fault.KeyFaultingObjectType) {
+                $found = $true
+                break                
+            }
+        }
+        if(-not $found) {
+            DeleteFaultById -faultUniqueID $wmiFault.FaultId
+            $sdnHealthFault = ConvertWmiFaultToHealthFault -wmiFault $wmiFault
+            LogHealthFaultToEventLog -fault $Fault -operation DeleteByFaultID
+            $convFault = ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Delete"
+            $healthTest.HealthFault += $convFault
+        }       
+    }
+    # update the new new set of faults
     foreach ($fault in $failureFaults) {
         CreateOrUpdateFault -Fault $fault
         $convFault = ConvertFaultToPsObject -healthFault $fault -faultOpType "Create"
         $healthTest.HealthFault += $convFault
     }
-
     $healthTest
 }
 
@@ -682,6 +745,53 @@ function IsSdnService {
 
     return $serviceName -in @( "NCHostAgent", "SlbHostAgent")
 }
+function IsSdnFault {
+    
+    <#
+        .SYNOPSIS
+        Checks if the provided fault is an SDN fault
+        .PARAMETER fault
+        The fault to check
+    #>
+
+    param([object] $wmiFault)
+
+    if([string]::IsNullOrEmpty($wmiFault.FaultingObjectType)) {
+        return $false
+    }
+    if($wmiFault.FaultingObjectType.StartsWith("/AccessControlLists/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/AuditingSettingsConfig/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/Credentials/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/Discovery/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/GatewayPools/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/Gateways/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/IDNSServerConfig/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/LearnedIPAddresses/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/LoadBalancerManagerConfig/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/LoadBalancerMuxes/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/LoadBalancers/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/LogicalNetworks/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/MacPools/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/NetworkControllerBackup/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/NetworkControllerRestore/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/NetworkControllerStatistics/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/NetworkInterfaces/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/Operations/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/OperationResults/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/PublicIPAddresses/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/SecurityTags/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/Servers/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/ServiceInsertions/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/RouteTables/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/VirtualGateways/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/VirtualNetworkManagerConfig/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/VirtualNetworks/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/VirtualServers/", [System.StringComparison]::InvariantCultureIgnoreCase) -or `
+        $wmiFault.FaultingObjectType.StartsWith("/VirtualSwitchManagerConfig/", [System.StringComparison]::InvariantCultureIgnoreCase)) {
+        return $true
+    }
+    return $false
+}
 
 function IsCurrentNodeClusterOwner {
     <#
@@ -692,16 +802,14 @@ function IsCurrentNodeClusterOwner {
         This function is used to determine if the current node is the owner of the cluster. This is used to determine if the current node is the primary node in a cluster.
     #>
 
-    $activeNode = Get-ClusterResource -ErrorAction Ignore | Where-Object { $_.OwnerGroup -eq "Cluster Group" -and $_.ResourceType -eq "IP Address" -and $_.Name -eq "Cluster IP Address" }
+    $res = Get-ClusterResource -Name "ApiService" -ErrorAction Ignore | select OwnerNode   
 
-    if ( $null -eq $activeNode ) {
-        Write-Verbose "Active $($activeNode.OwnerNode)"
-
-        # todo : generate a fault on failing to generate a fault (or switch to different algorithm for picking the primary node)
+    if ( $null -eq $res ) {
+        Write-Verbose "Active Node unavailable"
         return $false
     }
 
-    return ($activeNode.OwnerNode -eq $env:COMPUTERNAME)
+    return ($res.OwnerNode -eq $env:COMPUTERNAME)
 }
 
 function GetFaultFromConfigurationState {
@@ -712,9 +820,10 @@ function GetFaultFromConfigurationState {
         .PARAMETER resources
         The resources to generate the fault from
     #>
-
+    [CmdletBinding()]
     param(
-        [object[]] $resources
+        [object[]] $resources,
+        [bool] $isSLBEnabled = $false
     )
 
     $healthFaults = @()
@@ -729,8 +838,8 @@ function GetFaultFromConfigurationState {
         ## ServiceState Fault Template (ServerResource)
         ##########################################################################################
         # $KeyFaultingObjectDescription    (SDN ID)    : [ResourceRef]
-        # $KeyFaultingObjectID             (ARC ID)    : [ResourceMetadataID (if available) else ResourceRef]
-        # $KeyFaultingObjectType           (CODE)      : "ConfgiStateCode" (if 2 more errors are found with same other properties will be concat)
+        # $KeyFaultingObjectID             (SOURCE)    : "ConfigStateSource"
+        # $KeyFaultingObjectType           (CODE)      : "ConfgiStateCode"
         # $FaultingObjectLocation          (SOURCE)    : "Source (if keys of 2 errors collide they will be concatanated)"
         # $FaultDescription                (MESSAGE)   : "ConfigStateMessage (2 or more if errors collide)."
         # $FaultActionRemediation          (ACTION)    : "See <href> for more information on how to resolve this issue."
@@ -744,55 +853,18 @@ function GetFaultFromConfigurationState {
             foreach ($detailedInfo in $resource.Properties.ConfigurationState.DetailedInfo) {
 
                 # supression check for some of the known configuration states
-                if (IsConfigurationStateSkipped -Source $detailedInfo.Source -Message $detailedInfo.Message -Code $detailedInfo.Code) {
+                if (IsConfigurationStateSkipped -Source $detailedInfo.Source -Message $detailedInfo.Message -Code $detailedInfo.Code -isSLBEnabled $isSLBEnabled) {
                     continue
                 }
-
-                # handle success cases
-                if ($detailedInfo.Code -eq "Success") {
-
-                    $successFault = [SdnFaultInfo]::new()
-                    $successFault.KeyFaultingObjectDescription = $resource.ResourceRef
-                    $successFault.KeyFaultingObjectID = $resource.ResourceRef
-                    $successFault.KeyFaultingObjectType = [string]::Empty
-                    $successFault.FaultingObjectLocation = [string]::Empty
-                    $successFault.FaultDescription = [string]::Empty
-                    $successFaults += $successFault
-
-                }
-                else {
-
-                    # find any existing overlapping fault
-                    $existingFault = $healthFaults | Where-Object { $_.KeyFaultingObjectDescription -eq $resource.ResourceRef -and `
-                            $_.KeyFaultingObjectType -eq $detailedInfo.Code }
-
-                    if ($null -ne $existingFault) {
-
-                        $existingFault.FaultDescription += ("; " + $detailedInfo.Message)
-                        $existingFault.FaultingObjectLocation += ("; " + $detailedInfo.Source)
-
-                    }
-                    else {
-
-                        $healthFault = [SdnFaultInfo]::new()
-                        $healthFault.KeyFaultingObjectDescription = $resource.ResourceRef
-                        $healthFault.KeyFaultingObjectType = $detailedInfo.Code
-                        $healthFault.FaultingObjectLocation = $detailedInfo.Source
-                        $healthFault.FaultDescription += $detailedInfo.Message
-
-                        # add resource metadata if available
-                        if ($null -ne $resource.Properties.ResourceMetadata) {
-                            $healthFault.KeyFaultingObjectID = $resource.Properties.ResourceMetadata
-                        }
-                        else {
-                            $healthFault.KeyFaultingObjectID = $resource.ResourceRef
-                        }
-                    }
-                    $healthFaults += $healthFault
-                }
+                $healthFault = [SdnFaultInfo]::new()
+                $healthFault.KeyFaultingObjectDescription = $resource.ResourceRef
+                $healthFault.KeyFaultingObjectType = $detailedInfo.Code
+                $healthFault.FaultingObjectLocation = $detailedInfo.Source
+                $healthFault.FaultDescription += $detailedInfo.Message
+                $healthFault.KeyFaultingObjectID = $detailedInfo.Source
+                $healthFaults += $healthFault
             }
-        }
-        else {
+        } else {
             # if configuration state is not available, we will clear out any existing faults
             if ($healthFaults.Count -eq 0) {
                 $successFault = [SdnFaultInfo]::new()
@@ -800,7 +872,7 @@ function GetFaultFromConfigurationState {
                 $successFault.KeyFaultingObjectType = [string]::Empty
                 $successFault.FaultingObjectLocation = [string]::Empty
                 $successFault.FaultDescription = [string]::Empty
-                $successFault.KeyFaultingObjectID = $resource.ResourceRef
+                $successFault.KeyFaultingObjectID = [string]::Empty
                 $successFaults += $successFault
             }
         }
@@ -827,21 +899,42 @@ function IsConfigurationStateSkipped {
 
         .PARAMETER Code
         The code of the configuration state
+
+        .PARAMETER isSLBEnabled
+        If SLB is enabled
     #>
 
     param(
         [string] $Source,
         [string] $Message,
-        [string] $Code
+        [string] $Code,
+        [bool] $isSLBEnabled = $false
     )
 
     if ($Source -eq "SoftwareLoadbalancerManager") {
-        if ($Code -eq "HostNotConnectedToController") {
+        if ($Code -eq "Success") {
+            return $true
+        }
+    } 
+    # known issue in SDN where the policy configuration failure is reported on VFP on LNETs
+    # todo : remove this once the issue is fixed in SDN
+    elseif ($Source -eq "VirtualSwitch") {
+        if ($Code -eq "PolicyConfigurationFailureOnVfp") {
+            return $true
+        }
+    }
+    elseif ($Code -eq "Success") {
+            return $true
+    }
+
+    # if SLB Is disabled, supress all other SLB related Faults
+    if($isSLBEnabled -eq $false) {
+        if ($Source -eq "SoftwareLoadbalancerManager") {
             return $true
         }
     }
 
-    $false
+    return $false
 }
 
 ##########################
@@ -1308,7 +1401,7 @@ function GetSdnResourceFromNc {
         [string] $NcUri,
 
         [Parameter(Mandatory = $true)]
-        [ValidateSet('Servers', 'NetworkInterfaces', 'VirtualNetworks', 'LogicalNetworks')]
+        [ValidateSet('Servers', 'NetworkInterfaces', 'VirtualNetworks', 'LogicalNetworks','VirtualNetworkManager','VirtualServers','LoadBalancers','LoadBalancerManagerConfig')]
         [String]$ResourceType,
 
         [Parameter(Mandatory = $false)]
@@ -1318,37 +1411,34 @@ function GetSdnResourceFromNc {
     $certs = @()
     $certs += $null
     $resources = $null
-    $NcUri = $NcUri.TrimEnd('/')
-
-    $sdnRequestParams = @{
-        NcUri       = $NcUri
-        ResourceRef = $ResourceType
-        ApiVersion  = $ApiVersion
-        NcRestCertificate = $null
+    if($null -ne $NcUri) {
+        $NcUri = $NcUri.TrimEnd('/')
+    } else {
+        throw New-Object System.ArgumentNullException("NcUri")
     }
+
+    $sdnRequestParams = @{}
+
+    if($ResourceType -eq 'VirtualNetworkManager') {
+        $sdnRequestParams["Resource"] = 'VirtualNetworkManager'
+    } else {
+        $sdnRequestParams["Resource"] = $ResourceType
+    }
+    $sdnRequestParams["NcUri"] = $NcUri
+    $sdnRequestParams["ApiVersion"] = $ApiVersion
 
     try {
         $certs += Get-SdnServerCertificate
         [System.Array]::Reverse($certs)
         foreach ($cert in $certs) {
-            if ($null -ieq $cert) {
-                $sdnRequestParams = @{
-                    NcUri       = $NcUri
-                    ResourceRef = $ResourceType
-                    ApiVersion  = $ApiVersion
-                }
-            }
-            else {
-                $sdnRequestParams = @{
-                    NcUri       = $NcUri
-                    ResourceRef = $ResourceType
-                    ApiVersion  = $ApiVersion
-                    NcRestCertificate = $cert
-                }
 
+            if ($null -ne $cert) {
+                $sdnRequestParams["NcRestCertificate"] = $cert
                 Write-Verbose "Retrieving $NcUri with certificate $($cert.Subject) thumbprint $($cert.Thumbprint)"
+            } 
+            else {
+                Write-Verbose "Retrieving $NcUri without certificate"
             }
-
             try {
                 $resources = Get-SdnResource @sdnRequestParams
                 if ($resources) {
@@ -1728,7 +1818,7 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
 
     [CmdletBinding()]
     param ()
-
+    InitFaults
     Write-Verbose "$($PSCmdlet.MyInvocation.MyCommand.Name) invoked"
     $sdnHealthTest = New-SdnHealthTest
     $array = @()
@@ -1804,7 +1894,7 @@ function Test-SdnServiceState {
         [Parameter(Mandatory = $true)]
         [String[]]$ServiceName
     )
-
+    InitFaults
     Write-Verbose "$($PSCmdlet.MyInvocation.MyCommand.Name) invoked for $($ServiceName)"
     $sdnHealthTest = New-SdnHealthTest
     $failureDetected = $false
@@ -1888,7 +1978,7 @@ function Test-SdnClusterServiceState {
         [Parameter(Mandatory = $true)]
         [String[]]$ServiceName
     )
-
+    InitFaults
     $isCurrentNodeClusterOwner = IsCurrentNodeClusterOwner
     if ($isCurrentNodeClusterOwner -eq $false) {
         Write-Verbose "This node is not the cluster owner. Skipping health tests."
@@ -1917,8 +2007,8 @@ function Test-SdnClusterServiceState {
                 ##########################################################################################
                 ## FailoverClusterServiceState Fault Template
                 ##########################################################################################
-                # $KeyFaultingObjectDescription    (SDN ID)    : [ServiceName]
-                # $KeyFaultingObjectID             (ARC ID)    : [ServiceName]
+                # $KeyFaultingObjectDescription    (SDN ID)    : [HostName]
+                # $KeyFaultingObjectID             (ARC ID)    : [Service]
                 # $KeyFaultingObjectType           (CODE)      : ServiceUnavailable
                 # $FaultingObjectLocation          (SOURCE)    : [ServiceName]
                 # $FaultDescription                (MESSAGE)   : Service [ServiceName] is not up.
@@ -1927,7 +2017,7 @@ function Test-SdnClusterServiceState {
                 ##########################################################################################
 
                 $healthFault = [SdnFaultInfo]::new()
-                $healthFault.KeyFaultingObjectDescription = $service
+                $healthFault.KeyFaultingObjectDescription = $Env:COMPUTERNAME
                 $healthFault.KeyFaultingObjectID = $service
                 $healthFault.KeyFaultingObjectType = "ServiceUnavailable"
                 $healthFault.FaultingObjectLocation = $service
@@ -2064,7 +2154,7 @@ function Test-SdnEncapOverhead {
 
     [CmdletBinding()]
     param ()
-
+    InitFaults
     Confirm-IsServer
     Write-Verbose "$($PSCmdlet.MyInvocation.MyCommand.Name) invoked"
 
@@ -2692,15 +2782,8 @@ function Test-SdnConfigurationState {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
     )
-
+    InitFaults
     Write-Verbose "$($PSCmdlet.MyInvocation.MyCommand.Name) invoked"
     try {
         $isCurrentNodeClusterOwner = IsCurrentNodeClusterOwner
@@ -2715,16 +2798,25 @@ function Test-SdnConfigurationState {
 
         $configStateHealths = @()
 
+        $slbManager = GetSdnResourceFromNc -Resource 'LoadBalancerManagerConfig' -NcUri $NcUri
+        [bool] $isSLBEnabled = $false
+        if($null -eq $slbManager) {
+            Write-Verbose "SLB is not configured. Skipping SLB health tests."
+            $isSLBEnabled = $false
+        } else {
+            $isSLBEnabled = $true
+        }
+
         # generate faults for servers
         $servers = GetSdnResourceFromNc -ResourceType 'Servers' -NcUri $NcUri
         $faultSet = GetFaultFromConfigurationState -resources $servers
         ShowFaultSet -faultset $faultSet
-        $serverHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
+        $serverHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1] -Verbose
         $serverHealthTest.Name = "servers"
         $configStateHealths += $serverHealthTest
 
-        # generate faults for vnics
         $vnics = GetSdnResourceFromNc -Resource 'NetworkInterfaces' -NcUri $NcUri
+        # generate faults for vnics
         $faultSet = GetFaultFromConfigurationState -resources $vnics
         ShowFaultSet -faultset $faultSet
         $vnicHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
@@ -2738,6 +2830,18 @@ function Test-SdnConfigurationState {
         $vnicHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
         $vnicHealthTest.Name = "logicalnetworks"
         $configStateHealths += $vnicHealthTest
+
+        #if SLB is configured, capture SLB states
+        if($isSLBEnabled) {
+            # generate faults for lnets
+            $slb = GetSdnResourceFromNc -Resource 'Loadbalancers' -NcUri $NcUri
+            $faultSet = GetFaultFromConfigurationState -resources $slb
+            ShowFaultSet -faultset $faultSet
+            $slbHealthTest = UpdateFaultSet -successFaults $faultSet[0] -FailureFaults $faultSet[1]
+            $slbHealthTest.Name = "Loadbalancers"
+            $configStateHealths += $slbHealthTest
+        }
+
     }
     catch {
         $_ | Write-Error
