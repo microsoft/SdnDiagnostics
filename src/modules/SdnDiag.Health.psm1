@@ -289,7 +289,7 @@ function CreateorUpdateFault {
         [SdnFaultInfo] $Fault
     )
 
-    Write-Host "CreateorUpdateFault HealthFaultEnabled: $($script:SdnDiagnostics_Health.Config.HealthFaultEnabled)"
+    Write-Verbose "CreateorUpdateFault HealthFaultEnabled: $($script:SdnDiagnostics_Health.Config.HealthFaultEnabled)"
     if (-NOT $script:SdnDiagnostics_Health.Config.HealthFaultEnabled) {
         return
     }
