@@ -172,7 +172,8 @@
         'Test-SdnConfigurationState',
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore',
         'Test-SdnClusterServiceState',
-        'Test-SdnServiceState'
+        'Test-SdnServiceState',
+        'Test-SdnVfpPortTuple'
     )
 
     # Variables to export from this module
