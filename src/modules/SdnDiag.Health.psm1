@@ -310,26 +310,26 @@ function CreateorUpdateFault {
     Write-Verbose "SubsystemID: $script:subsystemId"
     Write-Verbose "EntityTypeSubSystem: $script:entityTypeSubSystem"
 
-    $retValue = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyFault( `
-        $Fault.KeyFaultingObjectDescription, # $entityType, `
-        $Fault.KeyFaultingObjectID, # $entityId, `
-        $Fault.KeyFaultingObjectDescription, # "E Desc", `
-        $Fault.FaultingObjectLocation, # $entityLocation, `
-        $Fault.KeyFaultingObjectID, # $entityId, `
-        $HCI_MODIFY_FAULT_ACTION_MODIFY, #action `
-        $Fault.KeyFaultingObjectType, # $faultType, `
-        $HEALTH_URGENCY_UNHEALTHY, # `
+    $null = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyFault( `
+        $Fault.KeyFaultingObjectDescription, ` # $entityType
+        $Fault.KeyFaultingObjectID, ` # $entityId
+        $Fault.KeyFaultingObjectDescription, ` # "E Desc"
+        $Fault.FaultingObjectLocation, ` # $entityLocation
+        $Fault.KeyFaultingObjectID, ` # $entityId
+        $HCI_MODIFY_FAULT_ACTION_MODIFY, ` #action
+        $Fault.KeyFaultingObjectType, ` # $faultType
+        $HEALTH_URGENCY_UNHEALTHY, `
         "Fault Title", `
-        $Fault.FaultDescription, # fault description
-        $Fault.FaultActionRemediation, # fault remediation action
-        $HCI_MODIFY_FAULT_FLAG_NONE) | Out-Null
+        $Fault.FaultDescription, ` # fault description
+        $Fault.FaultActionRemediation, ` # fault remediation action
+        $HCI_MODIFY_FAULT_FLAG_NONE)
 
-    $retValue = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyRelationship(
-        $Fault.KeyFaultingObjectDescription, # $entityType, `
-        $Fault.KeyFaultingObjectID, # $entityId, `
-        $Fault.KeyFaultingObjectDescription, # $entityDescription
-        $Fault.FaultingObjectLocation, # $entityLocation, `
-        $Fault.KeyFaultingObjectID, # $entityId, `
+    $null = [Microsoft.NetworkHud.FunctionalTests.Module.HciHealthUtils]::HciModifyRelationship(
+        $Fault.KeyFaultingObjectDescription, ` # $entityType
+        $Fault.KeyFaultingObjectID, ` # $entityId
+        $Fault.KeyFaultingObjectDescription, ` # $entityDescription
+        $Fault.FaultingObjectLocation, ` # $entityLocation
+        $Fault.KeyFaultingObjectID, ` # $entityId
         $HCI_MODIFY_RELATIONSHIP_ACTION_MODIFY, `
         $script:entityTypeSubSystem, `
         $script:subsystemId, `
@@ -339,7 +339,7 @@ function CreateorUpdateFault {
         "TestGroupKey", `
         $HEALTH_URGENCY_UNHEALTHY, `
         $HEALTH_RELATIONSHIP_COLLECTION, `
-        $HCI_MODIFY_RELATIONSHIP_FLAG_NONE) | Out-Null
+        $HCI_MODIFY_RELATIONSHIP_FLAG_NONE)
 }
 
 function DeleteFaultBy {
@@ -440,7 +440,7 @@ function DeleteFaultById {
 
     InitFaults
     Write-Verbose "DeleteFaultById $faultId"
-    $fault = Get-HealthFault | ? { $_.FaultId -eq $faultUniqueID }
+    $fault = Get-HealthFault | Where-Object { $_.FaultId -eq $faultUniqueID }
 
     if ($null -eq $fault) {
         throw "Fault with ID $faultUniqueID not found"
@@ -553,7 +553,7 @@ function UpdateFaultSet {
                 $wmiFault.FaultingObjectUniqueId -eq $fault.KeyFaultingObjectID -and `
                 $wmiFault.FaultType -eq $fault.KeyFaultingObjectType) {
                 $found = $true
-                break                
+                break
             }
         }
         if(-not $found) {
@@ -562,7 +562,7 @@ function UpdateFaultSet {
             LogHealthFaultToEventLog -fault $Fault -operation DeleteByFaultID
             $convFault = ConvertFaultToPsObject -healthFault $sdnHealthFault -faultOpType "Delete"
             $healthTest.HealthFault += $convFault
-        }       
+        }
     }
     # update the new new set of faults
     foreach ($fault in $failureFaults) {
@@ -746,7 +746,7 @@ function IsSdnService {
     return $serviceName -in @( "NCHostAgent", "SlbHostAgent")
 }
 function IsSdnFault {
-    
+
     <#
         .SYNOPSIS
         Checks if the provided fault is an SDN fault
@@ -802,7 +802,7 @@ function IsCurrentNodeClusterOwner {
         This function is used to determine if the current node is the owner of the cluster. This is used to determine if the current node is the primary node in a cluster.
     #>
 
-    $res = Get-ClusterResource -Name "ApiService" -ErrorAction Ignore | select OwnerNode   
+    $res = Get-ClusterResource -Name "ApiService" -ErrorAction Ignore | Select-Object OwnerNode
 
     if ( $null -eq $res ) {
         Write-Verbose "Active Node unavailable"
@@ -915,7 +915,7 @@ function IsConfigurationStateSkipped {
         if ($Code -eq "Success") {
             return $true
         }
-    } 
+    }
     # known issue in SDN where the policy configuration failure is reported on VFP on LNETs
     # todo : remove this once the issue is fixed in SDN
     elseif ($Source -eq "VirtualSwitch") {
@@ -1183,11 +1183,6 @@ function Debug-SdnFabricInfrastructure {
                 $sdnFabricDetails.ComputerName = $environmentInfo[$object.ToString()]
             }
 
-            $restApiParams = @{
-                NcUri = $sdnFabricDetails.NcUrl
-            }
-            $restApiParams += $restCredParam
-
             # before proceeding with tests, ensure that the computer objects we are testing against are running the latest version of SdnDiagnostics
             Install-SdnDiagnostics -ComputerName $sdnFabricDetails.ComputerName -Credential $Credential
 
@@ -1195,14 +1190,13 @@ function Debug-SdnFabricInfrastructure {
                 ComputerName = $sdnFabricDetails.ComputerName
                 Credential   = $Credential
                 ScriptBlock  = $null
-                ArgumentList = @($restApiParams)
             }
 
             switch ($object) {
-                'Gateway' { $params.ScriptBlock = { param($boundParams) Debug-SdnGateway @boundParams } }
-                'LoadBalancerMux' { $params.ScriptBlock = { param($boundParams) Debug-SdnLoadBalancerMux @boundParams } }
-                'NetworkController' { $params.ScriptBlock = { param($boundParams) Debug-SdnNetworkController @boundParams } }
-                'Server' { $params.ScriptBlock = { param($boundParams) Debug-SdnServer @boundParams } }
+                'Gateway' { $params.ScriptBlock = { Debug-SdnGateway } }
+                'LoadBalancerMux' { $params.ScriptBlock = { Debug-SdnLoadBalancerMux } }
+                'NetworkController' { $params.ScriptBlock = { Debug-SdnNetworkController } }
+                'Server' { $params.ScriptBlock = { Debug-SdnServer } }
             }
 
             $healthReport = Invoke-SdnCommand @params
@@ -1435,7 +1429,7 @@ function GetSdnResourceFromNc {
             if ($null -ne $cert) {
                 $sdnRequestParams["NcRestCertificate"] = $cert
                 Write-Verbose "Retrieving $NcUri with certificate $($cert.Subject) thumbprint $($cert.Thumbprint)"
-            } 
+            }
             else {
                 Write-Verbose "Retrieving $NcUri without certificate"
             }
@@ -1512,25 +1506,8 @@ function Get-SdnFabricInfrastructureResult {
 }
 
 function Debug-SdnNetworkController {
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
+    [CmdletBinding()]
+    param ()
 
     Confirm-IsNetworkController
     $healthReport = New-SdnRoleHealthReport -Role 'NetworkController'
@@ -1584,33 +1561,13 @@ function Debug-SdnNetworkController {
 }
 
 function Debug-SdnServer {
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
+    [CmdletBinding()]
+    param ()
 
     Confirm-IsServer
     $config = Get-SdnModuleConfiguration -Role 'Server'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = New-SdnRoleHealthReport -Role 'Server'
-
-    $ncRestParams = $PSBoundParameters
-    $serverResource = Get-SdnResource @ncRestParams -Resource:Servers
 
     try {
         # execute tests based on the cluster type
@@ -1639,14 +1596,6 @@ function Debug-SdnServer {
             Test-SdnNetworkControllerApiNameResolution -NcUri $NcUri
         )
 
-        # these tests have dependencies on network controller rest API being available
-        # and will only be executed if we have been able to get the data from the network controller
-        if ($serverResource) {
-            $healthReport.HealthTest += @(
-                Test-ServerHostId -InstanceId $serverResource.InstanceId
-            )
-        }
-
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
         # if any of the tests completed with WARN, we will set the aggregate result to WARN
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
@@ -1670,40 +1619,15 @@ function Debug-SdnServer {
 }
 
 function Debug-SdnLoadBalancerMux {
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
+    [CmdletBinding()]
+    param ()
 
     Confirm-IsLoadBalancerMux
     $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = New-SdnRoleHealthReport -Role 'LoadBalancerMux'
 
-    $ncRestParams = $PSBoundParameters
-
     try {
-        $muxCertRegKey = Get-ItemProperty -Path "HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux" -Name MuxCert
-        $virtualServers = Get-SdnResource -Resource VirtualServers @ncRestParams
-        $muxVirtualServer = $virtualServers | Where-Object { $_.properties.connections.managementaddresses -contains $muxCertRegKey.MuxCert }
-        $loadBalancerMux = Get-SdnLoadBalancerMux @ncRestParams | Where-Object { $_.properties.virtualserver.resourceRef -ieq $muxVirtualServer.resourceRef }
-        $peerRouters = $loadBalancerMux.properties.routerConfiguration.peerRouterConfigurations.routerIPAddress
-
         $healthReport.HealthTest += @(
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
             Test-SdnServiceState -ServiceName $services
@@ -1711,14 +1635,6 @@ function Debug-SdnLoadBalancerMux {
             Test-SdnMuxConnectionStateToSlbManager
             Test-SdnNetworkControllerApiNameResolution -NcUri $NcUri
         )
-
-        # these tests have dependencies on network controller rest API being available
-        # and will only be executed if we have been able to get the data from the network controller
-        if ($muxVirtualServer) {
-            $healthReport.HealthTest += @(
-                Test-SdnMuxConnectionStateToRouter -RouterIPAddress $peerRouters
-            )
-        }
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
         # if any of the tests completed with WARN, we will set the aggregate result to WARN
@@ -1743,39 +1659,13 @@ function Debug-SdnLoadBalancerMux {
 }
 
 function Debug-SdnGateway {
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
-    param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
-        [System.Management.Automation.PSCredential]
-        [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
-    )
+    [CmdletBinding()]
+    param ()
 
     Confirm-IsRasGateway
     $config = Get-SdnModuleConfiguration -Role 'Gateway'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = New-SdnRoleHealthReport -Role 'Gateway'
-
-    $ncRestParams = @{
-        NcUri = $NcUri
-    }
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCredential' { $ncRestParams += @{ NcRestCredential = $NcRestCredential } }
-        'RestCertificate' { $ncRestParams += @{ NcRestCertificate = $NcRestCertificate } }
-    }
 
     try {
         $healthReport.HealthTest += @(
@@ -2854,6 +2744,7 @@ function Test-SdnConfigurationState {
 ###################################
 ##### MUX HEALTH VALIDATIONS ######
 ###################################
+
 
 function Test-SdnMuxConnectionStateToRouter {
     <#
