@@ -2149,6 +2149,46 @@ function Test-SdnEncapOverhead {
     return $sdnHealthTest
 }
 
+function Test-ServerHostId {
+    <#
+    .SYNOPSIS
+        Queries the NCHostAgent HostID registry key value ensure the HostID matches known InstanceID
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string[]]$InstanceId
+    )
+
+    Confirm-IsServer
+
+    $sdnHealthTest = New-SdnHealthTest
+    $regkeyPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters'
+
+    try {
+        $regHostId = Get-ItemProperty -Path $regkeyPath -Name 'HostId' -ErrorAction Ignore
+        if ($null -ieq $regHostId) {
+            $sdnHealthTest.Result = 'FAIL'
+        }
+        else {
+            if ($regHostId.HostId -inotin $InstanceId) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the correct InstanceId from the NC Servers API."
+                $sdnHealthTest.Properties = [PSCustomObject]@{
+                    HostID = $regHostId
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
 function Test-VfpDuplicateMacAddress {
     [CmdletBinding()]
     param ()
@@ -2704,6 +2744,39 @@ function Test-SdnConfigurationState {
 ###################################
 ##### MUX HEALTH VALIDATIONS ######
 ###################################
+
+
+function Test-SdnMuxConnectionStateToRouter {
+    <#
+    SYNOPSIS
+        Validates the TCP connectivity for BGP endpoint to the routers.
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$RouterIPAddress
+    )
+
+    Confirm-IsLoadBalancerMux
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($router in $RouterIPAddress) {
+            $tcpConnection = Get-NetTCPConnection -RemotePort 179 -RemoteAddress $router -ErrorAction Ignore
+            if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation += "Examine the TCP connectivity for router $router to determine why TCP connection is not established."
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
 
 function Test-SdnMuxConnectionStateToSlbManager {
     <#
