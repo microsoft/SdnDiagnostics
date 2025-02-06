@@ -312,14 +312,14 @@ function Get-NetworkControllerSFConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "NC_SF_Config"
 
-        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
         # insert data collection datapoints
     }
     catch {
