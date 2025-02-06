@@ -558,10 +558,10 @@ function Get-SdnNetworkControllerSFClusterInfo {
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerReplica" -FileType txt
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri GlobalConfiguration} -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerGlobalConfiguration" -FileType txt -Format Table
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerGlobalConfiguration" -FileType txt -Format List
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri ClusterConfiguration} -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerClusterConfiguration" -FileType txt -Format Table
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerClusterConfiguration" -FileType txt -Format List
 
         Get-SdnServiceFabricClusterHealth -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricClusterHealth" -FileType txt

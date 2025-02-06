@@ -511,24 +511,24 @@ function Get-CommonConfigState {
         "Gathering system details" | Trace-Output -Level:Verbose
         Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-ComputerInfo | Export-ObjectToFile -FilePath $outDir -FileType txt
 
         # gather network related configuration details
         "Gathering network details" | Trace-Output -Level:Verbose
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
         | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
-        Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
 
-        Get-NetAdapter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-NetAdapter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         netsh winhttp show proxy | Export-ObjectToFile -FilePath $outDir -Name 'netsh_winhttp_show_proxy' -FileType txt -Force
 
         $netAdapter = Get-NetAdapter

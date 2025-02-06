@@ -57,7 +57,7 @@ function Get-GatewayConfigState {
 
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose
-        Get-VpnServerConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VpnServerConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-VpnS2SInterface | Export-ObjectToFile -FilePath $outDir FileType txt -Format List
         Get-RemoteaccessRoutingDomain | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 

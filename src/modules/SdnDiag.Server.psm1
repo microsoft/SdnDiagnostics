@@ -717,7 +717,7 @@ function Get-ServerConfigState {
         $hnvDiag | ForEach-Object {
             try {
                 $cmd = $_
-                Invoke-Expression -Command $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format Table
+                Invoke-Expression -Command $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format List
             }
             catch {
                 "Failed to execute {0}" -f $cmd | Trace-Output -Level:Error
