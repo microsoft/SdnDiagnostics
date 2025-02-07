@@ -3148,14 +3148,13 @@ function Test-SdnProviderAddressConnectivity {
 
     $jumboPacket = ($maxEncapOverhead + $defaultMTU) - $icmpHeader
     $standardPacket = $defaultMTU - $icmpHeader
+    $arrayList = [System.Collections.ArrayList]::new()
 
     try {
-        $arrayList = [System.Collections.ArrayList]::new()
-
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
             "No provider addresses found" | Trace-Output -Level:Warning
-            return
+            return $null
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
@@ -3167,17 +3166,18 @@ function Test-SdnProviderAddressConnectivity {
         foreach ($srcAddress in $sourceProviderAddress) {
             if ($srcAddress -ilike "169.*") {
                 # if the PA address is an APIPA, it's an indication that host has been added to SDN data plane, however no tenant workloads have yet been provisioned onto the host
-                "Skipping validation of {0} as it's an APIPA address" -f $srcAddress | Trace-Output
+                "Skipping validation of {0} as it's an APIPA address" -f $srcAddress | Trace-Output -Level:Verbose
                 continue
             }
 
             foreach ($dstAddress in $ProviderAddress) {
                 if ($dstAddress -ilike "169.*") {
                     # if the PA address is an APIPA, it's an indication that host has been added to SDN data plane, however no tenant workloads have yet been provisioned onto the host
-                    "Skipping validation of {0} as it's an APIPA address" -f $dstAddress | Trace-Output
+                    "Skipping validation of {0} as it's an APIPA address" -f $dstAddress | Trace-Output -Level:Verbose
                     continue
                 }
 
+                "Testing connectivity between {0} and {1}" -f $srcAddress, $dstAddress | Trace-Output -Level:Verbose
                 $results = Test-Ping -DestinationAddress $dstAddress -SourceAddress $srcAddress -CompartmentId $compartmentId -BufferSize $jumboPacket, $standardPacket -DontFragment
                 [void]$arrayList.Add($results)
             }
