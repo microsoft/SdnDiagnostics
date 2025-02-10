@@ -2805,11 +2805,11 @@ function Get-NetworkAddressFromIP {
         [IPAddress]$IPv4Address,
 
         [Parameter(Mandatory = $false)]
-        [IPAddress]$Prefix
+        [IPAddress]$SubnetMask
     )
 
     $aAddress = $IPv4Address.GetAddressBytes()
-    $aMask = $IPv4Mask.GetAddressBytes()
+    $aMask = $SubnetMask.GetAddressBytes()
 
     $aNetwork = for ($i = 0; $i -lt 4; $i++) {
         $aAddress[$i] -band $aMask[$i]

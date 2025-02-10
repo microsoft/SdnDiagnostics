@@ -2276,9 +2276,9 @@ function Test-SdnProviderNetwork {
         # since we are testing the provider network, we need to determine the subnet of the provider addresses
         # as the addressMappings may contain addresses that are not in the same subnet as the provider addresses
         # as we also get a similar type of PACA mapping for internal load balancer mappings
-        $subnetMask = Get-SubnetMaskFromCidr -Cidr $localProviderAddress[0].Cidr
-        $subnet = Get-NetworkAddressFromIP -IPv4Address $localProviderAddress[0].Address -IPv4Mask $subnetMask
-        $cidr = "$subnet/$subnetMask"
+        $subnetMask = Get-SubnetMaskFromCidr -Cidr $localProviderAddress[0].PrefixLength
+        $subnet = Get-NetworkAddressFromIP -IPv4Address $localProviderAddress[0].Address -SubnetMask $subnetMask
+        $cidr = "$subnet/$($localProviderAddress[0].PrefixLength)"
 
         $addressMapping = Get-SdnOvsdbAddressMapping
         if (-NOT ($null -eq $addressMapping -or $addressMapping.Count -eq 0)) {
