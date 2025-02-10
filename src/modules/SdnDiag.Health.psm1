@@ -2263,12 +2263,33 @@ function Test-SdnProviderNetwork {
 
     Confirm-IsServer
     $sdnHealthTest = New-SdnHealthTest
+    $filteredAddressMappings = @()
 
     try {
+        # get the provider addresses on the system
+        # if there are no provider addresses, we can skip this test
+        $localProviderAddress = Get-SdnProviderAddress
+        if ($null -ieq $localProviderAddress -or $localProviderAddress.Count -eq 0) {
+            return $sdnHealthTest
+        }
+
+        # since we are testing the provider network, we need to determine the subnet of the provider addresses
+        # as the addressMappings may contain addresses that are not in the same subnet as the provider addresses
+        # as we also get a similar type of PACA mapping for internal load balancer mappings
+        $subnetMask = Get-SubnetMaskFromCidr -Cidr $localProviderAddress[0].PrefixLength
+        $subnet = Get-NetworkSubnetFromIP -IPv4Address $localProviderAddress[0].Address -SubnetMask $subnetMask
+        $cidr = "$subnet/$($localProviderAddress[0].PrefixLength)"
+
         $addressMapping = Get-SdnOvsdbAddressMapping
         if (-NOT ($null -eq $addressMapping -or $addressMapping.Count -eq 0)) {
             $providerAddreses = $addressMapping.ProviderAddress | Sort-Object -Unique
-            $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $providerAddreses
+            foreach ($pAddress in $providerAddreses) {
+                if (Confirm-IpAddressInCidrRange -IpAddress $pAddress -Cidr $cidr) {
+                    $filteredAddressMappings += $pAddress
+                }
+            }
+
+            $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $filteredAddressMappings
 
             foreach ($destination in $connectivityResults) {
                 $failureDetected = $false

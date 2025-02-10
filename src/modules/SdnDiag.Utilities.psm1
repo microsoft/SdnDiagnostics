@@ -159,6 +159,51 @@ function Confirm-IpAddressInRange {
     $from -le $ip -and $ip -le $to
 }
 
+function Confirm-IpAddressInCidrRange {
+    <#
+    .SYNOPSIS
+        Uses .NET to compare the IpAddress specified to see if it falls within the CIDR range specified.
+    .PARAMETER IpAddress
+        The IP Address that you want to validate.
+    .PARAMETER Cidr
+        The CIDR range that you want to validate against.
+    .EXAMPLE
+        PS> Confirm-IpAddressInCidrRange -IpAddress 192.168.0.10 -Cidr 192.168.0.0/24
+    #>
+
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.String]$IpAddress,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$Cidr
+    )
+
+    # Split the CIDR into address and prefix
+    $parts = $Cidr -split '/'
+    $networkAddress = $parts[0]
+    $prefixLength = [int]$parts[1]
+
+    # Convert the addresses to IPAddress objects
+    $ip = [System.Net.IPAddress]::Parse($IpAddress).GetAddressBytes()
+    [array]::Reverse($ip)
+    $ip = [System.BitConverter]::ToUInt32($ip, 0)
+
+    $network = [System.Net.IPAddress]::Parse($networkAddress).GetAddressBytes()
+    [array]::Reverse($network)
+    $network = [System.BitConverter]::ToUInt32($network, 0)
+
+    # Calculate the subnet mask from the prefix length
+    $mask = [uint32]::MaxValue -shl (32 - $prefixLength)
+
+    # Calculate the network address and broadcast address
+    $networkAddress = $network -band $mask
+    $broadcastAddress = $networkAddress -bor -bnot $mask
+
+    # Check if the IP address falls within the range
+    return ($networkAddress -le $ip -and $ip -le $broadcastAddress)
+}
+
 function Confirm-IsAdmin {
     # ensure that the module is running as local administrator
     $elevated = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
@@ -2751,3 +2796,45 @@ function Get-NugetArtifactPath {
         return [System.IO.Path]::GetDirectoryName($package.Source)
     }
 }
+
+function Get-NetworkSubnetFromIP {
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [IPAddress]$IPv4Address,
+
+        [Parameter(Mandatory = $false)]
+        [IPAddress]$SubnetMask
+    )
+
+    $aAddress = $IPv4Address.GetAddressBytes()
+    $aMask = $SubnetMask.GetAddressBytes()
+
+    $aNetwork = for ($i = 0; $i -lt 4; $i++) {
+        $aAddress[$i] -band $aMask[$i]
+    }
+
+    return ($aNetwork -join ('.'))
+}
+
+function Get-SubnetMaskFromCidr {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [ValidateRange(0, 32)]
+        [int32]$Cidr
+    )
+
+    $binary = ('1' * $Cidr).PadRight(32, '0')
+
+    $Private:octets = New-Object -TypeName System.Collections.ArrayList
+    for ($i = 0; $i -lt 32; $i += 8) {
+        $bOctet = $binary.Substring($i, 8)
+        [void]$octets.Add( ([System.Convert]::ToInt32($bOctet, 2) ) )
+    }
+
+    return ( $octets -join ('.') )
+}
+
+
