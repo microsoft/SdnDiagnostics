@@ -2797,7 +2797,7 @@ function Get-NugetArtifactPath {
     }
 }
 
-function Get-NetworkAddressFromIP {
+function Get-NetworkSubnetFromIP {
 
     [CmdletBinding()]
     param (
