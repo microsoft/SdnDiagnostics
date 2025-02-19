@@ -509,15 +509,15 @@ function Get-CommonConfigState {
 
         # Gather general configuration details from all nodes
         "Gathering system details" | Trace-Output -Level:Verbose
-        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-ComputerInfo | Export-ObjectToFile -FilePath $outDir -FileType txt
 
         # gather network related configuration details
         "Gathering network details" | Trace-Output -Level:Verbose
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
-        | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetTCPConnection' -FileType csv -Force
         Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
@@ -534,8 +534,6 @@ function Get-CommonConfigState {
         $netAdapter = Get-NetAdapter
         if ($netAdapter) {
             $netAdapterRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath 'NetAdapter') -ItemType Directory -Force
-
-            $netAdapter | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetAdapter' -FileType txt -Format List
             foreach ($adapter in $netAdapter) {
                 $prefix = $adapter.Name.ToString().Replace(' ','_').Trim()
                 $adapter | Get-NetAdapterAdvancedProperty -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List

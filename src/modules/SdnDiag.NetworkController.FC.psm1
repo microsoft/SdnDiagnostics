@@ -180,15 +180,15 @@ function Get-SdnNetworkControllerFCClusterInfo {
             $clusterName = Get-SdnClusterName -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
         }
 
-        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-Cluster' -FileType json
-        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterFaultDomain' -FileType json
-        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNode' -FileType json
-        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterGroup' -FileType json
-        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetwork' -FileType json
-        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetworkInterface' -FileType json
-        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResource' -FileType json
-        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResourceType' -FileType txt -Format List
-        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterSharedVolume' -FileType json
+        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception

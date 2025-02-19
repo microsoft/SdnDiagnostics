@@ -639,13 +639,13 @@ function Get-ServerConfigState {
                     vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_flow_stats' -Name $port.Name -FileType txt -Force
                     vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_state' -Name $port.Name -FileType txt -Force
 
-                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'Get-SdnVfpPortState' -Name $port.Name -FileType json
+                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'Get-SdnVfpPortState' -Name $port.Name -FileType txt -Format Table
                 }
             }
         }
 
         vfpctrl /list-vmswitch-port | Export-ObjectToFile -FilePath $outDir -Name 'vfpctrl_list-vmswitch-port' -FileType txt -Force
-        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $outDir -FileType json -Depth 3
+        Get-SdnVfpVmSwitchPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         # Gather OVSDB databases
         "Gathering ovsdb database output" | Trace-Output -Level:Verbose
@@ -664,9 +664,7 @@ function Get-ServerConfigState {
         $virtualMachines = Get-VM
         if ($virtualMachines) {
             $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
-
-            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType csv -Force
-            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format List
             foreach ($vm in $virtualMachines) {
                 $prefix = $vm.Name.ToString().Replace(" ", "_").Trim()
                 $vm | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapter' -FileType txt -Format List
@@ -695,8 +693,6 @@ function Get-ServerConfigState {
         $vmSwitch = Get-VMSwitch
         if ($vmSwitch) {
             $vmSwitchRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VMSwitch") -ItemType Directory -Force
-
-            $vmSwitch | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMSwitch' -FileType json
             $vmSwitch | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMSwitch' -FileType txt -Format List
             foreach ($vSwitch in $vmSwitch) {
                 $prefix = $vSwitch.Name.ToString().Replace(" ", "_").Trim()
