@@ -1593,7 +1593,6 @@ function Debug-SdnServer {
             Test-SdnServiceState -ServiceName $services
             Test-SdnProviderNetwork
             Test-SdnHostAgentConnectionStateToApiService
-            Test-SdnNetworkControllerApiNameResolution -NcUri $NcUri
         )
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
@@ -1633,7 +1632,6 @@ function Debug-SdnLoadBalancerMux {
             Test-SdnServiceState -ServiceName $services
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-SdnMuxConnectionStateToSlbManager
-            Test-SdnNetworkControllerApiNameResolution -NcUri $NcUri
         )
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
