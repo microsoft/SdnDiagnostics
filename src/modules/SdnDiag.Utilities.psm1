@@ -996,11 +996,12 @@ function Get-CommandFromInvocation {
     if ($PSCmdlet.MyInvocation.Line -match $regex) {
         $command = $Matches[1].Trim()
     }
-    else {
-        "Unable to parse line $command to extract the function" | Trace-Output -Level:Warning
+
+    if (-NOT [string]::IsNullOrEmpty($command)) {
+        return $command
     }
 
-    return $command
+    return $null
 }
 
 function Format-ByteSize {
