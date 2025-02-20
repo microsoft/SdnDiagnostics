@@ -173,6 +173,7 @@
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore',
         'Test-SdnClusterServiceState',
         'Test-SdnServiceState',
+        'Test-SdnVfpEnabledVMSwitch',
         'Test-SdnVfpPortTuple'
     )
 

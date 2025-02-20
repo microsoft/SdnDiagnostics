@@ -2373,6 +2373,46 @@ function Test-SdnHostAgentConnectionStateToApiService {
     return $sdnHealthTest
 }
 
+function Test-SdnVfpEnabledVMSwitch {
+    <#
+        .SYNOPSIS
+            Enumerates the VMSwitches on the system and validates that only one VMSwitch is configured with VFP.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    Confirm-IsServer
+    $sdnHealthTest = New-SdnHealthTest
+    $i = 0
+
+    try {
+        $vmSwitches = Get-VMSwitch
+
+        # only progress if we have more than one VMSwitch
+        if ($vmSwitches.Count -ge 2) {
+            foreach ($vmSwitch in $vmSwitches) {
+                $extensions = $vmSwitch | Get-VMSwitchExtension
+                $vfpExtension = $extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
+                if ($vfpExtension.Enabled -eq $true) {
+                    $i++
+                }
+            }
+        }
+
+        if ($i -gt 1) {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "TODO"
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
 ###################################
 ###### NC HEALTH VALIDATIONS ######
 ###################################
