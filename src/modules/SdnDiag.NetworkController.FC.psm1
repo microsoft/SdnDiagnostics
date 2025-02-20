@@ -44,15 +44,14 @@ function Get-NetworkControllerFCConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "NC_FC_Config"
         [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 10)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
-
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
         # collect registry configuration information
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
@@ -181,15 +180,15 @@ function Get-SdnNetworkControllerFCClusterInfo {
             $clusterName = Get-SdnClusterName -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
         }
 
-        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-Cluster' -FileType json
-        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterFaultDomain' -FileType json
-        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNode' -FileType json
-        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterGroup' -FileType json
-        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetwork' -FileType json
-        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetworkInterface' -FileType json
-        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResource' -FileType json
-        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResourceType' -FileType txt -Format Table
-        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterSharedVolume' -FileType json
+        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
