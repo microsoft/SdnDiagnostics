@@ -2771,8 +2771,11 @@ function Test-SdnNetworkControllerNodeRestInterface {
     param()
 
     Confirm-IsNetworkController
-    $sdnHealthTest = New-SdnHealthTest
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ieq 'FailoverCluster') {
+        throw New-Object System.NotSupportedException("This function is not applicable to Failover Cluster Network Controller.")
+    }
 
+    $sdnHealthTest = New-SdnHealthTest
     try {
         $node = Get-SdnNetworkControllerNode -Name $env:COMPUTERNAME -ErrorAction Stop
         $netAdapter = Get-NetAdapter -Name $node.RestInterface -ErrorAction Ignore
