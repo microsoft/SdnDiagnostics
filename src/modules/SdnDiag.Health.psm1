@@ -2778,7 +2778,7 @@ function Test-SdnNetworkControllerNodeRestInterface {
         $netAdapter = Get-NetAdapter -Name $node.RestInterface -ErrorAction Ignore
         if ($null -eq $netAdapter) {
             $sdnHealthTest.Result = 'FAIL'
-            $sdnHealthTest.Remediation += "Ensure that the Network Adapter $($node.RestInterface) exists on the Network Controller node."
+            $sdnHealthTest.Remediation += "Ensure that the Network Adapter $($node.RestInterface) exists. Leverage 'Set-NetworkControllerNode to update the -RestInterface if original adapter is not available."
         }
     }
     catch {
