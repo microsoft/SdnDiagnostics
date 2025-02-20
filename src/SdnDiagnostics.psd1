@@ -164,6 +164,7 @@
         'Test-SdnMuxConnectionStateToRouter',
         'Test-SdnMuxConnectionStateToSlbManager',
         'Test-SdnNetworkControllerApiNameResolution',
+        'Test-SdnNetworkControllerNodeRestInterface',
         'Test-SdnResourceConfigurationState',
         'Test-SdnResourceProvisioningState',
         'Test-SdnServiceFabricApplicationHealth',

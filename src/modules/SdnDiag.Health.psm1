@@ -1530,6 +1530,7 @@ function Debug-SdnNetworkController {
                 [string[]]$services_sf = $config_sf.properties.services.Keys
                 $healthReport.HealthTest += @(
                     Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+                    Test-SdnNetworkControllerNodeRestInterface
                     Test-SdnServiceState -ServiceName $services_sf
                     Test-SdnServiceFabricApplicationHealth
                     Test-SdnServiceFabricClusterHealth
@@ -2758,6 +2759,34 @@ function Test-SdnConfigurationState {
     finally {
         Write-Verbose "$($PSCmdlet.MyInvocation.MyCommand.Name) exiting"
     }
+}
+
+function Test-SdnNetworkControllerNodeRestInterface {
+    <#
+        .SYNOPSIS
+            Validates that a Network Adapter on the Network Controller node exists that matches the RestInterface name.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    Confirm-IsNetworkController
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $node = Get-SdnNetworkControllerNode -Name $env:COMPUTERNAME -ErrorAction Stop
+        $netAdapter = Get-NetAdapter -Name $node.RestInterface -ErrorAction Ignore
+        if ($null -eq $netAdapter) {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Ensure that the Network Adapter $($node.RestInterface) exists on the Network Controller node."
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
 }
 
 ###################################
