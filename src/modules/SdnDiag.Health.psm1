@@ -1593,6 +1593,7 @@ function Debug-SdnServer {
             Test-SdnServiceState -ServiceName $services
             Test-SdnProviderNetwork
             Test-SdnHostAgentConnectionStateToApiService
+            Test-SdnVfpEnabledVMSwitch
         )
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
@@ -2384,25 +2385,22 @@ function Test-SdnVfpEnabledVMSwitch {
 
     Confirm-IsServer
     $sdnHealthTest = New-SdnHealthTest
-    $i = 0
 
     try {
+        # enumerate the VMSwitches on the system and validate that only one VMSwitch is configured with VFP
         $vmSwitches = Get-VMSwitch
 
-        # only progress if we have more than one VMSwitch
-        if ($vmSwitches.Count -ge 2) {
-            foreach ($vmSwitch in $vmSwitches) {
-                $extensions = $vmSwitch | Get-VMSwitchExtension
-                $vfpExtension = $extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
-                if ($vfpExtension.Enabled -eq $true) {
-                    $i++
-                }
+        $i = 0
+        foreach ($vmSwitch in $vmSwitches) {
+            $vfpExtension = $vmSwitch.Extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
+            if ($vfpExtension.Enabled -eq $true) {
+                $i++
             }
         }
 
+        # if there is more than one VMSwitch configured with VFP, this is a failure
         if ($i -gt 1) {
             $sdnHealthTest.Result = 'FAIL'
-            $sdnHealthTest.Remediation += "TODO"
         }
     }
     catch {
