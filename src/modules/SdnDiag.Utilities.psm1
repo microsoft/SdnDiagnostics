@@ -2784,14 +2784,18 @@ function Invoke-SdnCommand {
     }
 }
 
-function Get-ProductNameFromRegistry {
+function Get-EnvironmentMode {
     $value = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
-
     switch ($value.ProductName) {
         'Azure Stack HCI' {
             return 'AzureStackHCI'
         }
         default {
+            $serviceExists = Get-Service -Name 'Microsoft Azure Stack Trace Collector' -ErrorAction Ignore
+            if ($serviceExists) {
+                return 'AzureStackHub'
+            }
+
             return 'WindowsServer'
         }
     }
