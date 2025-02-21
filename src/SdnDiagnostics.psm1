@@ -795,8 +795,8 @@ function Start-SdnDataCollection {
     }
 
     $collectEventLogSB = {
-        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String[]]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
-        Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
+        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate, [Parameter(Position = 2)][DateTime]$ToDate)
+        Get-SdnEventLog -OutputDirectory $OutputDirectory -FromDate $FromDate -ToDate $ToDate
     }
 
     $collectNetViewSB = {
@@ -1085,18 +1085,11 @@ function Start-SdnDataCollection {
                 # collect the event logs specific to the role
                 "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
 
-                # because we may have a 'Common' role that is being collected, we need to account for that
-                # and ensure that we are collecting the appropriate event logs
-                switch ( $group.Name ) {
-                    'Common' { $roleArray = @(); $roleArray += $group.Name }
-                    default { $roleArray = @(); $roleArray += $group.Name; $roleArray += 'Common' }
-                }
-
                 $splat = @{
                     ComputerName = $dataNodes
                     Credential   = $Credential
                     ScriptBlock  = $collectEventLogSB
-                    ArgumentList = @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate)
+                    ArgumentList = @($tempDirectory.FullName, $FromDate, $ToDate)
                     AsJob        = $true
                     PassThru     = $true
                     Activity     = "Get $($group.Name) Event Logs"

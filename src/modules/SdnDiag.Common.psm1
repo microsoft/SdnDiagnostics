@@ -1581,9 +1581,9 @@ function Get-SdnEventLog {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
-        [String[]]$Role,
+        [String[]]$Role = $Global:SdnDiagnostics.Config.Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
@@ -1601,47 +1601,42 @@ function Get-SdnEventLog {
     $eventLogs = @()
     $eventLogProviders = @()
 
-    "Collect event logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
-    if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 200)) {
-        "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+    if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 250)) {
+        "Unable to export event logs from system" | Trace-Output -Level:Error
         return
     }
 
     try {
-        $Role | ForEach-Object {
-            $roleConfig = Get-SdnModuleConfiguration -Role $_
+        foreach ($r in $Role) {
+            "Collect event logs between {0} and {1} UTC for {2} role" -f $fromDateUTC, $toDateUTC, $r | Trace-Output
+            $roleConfig = Get-SdnModuleConfiguration -Role $r
             $eventLogProviders += $roleConfig.Properties.EventLogProviders
-        }
 
-        # check to see if the event log provider is valid
-        # and that we have events to collect
-        "Collect the following events: {0}" -f ($eventLogProviders -join ', ') | Trace-Output
-        foreach ($provider in $eventLogProviders) {
-            "Looking for event matching {0}" -f $provider | Trace-Output -Level:Verbose
-            $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
-            if ($eventLogsToAdd) {
-                $eventLogs += $eventLogsToAdd
-            }
-            else {
-                "No events found for {0}" -f $provider | Trace-Output
-            }
-        }
-
-        # process each of the event logs identified
-        # and export them to csv and evtx files
-        foreach ($eventLog in $eventLogs) {
-            $fileName = ("{0}\{1}" -f $OutputDirectory.FullName, $eventLog.LogName).Replace("/", "_")
-
-            "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
-            $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue `
-            | Where-Object { $_.TimeCreated.ToUniversalTime() -gt $fromDateUTC -AND $_.TimeCreated -lt $toDateUTC }
-
-            if ($events) {
-                $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
-                | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
+            # check to see if the event log provider is valid
+            # and that we have events to collect
+            foreach ($provider in $eventLogProviders) {
+                $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
+                if ($eventLogsToAdd) {
+                    $eventLogs += $eventLogsToAdd
+                }
             }
 
-            wevtutil epl $eventLog.LogName "$fileName.evtx" /ow:$true
+            # process each of the event logs identified
+            # and export them to csv and evtx files
+            foreach ($eventLog in $eventLogs) {
+                $fileName = ("{0}\{1}" -f $OutputDirectory.FullName, $eventLog.LogName).Replace("/", "_")
+
+                "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
+                $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue `
+                | Where-Object { $_.TimeCreated.ToUniversalTime() -gt $fromDateUTC -AND $_.TimeCreated -lt $toDateUTC }
+
+                if ($events) {
+                    $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
+                    | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
+                }
+
+                wevtutil epl $eventLog.LogName "$fileName.evtx" /ow:$true
+            }
         }
     }
     catch {
