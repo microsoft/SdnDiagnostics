@@ -293,3 +293,28 @@ function Confirm-IsFailoverClusterNC {
 
     return $false
 }
+
+function Get-SdnClusterLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [System.IO.FileInfo]$OutputDirectory = (Get-WorkingDirectory)
+    )
+
+    # The 3>$null 4>$null sends warning and error to null
+    # typically Get-ClusterLog does not like remote powershell operations and generates warnings/errors
+    $clusterLogFiles = Get-ClusterLog -Destination $OutputDirectory.FullName 2>$null 3>$null
+
+    # if we have cluster log files, we will zip them up to preserve disk space
+    if ($clusterLogFiles) {
+        $clusterLogFiles | ForEach-Object {
+            $zipFilePath = Join-Path -Path $OutputDirectory.FullName -ChildPath ($_.Name + ".zip")
+            Compress-Archive -Path $_.FullName -DestinationPath $zipFilePath -Force -ErrorAction Stop
+
+            # if the file was successfully zipped, we can remove the original file
+            if (Get-Item -Path $zipFilePath -ErrorAction Ignore) {
+                Remove-Item -Path $_.FullName -Force -ErrorAction Ignore
+            }
+        }
+    }
+}

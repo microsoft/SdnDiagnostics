@@ -2802,7 +2802,7 @@ function Get-EnvironmentMode {
 }
 
 function Get-EnvironmentRole {
-    $array = @()
+    $array = @('Common')
 
     $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
     foreach ($feature in $featuresInstalled) {
@@ -2821,11 +2821,6 @@ function Get-EnvironmentRole {
         if ($feature.Name -ieq 'SoftwareLoadBalancer') {
             $array += 'LoadBalancer'
         }
-    }
-
-    # if we do not have any roles installed, we will return 'Common'
-    if ($array.Count -eq 0) {
-        $array += 'Common'
     }
 
     return $array

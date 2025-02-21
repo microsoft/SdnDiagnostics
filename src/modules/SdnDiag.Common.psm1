@@ -1613,6 +1613,21 @@ function Get-SdnEventLog {
             $roleConfig = Get-SdnModuleConfiguration -Role $r
             $eventLogProviders += $roleConfig.Properties.EventLogProviders
 
+            # if we are running on a NetworkController, we need to get the event log providers from the NetworkController_FC or NetworkController_SF role
+            # we will use the ClusterConfigType to determine which role to use
+            if ($r -ieq 'NetworkController') {
+                switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+                    'FailoverCluster' {
+                        $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
+                    }
+                    'ServiceFabric' {
+                        $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                    }
+                }
+
+                $eventLogProviders += $ncConfig.Properties.EventLogProviders
+            }
+
             # check to see if the event log provider is valid
             # and that we have events to collect
             foreach ($provider in $eventLogProviders) {
