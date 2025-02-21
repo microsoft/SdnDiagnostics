@@ -791,7 +791,7 @@ function Start-SdnDataCollection {
 
     $collectSdnLogSB = {
         param([string]$arg0,[DateTime]$arg1,[DateTime]$arg2,[Boolean]$arg3)
-        Get-SdnLog -OutputDirectory $arg0 -FromDate $arg1 -ToDate $arg2 -ConvertETW $arg3
+        Get-SdnLogFile -OutputDirectory $arg0 -FromDate $arg1 -ToDate $arg2 -ConvertETW $arg3
     }
 
     $collectConfigStateSB = {
@@ -799,34 +799,9 @@ function Start-SdnDataCollection {
         Get-SdnConfigState -OutputDirectory $OutputDirectory
     }
 
-    $collectEventLogSB = {
-        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position = 1)][DateTime]$FromDate, [Parameter(Position = 2)][DateTime]$ToDate)
-        Get-SdnEventLog -OutputDirectory $OutputDirectory -FromDate $FromDate -ToDate $ToDate
-    }
-
     $collectNetViewSB = {
         param([Parameter(Position = 0)][String]$OutputDirectory)
         Invoke-SdnGetNetView -OutputDirectory $OutputDirectory -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters
-    }
-
-    $collectClusterLogsSB = {
-        param([Parameter(Position = 0)][String]$OutputDirectory)
-        # The 3>$null 4>$null sends warning and error to null
-        # typically Get-ClusterLog does not like remote powershell operations and generates warnings/errors
-        $clusterLogFiles = Get-ClusterLog -Destination $OutputDirectory 2>$null 3>$null
-
-        # if we have cluster log files, we will zip them up to preserve disk space
-        if ($clusterLogFiles) {
-            $clusterLogFiles | ForEach-Object {
-                $zipFilePath = Join-Path -Path $OutputDirectory -ChildPath ($_.Name + ".zip")
-                Compress-Archive -Path $_.FullName -DestinationPath $zipFilePath -Force -ErrorAction Stop
-
-                # if the file was successfully zipped, we can remove the original file
-                if (Get-Item -Path $zipFilePath -ErrorAction Ignore) {
-                    Remove-Item -Path $_.FullName -Force -ErrorAction Ignore
-                }
-            }
-        }
     }
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
@@ -1027,7 +1002,7 @@ function Start-SdnDataCollection {
 
         if ($IncludeLogs) {
             # if the system is not using a network share, we will collect the logs from the local devices
-            if ($diagLogNetShare) {
+            if (!$diagLogNetShare) {
                 "Collect diagnostic and event logs" | Trace-Output
                 $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'SdnDiagnosticLogs'
                 $splat = @{
@@ -1167,7 +1142,7 @@ function Start-SdnDataCollection {
     return $dataCollectionObject
 }
 
-function Get-SdnLog {
+function Get-SdnLogFile {
     <#
     .PARAMETER OutputDirectory
         Specifies a specific path and folder in which to save the files.

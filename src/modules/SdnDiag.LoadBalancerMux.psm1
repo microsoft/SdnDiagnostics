@@ -93,28 +93,27 @@ function Get-SlbMuxConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
-        [System.IO.FileInfo]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\LoadBalancerMux"
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\LoadBalancerMux\Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
-        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # output slb configuration and states
         "Getting MUX Driver Control configuration settings" | Trace-Output -Level:Verbose
-        Get-SdnMuxState | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
-        Get-SdnMuxDistributedRouterIP | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
-        Get-SdnMuxStatefulVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
-        Get-SdnMuxStatelessVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
-        Get-SdnMuxStats | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
-        Get-SdnMuxVip | Export-ObjectToFile -FilePath $OutputDirectory.FullName-FileType txt -Format List
-        Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -FileType txt -Format List
+        Get-SdnMuxState | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxDistributedRouterIP | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxStatefulVip | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxStatelessVip | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxStats | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxVip | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnMuxVipConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception

@@ -43,17 +43,16 @@ function Get-GatewayConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'Gateway'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Gateway_Config"
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
-
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Gateway"
         if (-NOT (Initialize-DataCollection -Role 'Gateway' -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Gateway\Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
-        Get-CommonConfigState -OutputDirectory $OutputDirectory.FullName
 
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose

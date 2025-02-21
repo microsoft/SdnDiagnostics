@@ -312,15 +312,34 @@ function Get-NetworkControllerSFConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "NC_SF_Config"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\NC"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 100)) {
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        # insert data collection datapoints
+        # enumerate data related to network controller
+        Get-SdnNetworkController | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnNetworkControllerNode | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-NetworkControllerCluster | Export-ObjectToFile -FilePath $outDir -FileType txt
+
+        # enumerate data related to service fabric
+        Get-SdnServiceFabricClusterConfig -Uri ClusterConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterConfig -Uri GlobalConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterHealth | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterManifest | Out-File -FilePath "$outDir\Get-SdnServiceFabricClusterManifest.xml"
+
+        Get-SdnServiceFabricApplication | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricApplicationHealth | Export-ObjectToFile -FilePath $outDir -FileType txt
+
+        $ncServices = Get-SdnServiceFabricService
+        $ncServices | Export-ObjectToFile -Name 'Get-SdnServiceFabricService' -FilePath $outDir -FileType txt
+        foreach ($service in $ncServices) {
+            Get-SdnServiceFabricReplica -ServiceName $service.ServiceName | Export-ObjectToFile -FilePath $outDir -FileType txt
+        }
+        Get-SdnServiceFabricNode | Export-ObjectToFile -FilePath $outDir -FileType txt
     }
     catch {
         $_ | Trace-Exception

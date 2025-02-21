@@ -44,16 +44,15 @@ function Get-NetworkControllerFCConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "NC_FC_Config"
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
-
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\NC"
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 10)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        # collect registry configuration information
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\NC\Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
     }
     catch {

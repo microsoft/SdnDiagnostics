@@ -499,9 +499,9 @@ function Get-CommonConfigState {
     $ErrorActionPreference = 'Ignore'
 
     try {
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Common"
-
         "Collect general configuration state details" | Trace-Output -Level:Verbose
+
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Common"
         if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
