@@ -1597,18 +1597,19 @@ function Get-SdnEventLog {
 
     $fromDateUTC = $FromDate.ToUniversalTime()
     $toDateUTC = $ToDate.ToUniversalTime()
-    [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs"
-    $eventLogs = @()
-    $eventLogProviders = @()
-
-    if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 250)) {
-        "Unable to export event logs from system" | Trace-Output -Level:Error
-        return
-    }
 
     try {
         foreach ($r in $Role) {
+            $eventLogs = @()
+            $eventLogProviders = @()
+
+            [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "$r\EventLogs"
             "Collect event logs between {0} and {1} UTC for {2} role" -f $fromDateUTC, $toDateUTC, $r | Trace-Output
+            if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
+                "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+                return
+            }
+
             $roleConfig = Get-SdnModuleConfiguration -Role $r
             $eventLogProviders += $roleConfig.Properties.EventLogProviders
 
@@ -1624,7 +1625,7 @@ function Get-SdnEventLog {
             # process each of the event logs identified
             # and export them to csv and evtx files
             foreach ($eventLog in $eventLogs) {
-                $fileName = ("{0}\{1}" -f $OutputDirectory.FullName, $eventLog.LogName).Replace("/", "_")
+                $fileName = ("{0}\{1}" -f $outDir, $eventLog.LogName).Replace("/", "_")
 
                 "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
                 $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue `
