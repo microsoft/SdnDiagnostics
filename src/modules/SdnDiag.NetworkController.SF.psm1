@@ -312,7 +312,7 @@ function Get-NetworkControllerSFConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\NC"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\NetworkController"
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
