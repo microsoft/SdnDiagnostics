@@ -2801,6 +2801,36 @@ function Get-EnvironmentMode {
     }
 }
 
+function Get-EnvironmentRole {
+    $array = @()
+
+    $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
+    foreach ($feature in $featuresInstalled) {
+        if ($feature.Name -ieq 'NetworkController') {
+            $array += 'NetworkController'
+        }
+
+        if ($feature.Name -ieq 'Hyper-V') {
+            $array += 'Server'
+        }
+
+        if ($feature.Name -ieq 'RemoteAccess') {
+            $array += 'Gateway'
+        }
+
+        if ($feature.Name -ieq 'SoftwareLoadBalancer') {
+            $array += 'LoadBalancer'
+        }
+    }
+
+    # if we do not have any roles installed, we will return 'Common'
+    if ($array.Count -eq 0) {
+        $array += 'Common'
+    }
+
+    return $array
+}
+
 function Get-NugetArtifactPath {
     [CmdletBinding()]
     param(

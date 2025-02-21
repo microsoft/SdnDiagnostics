@@ -32,6 +32,10 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
         # defines if this module is running on Windows Server, Azure Stack HCI or Azure Stack Hub
         # supported values are 'WindowsServer', 'AzureStackHCI', 'AzureStackHub'
         Mode = "WindowsServer"
+
+        # defines the current role(s) determined for the current node
+        # supported values are 'Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux'
+        Role = @()
     }
 }
 
@@ -40,6 +44,7 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 Remove-PSRemotingSession
 
 $Global:SdnDiagnostics.Config.Mode = (Get-EnvironmentMode)
+$Global:SdnDiagnostics.Config.Role = (Get-EnvironmentRole)
 
 # check to see if the module is running on FC cluster
 if (Confirm-IsFailoverClusterNC) {
@@ -184,33 +189,37 @@ function Get-SdnConfigState {
         The directory to output the configuration state to.
     .EXAMPLE
         PS> Get-SdnConfigState -Role Server -OutputDirectory C:\Temp
+    .EXAMPLE
+        PS> Get-SdnConfigState -Role NetworkController,Server -OutputDirectory C:\Temp
     #>
 
     [cmdletbinding()]
     param(
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory = $false)]
         [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
-        [String]$Role,
+        [String[]]$Role = $Global:SdnDiagnostics.Config.Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory
     )
 
-    switch ($Role) {
-        'Common' {
-            Get-CommonConfigState -OutputDirectory $OutputDirectory
-        }
-        'Gateway' {
-            Get-GatewayConfigState -OutputDirectory $OutputDirectory
-        }
-        'NetworkController' {
-            Get-NetworkControllerConfigState -OutputDirectory $OutputDirectory
-        }
-        'Server' {
-            Get-ServerConfigState -OutputDirectory $OutputDirectory
-        }
-        'LoadBalancerMux' {
-            Get-SlbMuxConfigState -OutputDirectory $OutputDirectory
+    foreach ($r in $Role) {
+        switch ($Role) {
+            'Common' {
+                Get-CommonConfigState -OutputDirectory $OutputDirectory
+            }
+            'Gateway' {
+                Get-GatewayConfigState -OutputDirectory $OutputDirectory
+            }
+            'NetworkController' {
+                Get-NetworkControllerConfigState -OutputDirectory $OutputDirectory
+            }
+            'Server' {
+                Get-ServerConfigState -OutputDirectory $OutputDirectory
+            }
+            'LoadBalancerMux' {
+                Get-SlbMuxConfigState -OutputDirectory $OutputDirectory
+            }
         }
     }
 }
@@ -781,8 +790,8 @@ function Start-SdnDataCollection {
     }
 
     $collectConfigStateSB = {
-        param([Parameter(Position = 0)][String]$Role, [Parameter(Position = 1)][String]$OutputDirectory)
-        Get-SdnConfigState -Role $Role -OutputDirectory $OutputDirectory
+        param([Parameter(Position = 0)][String]$OutputDirectory)
+        Get-SdnConfigState -OutputDirectory $OutputDirectory
     }
 
     $collectEventLogSB = {
@@ -977,7 +986,7 @@ function Start-SdnDataCollection {
                 ComputerName = $dataNodes
                 Credential   = $Credential
                 ScriptBlock  = $collectConfigStateSB
-                ArgumentList = @($group.Name, $tempDirectory.FullName)
+                ArgumentList = @($tempDirectory.FullName)
                 AsJob        = $true
                 PassThru     = $true
                 Activity     = "Collect $($group.Name) Configuration State"
