@@ -98,6 +98,11 @@
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
             PublicDocUrl = ""
         }
+        'Test-SdnVfpEnabledVMSwitch'= @{
+            Description = "Multiple VFP enabled virtual switches detected on the Hyper-V host(s)."
+            Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host."
+            PublicDocUrl = ""
+        }
         'Test-VMNetAdapterDuplicateMacAddress' = @{
             Description = "Duplicate MAC address detected with the data plane on the Hyper-V host(s)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted for the interfaces that are duplicated."
