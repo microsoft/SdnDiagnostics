@@ -116,6 +116,7 @@
         'Get-SdnVfpVmSwitchPort',
         'Get-SdnVMNetworkAdapter',
         'Get-SdnVMNetworkAdapterPortProfile',
+        'Get-SdnVMSwitch',
         'Get-SdnVfpPortGroup',
         'Get-SdnVfpPortLayer',
         'Get-SdnVfpPortRule',
