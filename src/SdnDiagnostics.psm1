@@ -1111,8 +1111,8 @@ function Start-SdnDataCollection {
                 Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
             }
 
-            if ($dataNodes.Name) {
-                Clear-SdnWorkingDirectory -ComputerName $dataNodes.Name -Credential $Credential -Path $tempDirectory.FullName -Recurse
+            if ($dataCollectionNodes) {
+                Clear-SdnWorkingDirectory -ComputerName $dataCollectionNodes.Name -Credential $Credential -Path $tempDirectory.FullName -Recurse
             }
 
             # remove any completed or failed jobs
