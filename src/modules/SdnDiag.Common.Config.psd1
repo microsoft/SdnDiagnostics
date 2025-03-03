@@ -12,13 +12,14 @@
         "Traces"
     )
     LogFileTypes = @(
-        "*.log",
-        "*.etl",
+        "*.blg",
         "*.cab",
         "*.dmp"
+        "*.etl",
+        "*.json",
+        "*.log",
         "*.trace"
         "*.zip"
-        "*.blg"
         )
     Properties = @{
         EventLogProviders = @(
