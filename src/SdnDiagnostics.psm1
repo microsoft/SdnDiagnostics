@@ -854,7 +854,7 @@ function Start-SdnDataCollection {
                     foreach ($node in $sdnFabricDetails[$value.ToString()]) {
                         $array += [PSCustomObject]@{
                             Role = $value
-                            Name = $node
+                            Name = $node.ToLower()
                         }
                     }
 
@@ -1175,7 +1175,7 @@ function Get-SdnLogFile {
 
         foreach ($r in $Global:SdnDiagnostics.Config.Role) {
 
-            $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath $r
+            $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "LogFiles\$r"
             Get-SdnDiagnosticLogFile -LogDir $commonConfig.DefaultLogDirectory -OutputDirectory $outputDir -FromDate $FromDate -ToDate $ToDate -ConvertETW $ConvertETW
 
             switch ($r) {

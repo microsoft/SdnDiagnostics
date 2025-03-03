@@ -501,7 +501,7 @@ function Get-CommonConfigState {
     try {
         "Collect general configuration state details" | Trace-Output -Level:Verbose
 
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Common"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Common"
         if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
@@ -1603,7 +1603,7 @@ function Get-SdnEventLog {
             $eventLogs = @()
             $eventLogProviders = @()
 
-            [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "$r\EventLogs"
+            [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs\$r"
             "Collect event logs between {0} and {1} UTC for {2} role" -f $fromDateUTC, $toDateUTC, $r | Trace-Output
             if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
                 "Unable to initialize environment for data collection" | Trace-Output -Level:Error

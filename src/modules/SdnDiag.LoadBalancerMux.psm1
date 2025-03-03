@@ -96,13 +96,13 @@ function Get-SlbMuxConfigState {
 
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\LoadBalancerMux"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\LoadBalancerMux"
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\LoadBalancerMux\Registry"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\LoadBalancerMux\Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
 
         # output slb configuration and states

@@ -45,13 +45,13 @@ function Get-GatewayConfigState {
         $config = Get-SdnModuleConfiguration -Role 'Gateway'
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
 
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Gateway"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Gateway"
         if (-NOT (Initialize-DataCollection -Role 'Gateway' -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Config\Gateway\Registry"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Gateway\Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
 
         # dump out the role configuration state properties
