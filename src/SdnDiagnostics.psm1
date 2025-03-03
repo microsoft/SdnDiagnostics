@@ -204,7 +204,7 @@ function Get-SdnConfigState {
     )
 
     foreach ($r in $Role) {
-        switch ($Role) {
+        switch ($r) {
             'Common' {
                 Get-CommonConfigState -OutputDirectory $OutputDirectory
             }

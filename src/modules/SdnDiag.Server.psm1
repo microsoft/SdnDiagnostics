@@ -610,17 +610,17 @@ function Get-ServerConfigState {
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'Ignore'
 
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/Server"
+
     try {
         $config = Get-SdnModuleConfiguration -Role:Server
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/Server"
         if (-NOT (Initialize-DataCollection -Role:Server -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $outDir -ChildPath "Config/Server/Registry"
+        [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
 
         # Gather VFP port configuration details

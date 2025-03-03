@@ -90,19 +90,17 @@ function Get-SlbMuxConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'Ignore'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/LoadBalancerMux"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
-
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\LoadBalancerMux"
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\LoadBalancerMux\Registry"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir.FullName
 
         # output slb configuration and states

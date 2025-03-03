@@ -41,18 +41,17 @@ function Get-NetworkControllerFCConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/NetworkController"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController"
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 10)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController\Registry"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
     }
     catch {

@@ -167,18 +167,18 @@ function Get-NetworkControllerConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/NetworkController"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
         "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        [string]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController\Application"
+        [string]$ncAppDir = Join-Path $outDir -ChildPath "Application"
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $ncAppDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController\Registry"
+        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
 
         # enumerate dll binary version for NC application

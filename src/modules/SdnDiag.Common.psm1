@@ -497,11 +497,11 @@ function Get-CommonConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'Ignore'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Common"
 
     try {
-        "Collect general configuration state details" | Trace-Output -Level:Verbose
-
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Common"
+        $config = Get-SdnModuleConfiguration -Role 'Common'
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
         if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
@@ -509,8 +509,8 @@ function Get-CommonConfigState {
 
         # Gather general configuration details from all nodes
         "Gathering system details" | Trace-Output -Level:Verbose
-        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-ComputerInfo | Export-ObjectToFile -FilePath $outDir -FileType txt
 

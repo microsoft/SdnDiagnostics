@@ -920,7 +920,7 @@ function Export-ObjectToFile {
         # if the environment is AzureStackHCI or AzureStackHub, then we will default to json
         # unless the user defines Force to override the default behavior to prevent issues with trying to convert non-standard objects to json
         # such as data related to netsh or other legacy command line tools
-        if (($Global:SdnDiagnostics.EnvironmentInfo.Config.Mode -eq 'AzureStackHCI' -or $Global:SdnDiagnostics.EnvironmentInfo.Config.Mode -eq 'AzureStackHub') -and !$Force) {
+        if (($Global:SdnDiagnostics.Config.Mode -eq 'AzureStackHCI' -or $Global:SdnDiagnostics.Config.Mode -eq 'AzureStackHub') -and !$Force) {
             $FileType = 'json'
         }
 
