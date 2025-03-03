@@ -2819,7 +2819,7 @@ function Get-EnvironmentRole {
         }
 
         if ($feature.Name -ieq 'SoftwareLoadBalancer') {
-            $array += 'LoadBalancer'
+            $array += 'LoadBalancerMux'
         }
     }
 
