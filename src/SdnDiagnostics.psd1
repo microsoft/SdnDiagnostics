@@ -117,6 +117,7 @@
         'Get-SdnVfpVmSwitchPort',
         'Get-SdnVMNetworkAdapter',
         'Get-SdnVMNetworkAdapterPortProfile',
+        'Get-SdnVMSwitch',
         'Get-SdnVfpPortGroup',
         'Get-SdnVfpPortLayer',
         'Get-SdnVfpPortRule',
@@ -174,6 +175,7 @@
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore',
         'Test-SdnClusterServiceState',
         'Test-SdnServiceState',
+        'Test-SdnVfpEnabledVMSwitch',
         'Test-SdnVfpPortTuple'
     )
 

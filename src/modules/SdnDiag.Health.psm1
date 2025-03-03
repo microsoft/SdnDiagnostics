@@ -1593,6 +1593,7 @@ function Debug-SdnServer {
             Test-SdnServiceState -ServiceName $services
             Test-SdnProviderNetwork
             Test-SdnHostAgentConnectionStateToApiService
+            Test-SdnVfpEnabledVMSwitch
         )
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
@@ -2363,6 +2364,33 @@ function Test-SdnHostAgentConnectionStateToApiService {
                     $sdnHealthTest.Remediation += "Ensure that Network Controller ApiService is healthy and operational. Investigate and fix TCP / TLS connectivity issues."
                 }
             }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-SdnVfpEnabledVMSwitch {
+    <#
+        .SYNOPSIS
+            Enumerates the VMSwitches on the system and validates that only one VMSwitch is configured with VFP.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    Confirm-IsServer
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        # if there is more than one VMSwitch configured with VFP, this is a failure
+        $vmSwitches = Get-SdnVMSwitch -VfpEnabled
+        if ($vmSwitches.Count -gt 1) {
+            $sdnHealthTest.Result = 'FAIL'
         }
     }
     catch {

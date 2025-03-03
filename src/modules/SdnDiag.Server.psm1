@@ -1451,22 +1451,29 @@ function Get-SdnNetAdapterEncapOverheadConfig {
     <#
     .SYNOPSIS
         Retrieves the EncapOverhead and JumboPacket properties of each network interface attached to a vfp enabled vmswitch
+    .PARAMETER Name
+        Specifies the name of the virtual switch to be retrieved.
+    .PARAMETER Id
+        Specifies the ID of the virtual switch to be retrieved.
     .EXAMPLE
         PS> Get-SdnNetAdapterEncapOverheadConfig
     #>
 
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Id')]
+        [string]$Id
+    )
+
+    $switchArrayList = @()
+
     try {
-        $switchArrayList = @()
-
-        # filter to only look at vSwitches where the Microsoft Azure VFP Switch Extension is installed
-        # once we have the vSwitches, then need to then filter and only look at switches where VFP is enabled
-        $vfpSwitch = Get-VMSwitch | Where-Object {$_.Extensions.Name -ieq 'Microsoft Azure VFP Switch Extension'}
+        # enumerate each of the vmswitches that are vfp enabled
+        $vfpSwitch = Get-SdnVMSwitch @PSBoundParameters -VfpEnabled
         foreach ($switch in $vfpSwitch) {
-            $vfpExtension = $switch.Extensions | Where-Object {$_.Name -ieq 'Microsoft Azure VFP Switch Extension'}
-            if ($vfpExtension.Enabled -ieq $false) {
-                continue
-            }
-
             $interfaceArrayList = @()
             $supportsEncapOverhead = $false
             $encapOverheadValue = $null
@@ -1492,6 +1499,7 @@ function Get-SdnNetAdapterEncapOverheadConfig {
 
                 $object = [PSCustomObject]@{
                     Switch                         = $switch.Name
+                    Id                             = $switch.Id
                     NetAdapterInterfaceDescription = $physicalNicIfDesc
                     EncapOverheadEnabled           = $supportsEncapOverhead
                     EncapOverheadValue             = $encapOverheadValue
@@ -3268,4 +3276,63 @@ function Test-SdnVfpPortTuple {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+}
+
+function Get-SdnVMSwitch {
+    <#
+    .SYNOPSIS
+        Gets virtual switches from the hypervisor.
+    .PARAMETER Name
+        Specifies the name of the virtual switch to be retrieved.
+    .PARAMETER Id
+        Specifies the ID of the virtual switch to be retrieved.
+    .PARAMETER VfpEnabled
+        Specifies whether the virtual switch has VFP enabled.
+    .EXAMPLE
+        PS> Get-SdnVMSwitch -Name 'Virtual Switch'
+    .EXAMPLE
+        PS> Get-SdnVMSwitch -Id '8440FB77-196C-402E-8564-B0EF9E5B1931'
+    .EXAMPLE
+        PS> Get-SdnVMSwitch -VfpEnabled
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    param (
+        [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
+        [string]$Name,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Id')]
+        [string]$Id,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Id')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
+        [switch]$VfpEnabled
+    )
+
+    Confirm-IsServer
+    if ($PSBoundParameters.ContainsKey('VfpEnabled')) {
+        [void]$PSBoundParameters.Remove('VfpEnabled')
+    }
+
+    $array = @()
+    try {
+        $vmSwitch = Get-VMSwitch @PSBoundParameters
+        foreach ($switch in $vmSwitch) {
+            $vfpExtension = $vmSwitch.Extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
+            if ($vfpExtension.Enabled -ieq $true) {
+                $array += $switch
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+
+    if ($array.Count -gt 1) {
+        "Multiple switches detected with VFP enabled" | Trace-Output -Level:Warning
+    }
+
+    return $array
 }
