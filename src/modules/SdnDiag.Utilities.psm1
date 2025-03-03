@@ -896,8 +896,8 @@ function Export-ObjectToFile {
         [Parameter(Mandatory = $false)]
         [System.String]$Prefix,
 
-        [Parameter(Mandatory = $true)]
-        [System.String]$Name,
+        [Parameter(Mandatory = $false)]
+        [System.String]$Name = (Get-CommandFromInvocation),
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("json","csv","txt")]
@@ -908,11 +908,22 @@ function Export-ObjectToFile {
         [System.String]$Format,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Depth = 2
+        [System.String]$Depth = 2,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Force
     )
 
     begin {
         $arrayList = [System.Collections.ArrayList]::new()
+
+        # if the environment is AzureStackHCI or AzureStackHub, then we will default to json
+        # unless the user defines Force to override the default behavior to prevent issues with trying to convert non-standard objects to json
+        # such as data related to netsh or other legacy command line tools
+        if (($Global:SdnDiagnostics.EnvironmentInfo.Config.Mode -eq 'AzureStackHCI' -or $Global:SdnDiagnostics.EnvironmentInfo.Config.Mode -eq 'AzureStackHub') -and !$Force) {
+            $FileType = 'json'
+        }
+
         # build the file directory and name that will be used to export the object out
         if($Prefix){
             [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
@@ -937,13 +948,15 @@ function Export-ObjectToFile {
         $arrayList.AddRange($Object)
     }
     end {
+        # if no objects are passed, then do not create the file
+        # this ensures we do not create empty files
         if ($arrayList.Count -eq 0) {
             return
         }
 
         try {
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
-            switch($FileType){
+            switch ($FileType) {
                 "json" {
                     $arrayList | ConvertTo-Json -Depth $Depth | Out-File -FilePath $fileName -Force
                 }
@@ -952,7 +965,7 @@ function Export-ObjectToFile {
                 }
                 "txt" {
                     $FormatEnumerationLimit = 500
-                    switch($Format){
+                    switch ($Format) {
                         'Table' {
                             $arrayList | Format-Table -AutoSize -Wrap | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
                         }
@@ -971,6 +984,24 @@ function Export-ObjectToFile {
             $_ | Write-Error
         }
     }
+}
+
+function Get-CommandFromInvocation {
+    <#
+    .SYNOPSIS
+        Returns the command that was invoked
+    #>
+
+    $regex = '^\s*([a-zA-Z]+-[a-zA-Z]+)'
+    if ($PSCmdlet.MyInvocation.Line -match $regex) {
+        $command = $Matches[1].Trim()
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($command)) {
+        return $command
+    }
+
+    return $null
 }
 
 function Format-ByteSize {
@@ -2753,14 +2784,18 @@ function Invoke-SdnCommand {
     }
 }
 
-function Get-ProductNameFromRegistry {
+function Get-EnvironmentMode {
     $value = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
-
     switch ($value.ProductName) {
         'Azure Stack HCI' {
             return 'AzureStackHCI'
         }
         default {
+            $serviceExists = Get-Service -Name 'Microsoft Azure Stack Trace Collector' -ErrorAction Ignore
+            if ($serviceExists) {
+                return 'AzureStackHub'
+            }
+
             return 'WindowsServer'
         }
     }

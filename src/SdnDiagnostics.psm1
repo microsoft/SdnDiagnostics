@@ -39,7 +39,7 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
 
-$Global:SdnDiagnostics.Config.Mode = (Get-ProductNameFromRegistry)
+$Global:SdnDiagnostics.Config.Mode = (Get-EnvironmentMode)
 
 # check to see if the module is running on FC cluster
 if (Confirm-IsFailoverClusterNC) {
