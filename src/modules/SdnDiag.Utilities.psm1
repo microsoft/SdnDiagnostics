@@ -924,6 +924,20 @@ function Export-ObjectToFile {
             $FileType = 'json'
         }
 
+        # in some instances, we need to set the depth of the json object based on the command
+        # this is to prevent the json object from being too large and causing issues with serialization
+        # or causing the json object to not have enough details
+        if ($FileType -ieq 'json') {
+            switch ($Name) {
+                'Get-SdnVfpVmSwitchPort' {
+                    $Depth = 3
+                }
+                default {
+                    # do nothing unique
+                }
+            }
+        }
+
         # build the file directory and name that will be used to export the object out
         if($Prefix){
             [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
