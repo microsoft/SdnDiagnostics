@@ -519,9 +519,9 @@ function Get-CommonConfigState {
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
         | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetTCPConnection' -FileType csv -Force
         Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
 
         Get-NetAdapter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List

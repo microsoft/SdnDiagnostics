@@ -1169,27 +1169,28 @@ function Get-SdnLogFile {
     )
 
     try {
-        # the sdn fabric leverages a common path location if the logs are stored locally
-        $commonConfig = Get-SdnModuleConfiguration -Role:Common
-        Get-SdnEventLog -OutputDirectory $OutputDirectory.FullName -FromDate $FromDate -ToDate $ToDate
-
         foreach ($r in $Global:SdnDiagnostics.Config.Role) {
-
+            $moduleConfig = Get-SdnModuleConfiguration -Role $r
             $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "LogFiles\$r"
-            Get-SdnDiagnosticLogFile -LogDir $commonConfig.DefaultLogDirectory -OutputDirectory $outputDir -FromDate $FromDate -ToDate $ToDate -ConvertETW $ConvertETW
+
+            Get-SdnEventLog -OutputDirectory $OutputDirectory.FullName -Role $r -FromDate $FromDate -ToDate $ToDate
 
             switch ($r) {
+                'Common' {
+                    Get-SdnDiagnosticLogFile -LogDir $moduleConfig.DefaultLogDirectory -OutputDirectory $outputDir -FromDate $FromDate -ToDate $ToDate -ConvertETW $ConvertETW
+                }
+
                 'NetworkController' {
                     switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
                         'FailoverCluster' {
                             $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-                            Get-SdnClusterLog -OutputDirectory "$($OutputDirectory.FullName)\NetworkController\ClusterLogs"
+                            Get-SdnClusterLog -OutputDirectory (Join-Path -Path $outputDir -ChildPath 'ClusterLogs')
                         }
                         'ServiceFabric' {
                             $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
                             [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
 
-                            Get-SdnDiagnosticLogFile -LogDir $sfLogDir -OutputDirectory "$($OutputDirectory.FullName)\NetworkController\ServiceFabricLogs" -FromDate $FromDate -ToDate $ToDate
+                            Get-SdnDiagnosticLogFile -LogDir $sfLogDir -OutputDirectory (Join-Path -Path $outputDir -ChildPath 'ServiceFabricLogs') -FromDate $FromDate -ToDate $ToDate
                         }
                     }
                 }

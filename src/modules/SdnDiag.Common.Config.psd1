@@ -20,7 +20,7 @@
         "*.log",
         "*.trace"
         "*.zip"
-        )
+    )
     Properties = @{
         EventLogProviders = @(
             "Application"
