@@ -1085,7 +1085,7 @@ function Start-SdnDataCollection {
         foreach ($node in $dataCollectionNodes.Name) {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Recurse -Force
-            Copy-FileFromRemoteComputer -Path "$(Get-WorkingDirectory)\SdnDiagnostics_TraceOutput*.csv" -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
+            Copy-FileFromRemoteComputer -Path "$(Get-WorkingDirectory)\SdnDiagTrace*.csv" -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
         }
 
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)

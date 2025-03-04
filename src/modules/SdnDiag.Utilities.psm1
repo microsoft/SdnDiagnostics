@@ -1900,7 +1900,8 @@ function New-TraceOutputFile {
         Remove-OldTraceOutputFile
 
         # build the trace file path and set global variable
-        [System.String]$fileName = "SdnDiagnostics_TraceOutput_$($PID).csv"
+        [System.String]$date = [datetime]::UtcNow.ToString("yyyyMMdd")
+        [System.String]$fileName = "SdnDiagTrace_$date-$($PID).csv"
         [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir -ChildPath $fileName
         Set-TraceOutputFile -Path $filePath.FullName
 
@@ -1921,7 +1922,7 @@ function Remove-OldTraceOutputFile {
 
     try {
         $workingDir = (Get-WorkingDirectory)
-        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
+        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagTrace_*.csv" }
         $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-5) }
         if ($staleFiles) {
             $staleFiles | Remove-Item -Force
