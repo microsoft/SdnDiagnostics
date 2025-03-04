@@ -10,8 +10,6 @@
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @(
-            'Microsoft-Windows-FailoverClustering*',
-            'Microsoft-Windows-FailoverClustering-Manager*',
             'NetworkControllerFc'
         )
         RegKeyPaths = @(
