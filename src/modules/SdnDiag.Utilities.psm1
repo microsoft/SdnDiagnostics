@@ -1922,7 +1922,7 @@ function Remove-OldTraceOutputFile {
     try {
         $workingDir = (Get-WorkingDirectory)
         $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
-        $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
+        $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-5) }
         if ($staleFiles) {
             $staleFiles | Remove-Item -Force
         }
