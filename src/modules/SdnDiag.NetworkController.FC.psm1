@@ -41,20 +41,17 @@ function Get-NetworkControllerFCConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/NetworkController"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
-
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
         if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 10)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
-        # collect registry configuration information
+        [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
     }
     catch {
@@ -181,15 +178,15 @@ function Get-SdnNetworkControllerFCClusterInfo {
             $clusterName = Get-SdnClusterName -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
         }
 
-        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-Cluster' -FileType json
-        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterFaultDomain' -FileType json
-        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNode' -FileType json
-        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterGroup' -FileType json
-        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetwork' -FileType json
-        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterNetworkInterface' -FileType json
-        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResource' -FileType json
-        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterResourceType' -FileType txt -Format Table
-        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -Name 'Get-ClusterSharedVolume' -FileType json
+        Get-Cluster -Name $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterFaultDomain -CimSession $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNode -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterGroup -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetwork -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterNetworkInterface -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResource -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterResourceType -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
+        Get-ClusterSharedVolume -Cluster $clusterName | Export-ObjectToFile -FilePath $outputDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
@@ -293,4 +290,29 @@ function Confirm-IsFailoverClusterNC {
     }
 
     return $false
+}
+
+function Get-SdnClusterLog {
+    [CmdletBinding()]
+    param(
+        [Parameter(Position = 0)]
+        [System.IO.FileInfo]$OutputDirectory = (Get-WorkingDirectory)
+    )
+
+    # The 3>$null 4>$null sends warning and error to null
+    # typically Get-ClusterLog does not like remote powershell operations and generates warnings/errors
+    $clusterLogFiles = Get-ClusterLog -Destination $OutputDirectory.FullName 2>$null 3>$null
+
+    # if we have cluster log files, we will zip them up to preserve disk space
+    if ($clusterLogFiles) {
+        $clusterLogFiles | ForEach-Object {
+            $zipFilePath = Join-Path -Path $OutputDirectory.FullName -ChildPath ($_.Name + ".zip")
+            Compress-Archive -Path $_.FullName -DestinationPath $zipFilePath -Force -ErrorAction Stop
+
+            # if the file was successfully zipped, we can remove the original file
+            if (Get-Item -Path $zipFilePath -ErrorAction Ignore) {
+                Remove-Item -Path $_.FullName -Force -ErrorAction Ignore
+            }
+        }
+    }
 }
