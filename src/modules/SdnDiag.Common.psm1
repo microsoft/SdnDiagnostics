@@ -1634,7 +1634,7 @@ function Get-SdnEventLog {
             # check to see if the event log provider is valid
             # and that we have events to collect
             foreach ($provider in $eventLogProviders) {
-                $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
+                $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction Ignore | Where-Object { $_.RecordCount }
                 if ($eventLogsToAdd) {
                     $eventLogs += $eventLogsToAdd
                 }
@@ -1643,13 +1643,16 @@ function Get-SdnEventLog {
             # process each of the event logs identified
             # and export them to csv and evtx files
             foreach ($eventLog in $eventLogs) {
-                $fileName = ("{0}\{1}" -f $outDir, $eventLog.LogName).Replace("/", "_")
-
-                "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
-                $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue `
-                | Where-Object { $_.TimeCreated.ToUniversalTime() -gt $fromDateUTC -AND $_.TimeCreated -lt $toDateUTC }
+                $events = Get-WinEvent -ErrorAction Ignore -FilterHashtable @{
+                    LogName = $eventLog.LogName;
+                    StartTime = $fromDateUTC;
+                    EndTime = $toDateUTC
+                }
 
                 if ($events) {
+                    $fileName = ("{0}\{1}" -f $outDir, $eventLog.LogName).Replace("/", "_")
+
+                    "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
                     $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
                     | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
                 }
