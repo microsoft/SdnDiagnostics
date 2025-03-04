@@ -6,9 +6,7 @@
     WindowsFeature = @(
         "NetworkController"
     )
-    RequiredModules = @(
-        "NetworkController"
-    )
+    RequiredModules = @()
     Properties = @{
         CommonPaths = @{}
         EventLogProviders = @(

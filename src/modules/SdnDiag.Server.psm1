@@ -662,17 +662,20 @@ function Get-ServerConfigState {
         "Gathering virtual machine configuration details" | Trace-Output -Level:Verbose
         $virtualMachines = Get-VM
         if ($virtualMachines) {
-            $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
             $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format List
+            $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
+
             foreach ($vm in $virtualMachines) {
-                $prefix = $vm.Name.ToString().Replace(" ", "_").Trim()
-                $vm | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapter' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl'-FileType txt -Format List
-                $vm | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmRootDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                $vmName = $vm.Name.ToString().Replace(" ", "_").Trim()
+                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vm.VMId) -ItemType Directory -Force
+
+                $vm | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapter' -FileType txt -Format List
+                $vm | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
+                $vm | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterExtendedAcl'-FileType txt -Format List
+                $vm | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
+                $vm | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
+                $vm | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
+                $vm | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
             }
         }
 

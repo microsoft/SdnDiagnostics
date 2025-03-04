@@ -167,7 +167,7 @@ function Get-NetworkControllerConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
-    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/NetworkController"
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
@@ -178,7 +178,7 @@ function Get-NetworkControllerConfigState {
             return
         }
 
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
+        [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
 
         # enumerate dll binary version for NC application
