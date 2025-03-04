@@ -854,7 +854,7 @@ function Start-SdnDataCollection {
                     foreach ($node in $sdnFabricDetails[$value.ToString()]) {
                         $array += [PSCustomObject]@{
                             Role = $value
-                            Name = $node.ToLower()
+                            Name = (Get-ComputerNameFQDNandNetBIOS -ComputerName $node).ComputerNameNetBIOS
                         }
                     }
 
@@ -864,14 +864,14 @@ function Start-SdnDataCollection {
                         $array = $array | Select-Object -First $Limit
 
                         foreach ($object in $array) {
-                            "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                            "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
                             [void]$dataCollectionNodes.Add($object)
                         }
 
                     }
                     else {
                         foreach ($object in $array) {
-                            "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                            "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
                             [void]$dataCollectionNodes.Add($object)
                         }
                     }
@@ -884,10 +884,10 @@ function Start-SdnDataCollection {
                     if ($computerRole) {
                         $object = [PSCustomObject]@{
                             Role = $computerRole
-                            Name = $computer
+                            Name = (Get-ComputerNameFQDNandNetBIOS -ComputerName $computer).ComputerNameNetBIOS
                         }
 
-                        "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
                         [void]$dataCollectionNodes.Add($object)
                     }
                 }
@@ -903,7 +903,7 @@ function Start-SdnDataCollection {
         # to speed up the process
         # if we are running on PowerShell 5.1, we will need to run the process in serial
         # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
-        "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
+        "Validating WinRM connectivity to {0}" -f ($dataCollectionNodesUnique.Name -join ', ') | Trace-Output
 
         $Global:ProgressPreference = 'SilentlyContinue'
         $nodesToRemove = [System.Collections.ArrayList]::new()
