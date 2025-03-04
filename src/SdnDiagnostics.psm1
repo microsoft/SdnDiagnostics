@@ -1183,8 +1183,7 @@ function Get-SdnLogFile {
                 'NetworkController' {
                     switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
                         'FailoverCluster' {
-                            $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
-                            Get-SdnClusterLog -OutputDirectory (Join-Path -Path $outputDir -ChildPath 'ClusterLogs')
+                            # nothing to do here currently
                         }
                         'ServiceFabric' {
                             $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
