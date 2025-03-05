@@ -1814,17 +1814,17 @@ function Invoke-SdnGetNetView {
     )
 
     # check to see if Get-NetView module is loaded into the runspace
-    if (-NOT (Get-Module -Name 'Get-NetView')) {
-        Import-Module -Name 'Get-NetView' -Force -Global -ErrorAction Ignore
-        $module = Get-Module -Name 'Get-NetView'
-        if ($null -eq $module) {
-            throw "Get-NetView module is not available. Please install the module and try again."
-        }
+    Import-Module -Name 'Get-NetView' -Force -Global -ErrorAction Ignore
+    $module = Get-Module -Name 'Get-NetView'
+    if ($null -eq $module) {
+        $msg = "Get-NetView module is not available. Please install the module and try again."
+        $msg | Trace-Output -Level:Exception
+        throw $msg
+    }
 
-        # throw a warning if the module is more than 1 years old
-        if ($module.Version.Major -lt [datetime]::UtcNow.AddYears(-1).Year) {
-            "$($module.Name) is running an outdated version: $($module.Version.ToString()). Recommend to update the module." | Trace-Output -Level:Warning
-        }
+    # throw a warning if the module is more than 1 years old
+    if ($module.Version.Major -lt [datetime]::UtcNow.AddYears(-1).Year) {
+        "$($module.Name) is running an outdated version: $($module.Version.ToString()). Recommend to update the module." | Trace-Output -Level:Warning
     }
 
     try {
