@@ -2495,6 +2495,9 @@ function Get-SdnVMNetworkAdapter {
         [string]$Name,
 
         [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
         [switch]$ManagementOS,
 
         [Parameter(Mandatory = $false)]
@@ -2516,7 +2519,7 @@ function Get-SdnVMNetworkAdapter {
             $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress }
         }
 
-        return ($adapters | Sort-Object -Property VMName)
+        return ($adapters | Sort-Object -Property Name)
     }
     catch {
         $_ | Trace-Exception
