@@ -72,6 +72,7 @@
         'Get-SdnGateway',
         'Get-SdnInfrastructureInfo',
         'Get-SdnInternalLoadBalancer',
+        'Get-SdnLogFile',
         'Get-SdnModuleConfiguration',
         'Get-SdnMuxCertificate',
         'Get-SdnMuxDistributedRouterIP',
