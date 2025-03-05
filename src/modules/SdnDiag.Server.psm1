@@ -744,14 +744,14 @@ function Get-VfpPortGroup {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpGroups = vfpctrl /list-group /port $PortId /layer $Layer
+    $vfpGroups = vfpctrl /list-group /port $PortName /layer $Layer
     if ($null -eq $vfpGroups){
         return $null
     }
@@ -860,18 +860,18 @@ function Get-VfpPortLayer {
     <#
     .SYNOPSIS
         Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface
+    .PARAMETER PortName
+        The Port Name for the network interface
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId
+        [GUID]$PortName
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpLayers = vfpctrl /list-layer /port $PortId
+    $vfpLayers = vfpctrl /list-layer /port $PortName
     if ($null -eq $vfpLayers){
         return $null
     }
@@ -949,8 +949,8 @@ function Get-VfpPortRule {
     <#
     .SYNOPSIS
         Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The Port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Group
@@ -960,7 +960,7 @@ function Get-VfpPortRule {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer,
@@ -970,7 +970,7 @@ function Get-VfpPortRule {
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpRules = vfpctrl /list-rule /port $PortId /layer $Layer /group $Group
+    $vfpRules = vfpctrl /list-rule /port $PortName /layer $Layer /group $Group
     if ($null -eq $vfpRules){
         return $null
     }
@@ -1842,8 +1842,8 @@ function Get-SdnOvsdbPhysicalPort {
     <#
     .SYNOPSIS
         Gets the physical port table results from OVSDB MS_VTEP database.
-    .PARAMETER PortId
-        The port ID of the physical port to return.
+    .PARAMETER PortName
+        The port name of the physical port to return.
     .PARAMETER Name
         The name of the physical port to return. This is the InstanceID the Network Interface object from Network Controller.
     .PARAMETER VMName
@@ -1862,8 +1862,8 @@ function Get-SdnOvsdbPhysicalPort {
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
-        [GUID]$PortId,
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [GUID]$Name,
@@ -1874,14 +1874,14 @@ function Get-SdnOvsdbPhysicalPort {
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [System.String]$MacAddress,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
@@ -1901,7 +1901,7 @@ function Get-SdnOvsdbPhysicalPort {
 
         # once we have the results, filter based on the parameter set
         switch ($PSCmdlet.ParameterSetName) {
-            'PortId' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortId }) }
+            'PortName' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortName }) }
             'Name' { return ($result | Where-Object { $_.Name -eq $Name }) }
             'VMName' { return ($result | Where-Object { $_.vm_nic_vm_name -eq $VMName }) }
             'MacAddress' {
@@ -2082,8 +2082,8 @@ function Get-SdnVfpPortGroup {
     <#
     .SYNOPSIS
         Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Direction
@@ -2097,24 +2097,24 @@ function Get-SdnVfpPortGroup {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Type 'IPv4'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Type 'IPv4'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN' -Type 'IPv4'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN' -Type 'IPv4'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -ComputerName 'RemoteComputer' -Credential (Get-Credential)
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -ComputerName 'RemoteComputer' -Credential (Get-Credential)
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
@@ -2144,15 +2144,15 @@ function Get-SdnVfpPortGroup {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
             Layer = $Layer
         }
 
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0, [string]$arg1)
-                Get-VfpPortGroup -PortId $arg0 -Layer $arg1
-            } -ArgumentList @($params.PortId, $params.Layer)
+                Get-VfpPortGroup -PortName $arg0 -Layer $arg1
+            } -ArgumentList @($params.PortName, $params.Layer)
         }
         else {
             $results = Get-VfpPortGroup @params
@@ -2188,8 +2188,8 @@ function Get-SdnVfpPortLayer {
     <#
     .SYNOPSIS
         Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface
+    .PARAMETER PortName
+        The Port name for the network interface
     .PARAMETER Name
         Returns the specific layer name. If omitted, will return all layers within VFP.
     .PARAMETER ComputerName
@@ -2199,14 +2199,14 @@ function Get-SdnVfpPortLayer {
     .EXAMPLE
         PS> Get-SdnVfpPortLayer
     .EXAMPLE
-        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
+        PS> Get-SdnVfpPortLayer -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B'
     .EXAMPLE
-        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName SDN-HOST01 -Credential (Get-Credential)
+        PS> Get-SdnVfpPortLayer -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName SDN-HOST01 -Credential (Get-Credential)
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [Parameter(Mandatory = $true, ParameterSetName = 'PortName')]
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false)]
         [System.String]$Name,
@@ -2222,14 +2222,14 @@ function Get-SdnVfpPortLayer {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
         }
 
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0)
-                Get-VfpPortLayer -PortId $arg0
-            } -ArgumentList @($params.PortId)
+                Get-VfpPortLayer -PortName $arg0
+            } -ArgumentList @($params.PortName)
         }
         else {
             $results = Get-VfpPortLayer @params
@@ -2251,8 +2251,8 @@ function Get-SdnVfpPortRule {
     <#
     .SYNOPSIS
         Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Group
@@ -2264,15 +2264,15 @@ function Get-SdnVfpPortRule {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnVfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
+        PS> Get-SdnVfpPortRule -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
+        PS> Get-SdnVfpPortRule -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer,
@@ -2294,7 +2294,7 @@ function Get-SdnVfpPortRule {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
             Layer = $Layer
             Group = $Group
         }
@@ -2302,8 +2302,8 @@ function Get-SdnVfpPortRule {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
-                Get-VfpPortRule -PortId $arg0 -Layer $arg1 -Group $arg2
-            } -ArgumentList @($params.PortId, $params.Layer, $params.Group)
+                Get-VfpPortRule -PortName $arg0 -Layer $arg1 -Group $arg2
+            } -ArgumentList @($params.PortName, $params.Layer, $params.Group)
         }
         else {
             $results = Get-VfpPortRule @params
@@ -2403,7 +2403,7 @@ function Get-SdnVfpVmSwitchPort {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'Port')]
-        [System.String]$PortName,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'VMID')]
         [System.String]$VMID,
@@ -2837,24 +2837,24 @@ function Show-SdnVfpPortConfig {
     <#
     .SYNOPSIS
         Enumerates the VFP layers, groups and rules contained within Virtual Filtering Platform (VFP) for the specified port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Direction
         Specify the direction
     .PARAMETER Type
         Specifies an array of IP address families. The cmdlet gets the configuration that matches the address families
     .EXAMPLE
-        PS Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931
+        PS Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931
     .EXAMPLE
-        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN
+        PS> Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN
     .EXAMPLE
-        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN -Type IPv4
+        PS> Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN -Type IPv4
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateSet('IPv4','IPv6')]
@@ -2866,9 +2866,9 @@ function Show-SdnVfpPortConfig {
     )
 
     try {
-        $vfpLayers = Get-SdnVfpPortLayer -PortId $PortId
+        $vfpLayers = Get-SdnVfpPortLayer -PortName $PortName
         if ($null -eq $vfpLayers) {
-            "Unable to locate PortId {0}" -f $PortId | Trace-Output -Level:Error
+            "Unable to locate PortName {0}" -f $PortName | Trace-Output -Level:Error
             return $null
         }
 
@@ -2876,10 +2876,10 @@ function Show-SdnVfpPortConfig {
             "== Layer: {0} ==" -f $layer.LAYER | Write-Host -ForegroundColor:Magenta
 
             if ($Direction) {
-                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
+                $vfpGroups = Get-SdnVfpPortGroup -PortName $PortName -Layer $layer.LAYER -Direction $Direction
             }
             else {
-                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER
+                $vfpGroups = Get-SdnVfpPortGroup -PortName $PortName -Layer $layer.LAYER
             }
 
             if ($Type) {
@@ -2888,7 +2888,7 @@ function Show-SdnVfpPortConfig {
 
             foreach ($group in $vfpGroups) {
                 "== Group: {0} ==" -f $group.GROUP | Write-Host -ForegroundColor:Yellow
-                Get-SdnVfpPortRule -PortId $PortId -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
+                Get-SdnVfpPortRule -PortName $PortName -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
             }
         }
     }
