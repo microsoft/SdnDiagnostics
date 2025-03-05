@@ -2461,61 +2461,62 @@ function Get-SdnVMNetworkAdapter {
     <#
     .SYNOPSIS
         Retrieves the virtual machine network adapters that are allocated on a hyper-v host
+    .PARAMETER All
+        Specifies all virtual network adapters in the system, regardless of whether the virtual network adapter is in the management operating system or in a virtual machine.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose network adapters are to be retrieved.
+    .PARAMETER Name
+        Specifies the name of the network adapter to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to be retrieved.
+    .PARAMETER ManagementOS
+        Specifies the management operating system, i.e. the virtual machine host operating system.
+    .PARAMETER SwitchName
+        Specifies the name of the virtual switch whose network adapters are to be retrieved. (This parameter is available only for virtual network adapters in the management operating system.)
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER AsJob
-        Switch indicating to trigger a background job to perform the operation.
-    .PARAMETER PassThru
-        Switch indicating to wait for background job completes and display results to current session.
-    .PARAMETER Timeout
-        Specify the timeout duration to wait before job is automatically terminated. If omitted, defaults to 600 seconds.
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02'
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -Credential (Get-Credential)
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Local')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SwitchName,
+
+        [Parameter(Mandatory = $false)]
         [System.String[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [VMState]$VmState = 'Running',
-
-        [Parameter(Mandatory = $false, ParametersetName = 'Remote')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [Switch]$AsJob,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [Switch]$PassThru,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [int]$Timeout = 600
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     try {
-        if ($PSCmdlet.ParameterSetName -eq 'Local') {
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState.ToString() }
-            return ($virtualMachines | Get-VMNetworkAdapter)
+        $adapters = Get-VMNetworkAdapter @PSBoundParameters
+        if ($PSBoundParameters.ContainsKey('MacAddress')) {
+            $macAddress = Format-MacAddress -MacAddress $MacAddress
+            $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress }
         }
-        else {
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Get-SdnVMNetworkAdapter } -ArgumentList @($VmState) `
-            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
-        }
+
+        return ($adapters | Sort-Object -Property VMName)
     }
     catch {
         $_ | Trace-Exception
@@ -2582,14 +2583,14 @@ function Get-SdnVMNetworkAdapterPortProfile {
                 MacAddress  = $adapter.MacAddress
                 ProfileId   = $currentProfile.SettingData.ProfileId
                 ProfileData = $currentProfile.SettingData.ProfileData
-                PortId      = $null
+                PortName      = $null
             }
 
             # we will typically see multiple port data values for each adapter, however the deviceid should be the same across all of the objects
             # defensive coding in place for situation where vm is not in proper state and this portdata is null
             $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
             if ($portData) {
-                $object.PortId = $portData[0].data.deviceid
+                $object.PortName = $portData[0].data.deviceid
             }
 
             [void]$arrayList.Add($object)
