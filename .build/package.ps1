@@ -3,7 +3,6 @@ param (
 )
 
 $nugetSpec = Get-Item -Path "$PSScriptRoot\..\Sdndiagnostics.nuspec" | Select-Object -ExpandProperty FullName
-
 $rootDir = (Resolve-Path -LiteralPath "$PSScriptRoot\..\").Path
 $outputPackagePath = Join-Path -Path $rootDir -ChildPath "out\packages"
 
