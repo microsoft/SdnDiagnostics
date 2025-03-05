@@ -45,6 +45,11 @@
 
         # NETWORK CONTROLLER TESTS
 
+        'Test-SdnNetworkControllerNodeRestInterface' = @{
+            Description = "Network Controller node(s) are missing the Network Adapter that is required for the REST interface."
+            Impact = "Failover of the NB API will not occur if the Network Controller node(s) are missing the Network Adapter that is required for the REST interface."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/powershell/module/networkcontroller/set-networkcontrollernode"
+        }
         'Test-SdnServiceFabricApplicationHealth' = @{
             Description = "Network Controller application with Service Fabric is not healthy."
             Impact = "Network Controller services and functionality may be impacted."
