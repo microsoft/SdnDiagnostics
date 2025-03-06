@@ -2837,4 +2837,39 @@ function Get-SubnetMaskFromCidr {
     return ( $octets -join ('.') )
 }
 
+function Update-PSBoundParameters {
+    <#
+        .SYNOPSIS
+        Updates the hashtable to remove any keys that are not in the specified list.
+    #>
+    param(
+        [hashtable]$BoundParameters,
+        [string[]]$Keys
+    )
 
+    # define the common parameters that we want to keep
+    # these are the parameters that are available for all cmdlets
+    $commonParams = @(
+        'Verbose',
+        'Debug',
+        'ErrorAction',
+        'WarningAction',
+        'InformationAction',
+        'ErrorVariable',
+        'WarningVariable',
+        'InformationVariable',
+        'OutVariable',
+        'OutBuffer'
+    )
+
+    # remove any keys that are not in the specified list or common parameters
+    foreach ($key in $Keys) {
+        if ($key -inotin $Keys -or $key -inotin $commonParams) {
+            # remove the key from the hashtable
+            # leverage the [void] to suppress the integer output
+            [void]$BoundParameters.Remove($key)
+        }
+    }
+
+    return $BoundParameters
+}
