@@ -2017,6 +2017,8 @@ function Get-SdnResource {
         Specify the unique ID of the resource.
     .PARAMETER InstanceID
         Specify the unique Instance ID of the resource.
+    .PARAMETER ConvertToJson
+        Convert the output to JSON format.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER NcRestCertificate
@@ -2052,6 +2054,11 @@ function Get-SdnResource {
 
         [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
         [System.String]$InstanceId,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Switch]$ConvertToJson,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
@@ -2121,7 +2128,7 @@ function Get-SdnResource {
     # if multiple objects are returned, they will be nested under a property called value
     # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
     if ($result.value) {
-        return $result.value
+        $result = $result.value
     }
 
     # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
@@ -2130,7 +2137,12 @@ function Get-SdnResource {
         return $null
     }
 
-    return $result
+    if ($ConvertToJson) {
+        return ($result | ConvertTo-Json -Depth 10)
+    }
+    else {
+        return $result
+    }
 }
 
 function Get-SdnServer {
