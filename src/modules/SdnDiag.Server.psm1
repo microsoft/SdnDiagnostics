@@ -2756,23 +2756,23 @@ function Set-SdnVMNetworkAdapterPortProfile {
             [switch]$HostVmNic
         )
 
+        if ($null -eq (Get-Module -Name Hyper-V)) {
+            Import-Module -Name Hyper-V -Force -ErrorAction Stop
+        }
+
         [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
         [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
-
-        if ($null -eq (Get-Module -Name Hyper-V)) {
-            Import-Module -Name Hyper-V -Force
+        $vmAdapterParams = $PSBoundParameters
+        [void]$vmAdapterParams.Remove('ProfileId')
+        [void]$vmAdapterParams.Remove('ProfileData')
+        if ($PSBoundParameters.ContainsKey('HostVmNic')) {
+            [void]$vmAdapterParams.Remove('HostVmNic')
+            $vmAdapterParams.Add('ManagementOS', $HostVmNic)
         }
 
-        if ($HostVmNic) {
-            $vmNic = Get-VMNetworkAdapter -ManagementOS -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
-        }
-        else {
-            $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
-        }
-
+        $vmNic = Get-SdnVmNetworkAdapter @vmAdapterParams
         if ($null -eq $vmNic) {
-            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Error
-            return
+            throw New-Object System.ArgumentException("Unable to locate VM $VMName with MacAddress $MacAddress")
         }
 
         $portProfileDefaultSetting = Get-VMSystemSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -ErrorAction Stop
@@ -2787,7 +2787,6 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
         $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $vmNic
         if ($null -eq $currentProfile) {
-            "Port profile not previously configured" | Trace-Output
             Add-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature  $portProfileDefaultSetting -VMNetworkAdapter $vmNic
         }
         else {
