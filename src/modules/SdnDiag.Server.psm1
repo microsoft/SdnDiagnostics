@@ -2563,18 +2563,16 @@ function Get-SdnVMNetworkAdapterPortProfile {
         [switch]$HostVmNic
     )
 
-    if ($null -eq (Get-Module -Name Hyper-V)) {
-        Import-Module -Name Hyper-V -Force -ErrorAction Stop
-    }
-
     [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
     $array = @()
-    $adapterParams = $PSBoundParameters
-    $adapterParams.Remove('HostVmNic')
-
+    $vmAdapterParams = $PSBoundParameters
+    if ($PSBoundParameters.ContainsKey('HostVmNic')) {
+        [void]$vmAdapterParams.Remove('HostVmNic')
+        $vmAdapterParams.Add('ManagementOS', $HostVmNic)
+    }
     try {
-        $netAdapters = Get-VMNetworkAdapter @adapterParams | Where-Object { $_.IsManagementOs -eq $HostVmNic }
-        foreach ($adapter in $netAdapters | Where-Object { $_.IsManagementOs -eq $false }) {
+        $netAdapters = Get-SdnVMNetworkAdapter @vmAdapterParams
+        foreach ($adapter in $netAdapters) {
             $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
             if ($null -eq $currentProfile) {
                 "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
