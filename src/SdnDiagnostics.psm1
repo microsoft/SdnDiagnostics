@@ -1268,20 +1268,8 @@ function Enable-SdnVipTrace {
 
     $networkTraceNodes = @()
     Reset-SdnDiagTraceMapping
-
-    $ncRestParams = @{
-        NcUri = $NcUri
-        ErrorAction = 'Stop'
-    }
-
-    switch ($PSCmdlet.ParameterSetName) {
-        'RestCertificate' {
-            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        }
-        'RestCredential' {
-            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        }
-    }
+    $ncRestParams = Update-HashTable -Hash $PSBoundParameters -CommonParams -SdnResourceParams
+    $computerParams = Update-HashTable -Hash $PSBoundParameters -CommonParams -RemoteComputerParams
 
     try {
         # lets try and locate the resources associated with the public VIP address
@@ -1300,7 +1288,7 @@ function Enable-SdnVipTrace {
         # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
         # as we will use this reference to locate where the resources are located within the fabric
         $servers = Get-SdnServer @ncRestParams -ManagementAddressOnly
-        $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
+        $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort @computerParams
 
         # determine the network interfaces associated with the public IP address
         $associatedResource = Get-SdnResource @ncRestParams -ResourceRef $publicIpResource.AssociatedResource
@@ -1365,9 +1353,10 @@ function Enable-SdnVipTrace {
         # as this will be used to disable tracing once we are done
         $networkTraceNodes += $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys
         $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+        $computerParams.Add('ComputerName', $networkTraceNodes)
 
         # ensure that we have SdnDiagnostics installed to the nodes that we need to enable tracing for
-        Install-SdnDiagnostics -ComputerName $networkTraceNodes -Credential $Credential
+        Install-SdnDiagnostics @computerParams
 
         "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Server: {1}`r`n" `
         -f ($loadBalancerMuxes -join ', '), ($Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -join ', ') | Trace-Output
@@ -1381,7 +1370,7 @@ function Enable-SdnVipTrace {
         # at this point, tracing should be enabled on the sdn fabric and we can wait for user input to disable
         # once we receive user input, we will disable tracing on the infrastructure node(s)
         $null = Get-UserInput -Message "`r`nPress any key to disable tracing..."
-        $null = Stop-SdnNetshTrace -ComputerName $networkTraceNodes -Credential $Credential
+        $null = Stop-SdnNetshTrace @computerParams
 
         "Tracing has been disabled on the SDN infrastructure. Saving configuration details to {0}\{1}_TraceMapping.json" -f (Get-WorkingDirectory), $VirtualIP | Trace-Output
         $Script:SdnDiagnostics_Common.Cache['TraceMapping'] | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Prefix $VirtualIP -Name 'TraceMapping' -FileType json -Depth 3
@@ -1395,6 +1384,86 @@ function Enable-SdnVipTrace {
         }
 
         return $traceFileInfo
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Enable-SdnNetInterfaceTrace {
+    <#
+    .SYNOPSIS
+        Enables network tracing on the SDN fabric infrastructure related to the specified network interface.
+    .PARAMETER ResourceId
+        The resource ID of the network interface you want to enable data-path tracing for.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Credential
+        Specifies a user account that has permission to access the infrastructure nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER OutputDirectory
+        Optional. Specifies a specific path and folder in which to save the files.
+    .PARAMETER MaxTraceSize
+        Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$ResourceId,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTrace",
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxTraceSize = 1536
+    )
+
+    $networkTraceNodes = @()
+    Reset-SdnDiagTraceMapping
+
+    $ncRestParams = Update-HashTable -Hash $PSBoundParameters -CommonParams -SdnResourceParams
+    $computerParams = Update-HashTable -Hash $PSBoundParameters -CommonParams -RemoteComputerParams
+    $commonParams = Update-HashTable -Hash $PSBoundParameters -CommonParams
+
+    try {
+        $networkInterface = Get-SdnResource @ncRestParams
+        if ($null -eq $networkInterface) {
+            throw New-Object System.NullReferenceException("Unable to locate the network interface based on the resource ID")
+        }
+
+        # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
+        # as we will use this reference to locate where the resources are located within the fabric
+        $servers = Get-SdnServer @ncRestParams -ManagementAddressOnly
+        $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort @computerParams
+
     }
     catch {
         $_ | Trace-Exception

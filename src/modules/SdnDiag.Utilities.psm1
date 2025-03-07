@@ -2837,39 +2837,34 @@ function Get-SubnetMaskFromCidr {
     return ( $octets -join ('.') )
 }
 
-function Update-PSBoundParameters {
+function Update-HashTable {
     <#
         .SYNOPSIS
         Updates the hashtable to remove any keys that are not in the specified list.
     #>
     param(
-        [hashtable]$BoundParameters,
+        [hashtable]$Hash,
         [string[]]$Keys
+        [switch]$CommonParams
+        [switch]$SdnResourceParams
+        [switch]$RemoteComputerParams
     )
 
-    # define the common parameters that we want to keep
-    # these are the parameters that are available for all cmdlets
-    $commonParams = @(
-        'Verbose',
-        'Debug',
-        'ErrorAction',
-        'WarningAction',
-        'InformationAction',
-        'ErrorVariable',
-        'WarningVariable',
-        'InformationVariable',
-        'OutVariable',
-        'OutBuffer'
-    )
+    if ($CommonParams) {
+        $Keys += $Script:SdnDiagnostics_Utilities.Config.HashKeys.PSCommonParams
+    }
+    if ($SdnResourceParams) {
+        $Keys += $Script:SdnDiagnostics_Utilities.Config.HashKeys.SdnResourceParams
+    }
+    if ($RemoteComputerParams) {
+        $Keys += $Script:SdnDiagnostics_Utilities.Config.HashKeys.RemoteComputerParams
+    }
 
-    # remove any keys that are not in the specified list or common parameters
-    foreach ($key in $Keys) {
-        if ($key -inotin $Keys -or $key -inotin $commonParams) {
-            # remove the key from the hashtable
-            # leverage the [void] to suppress the integer output
-            [void]$BoundParameters.Remove($key)
+    foreach ($k in $Hash.Keys) {
+        if ($k -inot $Keys) {
+            [void]$Hash.Remove($k)
         }
     }
 
-    return $BoundParameters
+    return $Hash
 }
