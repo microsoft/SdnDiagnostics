@@ -2559,7 +2559,7 @@ function Get-SdnVMNetworkAdapterPortProfile {
         Specifies the name of the virtual machine to be retrieved.
     .PARAMETER All
         Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
-    .PARAMETER HostVmNic
+    .PARAMETER ManagementOS
         When true, displays Port Profiles of Host VNics. Otherwise displays Port Profiles of Vm VNics.
     .EXAMPLE
         Get-SdnVMNetworkAdapterPortProfile -VMName 'VM01'
@@ -2569,33 +2569,36 @@ function Get-SdnVMNetworkAdapterPortProfile {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'SingleVM')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'VM')]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'SingleVM')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'VM')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Management')]
         [System.String]$Name,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'AllVMs')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'All')]
         [Switch]$All,
 
-        [Parameter(Mandatory = $false)]
-        [switch]$HostVmNic
+        [Parameter(Mandatory = $true, ParameterSetName = 'Management')]
+        [switch]$ManagementOS
     )
 
     [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
     $array = @()
-    $vmAdapterParams = $PSBoundParameters
-    if ($PSBoundParameters.ContainsKey('HostVmNic')) {
-        [void]$vmAdapterParams.Remove('HostVmNic')
-        $vmAdapterParams.Add('ManagementOS', $HostVmNic)
-    }
+
     try {
-        $netAdapters = Get-SdnVMNetworkAdapter @vmAdapterParams
+        $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters
         foreach ($adapter in $netAdapters) {
             $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
             if ($null -eq $currentProfile) {
-                "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
-                continue
+                if ($adapter.IsManagementOS) {
+                    "{0} associated with {1} does not have a port profile" -f $adapter.MacAddress, $adapter.Name | Trace-Output -Level:Warning
+                    continue
+                }
+                else {
+                    "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
+                    continue
+                }
             }
 
             $object = [PSCustomObject]@{
