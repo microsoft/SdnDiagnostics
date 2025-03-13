@@ -2038,12 +2038,10 @@ function Get-SdnResource {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [System.String]$ResourceRef,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
@@ -2055,25 +2053,19 @@ function Get-SdnResource {
         [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
         [System.String]$InstanceId,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $false)]
         [Switch]$ConvertToJson,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $false)]
         [X509Certificate]$NcRestCertificate
     )
 
