@@ -1246,8 +1246,15 @@ function Get-VfpPortState {
 
     $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
     if([string]::IsNullOrEmpty($vfpPortState)) {
-        "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_ | Trace-Output -Level:Warning
-        return $null
+        $msg = "Unable to locate port $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
+    }
+
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpPortState[0] -ilike "ERROR:*") {
+        $msg = $vfpPortState[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpPortState) {
@@ -2359,7 +2366,7 @@ function Get-SdnVfpPortState {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0)
-                Get-VfpPortState -PortName $arg0
+                Get-SdnVfpPortState -PortName $arg0
             } -ArgumentList @($params.PortName)
         }
         else {
