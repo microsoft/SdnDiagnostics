@@ -685,7 +685,7 @@ function Get-ServerConfigState {
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVPort' -FileType txt -Format Table
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterVmqQueue' -FileType txt -Format Table
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnNetAdapterEncapOverheadConfig' -FileType txt -Format Table
-        Get-SdnVMNetworkAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapterPortProfile' -FileType txt -Format Table
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-SdnVMNetworkAdapterPortProfile' -FileType txt -Format Table
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format Table
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format Table
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format Table
@@ -2535,6 +2535,11 @@ function Get-SdnVMNetworkAdapter {
         Import-Module -Name Hyper-V -Force -ErrorAction Stop
     }
 
+    # remove the credential parameter if it is empty to avoid passing it to the cmdlet
+    if ($Credential -eq [System.Management.Automation.PSCredential]::Empty) {
+        [void]$PSBoundParameters.Remove('Credential')
+    }
+
     try {
         $adapters = Get-VMNetworkAdapter @PSBoundParameters
         if ($PSBoundParameters.ContainsKey('MacAddress')) {
@@ -2563,10 +2568,10 @@ function Get-SdnVMNetworkAdapterPortProfile {
     .EXAMPLE
         Get-SdnVMNetworkAdapterPortProfile -VMName 'VM01'
     .EXAMPLE
-        Get-SdnVMNetworkAdapterPortProfile -AllVMs
+        Get-SdnVMNetworkAdapterPortProfile -All
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'SingleVM')]
+    [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'SingleVM')]
         [System.String]$VMName,
@@ -2577,8 +2582,7 @@ function Get-SdnVMNetworkAdapterPortProfile {
         [Parameter(Mandatory = $true, ParameterSetName = 'AllVMs')]
         [Switch]$All,
 
-        [Parameter(ParameterSetName = 'SingleVM', Mandatory = $false)]
-        [Parameter(ParameterSetName = 'AllVMs', Mandatory = $false)]
+        [Parameter(Mandatory = $false)]
         [switch]$HostVmNic
     )
 
