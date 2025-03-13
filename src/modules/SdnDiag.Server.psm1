@@ -840,7 +840,6 @@ function Get-VfpPortGroup {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }
@@ -925,7 +924,6 @@ function Get-VfpPortLayer {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }
@@ -1316,7 +1314,6 @@ function Get-VfpPortState {
                         $object.$propertyName = $propertyValue
                     }
                     catch {
-                        "Unable to add {0} to object. Failing back to use NoteProperty." -f $propertyName | Trace-Output -Level:Warning
                         $object | Add-Member -MemberType NoteProperty -Name $propertyName -Value $propertyValue
                         continue
                     }
@@ -1435,7 +1432,6 @@ function Get-VfpVMSwitchPort {
                                 $object.$key = $value
                             }
                             catch {
-                                "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                                 continue
                             }
@@ -3186,14 +3182,13 @@ function Test-SdnProviderAddressConnectivity {
     try {
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
-            "No provider addresses found" | Trace-Output -Level:Warning
             return $null
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
         if ($null -eq $compartmentId) {
             "No compartment that matches description PAhostVNic" | Trace-Output -Level:Warning
-            return
+            return $null
         }
 
         foreach ($srcAddress in $sourceProviderAddress) {
