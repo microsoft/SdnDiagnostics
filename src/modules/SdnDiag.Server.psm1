@@ -752,15 +752,17 @@ function Get-VfpPortGroup {
 
     $arrayList = [System.Collections.ArrayList]::new()
     $vfpGroups = vfpctrl /list-group /port $PortName /layer $Layer
-    if ($null -eq $vfpGroups){
-        return $null
+
+    if([string]::IsNullOrEmpty($vfpGroups)) {
+        $msg = "Unable to list groups within $Layer for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpGroups[0] -ilike "ERROR*") {
-        "{0}" -f $vfpGroups[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpGroups[0] -ilike "ERROR:*") {
+        $msg = $vfpGroups[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpGroups) {
@@ -872,15 +874,17 @@ function Get-VfpPortLayer {
 
     $arrayList = [System.Collections.ArrayList]::new()
     $vfpLayers = vfpctrl /list-layer /port $PortName
-    if ($null -eq $vfpLayers){
-        return $null
+
+    if([string]::IsNullOrEmpty($vfpLayers)) {
+        $msg = "Unable to list layers for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpLayers[0] -ilike "ERROR*") {
-        "{0}" -f $vfpLayers[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpLayers[0] -ilike "ERROR:*") {
+        $msg = $vfpLayers[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpLayers) {
@@ -971,15 +975,16 @@ function Get-VfpPortRule {
 
     $arrayList = [System.Collections.ArrayList]::new()
     $vfpRules = vfpctrl /list-rule /port $PortName /layer $Layer /group $Group
-    if ($null -eq $vfpRules){
-        return $null
+    if([string]::IsNullOrEmpty($vfpRules)) {
+        $msg = "Unable to list rules for $Layer and $Group for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpRules[0] -ilike "ERROR*") {
-        "{0}" -f $vfpRules[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpRules[0] -ilike "ERROR:*") {
+        $msg = $vfpRules[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpRules) {
@@ -1246,7 +1251,7 @@ function Get-VfpPortState {
 
     $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
     if([string]::IsNullOrEmpty($vfpPortState)) {
-        $msg = "Unable to locate port $PortName from vfpctrl"
+        $msg = "Unable to get port state for $PortName from vfpctrl"
         throw New-Object System.NullReferenceException($msg)
     }
 
@@ -1337,9 +1342,16 @@ function Get-VfpVMSwitchPort {
 
     try {
         $vfpResults = vfpctrl /list-vmswitch-port
-        if ($null -eq $vfpResults) {
-            "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_ | Trace-Output -Level:Warning
-            return $null
+        if([string]::IsNullOrEmpty($vfpPortState)) {
+            $msg = "Unable to retrieve vmswitch ports from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
+        }
+
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpPortState[0] -ilike "ERROR:*") {
+            $msg = $vfpPortState[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
         }
 
         foreach ($line in $vfpResults) {
@@ -2158,7 +2170,7 @@ function Get-SdnVfpPortGroup {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0, [string]$arg1)
-                Get-VfpPortGroup -PortName $arg0 -Layer $arg1
+                Get-SdnVfpPortGroup -PortName $arg0 -Layer $arg1
             } -ArgumentList @($params.PortName, $params.Layer)
         }
         else {
@@ -2235,7 +2247,7 @@ function Get-SdnVfpPortLayer {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0)
-                Get-VfpPortLayer -PortName $arg0
+                Get-SdnVfpPortLayer -PortName $arg0
             } -ArgumentList @($params.PortName)
         }
         else {
@@ -2309,7 +2321,7 @@ function Get-SdnVfpPortRule {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
-                Get-VfpPortRule -PortName $arg0 -Layer $arg1 -Group $arg2
+                Get-SdnVfpPortRule -PortName $arg0 -Layer $arg1 -Group $arg2
             } -ArgumentList @($params.PortName, $params.Layer, $params.Group)
         }
         else {
