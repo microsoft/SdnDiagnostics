@@ -2228,7 +2228,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
     $sdnHealthTest = New-SdnHealthTest
 
     try {
-        $vmNetAdapters = Get-SdnVMNetworkAdapter
+        $vmNetAdapters = Get-SdnVMNetworkAdapter -All
         $duplicateObjects = $vmNetAdapters | Group-Object -Property MacAddress | Where-Object { $_.Count -ge 2 }
         if ($duplicateObjects) {
             $sdnHealthTest.Result = 'FAIL'

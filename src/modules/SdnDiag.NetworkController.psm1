@@ -167,22 +167,19 @@ function Get-NetworkControllerConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'SilentlyContinue'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
-        [string]$regDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "Registry"
-        [string]$ncAppDir = Join-Path $OutputDirectory.FullName -ChildPath "NCApp"
-
-        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 100)) {
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+        [string]$ncAppDir = Join-Path $outDir -ChildPath "Application"
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $ncAppDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-
+        [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
-        Get-CommonConfigState -OutputDirectory $outDir
 
         # enumerate dll binary version for NC application
         $ncAppDirectories = Get-ChildItem -Path "$env:SystemRoot\NetworkController" -Directory
@@ -857,7 +854,6 @@ function Get-SdnApiEndpoint {
     return $endpoint
 }
 
-
 function Get-SdnAuditLog {
     <#
     .SYNOPSIS
@@ -914,23 +910,10 @@ function Get-SdnAuditLog {
         }
     }
 
-    # verify that the environment we are on supports at least v3 API and later
-    # as described in https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/dc23b547-9ec4-4cb3-ab20-a6bfe01ddafb
-    $currentRestVersion = (Get-SdnDiscovery @ncRestParams).properties.currentRestVersion
-    [int]$currentRestVersionInt = $currentRestVersion.Replace('V','').Replace('v','').Trim()
-    if ($currentRestVersionInt -lt 3) {
-        "Auditing requires API version 3 or later. Network Controller supports version {0}" -f $currentRestVersionInt | Trace-Output -Level:Warning
-        return
-    }
-
-    # check to see that auditing has been enabled
-    $auditSettingsConfig = Get-SdnResource @ncRestParams -Resource 'AuditingSettingsConfig' -ApiVersion $currentRestVersion
-    if ([string]::IsNullOrEmpty($auditSettingsConfig.properties.outputDirectory)) {
+    $auditSettings = Get-SdnAuditLogSetting @ncRestParams
+    if (-NOT $auditSettings.Enabled) {
         "Audit logging is not enabled" | Trace-Output
         return
-    }
-    else {
-        "Audit logging location: {0}" -f $auditSettingsConfig.properties.outputDirectory | Trace-Output
     }
 
     # if $ComputerName was not specified, then attempt to locate the servers within the SDN fabric
@@ -945,7 +928,7 @@ function Get-SdnAuditLog {
     $ComputerName | ForEach-Object {
         "Collecting audit logs from {0}" -f $_ | Trace-Output
         $outputDir = Join-Path -Path $OutputDirectory -ChildPath $_.ToLower()
-        Copy-FileFromRemoteComputer -ComputerName $_ -Credential $Credential -Path $auditSettingsConfig.properties.outputDirectory -Destination $outputDir -Recurse -Force
+        Copy-FileFromRemoteComputer -ComputerName $_ -Credential $Credential -Path $auditSettings.Path -Destination $outputDir -Recurse -Force
     }
 }
 
@@ -2855,3 +2838,65 @@ function Show-SdnVipState {
     }
 }
 
+function Get-SdnAuditLogSetting {
+    <#
+    .SYNOPSIS
+        Retrieves the audit log settings for the Network Controller
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    $params = @{
+        NcUri = $NcUri
+    }
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $params.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $params.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
+
+    $object = [PSCustomObject]@{
+        Enabled = $false
+        Path = $null
+    }
+
+    try {
+        # verify that the environment we are on supports at least v3 API and later
+        # as described in https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/dc23b547-9ec4-4cb3-ab20-a6bfe01ddafb
+        $currentRestVersion = (Get-SdnResource @params -Resource 'Discovery').properties.currentRestVersion
+        [int]$currentRestVersionInt = $currentRestVersion.Replace('V','').Replace('v','').Trim()
+        if ($currentRestVersionInt -ge 3) {
+            # check to see that auditing has been enabled
+            $auditSettingsConfig = Get-SdnResource @params -Resource 'AuditingSettingsConfig' -ApiVersion $currentRestVersion
+            if (-NOT [string]::IsNullOrEmpty($auditSettingsConfig.properties.outputDirectory)) {
+                $object.Enabled = $true
+                $object.Path = $auditSettingsConfig.properties.outputDirectory
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+
+    return $object
+}
