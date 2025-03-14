@@ -277,6 +277,15 @@ class DropStatistics {
     [int64]$NA
 }
 
+class VMNetAdapterPortProfile {
+    [string]$VMName
+    [string]$Name
+    [string]$MacAddress
+    [string]$ProfileId
+    [string]$ProfileData
+    [string]$PortName
+}
+
 ##########################
 #### ARG COMPLETERS ######
 ##########################
@@ -2586,25 +2595,16 @@ function Get-SdnVMNetworkAdapterPortProfile {
     try {
         $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters
         foreach ($adapter in $netAdapters) {
-            $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
-            if ($null -eq $currentProfile) {
-                if ($adapter.IsManagementOS) {
-                    "{0} associated with {1} does not have a port profile" -f $adapter.MacAddress, $adapter.Name | Trace-Output -Level:Warning
-                    continue
-                }
-                else {
-                    "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
-                    continue
-                }
-            }
-
-            $object = [PSCustomObject]@{
+            $object = [VMNetAdapterPortProfile]@{
                 VMName      = $adapter.VMName
                 Name        = $adapter.Name
                 MacAddress  = $adapter.MacAddress
-                ProfileId   = $currentProfile.SettingData.ProfileId
-                ProfileData = $currentProfile.SettingData.ProfileData
-                PortName      = $null
+            }
+
+            $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
+            if ($currentProfile) {
+                $object.ProfileId   = $currentProfile.SettingData.ProfileId
+                $object.ProfileData = $currentProfile.SettingData.ProfileData
             }
 
             # we will typically see multiple port data values for each adapter, however the deviceid should be the same across all of the objects
