@@ -1,6 +1,5 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
-[Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Utilities.Config.psd1"
 New-Variable -Name 'SdnDiagnostics_Utilities' -Scope 'Script' -Force -Value @{
