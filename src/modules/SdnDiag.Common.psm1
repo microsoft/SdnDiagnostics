@@ -509,8 +509,8 @@ function Get-CommonConfigState {
 
         # Gather general configuration details from all nodes
         "Gathering system details" | Trace-Output -Level:Verbose
-        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
         Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-ComputerInfo | Export-ObjectToFile -FilePath $outDir -FileType txt
 
@@ -518,8 +518,8 @@ function Get-CommonConfigState {
         "Gathering network details" | Trace-Output -Level:Verbose
 
         # declare -Force on these to ensure the files written as txt/csv to prevent automatic conversion to json
-        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
         | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetTCPConnection' -FileType csv -Force
 
