@@ -2017,6 +2017,8 @@ function Get-SdnResource {
         Specify the unique ID of the resource.
     .PARAMETER InstanceID
         Specify the unique Instance ID of the resource.
+    .PARAMETER ConvertToJson
+        Convert the output to JSON format.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER NcRestCertificate
@@ -2036,12 +2038,10 @@ function Get-SdnResource {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $true)]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
         [System.String]$ResourceRef,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
@@ -2053,20 +2053,19 @@ function Get-SdnResource {
         [Parameter(Mandatory = $true, ParameterSetName = 'InstanceID')]
         [System.String]$InstanceId,
 
+        [Parameter(Mandatory = $false)]
+        [Switch]$ConvertToJson,
+
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.String]$ApiVersion = $Global:SdnDiagnostics.EnvironmentInfo.RestApiVersion,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'InstanceID')]
+        [Parameter(Mandatory = $false)]
         [X509Certificate]$NcRestCertificate
     )
 
@@ -2121,7 +2120,7 @@ function Get-SdnResource {
     # if multiple objects are returned, they will be nested under a property called value
     # so we want to do some manual work here to ensure we have a consistent behavior on data returned back
     if ($result.value) {
-        return $result.value
+        $result = $result.value
     }
 
     # in some instances if the API returns empty object, we will see it saved as 'nextLink' which is a empty string property
@@ -2130,7 +2129,12 @@ function Get-SdnResource {
         return $null
     }
 
-    return $result
+    if ($ConvertToJson) {
+        return ($result | ConvertTo-Json -Depth 10)
+    }
+    else {
+        return $result
+    }
 }
 
 function Get-SdnServer {
