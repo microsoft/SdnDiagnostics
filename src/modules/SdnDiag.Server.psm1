@@ -684,7 +684,7 @@ function Get-ServerConfigState {
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-SdnVMNetworkAdapterPortProfile -AllVMs | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
@@ -741,23 +741,25 @@ function Get-VfpPortGroup {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpGroups = vfpctrl /list-group /port $PortId /layer $Layer
-    if ($null -eq $vfpGroups){
-        return $null
+    $vfpGroups = vfpctrl /list-group /port $PortName /layer $Layer
+
+    if([string]::IsNullOrEmpty($vfpGroups)) {
+        $msg = "Unable to list groups within $Layer for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpGroups[0] -ilike "ERROR*") {
-        "{0}" -f $vfpGroups[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpGroups[0] -ilike "ERROR:*") {
+        $msg = $vfpGroups[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpGroups) {
@@ -835,7 +837,6 @@ function Get-VfpPortGroup {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }
@@ -857,27 +858,29 @@ function Get-VfpPortLayer {
     <#
     .SYNOPSIS
         Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface
+    .PARAMETER PortName
+        The Port Name for the network interface
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId
+        [GUID]$PortName
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpLayers = vfpctrl /list-layer /port $PortId
-    if ($null -eq $vfpLayers){
-        return $null
+    $vfpLayers = vfpctrl /list-layer /port $PortName
+
+    if([string]::IsNullOrEmpty($vfpLayers)) {
+        $msg = "Unable to list layers for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpLayers[0] -ilike "ERROR*") {
-        "{0}" -f $vfpLayers[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpLayers[0] -ilike "ERROR:*") {
+        $msg = $vfpLayers[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpLayers) {
@@ -918,7 +921,6 @@ function Get-VfpPortLayer {
                             $object.$key = $value
                         }
                         catch {
-                            "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                             $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                             continue
                         }
@@ -946,8 +948,8 @@ function Get-VfpPortRule {
     <#
     .SYNOPSIS
         Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The Port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Group
@@ -957,7 +959,7 @@ function Get-VfpPortRule {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer,
@@ -967,16 +969,17 @@ function Get-VfpPortRule {
     )
 
     $arrayList = [System.Collections.ArrayList]::new()
-    $vfpRules = vfpctrl /list-rule /port $PortId /layer $Layer /group $Group
-    if ($null -eq $vfpRules){
-        return $null
+    $vfpRules = vfpctrl /list-rule /port $PortName /layer $Layer /group $Group
+    if([string]::IsNullOrEmpty($vfpRules)) {
+        $msg = "Unable to list rules for $Layer and $Group for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
     }
 
-    # due to how vfp handles not throwing a terminating error if port ID does not exist,
-    # need to manually examine the response to see if it contains a failure
-    if ($vfpRules[0] -ilike "ERROR*") {
-        "{0}" -f $vfpRules[0] | Trace-Output -Level:Error
-        return $null
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpRules[0] -ilike "ERROR:*") {
+        $msg = $vfpRules[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpRules) {
@@ -1243,8 +1246,15 @@ function Get-VfpPortState {
 
     $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
     if([string]::IsNullOrEmpty($vfpPortState)) {
-        "Unable to locate port {0} from vfpctrl`n{1}" -f $PortName, $_ | Trace-Output -Level:Warning
-        return $null
+        $msg = "Unable to get port state for $PortName from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
+    }
+
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpPortState[0] -ilike "ERROR:*") {
+        $msg = $vfpPortState[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
     }
 
     foreach ($line in $vfpPortState) {
@@ -1301,7 +1311,6 @@ function Get-VfpPortState {
                         $object.$propertyName = $propertyValue
                     }
                     catch {
-                        "Unable to add {0} to object. Failing back to use NoteProperty." -f $propertyName | Trace-Output -Level:Warning
                         $object | Add-Member -MemberType NoteProperty -Name $propertyName -Value $propertyValue
                         continue
                     }
@@ -1327,9 +1336,16 @@ function Get-VfpVMSwitchPort {
 
     try {
         $vfpResults = vfpctrl /list-vmswitch-port
-        if ($null -eq $vfpResults) {
-            "Unable to retrieve vmswitch ports from vfpctrl`n{0}" -f $_ | Trace-Output -Level:Warning
-            return $null
+        if([string]::IsNullOrEmpty($vfpPortState)) {
+            $msg = "Unable to retrieve vmswitch ports from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
+        }
+
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpPortState[0] -ilike "ERROR:*") {
+            $msg = $vfpPortState[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
         }
 
         foreach ($line in $vfpResults) {
@@ -1413,7 +1429,6 @@ function Get-VfpVMSwitchPort {
                                 $object.$key = $value
                             }
                             catch {
-                                "Unable to add {0} to object. Failing back to use NoteProperty." -f $key | Trace-Output -Level:Warning
                                 $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
                                 continue
                             }
@@ -1839,8 +1854,8 @@ function Get-SdnOvsdbPhysicalPort {
     <#
     .SYNOPSIS
         Gets the physical port table results from OVSDB MS_VTEP database.
-    .PARAMETER PortId
-        The port ID of the physical port to return.
+    .PARAMETER PortName
+        The port name of the physical port to return.
     .PARAMETER Name
         The name of the physical port to return. This is the InstanceID the Network Interface object from Network Controller.
     .PARAMETER VMName
@@ -1859,8 +1874,8 @@ function Get-SdnOvsdbPhysicalPort {
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
-        [GUID]$PortId,
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [GUID]$Name,
@@ -1871,14 +1886,14 @@ function Get-SdnOvsdbPhysicalPort {
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [System.String]$MacAddress,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [string[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'PortId')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'PortName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'VMName')]
         [Parameter(Mandatory = $false, ParameterSetName = 'MacAddress')]
@@ -1898,7 +1913,7 @@ function Get-SdnOvsdbPhysicalPort {
 
         # once we have the results, filter based on the parameter set
         switch ($PSCmdlet.ParameterSetName) {
-            'PortId' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortId }) }
+            'PortName' { return ($result | Where-Object { $_.vm_nic_port_id -eq $PortName }) }
             'Name' { return ($result | Where-Object { $_.Name -eq $Name }) }
             'VMName' { return ($result | Where-Object { $_.vm_nic_vm_name -eq $VMName }) }
             'MacAddress' {
@@ -2079,8 +2094,8 @@ function Get-SdnVfpPortGroup {
     <#
     .SYNOPSIS
         Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Direction
@@ -2094,24 +2109,24 @@ function Get-SdnVfpPortGroup {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Name 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Type 'IPv4'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Type 'IPv4'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN' -Type 'IPv4'
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Direction 'IN' -Type 'IPv4'
     .EXAMPLE
-        PS> Get-SdnVfpPortGroup -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -ComputerName 'RemoteComputer' -Credential (Get-Credential)
+        PS> Get-SdnVfpPortGroup -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -ComputerName 'RemoteComputer' -Credential (Get-Credential)
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
@@ -2141,15 +2156,15 @@ function Get-SdnVfpPortGroup {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
             Layer = $Layer
         }
 
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0, [string]$arg1)
-                Get-VfpPortGroup -PortId $arg0 -Layer $arg1
-            } -ArgumentList @($params.PortId, $params.Layer)
+                Get-SdnVfpPortGroup -PortName $arg0 -Layer $arg1
+            } -ArgumentList @($params.PortName, $params.Layer)
         }
         else {
             $results = Get-VfpPortGroup @params
@@ -2185,8 +2200,8 @@ function Get-SdnVfpPortLayer {
     <#
     .SYNOPSIS
         Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface
+    .PARAMETER PortName
+        The Port name for the network interface
     .PARAMETER Name
         Returns the specific layer name. If omitted, will return all layers within VFP.
     .PARAMETER ComputerName
@@ -2196,14 +2211,14 @@ function Get-SdnVfpPortLayer {
     .EXAMPLE
         PS> Get-SdnVfpPortLayer
     .EXAMPLE
-        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B'
+        PS> Get-SdnVfpPortLayer -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B'
     .EXAMPLE
-        PS> Get-SdnVfpPortLayer -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName SDN-HOST01 -Credential (Get-Credential)
+        PS> Get-SdnVfpPortLayer -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -ComputerName SDN-HOST01 -Credential (Get-Credential)
     #>
-    [CmdletBinding(DefaultParameterSetName = 'Default')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [Parameter(Mandatory = $true, ParameterSetName = 'PortName')]
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false)]
         [System.String]$Name,
@@ -2219,14 +2234,14 @@ function Get-SdnVfpPortLayer {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
         }
 
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0)
-                Get-VfpPortLayer -PortId $arg0
-            } -ArgumentList @($params.PortId)
+                Get-SdnVfpPortLayer -PortName $arg0
+            } -ArgumentList @($params.PortName)
         }
         else {
             $results = Get-VfpPortLayer @params
@@ -2248,8 +2263,8 @@ function Get-SdnVfpPortRule {
     <#
     .SYNOPSIS
         Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Layer
         Specify the target layer.
     .PARAMETER Group
@@ -2261,15 +2276,15 @@ function Get-SdnVfpPortRule {
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
-        PS> Get-SdnVfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
+        PS> Get-SdnVfpPortRule -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN'
     .EXAMPLE
-        PS> Get-SdnVfpPortRule -PortId '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
+        PS> Get-SdnVfpPortRule -PortName '2152523D-333F-4082-ADE4-107D8CA75F5B' -Layer 'SLB_NAT_LAYER' -Group 'SLB_GROUP_NAT_IPv4_IN' -Name 'SLB_DEFAULT_RULE'
     #>
 
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $true)]
         [System.String]$Layer,
@@ -2291,7 +2306,7 @@ function Get-SdnVfpPortRule {
 
     try {
         $params = @{
-            PortId = $PortId
+            PortName = $PortName
             Layer = $Layer
             Group = $Group
         }
@@ -2299,8 +2314,8 @@ function Get-SdnVfpPortRule {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
-                Get-VfpPortRule -PortId $arg0 -Layer $arg1 -Group $arg2
-            } -ArgumentList @($params.PortId, $params.Layer, $params.Group)
+                Get-SdnVfpPortRule -PortName $arg0 -Layer $arg1 -Group $arg2
+            } -ArgumentList @($params.PortName, $params.Layer, $params.Group)
         }
         else {
             $results = Get-VfpPortRule @params
@@ -2356,7 +2371,7 @@ function Get-SdnVfpPortState {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0)
-                Get-VfpPortState -PortName $arg0
+                Get-SdnVfpPortState -PortName $arg0
             } -ArgumentList @($params.PortName)
         }
         else {
@@ -2400,7 +2415,7 @@ function Get-SdnVfpVmSwitchPort {
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $false, ParameterSetName = 'Port')]
-        [System.String]$PortName,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'VMID')]
         [System.String]$VMID,
@@ -2458,61 +2473,74 @@ function Get-SdnVMNetworkAdapter {
     <#
     .SYNOPSIS
         Retrieves the virtual machine network adapters that are allocated on a hyper-v host
+    .PARAMETER All
+        Specifies all virtual network adapters in the system, regardless of whether the virtual network adapter is in the management operating system or in a virtual machine.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose network adapters are to be retrieved.
+    .PARAMETER Name
+        Specifies the name of the network adapter to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to be retrieved.
+    .PARAMETER ManagementOS
+        Specifies the management operating system, i.e. the virtual machine host operating system.
+    .PARAMETER SwitchName
+        Specifies the name of the virtual switch whose network adapters are to be retrieved. (This parameter is available only for virtual network adapters in the management operating system.)
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
 	.PARAMETER Credential
 		Specifies a user account that has permission to perform this action. The default is the current user.
-    .PARAMETER AsJob
-        Switch indicating to trigger a background job to perform the operation.
-    .PARAMETER PassThru
-        Switch indicating to wait for background job completes and display results to current session.
-    .PARAMETER Timeout
-        Specify the timeout duration to wait before job is automatically terminated. If omitted, defaults to 600 seconds.
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02'
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -Credential (Get-Credential)
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru
-    .EXAMPLE
-        PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -AsJob -PassThru -Timeout 600
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'Local')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [string]$SwitchName,
+
+        [Parameter(Mandatory = $false)]
         [System.String[]]$ComputerName,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'Local')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [VMState]$VmState = 'Running',
-
-        [Parameter(Mandatory = $false, ParametersetName = 'Remote')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [Switch]$AsJob,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [Switch]$PassThru,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'Remote')]
-        [int]$Timeout = 600
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if ($null -eq (Get-Module -Name Hyper-V)) {
+        Import-Module -Name Hyper-V -Force -ErrorAction Stop
+    }
+
+    # remove the credential parameter if it is empty to avoid passing it to the cmdlet
+    if ($Credential -eq [System.Management.Automation.PSCredential]::Empty) {
+        [void]$PSBoundParameters.Remove('Credential')
+    }
+
     try {
-        if ($PSCmdlet.ParameterSetName -eq 'Local') {
-            $virtualMachines = Get-VM | Where-Object { $_.State -eq $VmState.ToString() }
-            return ($virtualMachines | Get-VMNetworkAdapter)
+        $adapters = Get-VMNetworkAdapter @PSBoundParameters
+        if ($PSBoundParameters.ContainsKey('MacAddress')) {
+            $macAddress = Format-MacAddress -MacAddress $MacAddress
+            $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress }
         }
-        else {
-            Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock { Get-SdnVMNetworkAdapter } -ArgumentList @($VmState) `
-            -AsJob:($AsJob.IsPresent) -PassThru:($PassThru.IsPresent) -ExecutionTimeout $Timeout
-        }
+
+        return ($adapters | Sort-Object -Property Name)
     }
     catch {
         $_ | Trace-Exception
@@ -2526,51 +2554,48 @@ function Get-SdnVMNetworkAdapterPortProfile {
         Retrieves the port profile applied to the virtual machine network interfaces.
     .PARAMETER VMName
         Specifies the name of the virtual machine to be retrieved.
-    .PARAMETER AllVMs
+    .PARAMETER All
         Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
-    .PARAMETER HostVmNic
+    .PARAMETER ManagementOS
         When true, displays Port Profiles of Host VNics. Otherwise displays Port Profiles of Vm VNics.
     .EXAMPLE
         Get-SdnVMNetworkAdapterPortProfile -VMName 'VM01'
     .EXAMPLE
-        Get-SdnVMNetworkAdapterPortProfile -AllVMs
+        Get-SdnVMNetworkAdapterPortProfile -All
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'SingleVM')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'SingleVM')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'VM')]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'AllVMs')]
-        [Switch]$AllVMs,
+        [Parameter(Mandatory = $false, ParameterSetName = 'VM')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Management')]
+        [System.String]$Name,
 
-        [Parameter(ParameterSetName = 'SingleVM', Mandatory = $false)]
-        [Parameter(ParameterSetName = 'AllVMs', Mandatory = $false)]
-        [switch]$HostVmNic
+        [Parameter(Mandatory = $true, ParameterSetName = 'All')]
+        [Switch]$All,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Management')]
+        [switch]$ManagementOS
     )
 
     [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
+    $array = @()
 
     try {
-        if ($null -eq (Get-Module -Name Hyper-V)) {
-            Import-Module -Name Hyper-V -Force -ErrorAction Stop
-        }
-
-        $arrayList = [System.Collections.ArrayList]::new()
-
-        if ($AllVMs) {
-            $netAdapters = Get-VMNetworkAdapter -All | Where-Object { $_.IsManagementOs -eq $HostVmNic }
-        }
-        else {
-            $netAdapters = Get-VMNetworkAdapter -VMName $VMName | Where-Object { $_.IsManagementOs -eq $HostVmNic }
-        }
-
-        foreach ($adapter in $netAdapters | Where-Object { $_.IsManagementOs -eq $false }) {
-            "Enumerating port features and data for adapter {0}" -f $adapter.MacAddress | Trace-Output -Level:Verbose
+        $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters
+        foreach ($adapter in $netAdapters) {
             $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
             if ($null -eq $currentProfile) {
-                "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
-                continue
+                if ($adapter.IsManagementOS) {
+                    "{0} associated with {1} does not have a port profile" -f $adapter.MacAddress, $adapter.Name | Trace-Output -Level:Warning
+                    continue
+                }
+                else {
+                    "{0} attached to {1} does not have a port profile" -f $adapter.MacAddress, $adapter.VMName | Trace-Output -Level:Warning
+                    continue
+                }
             }
 
             $object = [PSCustomObject]@{
@@ -2579,20 +2604,20 @@ function Get-SdnVMNetworkAdapterPortProfile {
                 MacAddress  = $adapter.MacAddress
                 ProfileId   = $currentProfile.SettingData.ProfileId
                 ProfileData = $currentProfile.SettingData.ProfileData
-                PortId      = $null
+                PortName      = $null
             }
 
             # we will typically see multiple port data values for each adapter, however the deviceid should be the same across all of the objects
             # defensive coding in place for situation where vm is not in proper state and this portdata is null
             $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
             if ($portData) {
-                $object.PortId = $portData[0].data.deviceid
+                $object.PortName = $portData[0].data.deviceid
             }
 
-            [void]$arrayList.Add($object)
+            $array += $object
         }
 
-        return ($arrayList | Sort-Object -Property Name)
+        return ($array | Sort-Object -Property Name)
     }
     catch {
         $_ | Trace-Exception
@@ -2748,23 +2773,23 @@ function Set-SdnVMNetworkAdapterPortProfile {
             [switch]$HostVmNic
         )
 
+        if ($null -eq (Get-Module -Name Hyper-V)) {
+            Import-Module -Name Hyper-V -Force -ErrorAction Stop
+        }
+
         [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
         [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
-
-        if ($null -eq (Get-Module -Name Hyper-V)) {
-            Import-Module -Name Hyper-V -Force
+        $vmAdapterParams = $PSBoundParameters
+        [void]$vmAdapterParams.Remove('ProfileId')
+        [void]$vmAdapterParams.Remove('ProfileData')
+        if ($PSBoundParameters.ContainsKey('HostVmNic')) {
+            [void]$vmAdapterParams.Remove('HostVmNic')
+            $vmAdapterParams.Add('ManagementOS', $HostVmNic)
         }
 
-        if ($HostVmNic) {
-            $vmNic = Get-VMNetworkAdapter -ManagementOS -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
-        }
-        else {
-            $vmNic = Get-VMNetworkAdapter -VMName $VmName | Where-Object {$_.MacAddress -ieq $MacAddress}
-        }
-
+        $vmNic = Get-SdnVmNetworkAdapter @vmAdapterParams
         if ($null -eq $vmNic) {
-            "Unable to locate VMNetworkAdapter" | Trace-Output -Level:Error
-            return
+            throw New-Object System.ArgumentException("Unable to locate VM $VMName with MacAddress $MacAddress")
         }
 
         $portProfileDefaultSetting = Get-VMSystemSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -ErrorAction Stop
@@ -2779,7 +2804,6 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
         $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $vmNic
         if ($null -eq $currentProfile) {
-            "Port profile not previously configured" | Trace-Output
             Add-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature  $portProfileDefaultSetting -VMNetworkAdapter $vmNic
         }
         else {
@@ -2833,24 +2857,24 @@ function Show-SdnVfpPortConfig {
     <#
     .SYNOPSIS
         Enumerates the VFP layers, groups and rules contained within Virtual Filtering Platform (VFP) for the specified port.
-    .PARAMETER PortId
-        The Port ID GUID for the network interface.
+    .PARAMETER PortName
+        The port name for the network interface.
     .PARAMETER Direction
         Specify the direction
     .PARAMETER Type
         Specifies an array of IP address families. The cmdlet gets the configuration that matches the address families
     .EXAMPLE
-        PS Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931
+        PS Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931
     .EXAMPLE
-        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN
+        PS> Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN
     .EXAMPLE
-        PS> Show-SdnVfpPortConfig -PortId 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN -Type IPv4
+        PS> Show-SdnVfpPortConfig -PortName 8440FB77-196C-402E-8564-B0EF9E5B1931 -Direction IN -Type IPv4
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $true, ParameterSetName = 'Default')]
-        [GUID]$PortId,
+        [GUID]$PortName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
         [ValidateSet('IPv4','IPv6')]
@@ -2862,9 +2886,9 @@ function Show-SdnVfpPortConfig {
     )
 
     try {
-        $vfpLayers = Get-SdnVfpPortLayer -PortId $PortId
+        $vfpLayers = Get-SdnVfpPortLayer -PortName $PortName
         if ($null -eq $vfpLayers) {
-            "Unable to locate PortId {0}" -f $PortId | Trace-Output -Level:Error
+            "Unable to locate PortName {0}" -f $PortName | Trace-Output -Level:Error
             return $null
         }
 
@@ -2872,10 +2896,10 @@ function Show-SdnVfpPortConfig {
             "== Layer: {0} ==" -f $layer.LAYER | Write-Host -ForegroundColor:Magenta
 
             if ($Direction) {
-                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER -Direction $Direction
+                $vfpGroups = Get-SdnVfpPortGroup -PortName $PortName -Layer $layer.LAYER -Direction $Direction
             }
             else {
-                $vfpGroups = Get-SdnVfpPortGroup -PortId $PortId -Layer $layer.LAYER
+                $vfpGroups = Get-SdnVfpPortGroup -PortName $PortName -Layer $layer.LAYER
             }
 
             if ($Type) {
@@ -2884,7 +2908,7 @@ function Show-SdnVfpPortConfig {
 
             foreach ($group in $vfpGroups) {
                 "== Group: {0} ==" -f $group.GROUP | Write-Host -ForegroundColor:Yellow
-                Get-SdnVfpPortRule -PortId $PortId -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
+                Get-SdnVfpPortRule -PortName $PortName -Layer $layer.LAYER -Group $group.GROUP | Format-Table -AutoSize
             }
         }
     }
@@ -3158,14 +3182,13 @@ function Test-SdnProviderAddressConnectivity {
     try {
         $sourceProviderAddress = (Get-ProviderAddress).ProviderAddress
         if ($null -eq $sourceProviderAddress) {
-            "No provider addresses found" | Trace-Output -Level:Warning
             return $null
         }
 
         $compartmentId = (Get-NetCompartment | Where-Object { $_.CompartmentDescription -ieq 'PAhostVNic' }).CompartmentId
         if ($null -eq $compartmentId) {
             "No compartment that matches description PAhostVNic" | Trace-Output -Level:Warning
-            return
+            return $null
         }
 
         foreach ($srcAddress in $sourceProviderAddress) {

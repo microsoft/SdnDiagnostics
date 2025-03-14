@@ -1827,15 +1827,21 @@ function Invoke-SdnGetNetView {
         [switch]$SkipVm
     )
 
-    try {
-        # check to see if Get-NetView module is loaded into the runspace, if so, remove it
-        if (Get-Module -Name Get-NetView) {
-            Remove-Module -Name Get-NetView -Force
-        }
-        # import the Get-NetView module from the external packages
-        $module = Get-Item -Path "$PSScriptRoot\..\..\externalPackages\Get-NetView.*\Get-NetView.psd1" -ErrorAction Stop
-        Import-Module -Name $module.FullName -Force
+    # check to see if Get-NetView module is loaded into the runspace
+    Import-Module -Name 'Get-NetView' -Force -Global -ErrorAction Ignore
+    $module = Get-Module -Name 'Get-NetView'
+    if ($null -eq $module) {
+        $msg = "Get-NetView module is not available. Please install the module and try again."
+        $msg | Trace-Output -Level:Exception
+        throw $msg
+    }
 
+    # throw a warning if the module is more than 1 years old
+    if ($module.Version.Major -lt [datetime]::UtcNow.AddYears(-1).Year) {
+        "$($module.Name) is running an outdated version: $($module.Version.ToString()). Recommend to update the module." | Trace-Output -Level:Warning
+    }
+
+    try {
         # initialize the data collection environment which will ensure the path exists and has enough space
         [string]$outDir = Join-Path -Path $OutputDirectory -ChildPath "Get-NetView"
         if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 200)) {
@@ -1851,7 +1857,6 @@ function Invoke-SdnGetNetView {
         if ($compressedArchive) {
             Get-ChildItem -Path $outDir -Exclude *.zip | Remove-Item -Recurse -Confirm:$false
         }
-
         return $compressedArchive.FullName
     }
     catch {

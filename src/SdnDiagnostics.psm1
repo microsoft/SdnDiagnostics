@@ -801,7 +801,12 @@ function Start-SdnDataCollection {
 
     $collectNetViewSB = {
         param([Parameter(Position = 0)][String]$OutputDirectory)
-        Invoke-SdnGetNetView -OutputDirectory $OutputDirectory -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters
+        try {
+            Invoke-SdnGetNetView -OutputDirectory $OutputDirectory -SkipAdminCheck -SkipNetshTrace -SkipVM -SkipCounters -ErrorAction Continue
+        }
+        catch {
+            $_.Exception.Message | Write-Warning
+        }
     }
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
