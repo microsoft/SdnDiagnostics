@@ -40,7 +40,7 @@ function Get-GatewayConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'Ignore'
-    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState/Gateway"
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Gateway"
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'Gateway'

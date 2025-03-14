@@ -908,7 +908,7 @@ function Start-SdnDataCollection {
         # to speed up the process
         # if we are running on PowerShell 5.1, we will need to run the process in serial
         # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
-        "Validating WinRM connectivity to {0}" -f ($dataCollectionNodesUnique.Name -join ', ') | Trace-Output
+        "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
 
         $Global:ProgressPreference = 'SilentlyContinue'
         $nodesToRemove = [System.Collections.ArrayList]::new()
