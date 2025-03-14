@@ -43,18 +43,42 @@ enum SdnModules {
 ####### FUNCTIONS ########
 ##########################
 
-function Enable-SdnDiagnosticTracing {
+function Enable-SdnDiagTraceOutput {
+    <#
+        .SYNOPSIS
+            Enables sdndiagnostics trace logging for the current machine.
+    #>
+
     [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
     return (Get-SdnDiagnosticTracing)
 }
 
-function Disable-SdnDiagnosticTracing {
+function Disable-SdnDiagTraceOutput {
+    <#
+        .SYNOPSIS
+            Disables sdndiagnostics trace logging for the current machine.
+    #>
+
     [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
-    return (Get-SdnDiagnosticTracing)
+    return (Get-SdnDiagTraceOutput)
 }
 
-function Get-SdnDiagnosticTracing {
+function Get-SdnDiagTraceOutput {
+    <#
+        .SYNOPSIS
+            Rerieves sdndiagnostics trace logging for the current machine.
+    #>
+
     return ([System.Environment]::GetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED'))
+}
+
+function Get-SdnDiagTraceOutputFile {
+    <#
+        .SYNOPSIS
+            Returns the sdndiagnostics trace log file. Even if the trace logging is disabled, this will return the path to the trace log file.
+    #>
+
+    return ($Script:SdnDiagnostics_Utilities.Cache.TraceFilePath)
 }
 
 function Confirm-DiskSpace {
@@ -2295,7 +2319,7 @@ function Trace-Output {
 
         try {
             # if tracing is enabled, we will write the trace event to the trace file
-            if (Get-SdnDiagnosticTracing) {
+            if (Get-SdnDiagTraceOutput) {
                 # if the mutex is not acquired, we will wait for it to be released before writing to the trace file
                 # this is to prevent multiple threads from writing to the trace file at the same time
                 $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
