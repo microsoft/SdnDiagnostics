@@ -59,14 +59,17 @@
         'Debug-SdnLoadBalancerMux',
         'Debug-SdnNetworkController',
         'Debug-SdnServer',
+        'Disable-SdnDiagnosticTracing',
         'Disable-SdnRasGatewayTracing',
+        'Enable-SdnDiagnosticTracing',
         'Enable-SdnRasGatewayTracing',
-        'Enable-SdnVipTrace'
+        'Enable-SdnVipTrace',
         'Get-SdnAuditLog',
         'Get-SdnApiEndpoint'
         'Get-SdnCertificate',
         'Get-SdnConfigState',
         'Get-SdnDiagnosticLogFile',
+        'Get-SdnDiagnosticTracing',
         'Get-SdnEventLog',
         'Get-SdnFabricInfrastructureResult',
         'Get-SdnGateway',

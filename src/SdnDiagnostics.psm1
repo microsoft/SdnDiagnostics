@@ -1004,7 +1004,6 @@ function Start-SdnDataCollection {
             $null = Invoke-PSRemoteCommand @splat
         }
 
-
         if ($IncludeLogs) {
             # if the system is not using a network share, we will collect the logs from the local devices
             if (!$diagLogNetShare) {
@@ -1090,7 +1089,6 @@ function Start-SdnDataCollection {
         foreach ($node in $dataCollectionNodes.Name) {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Recurse -Force
-            Copy-FileFromRemoteComputer -Path "$(Get-WorkingDirectory)\SdnDiagTrace*.csv" -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
         }
 
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)

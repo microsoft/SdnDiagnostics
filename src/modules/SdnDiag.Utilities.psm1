@@ -1,5 +1,6 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
+[Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Utilities.Config.psd1"
 New-Variable -Name 'SdnDiagnostics_Utilities' -Scope 'Script' -Force -Value @{
@@ -42,6 +43,20 @@ enum SdnModules {
 ##########################
 ####### FUNCTIONS ########
 ##########################
+
+function Enable-SdnDiagnosticTracing {
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
+    return (Get-SdnDiagnosticTracing)
+}
+
+function Disable-SdnDiagnosticTracing {
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
+    return (Get-SdnDiagnosticTracing)
+}
+
+function Get-SdnDiagnosticTracing {
+    return ([System.Environment]::GetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED'))
+}
 
 function Confirm-DiskSpace {
     [CmdletBinding()]
@@ -2280,9 +2295,11 @@ function Trace-Output {
         }
 
         try {
-            # write the event to trace file to be used for debugging purposes
-            $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
-            if ($mutexInstance) {
+            # if tracing is enabled, we will write the trace event to the trace file
+            if (Get-SdnDiagnosticTracing) {
+                # if the mutex is not acquired, we will wait for it to be released before writing to the trace file
+                # this is to prevent multiple threads from writing to the trace file at the same time
+                $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
                 $traceEvent | Export-Csv -Append -NoTypeInformation -Path $traceFile
             }
         }
