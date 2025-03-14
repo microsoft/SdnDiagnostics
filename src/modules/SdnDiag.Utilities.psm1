@@ -959,6 +959,12 @@ function Export-ObjectToFile {
         }
     }
     process {
+        # if the object is null, then we will not add it to the array list
+        # this is to prevent the array list from being empty and causing issues with the export
+        if ($null -eq $Object) {
+            return
+        }
+
         $arrayList.AddRange($Object)
     }
     end {
@@ -1922,7 +1928,7 @@ function Remove-OldTraceOutputFile {
 
     try {
         $workingDir = (Get-WorkingDirectory)
-        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagTrace_*.csv" }
+        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagTrace_*.csv" -or $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
         $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-5) }
         if ($staleFiles) {
             $staleFiles | Remove-Item -Force
