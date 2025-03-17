@@ -1530,7 +1530,7 @@ function Invoke-PSRemoteCommand {
         [System.String]$Activity,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
-        [int]$ExecutionTimeout = 600
+        [int]$ExecutionTimeout = 900
     )
 
     $params = @{
@@ -2394,7 +2394,7 @@ function Wait-PSJob {
         [System.String]$Activity = (Get-PSCallStack)[1].Command,
 
         [Parameter(Mandatory = $false)]
-        [int]$ExecutionTimeOut = 600,
+        [int]$ExecutionTimeOut = 900,
 
         [Parameter(Mandatory = $false)]
         [int]$PollingInterval = 1
@@ -2417,12 +2417,13 @@ function Wait-PSJob {
             $status = "Progress: {0}%. Waiting for {1}" -f $percent, ($runningChildJobs.Location -join ', ')
             Write-Progress -Activity $Activity -Status $status -PercentComplete $percent -Id $job.Id
 
-            # check the stopwatch and break out of loop if we hit execution timeout limit
+            # check the stopwatch and if the elapsed time is greater than the timeout, stop the job
+            # and set the job state to failed
             if ($stopWatch.Elapsed.TotalSeconds -ge $ExecutionTimeOut) {
                 $stopWatch.Stop()
 
-                Get-Job -Name $Name | Stop-Job -Confirm:$false
-                throw New-Object System.TimeoutException("Unable to complete operation within the specified timeout period")
+                "[{0}] Job {1} has exceeded the timeout of {2} seconds. Stopping job." -f $Name, $job.Name, $ExecutionTimeOut | Trace-Output -Level:Warning
+                Get-Job -Name $Name | Stop-Job -Confirm:$false -State Failed
             }
 
             # pause the loop per polling interval value
