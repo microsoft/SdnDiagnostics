@@ -1129,7 +1129,6 @@ function Start-SdnDataCollection {
     }
 
     $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4 -ErrorAction Continue
-    Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName -Force -ErrorAction Continue
 
     # we will return the object to the caller regardless if the data collection was successful or not
     $msg = "Sdn Data Collection completed with status of {0}" -f $dataCollectionObject.Result
