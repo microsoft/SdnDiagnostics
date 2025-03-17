@@ -497,73 +497,73 @@ function Get-CommonConfigState {
     $currentErrorActionPreference = $ErrorActionPreference
     $ProgressPreference = 'SilentlyContinue'
     $ErrorActionPreference = 'Ignore'
+    [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\Common"
 
     try {
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "Common"
-
-        "Collect general configuration state details" | Trace-Output -Level:Verbose
-        if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        $config = Get-SdnModuleConfiguration -Role 'Common'
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+        if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
             "Unable to initialize environment for data collection" | Trace-Output -Level:Error
             return
         }
 
         # Gather general configuration details from all nodes
         "Gathering system details" | Trace-Output -Level:Verbose
-        Get-Service | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Service' -FileType txt -Format List
-        Get-Process | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Process' -FileType txt -Format List
-        Get-Volume | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-Volume' -FileType txt -Format Table
-        Get-ComputerInfo | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-ComputerInfo' -FileType txt
+        Get-Service | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-Process | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-Volume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-ComputerInfo | Export-ObjectToFile -FilePath $outDir -FileType txt
 
         # gather network related configuration details
         "Gathering network details" | Trace-Output -Level:Verbose
-        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
-        | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetTCPConnection' -FileType csv
-        Get-NetIPInterface | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetIPInterface' -FileType txt -Format Table
-        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetNeighbor' -FileType txt -Format Table
-        Get-NetConnectionProfile | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetConnectionProfile' -FileType txt -Format Table
-        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetRoute' -FileType txt -Format Table
-        ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'ipconfig_allcompartments' -FileType txt
 
-        Get-NetAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format Table
-        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterSriov' -FileType txt -Format Table
-        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterSriovVf' -FileType txt -Format Table
-        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterRsc' -FileType txt -Format Table
-        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format Table
-        netsh winhttp show proxy | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'netsh_winhttp_show_proxy' -FileType txt
+        # declare -Force on these to ensure the files written as txt/csv to prevent automatic conversion to json
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
+        | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetTCPConnection' -FileType csv -Force
+
+        Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+
+        ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
+        netsh winhttp show proxy | Export-ObjectToFile -FilePath $outDir -Name 'netsh_winhttp_show_proxy' -FileType txt -Force
 
         $netAdapter = Get-NetAdapter
         if ($netAdapter) {
-            $netAdapterRootDir = New-Item -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetAdapter') -ItemType Directory -Force
-
-            $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType txt -Format List
-            $netAdapter | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-NetAdapter' -FileType json
+            $netAdapterRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath 'NetAdapter') -ItemType Directory -Force
             foreach ($adapter in $netAdapter) {
                 $prefix = $adapter.Name.ToString().Replace(' ','_').Trim()
-                $adapter | Get-NetAdapterAdvancedProperty -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType json
-                $adapter | Get-NetAdapterBinding | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterBinding' -FileType json
-                $adapter | Get-NetAdapterChecksumOffload -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterChecksumOffload' -FileType json
-                $adapter | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterHardwareInfo' -FileType json
-                $adapter | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterRsc' -FileType json
-                $adapter | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterSriov' -FileType json
-                $adapter | Get-NetAdapterStatistics -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterStatistics' -FileType json
+                $adapter | Get-NetAdapterAdvancedProperty -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
+                $adapter | Get-NetAdapterBinding -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterBinding' -FileType txt -Format List
+                $adapter | Get-NetAdapterChecksumOffload -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterChecksumOffload' -FileType txt -Format List
+                $adapter | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format List
+                $adapter | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterRsc' -FileType txt -Format List
+                $adapter | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterSriov' -FileType txt -Format List
+                $adapter | Get-NetAdapterStatistics -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterStatistics' -FileType txt -Format List
             }
         }
 
         # Gather DNS client settings
-        Get-DnsClient | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClient' -FileType txt -Format List
-        Get-DnsClientCache | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientCache' -FileType txt -Format List
-        Get-DnsClientServerAddress | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientServerAddress' -FileType txt -Format List
-        Get-DnsClientGlobalSetting | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientGlobalSetting' -FileType txt -Format List
-        Get-DnsClientNrptGlobal | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientNrptGlobal' -FileType txt -Format List
-        Get-DnsClientNrptPolicy | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientNrptPolicy' -FileType txt -Format List
-        Get-DnsClientNrptRule | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientNrptRule' -FileType txt -Format List
-        Get-DnsClientServerAddress | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'Get-DnsClientServerAddress' -FileType txt -Format List
+        Get-DnsClient | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientCache | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientServerAddress | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientGlobalSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientNrptGlobal | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientNrptPolicy | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientNrptRule | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-DnsClientServerAddress | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         # gather the certificates configured on the system
         $certificatePaths = @('Cert:\LocalMachine\My','Cert:\LocalMachine\Root')
         foreach ($path in $certificatePaths) {
             $fileName = $path.Replace(':','').Replace('\','_')
-            Get-SdnCertificate -Path $path | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name "Get-SdnCertificate_$($fileName)" -FileType csv
+            Get-SdnCertificate -Path $path | Export-ObjectToFile -FilePath $outDir -Name "Get-SdnCertificate_$($fileName)" -FileType csv -Force
         }
     }
     catch {
@@ -1584,9 +1584,9 @@ function Get-SdnEventLog {
 
     [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
-        [String[]]$Role,
+        [String[]]$Role = $Global:SdnDiagnostics.Config.Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory,
@@ -1600,51 +1600,65 @@ function Get-SdnEventLog {
 
     $fromDateUTC = $FromDate.ToUniversalTime()
     $toDateUTC = $ToDate.ToUniversalTime()
-    [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs"
-    $eventLogs = @()
-    $eventLogProviders = @()
-
-    "Collect event logs between {0} and {1} UTC" -f $fromDateUTC, $toDateUTC | Trace-Output
-    if (-NOT (Initialize-DataCollection -FilePath $OutputDirectory.FullName -MinimumMB 200)) {
-        "Unable to initialize environment for data collection" | Trace-Output -Level:Error
-        return
-    }
 
     try {
-        $Role | ForEach-Object {
-            $roleConfig = Get-SdnModuleConfiguration -Role $_
+        foreach ($r in $Role) {
+            $eventLogs = @()
+            $eventLogProviders = @()
+
+            [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "EventLogs\$r"
+            "Collect event logs between {0} and {1} UTC for {2} role" -f $fromDateUTC, $toDateUTC, $r | Trace-Output
+            if (-NOT (Initialize-DataCollection -FilePath $outDir -MinimumMB 100)) {
+                "Unable to initialize environment for data collection" | Trace-Output -Level:Error
+                return
+            }
+
+            $roleConfig = Get-SdnModuleConfiguration -Role $r
             $eventLogProviders += $roleConfig.Properties.EventLogProviders
-        }
 
-        # check to see if the event log provider is valid
-        # and that we have events to collect
-        "Collect the following events: {0}" -f ($eventLogProviders -join ', ') | Trace-Output
-        foreach ($provider in $eventLogProviders) {
-            "Looking for event matching {0}" -f $provider | Trace-Output -Level:Verbose
-            $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction SilentlyContinue | Where-Object { $_.RecordCount }
-            if ($eventLogsToAdd) {
-                $eventLogs += $eventLogsToAdd
-            }
-            else {
-                "No events found for {0}" -f $provider | Trace-Output
-            }
-        }
+            # if we are running on a NetworkController, we need to get the event log providers from the NetworkController_FC or NetworkController_SF role
+            # we will use the ClusterConfigType to determine which role to use
+            if ($r -ieq 'NetworkController') {
+                switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+                    'FailoverCluster' {
+                        $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_FC'
+                    }
+                    'ServiceFabric' {
+                        $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                    }
+                }
 
-        # process each of the event logs identified
-        # and export them to csv and evtx files
-        foreach ($eventLog in $eventLogs) {
-            $fileName = ("{0}\{1}" -f $OutputDirectory.FullName, $eventLog.LogName).Replace("/", "_")
-
-            "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
-            $events = Get-WinEvent -LogName $eventLog.LogName -ErrorAction SilentlyContinue `
-            | Where-Object { $_.TimeCreated.ToUniversalTime() -gt $fromDateUTC -AND $_.TimeCreated -lt $toDateUTC }
-
-            if ($events) {
-                $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
-                | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
+                $eventLogProviders += $ncConfig.Properties.EventLogProviders
             }
 
-            wevtutil epl $eventLog.LogName "$fileName.evtx" /ow:$true
+            # check to see if the event log provider is valid
+            # and that we have events to collect
+            foreach ($provider in $eventLogProviders) {
+                $eventLogsToAdd = Get-WinEvent -ListLog $provider -ErrorAction Ignore | Where-Object { $_.RecordCount }
+                if ($eventLogsToAdd) {
+                    $eventLogs += $eventLogsToAdd
+                }
+            }
+
+            # process each of the event logs identified
+            # and export them to csv and evtx files
+            foreach ($eventLog in $eventLogs) {
+                $events = Get-WinEvent -ErrorAction Ignore -FilterHashtable @{
+                    LogName = $eventLog.LogName;
+                    StartTime = $fromDateUTC;
+                    EndTime = $toDateUTC
+                }
+
+                if ($events) {
+                    $fileName = ("{0}\{1}" -f $outDir, $eventLog.LogName).Replace("/", "_")
+
+                    "Export event log {0} to {1}" -f $eventLog.LogName, $fileName | Trace-Output -Level:Verbose
+                    $events | Select-Object TimeCreated, LevelDisplayName, Id, ProviderName, ProviderID, TaskDisplayName, OpCodeDisplayName, Message `
+                    | Export-Csv -Path "$fileName.csv" -NoTypeInformation -Force
+                }
+
+                wevtutil epl $eventLog.LogName "$fileName.evtx" /ow:$true
+            }
         }
     }
     catch {

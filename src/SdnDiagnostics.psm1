@@ -32,6 +32,10 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
         # defines if this module is running on Windows Server, Azure Stack HCI or Azure Stack Hub
         # supported values are 'WindowsServer', 'AzureStackHCI', 'AzureStackHub'
         Mode = "WindowsServer"
+
+        # defines the current role(s) determined for the current node
+        # supported values are 'Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux'
+        Role = @()
     }
 }
 
@@ -39,7 +43,8 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
 # so we will want to clean up any SDN related sessions on module import
 Remove-PSRemotingSession
 
-$Global:SdnDiagnostics.Config.Mode = (Get-ProductNameFromRegistry)
+$Global:SdnDiagnostics.Config.Mode = (Get-EnvironmentMode)
+$Global:SdnDiagnostics.Config.Role = (Get-EnvironmentRole)
 
 # check to see if the module is running on FC cluster
 if (Confirm-IsFailoverClusterNC) {
@@ -184,33 +189,37 @@ function Get-SdnConfigState {
         The directory to output the configuration state to.
     .EXAMPLE
         PS> Get-SdnConfigState -Role Server -OutputDirectory C:\Temp
+    .EXAMPLE
+        PS> Get-SdnConfigState -Role NetworkController,Server -OutputDirectory C:\Temp
     #>
 
     [cmdletbinding()]
     param(
-        [parameter(Mandatory = $true)]
+        [parameter(Mandatory = $false)]
         [ValidateSet('Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux')]
-        [String]$Role,
+        [String[]]$Role = $Global:SdnDiagnostics.Config.Role,
 
         [Parameter(Mandatory = $true)]
         [System.IO.FileInfo]$OutputDirectory
     )
 
-    switch ($Role) {
-        'Common' {
-            Get-CommonConfigState -OutputDirectory $OutputDirectory
-        }
-        'Gateway' {
-            Get-GatewayConfigState -OutputDirectory $OutputDirectory
-        }
-        'NetworkController' {
-            Get-NetworkControllerConfigState -OutputDirectory $OutputDirectory
-        }
-        'Server' {
-            Get-ServerConfigState -OutputDirectory $OutputDirectory
-        }
-        'LoadBalancerMux' {
-            Get-SlbMuxConfigState -OutputDirectory $OutputDirectory
+    foreach ($r in $Role) {
+        switch ($r) {
+            'Common' {
+                Get-CommonConfigState -OutputDirectory $OutputDirectory
+            }
+            'Gateway' {
+                Get-GatewayConfigState -OutputDirectory $OutputDirectory
+            }
+            'NetworkController' {
+                Get-NetworkControllerConfigState -OutputDirectory $OutputDirectory
+            }
+            'Server' {
+                Get-ServerConfigState -OutputDirectory $OutputDirectory
+            }
+            'LoadBalancerMux' {
+                Get-SlbMuxConfigState -OutputDirectory $OutputDirectory
+            }
         }
     }
 }
@@ -656,11 +665,11 @@ function Start-SdnDataCollection {
     .PARAMETER ToDate
         Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
     .PARAMETER Credential
-		Specifies a user account that has permission to SDN Infrastructure Nodes. The default is the current user.
+        Specifies a user account that has permission to SDN Infrastructure Nodes. The default is the current user.
     .PARAMETER NcRestCertificate
         Specifies the client certificate that is used for a secure web request to Network Controller REST API. Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
-		Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER Limit
         Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
     .PARAMETER ConvertETW
@@ -744,7 +753,6 @@ function Start-SdnDataCollection {
 
     $ErrorActionPreference = 'Continue'
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
-    $filteredDataCollectionNodes = @()
 
     $ncRestParams = @{}
     if ($PSBoundParameters.ContainsKey('NcUri')) {
@@ -766,6 +774,7 @@ function Start-SdnDataCollection {
         TotalSize         = $null
         OutputDirectory   = $null
         Role              = $null
+        ComputerName      = @()
         IncludeNetView    = $IncludeNetView
         IncludeLogs       = $IncludeLogs
         FromDate          = $FromDate.ToString()
@@ -780,14 +789,14 @@ function Start-SdnDataCollection {
         Get-SdnDiagnosticLogFile -LogDir $arg0 -OutputDirectory $arg1 -FromDate $arg2 -ToDate $arg3 -ConvertETW $arg4 -CleanUpFiles $arg5 -FolderNameFilter $arg6
     }
 
-    $collectConfigStateSB = {
-        param([Parameter(Position = 0)][String]$Role, [Parameter(Position = 1)][String]$OutputDirectory)
-        Get-SdnConfigState -Role $Role -OutputDirectory $OutputDirectory
+    $collectSdnLogSB = {
+        param([string]$arg0,[DateTime]$arg1,[DateTime]$arg2,[Boolean]$arg3)
+        Get-SdnLogFile -OutputDirectory $arg0 -FromDate $arg1 -ToDate $arg2 -ConvertETW $arg3
     }
 
-    $collectEventLogSB = {
-        param([Parameter(Position = 0)][String]$OutputDirectory, [Parameter(Position =1)][String[]]$Role, [Parameter(Position =2)][DateTime]$FromDate, [Parameter(Position = 3)][DateTime]$ToDate)
-        Get-SdnEventLog -OutputDirectory $OutputDirectory -Role $Role -FromDate $FromDate -ToDate $ToDate
+    $collectConfigStateSB = {
+        param([Parameter(Position = 0)][String]$OutputDirectory)
+        Get-SdnConfigState -OutputDirectory $OutputDirectory
     }
 
     $collectNetViewSB = {
@@ -797,26 +806,6 @@ function Start-SdnDataCollection {
         }
         catch {
             $_.Exception.Message | Write-Warning
-        }
-    }
-
-    $collectClusterLogsSB = {
-        param([Parameter(Position = 0)][String]$OutputDirectory)
-        # The 3>$null 4>$null sends warning and error to null
-        # typically Get-ClusterLog does not like remote powershell operations and generates warnings/errors
-        $clusterLogFiles = Get-ClusterLog -Destination $OutputDirectory 2>$null 3>$null
-
-        # if we have cluster log files, we will zip them up to preserve disk space
-        if ($clusterLogFiles) {
-            $clusterLogFiles | ForEach-Object {
-                $zipFilePath = Join-Path -Path $OutputDirectory -ChildPath ($_.Name + ".zip")
-                Compress-Archive -Path $_.FullName -DestinationPath $zipFilePath -Force -ErrorAction Stop
-
-                # if the file was successfully zipped, we can remove the original file
-                if (Get-Item -Path $zipFilePath -ErrorAction Ignore) {
-                    Remove-Item -Path $_.FullName -Force -ErrorAction Ignore
-                }
-            }
         }
     }
 
@@ -866,14 +855,30 @@ function Start-SdnDataCollection {
         switch ($PSCmdlet.ParameterSetName) {
             'Role' {
                 foreach ($value in $Role) {
+                    $array = @()
                     foreach ($node in $sdnFabricDetails[$value.ToString()]) {
-                        $object = [PSCustomObject]@{
+                        $array += [PSCustomObject]@{
                             Role = $value
-                            Name = $node
+                            Name = (Get-ComputerNameFQDNandNetBIOS -ComputerName $node).ComputerNameNetBIOS
+                        }
+                    }
+
+                    # if we have more than the limit, we will only collect data from the first $Limit nodes
+                    if ($array.Count -gt $Limit) {
+                        "Exceeded node limit for role {0}. Limiting nodes to the first {1} nodes" -f $value, $Limit | Trace-Output -Level:Warning
+                        $array = $array | Select-Object -First $Limit
+
+                        foreach ($object in $array) {
+                            "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
+                            [void]$dataCollectionNodes.Add($object)
                         }
 
-                        "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
-                        [void]$dataCollectionNodes.Add($object)
+                    }
+                    else {
+                        foreach ($object in $array) {
+                            "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
+                            [void]$dataCollectionNodes.Add($object)
+                        }
                     }
                 }
             }
@@ -884,10 +889,10 @@ function Start-SdnDataCollection {
                     if ($computerRole) {
                         $object = [PSCustomObject]@{
                             Role = $computerRole
-                            Name = $computer
+                            Name = (Get-ComputerNameFQDNandNetBIOS -ComputerName $computer).ComputerNameNetBIOS
                         }
 
-                        "{0} with role {1} added for data collection" -f $object.Name, $object.Role | Trace-Output
+                        "{0} with role {1} added to data collection" -f $object.Name, $object.Role | Trace-Output
                         [void]$dataCollectionNodes.Add($object)
                     }
                 }
@@ -958,209 +963,138 @@ function Start-SdnDataCollection {
         }
 
         # enumerate through each role and collect appropriate data
-        foreach ($group in $groupedObjectsByRole | Sort-Object -Property Name) {
-            if ($PSCmdlet.ParameterSetName -eq 'Role') {
-                if ($group.Group.Name.Count -ge $Limit) {
-                    "Exceeded node limit for role {0}. Limiting nodes to the first {1} nodes" -f $group.Name, $Limit | Trace-Output -Level:Warning
-                }
+        "Performing cleanup of {0} directory" -f $tempDirectory.FullName | Trace-Output
+        Clear-SdnWorkingDirectory -ComputerName $dataCollectionNodes.Name -Credential $Credential -Path $tempDirectory.FullName -Recurse
 
-                $dataNodes = $group.Group.Name | Select-Object -First $Limit
-            }
-            else {
-                $dataNodes = $group.Group.Name
-            }
-
-            "Performing cleanup of {0} directory across {1}" -f $tempDirectory.FullName, ($dataNodes -join ', ') | Trace-Output
-            Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $dataNodes -Credential $Credential
-
-            # add the data nodes to new variable, to ensure that we pick up the log files specifically from these nodes
-            # to account for if filtering was applied
-            $filteredDataCollectionNodes += $dataNodes
-
-            "Collect configuration state details for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-            $splat = @{
-                ComputerName = $dataNodes
-                Credential   = $Credential
-                ScriptBlock  = $collectConfigStateSB
-                ArgumentList = @($group.Name, $tempDirectory.FullName)
-                AsJob        = $true
-                PassThru     = $true
-                Activity     = "Collect $($group.Name) Configuration State"
-            }
-            Invoke-PSRemoteCommand @splat
-
-            # check to see if any network traces were captured on the data nodes previously
-            "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
-            $splat = @{
-                ComputerName = $dataNodes
-                Credential   = $Credential
-                ScriptBlock  = $collectLogSB
-                ArgumentList = @("$($workingDirectory.FullName)\NetworkTraces", $tempDirectory.FullName, $FromDate, $ToDate, $ConvertETW, $true)
-                AsJob        = $true
-                PassThru     = $true
-                Activity     = 'Collect Network Traces'
-            }
-            Invoke-PSRemoteCommand @splat
-
-            # collect the sdndiagnostics etl files if IncludeLogs was provided
-            if ($IncludeLogs) {
-                $commonConfig = Get-SdnModuleConfiguration -Role:Common
-
-                # check to see if we are using local or network share for the logs
-                if (!$diagLogNetShare) {
-                    [String]$diagLogDir = $commonConfig.DefaultLogDirectory
-
-                    "Collect diagnostics logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                    $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'SdnDiagnosticLogs'
-                    $splat = @{
-                        ComputerName = $dataNodes
-                        Credential   = $Credential
-                        ScriptBlock  = $collectLogSB
-                        ArgumentList = @($diagLogDir, $outputDir, $FromDate, $ToDate, $ConvertETW)
-                        AsJob        = $true
-                        PassThru     = $true
-                        Activity     = 'Get Diagnostic Log Files'
-                    }
-                    Invoke-PSRemoteCommand @splat
-
-                    # collect the logs related to the network controller
-                    if ($group.Name -ieq 'NetworkController') {
-                        # switched based on the cluster configuration type to define the logs we need to collect
-                        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
-                            'ServiceFabric' {
-                                $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-                                [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
-
-                                "Collect service fabric logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                                $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ServiceFabricLogs'
-                                $splat = @{
-                                    ComputerName = $dataNodes
-                                    Credential   = $Credential
-                                    ScriptBlock  = $collectLogSB
-                                    ArgumentList = @($sfLogDir, $outputDir, $FromDate, $ToDate)
-                                    AsJob        = $true
-                                    PassThru     = $true
-                                    Activity     = 'Get Service Fabric Logs'
-                                }
-                            }
-                            'FailoverCluster' {
-                                "Collect cluster logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-                                $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'ClusterLogs'
-                                $splat = @{
-                                    ComputerName = $dataNodes
-                                    Credential   = $Credential
-                                    ScriptBlock  = $collectClusterLogsSB
-                                    ArgumentList = @($outputDir)
-                                    AsJob        = $true
-                                    PassThru     = $true
-                                    Activity     = 'Get Cluster Logs'
-                                }
-                            }
-                        }
-
-                        Invoke-PSRemoteCommand @splat
-                    }
-
-                    # if the role is a server, collect the audit logs if they are available
-                    if ($group.Name -ieq 'Server') {
-                        $auditParams = $ncRestParams
-                        $auditParams.Add('OutputDirectory', "$($OutputDirectory.FullName)\AuditLogs")
-                        $auditParams.Add('ComputerName', $dataNodes)
-                        $auditParams.Add('Credential', $Credential)
-                        Get-SdnAuditLog @auditParams
-                    }
-                }
-
-                # if the role is network controller and we are using a network share
-                # need to update variable to include the network controller nodes
-                # so we can add these supplmental folders to the collection
-                if ($group.Name -ieq 'NetworkController') {
-                    $ncNodeFolders += $dataNodes
-                }
-
-                # collect the event logs specific to the role
-                "Collect event logs for {0} nodes: {1}" -f $group.Name, ($dataNodes -join ', ') | Trace-Output
-
-                # because we may have a 'Common' role that is being collected, we need to account for that
-                # and ensure that we are collecting the appropriate event logs
-                switch ( $group.Name ) {
-                    'Common' { $roleArray = @(); $roleArray += $group.Name }
-                    default { $roleArray = @(); $roleArray += $group.Name; $roleArray += 'Common' }
-                }
-
-                $splat = @{
-                    ComputerName = $dataNodes
-                    Credential   = $Credential
-                    ScriptBlock  = $collectEventLogSB
-                    ArgumentList = @($tempDirectory.FullName, $roleArray, $FromDate, $ToDate)
-                    AsJob        = $true
-                    PassThru     = $true
-                    Activity     = "Get $($group.Name) Event Logs"
-                }
-                Invoke-PSRemoteCommand @splat
-            }
+        "Collect configuration state details" | Trace-Output
+        $splat = @{
+            ComputerName = $dataCollectionNodes.Name
+            Credential   = $Credential
+            ScriptBlock  = $collectConfigStateSB
+            ArgumentList = @($tempDirectory.FullName)
+            AsJob        = $true
+            PassThru     = $true
+            Activity     = "Collect Configuration State"
         }
+        Invoke-PSRemoteCommand @splat
 
-        if ($diagLogNetShare -and $IncludeLogs) {
-            $isNetShareMapped = New-SdnDiagNetworkMappedShare -NetworkSharePath $diagLogNetShare -Credential $Credential
-            if ($isNetShareMapped) {
-                $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
-
-                # create an array of names that we will use to filter the logs
-                # this ensures that we will only pick up the logs from the nodes that we are collecting from
-                $filterArray = @()
-                $dataCollectionNodes.Name | ForEach-Object {
-                    $filterArray += (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
-                }
-                $filterArray = $filterArray | Sort-Object -Unique
-
-                # create an array of folders to collect the logs from leveraging the common configuration
-                $logDir = @()
-                $commonConfig.DefaultLogFolders | ForEach-Object {
-                    $logDir += Join-Path -Path $diagLogNetShare -ChildPath $_
-                }
-                $ncNodeFolders | ForEach-Object {
-                    $ncNetBiosName = (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
-                    $logDir += Join-Path -Path $diagLogNetShare -ChildPath $ncNetBiosName
-                }
-                $logDir = $logDir | Sort-Object -Unique
-
-                # create parameters for the Get-SdnDiagnosticLogFile function
-                $netDiagLogShareParams = @{
-                    LogDir           = $logDir
-                    OutputDirectory  = $outputDir
-                    FromDate         = $FromDate
-                    ToDate           = $ToDate
-                    FolderNameFilter = $filterArray
-                }
-
-                Get-SdnDiagnosticLogFile @netDiagLogShareParams
-            }
+        "Checking for any previous network traces and moving them into {0}" -f $tempDirectory.FullName | Trace-Output
+        $splat = @{
+            ComputerName = $dataCollectionNodes.Name
+            Credential   = $Credential
+            ScriptBlock  = $collectLogSB
+            ArgumentList = @("$($workingDirectory.FullName)\NetworkTraces", $tempDirectory.FullName, $FromDate, $ToDate, $ConvertETW, $true)
+            AsJob        = $true
+            PassThru     = $true
+            Activity     = 'Collect Network Traces'
         }
+        Invoke-PSRemoteCommand @splat
 
         if ($IncludeNetView) {
-            "Collect Get-NetView logs for {0}" -f ($filteredDataCollectionNodes -join ', ') | Trace-Output
+            "Collecting Get-NetView" | Trace-Output
             $splat = @{
-                ComputerName = $filteredDataCollectionNodes
+                ComputerName = $dataCollectionNodes.Name
                 Credential   = $Credential
                 ScriptBlock  = $collectNetViewSB
                 ArgumentList = @($tempDirectory.FullName)
                 AsJob        = $true
                 PassThru     = $true
-                Activity     = 'Invoke Get-NetView'
+                Activity     = 'Collect Get-NetView'
             }
             $null = Invoke-PSRemoteCommand @splat
         }
 
-        foreach ($node in $filteredDataCollectionNodes) {
+        if ($IncludeLogs) {
+            # if the system is not using a network share, we will collect the logs from the local devices
+            if (!$diagLogNetShare) {
+                "Collect diagnostic and event logs" | Trace-Output
+                $outputDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'SdnDiagnosticLogs'
+                $splat = @{
+                    ComputerName = $dataCollectionNodes.Name
+                    Credential   = $Credential
+                    ScriptBlock  = $collectSdnLogSB
+                    ArgumentList = @($tempDirectory.FullName, $FromDate, $ToDate, $ConvertETW)
+                    AsJob        = $true
+                    PassThru     = $true
+                    Activity     = 'Collect Diagnostic and Event Log Files'
+                }
+                Invoke-PSRemoteCommand @splat
+
+                # check to see if audit logs are enabled
+                # if so, pick them up from computers with the server role if they have been defined
+                $auditEnabled = Get-SdnAuditLogSetting @ncRestParams
+                $serverNodes = $dataCollectionNodes | Where-Object {$_.Role -ieq 'Server'}
+                if ($serverNodes -and $auditEnabled.Enabled -eq $true) {
+                    "Collect NSG audit logs" | Trace-Output
+                    $auditLogOutDir = Join-Path -Path $tempDirectory.FullName -ChildPath 'AuditLogs'
+                    $splat = @{
+                        ComputerName = $serverNodes.Name
+                        Credential   = $Credential
+                        ScriptBlock  = $collectLogSB
+                        ArgumentList = @($auditEnabled.Path, $auditLogOutDir, $FromDate, $ToDate)
+                        AsJob        = $true
+                        PassThru     = $true
+                        Activity     = "Collect NSG Audit Logs"
+                    }
+                    Invoke-PSRemoteCommand @splat
+                }
+            }
+
+            # if we are using a network share, we need to copy the logs from the network share to the output directory
+            if ($diagLogNetShare) {
+                $commonConfig = Get-SdnModuleConfiguration -Role:Common
+
+                $ncNodes = $dataCollectionNodes | Where-Object {$_.Role -ieq 'NetworkController'}
+                if ($ncNodes) {
+                    $ncNodeFolders += $ncNodes.Name
+                }
+
+                $isNetShareMapped = New-SdnDiagNetworkMappedShare -NetworkSharePath $diagLogNetShare -Credential $Credential
+                if ($isNetShareMapped) {
+                    $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath 'NetShare_SdnDiagnosticLogs'
+
+                    # create an array of names that we will use to filter the logs
+                    # this ensures that we will only pick up the logs from the nodes that we are collecting from
+                    $filterArray = @()
+                    $dataCollectionNodes.Name | ForEach-Object {
+                        $filterArray += (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
+                    }
+                    $filterArray = $filterArray | Sort-Object -Unique
+
+                    # create an array of folders to collect the logs from leveraging the common configuration
+                    $logDir = @()
+                    $commonConfig.DefaultLogFolders | ForEach-Object {
+                        $logDir += Join-Path -Path $diagLogNetShare -ChildPath $_
+                    }
+                    $ncNodeFolders | ForEach-Object {
+                        $ncNetBiosName = (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
+                        $logDir += Join-Path -Path $diagLogNetShare -ChildPath $ncNetBiosName
+                    }
+                    $logDir = $logDir | Sort-Object -Unique
+
+                    # create parameters for the Get-SdnDiagnosticLogFile function
+                    $netDiagLogShareParams = @{
+                        LogDir           = $logDir
+                        OutputDirectory  = $outputDir
+                        FromDate         = $FromDate
+                        ToDate           = $ToDate
+                        FolderNameFilter = $filterArray
+                    }
+
+                    Get-SdnDiagnosticLogFile @netDiagLogShareParams
+                }
+            }
+        }
+
+        foreach ($node in $dataCollectionNodes.Name) {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Recurse -Force
-            Copy-FileFromRemoteComputer -Path "$(Get-WorkingDirectory)\SdnDiagnostics_TraceOutput*.csv" -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Force
         }
 
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)
         $dataCollectionObject.OutputDirectory = $OutputDirectory.FullName
         $dataCollectionObject.Role = $groupedObjectsByRole.Name
+        $dataCollectionObject.ComputerName = $dataCollectionNodes.Name
         $dataCollectionObject.Result = 'Success'
     }
     catch {
@@ -1180,8 +1114,8 @@ function Start-SdnDataCollection {
                 Copy-Item -Path "$(Get-WorkingDirectory)\PSRemoteJob_Failures" -Destination $formattedDirectoryName.FullName -Recurse
             }
 
-            if ($filteredDataCollectionNodes) {
-                Clear-SdnWorkingDirectory -Path $tempDirectory.FullName -Recurse -ComputerName $filteredDataCollectionNodes -Credential $Credential
+            if ($dataCollectionNodes) {
+                Clear-SdnWorkingDirectory -ComputerName $dataCollectionNodes.Name -Credential $Credential -Path $tempDirectory.FullName -Recurse
             }
 
             # remove any completed or failed jobs
@@ -1209,4 +1143,64 @@ function Start-SdnDataCollection {
     }
 
     return $dataCollectionObject
+}
+
+function Get-SdnLogFile {
+    <#
+    .PARAMETER OutputDirectory
+        Specifies a specific path and folder in which to save the files.
+    .PARAMETER FromDate
+        Determines the start time of what logs to collect. If omitted, defaults to the last 4 hours.
+    .PARAMETER ToDate
+        Determines the end time of what logs to collect. Optional parameter that if ommitted, defaults to current time.
+    .PARAMETER ConvertETW
+        Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
+    #>
+    [cmdletbinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.IO.FileInfo]$OutputDirectory,
+
+        [Parameter(Mandatory = $false)]
+        [DateTime]$FromDate = (Get-Date).AddHours(-4),
+
+        [Parameter(Mandatory = $false)]
+        [DateTime]$ToDate = (Get-Date),
+
+        [Parameter(Mandatory = $false)]
+        [bool]$ConvertETW = $true
+    )
+
+    try {
+        foreach ($r in $Global:SdnDiagnostics.Config.Role) {
+            $moduleConfig = Get-SdnModuleConfiguration -Role $r
+            $outputDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "LogFiles\$r"
+
+            Get-SdnEventLog -OutputDirectory $OutputDirectory.FullName -Role $r -FromDate $FromDate -ToDate $ToDate
+
+            switch ($r) {
+                'Common' {
+                    Get-SdnDiagnosticLogFile -LogDir $moduleConfig.DefaultLogDirectory -OutputDirectory $outputDir -FromDate $FromDate -ToDate $ToDate -ConvertETW $ConvertETW
+                }
+
+                'NetworkController' {
+                    switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+                        'FailoverCluster' {
+                            # nothing to do here currently
+                        }
+                        'ServiceFabric' {
+                            $ncConfig = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
+                            [string[]]$sfLogDir = $ncConfig.Properties.CommonPaths.serviceFabricLogDirectory
+
+                            Get-SdnDiagnosticLogFile -LogDir $sfLogDir -OutputDirectory (Join-Path -Path $outputDir -ChildPath 'ServiceFabricLogs') -FromDate $FromDate -ToDate $ToDate
+                        }
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
 }

@@ -312,15 +312,34 @@ function Get-NetworkControllerSFConfigState {
 
     try {
         $config = Get-SdnModuleConfiguration -Role 'NetworkController_SF'
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState"
+        [string]$outDir = Join-Path -Path $OutputDirectory.FullName -ChildPath "ConfigState\NetworkController"
 
-        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $OutputDirectory.FullName -MinimumMB 100)) {
+        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
+        if (-NOT (Initialize-DataCollection -Role $config.Name -FilePath $outDir -MinimumMB 20)) {
             "Unable to initialize environment for data collection for {0}" -f $config.Name | Trace-Output -Level:Error
             return
         }
 
-        "Collect configuration state details for role {0}" -f $config.Name | Trace-Output
-        # insert data collection datapoints
+        # enumerate data related to network controller
+        Get-SdnNetworkController | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnNetworkControllerNode | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-NetworkControllerCluster | Export-ObjectToFile -FilePath $outDir -FileType txt
+
+        # enumerate data related to service fabric
+        Get-SdnServiceFabricClusterConfig -Uri ClusterConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterConfig -Uri GlobalConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterHealth | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricClusterManifest | Out-File -FilePath "$outDir\Get-SdnServiceFabricClusterManifest.xml"
+
+        Get-SdnServiceFabricApplication | Export-ObjectToFile -FilePath $outDir -FileType txt
+        Get-SdnServiceFabricApplicationHealth | Export-ObjectToFile -FilePath $outDir -FileType txt
+
+        $ncServices = Get-SdnServiceFabricService
+        $ncServices | Export-ObjectToFile -Name 'Get-SdnServiceFabricService' -FilePath $outDir -FileType txt
+        foreach ($service in $ncServices) {
+            Get-SdnServiceFabricReplica -ServiceName $service.ServiceName | Export-ObjectToFile -FilePath $outDir -FileType txt
+        }
+        Get-SdnServiceFabricNode | Export-ObjectToFile -FilePath $outDir -FileType txt
     }
     catch {
         $_ | Trace-Exception
@@ -558,10 +577,10 @@ function Get-SdnNetworkControllerSFClusterInfo {
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-NetworkControllerReplica" -FileType txt
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri GlobalConfiguration} -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerGlobalConfiguration" -FileType txt -Format Table
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerGlobalConfiguration" -FileType txt -Format List
 
         Invoke-PSRemoteCommand -ComputerName $NetworkController -ScriptBlock {  Get-SdnServiceFabricClusterConfig -Uri ClusterConfiguration} -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerClusterConfiguration" -FileType txt -Format Table
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "NetworkControllerClusterConfiguration" -FileType txt -Format List
 
         Get-SdnServiceFabricClusterHealth -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricClusterHealth" -FileType txt
@@ -580,7 +599,7 @@ function Get-SdnNetworkControllerSFClusterInfo {
         }
 
         Get-SdnServiceFabricApplication -NetworkController $NetworkController -Credential $Credential `
-        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricApplication" -FileType json
+        | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricApplication" -FileType txt -Format List
 
         Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential `
         | Export-ObjectToFile -FilePath $outputDir.FullName -Name "Get-SdnServiceFabricNode" -FileType txt

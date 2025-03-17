@@ -2,6 +2,8 @@
 # Licensed under the MIT License.
 
 @{
+    Name = "Common"
+    WindowsFeature = @()
     DefaultLogDirectory = "C:\Windows\Tracing\SDNDiagnostics"
     DefaultLogFolders = @(
         "CrashDumps",
@@ -12,14 +14,15 @@
         "Traces"
     )
     LogFileTypes = @(
-        "*.log",
-        "*.etl",
+        "*.blg",
         "*.cab",
         "*.dmp"
+        "*.etl",
+        "*.json",
+        "*.log",
         "*.trace"
         "*.zip"
-        "*.blg"
-        )
+    )
     Properties = @{
         EventLogProviders = @(
             "Application"

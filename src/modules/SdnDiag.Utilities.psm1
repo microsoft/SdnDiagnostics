@@ -43,6 +43,44 @@ enum SdnModules {
 ####### FUNCTIONS ########
 ##########################
 
+function Enable-SdnDiagTraceOutputLogging {
+    <#
+        .SYNOPSIS
+            Enables sdndiagnostics trace logging for the current machine.
+    #>
+
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
+    return (Get-SdnDiagnosticTracing)
+}
+
+function Disable-SdnDiagTraceOutputLogging {
+    <#
+        .SYNOPSIS
+            Disables sdndiagnostics trace logging for the current machine.
+    #>
+
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
+    return (Get-SdnDiagTraceOutputLogging)
+}
+
+function Get-SdnDiagTraceOutputLogging {
+    <#
+        .SYNOPSIS
+            Rerieves sdndiagnostics trace logging for the current machine.
+    #>
+
+    return ([System.Environment]::GetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED'))
+}
+
+function Get-SdnDiagTraceOutputFile {
+    <#
+        .SYNOPSIS
+            Returns the sdndiagnostics trace log file. Even if the trace logging is disabled, this will return the path to the trace log file.
+    #>
+
+    return ($Script:SdnDiagnostics_Utilities.Cache.TraceFilePath)
+}
+
 function Confirm-DiskSpace {
     [CmdletBinding()]
     param (
@@ -896,8 +934,8 @@ function Export-ObjectToFile {
         [Parameter(Mandatory = $false)]
         [System.String]$Prefix,
 
-        [Parameter(Mandatory = $true)]
-        [System.String]$Name,
+        [Parameter(Mandatory = $false)]
+        [System.String]$Name = (Get-CommandFromInvocation),
 
         [Parameter(Mandatory = $false)]
         [ValidateSet("json","csv","txt")]
@@ -908,11 +946,36 @@ function Export-ObjectToFile {
         [System.String]$Format,
 
         [Parameter(Mandatory = $false)]
-        [System.String]$Depth = 2
+        [System.String]$Depth = 2,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$Force
     )
 
     begin {
         $arrayList = [System.Collections.ArrayList]::new()
+
+        # if the environment is AzureStackHCI or AzureStackHub, then we will default to json
+        # unless the user defines Force to override the default behavior to prevent issues with trying to convert non-standard objects to json
+        # such as data related to netsh or other legacy command line tools
+        if (($Global:SdnDiagnostics.Config.Mode -eq 'AzureStackHCI' -or $Global:SdnDiagnostics.Config.Mode -eq 'AzureStackHub') -and !$Force) {
+            $FileType = 'json'
+        }
+
+        # in some instances, we need to set the depth of the json object based on the command
+        # this is to prevent the json object from being too large and causing issues with serialization
+        # or causing the json object to not have enough details
+        if ($FileType -ieq 'json') {
+            switch ($Name) {
+                'Get-SdnVfpVmSwitchPort' {
+                    $Depth = 3
+                }
+                default {
+                    # do nothing unique
+                }
+            }
+        }
+
         # build the file directory and name that will be used to export the object out
         if($Prefix){
             [System.String]$formattedFileName = "{0}\{1}_{2}.{3}" -f $FilePath.FullName, $Prefix, $Name, $FileType
@@ -934,16 +997,24 @@ function Export-ObjectToFile {
         }
     }
     process {
+        # if the object is null, then we will not add it to the array list
+        # this is to prevent the array list from being empty and causing issues with the export
+        if ($null -eq $Object) {
+            return
+        }
+
         $arrayList.AddRange($Object)
     }
     end {
+        # if no objects are passed, then do not create the file
+        # this ensures we do not create empty files
         if ($arrayList.Count -eq 0) {
             return
         }
 
         try {
             "Creating file {0}" -f $fileName | Trace-Output -Level:Verbose
-            switch($FileType){
+            switch ($FileType) {
                 "json" {
                     $arrayList | ConvertTo-Json -Depth $Depth | Out-File -FilePath $fileName -Force
                 }
@@ -952,7 +1023,7 @@ function Export-ObjectToFile {
                 }
                 "txt" {
                     $FormatEnumerationLimit = 500
-                    switch($Format){
+                    switch ($Format) {
                         'Table' {
                             $arrayList | Format-Table -AutoSize -Wrap | Out-String -Width 4096 | Out-File -FilePath $fileName -Force
                         }
@@ -971,6 +1042,24 @@ function Export-ObjectToFile {
             $_ | Write-Error
         }
     }
+}
+
+function Get-CommandFromInvocation {
+    <#
+    .SYNOPSIS
+        Returns the command that was invoked
+    #>
+
+    $regex = '^\s*([a-zA-Z]+-[a-zA-Z]+)'
+    if ($PSCmdlet.MyInvocation.Line -match $regex) {
+        $command = $Matches[1].Trim()
+    }
+
+    if (-NOT [string]::IsNullOrEmpty($command)) {
+        return $command
+    }
+
+    return $null
 }
 
 function Format-ByteSize {
@@ -1855,7 +1944,8 @@ function New-TraceOutputFile {
         Remove-OldTraceOutputFile
 
         # build the trace file path and set global variable
-        [System.String]$fileName = "SdnDiagnostics_TraceOutput_$($PID).csv"
+        [System.String]$date = [datetime]::UtcNow.ToString("yyyyMMdd")
+        [System.String]$fileName = "SdnDiagTrace_$date-$($PID).csv"
         [System.IO.FileInfo]$filePath = Join-Path -Path $workingDir -ChildPath $fileName
         Set-TraceOutputFile -Path $filePath.FullName
 
@@ -1876,8 +1966,8 @@ function Remove-OldTraceOutputFile {
 
     try {
         $workingDir = (Get-WorkingDirectory)
-        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
-        $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-30) }
+        $files = Get-ChildItem -Path $workingDir | Where-Object { $_.Name -like "SdnDiagTrace_*.csv" -or $_.Name -like "SdnDiagnostics_TraceOutput_*.csv" }
+        $staleFiles = $files | Where-Object { $_.LastWriteTime -lt (Get-Date).AddDays(-5) }
         if ($staleFiles) {
             $staleFiles | Remove-Item -Force
         }
@@ -2228,9 +2318,11 @@ function Trace-Output {
         }
 
         try {
-            # write the event to trace file to be used for debugging purposes
-            $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
-            if ($mutexInstance) {
+            # if tracing is enabled, we will write the trace event to the trace file
+            if (Get-SdnDiagTraceOutputLogging) {
+                # if the mutex is not acquired, we will wait for it to be released before writing to the trace file
+                # this is to prevent multiple threads from writing to the trace file at the same time
+                $mutexInstance = Wait-OnMutex -MutexId 'SDN_TraceLogging' -ErrorAction Continue
                 $traceEvent | Export-Csv -Append -NoTypeInformation -Path $traceFile
             }
         }
@@ -2753,17 +2845,46 @@ function Invoke-SdnCommand {
     }
 }
 
-function Get-ProductNameFromRegistry {
+function Get-EnvironmentMode {
     $value = Get-ItemProperty -Path "HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion" -Name 'ProductName'
-
     switch ($value.ProductName) {
         'Azure Stack HCI' {
             return 'AzureStackHCI'
         }
         default {
+            $serviceExists = Get-Service -Name 'Microsoft Azure Stack Trace Collector' -ErrorAction Ignore
+            if ($serviceExists) {
+                return 'AzureStackHub'
+            }
+
             return 'WindowsServer'
         }
     }
+}
+
+function Get-EnvironmentRole {
+    $array = @('Common')
+
+    $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
+    foreach ($feature in $featuresInstalled) {
+        if ($feature.Name -ieq 'NetworkController') {
+            $array += 'NetworkController'
+        }
+
+        if ($feature.Name -ieq 'Hyper-V') {
+            $array += 'Server'
+        }
+
+        if ($feature.Name -ieq 'RemoteAccess') {
+            $array += 'Gateway'
+        }
+
+        if ($feature.Name -ieq 'SoftwareLoadBalancer') {
+            $array += 'LoadBalancerMux'
+        }
+    }
+
+    return $array
 }
 
 function Get-NugetArtifactPath {
