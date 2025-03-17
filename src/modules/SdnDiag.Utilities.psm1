@@ -367,25 +367,18 @@ function Confirm-RequiredFeaturesInstalled {
         [System.String[]]$Name
     )
 
+    if($null -eq $Name){
+        return $true
+    }
+
     try {
-
-        if($null -eq $Name){
-            return $true
-        }
-        else {
-            foreach($obj in $Name){
-                try {
-                    if(!(Get-WindowsFeature -Name $obj).Installed){
-                        return $false
-                    }
-                }
-                catch {
-                    return $false
-                }
+        foreach($obj in $Name){
+            if(-not (Get-WindowsFeature -Name $obj).Installed){
+                return $false
             }
-
-            return $true
         }
+
+        return $true
     }
     catch {
         $_ | Trace-Exception
