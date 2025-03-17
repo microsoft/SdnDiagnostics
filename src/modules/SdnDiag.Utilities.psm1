@@ -374,7 +374,12 @@ function Confirm-RequiredFeaturesInstalled {
         }
         else {
             foreach($obj in $Name){
-                if(!(Get-WindowsFeature -Name $obj).Installed){
+                try {
+                    if(!(Get-WindowsFeature -Name $obj).Installed){
+                        return $false
+                    }
+                }
+                catch {
                     return $false
                 }
             }
@@ -2865,23 +2870,32 @@ function Get-EnvironmentMode {
 function Get-EnvironmentRole {
     $array = @('Common')
 
-    $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
-    foreach ($feature in $featuresInstalled) {
-        if ($feature.Name -ieq 'NetworkController') {
-            $array += 'NetworkController'
+    try {
+        $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
+        if ($null -eq $featuresInstalled) {
+            return $array
         }
 
-        if ($feature.Name -ieq 'Hyper-V') {
-            $array += 'Server'
-        }
+        foreach ($feature in $featuresInstalled) {
+            if ($feature.Name -ieq 'NetworkController') {
+                $array += 'NetworkController'
+            }
 
-        if ($feature.Name -ieq 'RemoteAccess') {
-            $array += 'Gateway'
-        }
+            if ($feature.Name -ieq 'Hyper-V') {
+                $array += 'Server'
+            }
 
-        if ($feature.Name -ieq 'SoftwareLoadBalancer') {
-            $array += 'LoadBalancerMux'
+            if ($feature.Name -ieq 'RemoteAccess') {
+                $array += 'Gateway'
+            }
+
+            if ($feature.Name -ieq 'SoftwareLoadBalancer') {
+                $array += 'LoadBalancerMux'
+            }
         }
+    }
+    catch {
+        # suppress any errors here, as we do not want to fail the script
     }
 
     return $array
