@@ -50,7 +50,7 @@ function Enable-SdnDiagTraceOutputLogging {
     #>
 
     [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
-    return (Get-SdnDiagnosticTracing)
+    return (Get-SdnDiagTraceOutputLogging)
 }
 
 function Disable-SdnDiagTraceOutputLogging {
