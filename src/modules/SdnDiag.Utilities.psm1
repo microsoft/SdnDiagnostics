@@ -49,7 +49,7 @@ function Enable-SdnDiagTraceOutputLogging {
             Enables sdndiagnostics trace logging for the current machine.
     #>
 
-    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true)
     return (Get-SdnDiagTraceOutputLogging)
 }
 
@@ -59,7 +59,7 @@ function Disable-SdnDiagTraceOutputLogging {
             Disables sdndiagnostics trace logging for the current machine.
     #>
 
-    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false)
     return (Get-SdnDiagTraceOutputLogging)
 }
 
@@ -78,7 +78,7 @@ function Get-SdnDiagTraceOutputFile {
             Returns the sdndiagnostics trace log file. Even if the trace logging is disabled, this will return the path to the trace log file.
     #>
 
-    return ($Script:SdnDiagnostics_Utilities.Cache.TraceFilePath)
+    return (Get-TraceOutputFile)
 }
 
 function Confirm-DiskSpace {
