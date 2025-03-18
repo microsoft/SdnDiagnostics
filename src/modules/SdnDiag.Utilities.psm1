@@ -2870,21 +2870,37 @@ function Get-EnvironmentRole {
             return $array
         }
 
-        foreach ($feature in $featuresInstalled) {
-            if ($feature.Name -ieq 'NetworkController') {
+        # in some environments we may have multiple roles installed, such as Hyper-V and NetworkController
+        # which is valid configuration type when using failover cluster NC deployments
+        # however is not valid for SoftwareLoadBalancer or RemoteAccess or NetworkController (SF) to exist on Hyper-V host
+        if ($featuresInstalled.Name -icontains 'NetworkController') {
+
+            # if FabricHostSvc is running, we will assume that this is a Service Fabric NC cluster
+            if (Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore) {
                 $array += 'NetworkController'
             }
 
-            if ($feature.Name -ieq 'Hyper-V') {
+            # if SDNApiService is running, we will assume that this is a Windows Server NC cluster
+            if (Get-Service -Name 'SDNApiService' -ErrorAction Ignore) {
+                $array += 'NetworkController'
                 $array += 'Server'
             }
+        }
 
-            if ($feature.Name -ieq 'RemoteAccess') {
-                $array += 'Gateway'
-            }
+        if ($featuresInstalled.Name -icontains 'RemoteAccess') {
+            $array += 'Gateway'
+        }
 
-            if ($feature.Name -ieq 'SoftwareLoadBalancer') {
-                $array += 'LoadBalancerMux'
+        if ($featuresInstalled.Name -icontains 'SoftwareLoadBalancer') {
+            $array += 'LoadBalancerMux'
+        }
+
+        # examine the features installed to determine if this is a Hyper-V host
+        # if we have Hyper-V installed we want to exclude the SoftwareLoadBalancer and RemoteAccess roles
+        # as these roles are not valid on Hyper-V hosts
+        if ($featuresInstalled.Name -icontains 'Hyper-V') {
+            if ($featuresInstalled.Name -inotcontains "SoftwareLoadBalancer" -and $featuresInstalled.Name -inotcontains "RemoteAccess") {
+                $array += 'Server'
             }
         }
     }
@@ -2892,7 +2908,7 @@ function Get-EnvironmentRole {
         # suppress any errors here, as we do not want to fail the script
     }
 
-    return $array
+    return ($array | Sort-Object -Unique)
 }
 
 function Get-NugetArtifactPath {
