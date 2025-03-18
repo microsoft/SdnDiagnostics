@@ -667,29 +667,9 @@ function Get-ServerConfigState {
         Get-SdnOvsdbPhysicalPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
-        # Get virtual machine details
-        "Gathering virtual machine configuration details" | Trace-Output -Level:Verbose
-        $virtualMachines = Get-VM
-        if ($virtualMachines) {
-            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format List
-            $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
-
-            foreach ($vm in $virtualMachines) {
-                $vmName = $vm.Name.ToString().Replace(" ", "_").Trim()
-                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vm.VMId) -ItemType Directory -Force
-
-                $vm | Get-VMNetworkAdapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapter' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterExtendedAcl | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterExtendedAcl'-FileType txt -Format List
-                $vm | Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
-                $vm | Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $vmName -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
-            }
-        }
-
         # Gather Hyper-V network details
         "Gathering Hyper-V network configuration details" | Trace-Output -Level:Verbose
+        Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
         Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
@@ -701,6 +681,7 @@ function Get-ServerConfigState {
         Get-VMSwitchTeam | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         # enumerate the vm switches and gather details
+        "Gathering VMSwitch details" | Trace-Output -Level:Verbose
         $vmSwitch = Get-VMSwitch
         if ($vmSwitch) {
             $vmSwitchRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VMSwitch") -ItemType Directory -Force
