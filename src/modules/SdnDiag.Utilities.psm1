@@ -2416,7 +2416,7 @@ function Wait-PSJob {
                 $stopWatch.Stop()
 
                 "[{0}] Job {1} has exceeded the timeout of {2} seconds. Stopping job." -f $Name, $job.Name, $ExecutionTimeOut | Trace-Output -Level:Warning
-                Get-Job -Name $Name | Stop-Job -Confirm:$false -State Failed
+                Get-Job -Name $Name | Stop-Job -Confirm:$false
             }
 
             # pause the loop per polling interval value
