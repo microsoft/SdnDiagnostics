@@ -53,6 +53,16 @@ function Get-NetworkControllerFCConfigState {
 
         [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
+
+        Get-Cluster | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterFaultDomain | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterNode | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterGroup | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterNetwork | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterNetworkInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterResource | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterResourceType | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-ClusterSharedVolume | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
