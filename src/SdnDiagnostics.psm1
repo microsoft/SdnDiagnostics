@@ -927,14 +927,13 @@ function Start-SdnDataCollection {
         }
 
         if ($nodesToRemove.Count -gt 0) {
-            $nodesToRemove | ForEach-Object {
-                "Removing {0} from data collection due to WinRM connectivity issues" -f $_.Name | Trace-Output -Level:Warning
-                [void]$dataCollectionNodes.Remove($_)
+            foreach ($node in $nodesToRemove) {
+                "{0} with role {1} removed from data collection due to WinRM connectivity issues" -f $node.Name, $node.Role | Trace-Output -Level:Warning
+                $dataCollectionNodes = $dataCollectionNodes | Where-Object { $_.Name -ne $node.Name }
             }
         }
         $Global:ProgressPreference = 'Continue'
 
-        $dataCollectionNodes = $dataCollectionNodes | Sort-Object -Property Name -Unique
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
 
         # ensure SdnDiagnostics installed across the data nodes and versions are the same
@@ -1129,7 +1128,6 @@ function Start-SdnDataCollection {
     }
 
     $dataCollectionObject | Export-ObjectToFile -FilePath $OutputDirectory.FullName -Name 'SdnDataCollection_Summary' -FileType json -Depth 4 -ErrorAction Continue
-    Copy-Item -Path (Get-TraceOutputFile) -Destination $OutputDirectory.FullName -Force -ErrorAction Continue
 
     # we will return the object to the caller regardless if the data collection was successful or not
     $msg = "Sdn Data Collection completed with status of {0}" -f $dataCollectionObject.Result

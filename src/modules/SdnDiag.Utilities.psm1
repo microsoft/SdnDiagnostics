@@ -49,8 +49,8 @@ function Enable-SdnDiagTraceOutputLogging {
             Enables sdndiagnostics trace logging for the current machine.
     #>
 
-    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true, 'Machine')
-    return (Get-SdnDiagnosticTracing)
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $true)
+    return (Get-SdnDiagTraceOutputLogging)
 }
 
 function Disable-SdnDiagTraceOutputLogging {
@@ -59,7 +59,7 @@ function Disable-SdnDiagTraceOutputLogging {
             Disables sdndiagnostics trace logging for the current machine.
     #>
 
-    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false, 'Machine')
+    [Environment]::SetEnvironmentVariable('SDN_DIAG_TRACE_ENABLED', $false)
     return (Get-SdnDiagTraceOutputLogging)
 }
 
@@ -78,7 +78,7 @@ function Get-SdnDiagTraceOutputFile {
             Returns the sdndiagnostics trace log file. Even if the trace logging is disabled, this will return the path to the trace log file.
     #>
 
-    return ($Script:SdnDiagnostics_Utilities.Cache.TraceFilePath)
+    return (Get-TraceOutputFile)
 }
 
 function Confirm-DiskSpace {
@@ -367,20 +367,18 @@ function Confirm-RequiredFeaturesInstalled {
         [System.String[]]$Name
     )
 
+    if($null -eq $Name){
+        return $true
+    }
+
     try {
-
-        if($null -eq $Name){
-            return $true
-        }
-        else {
-            foreach($obj in $Name){
-                if(!(Get-WindowsFeature -Name $obj).Installed){
-                    return $false
-                }
+        foreach($obj in $Name){
+            if(-not (Get-WindowsFeature -Name $obj).Installed){
+                return $false
             }
-
-            return $true
         }
+
+        return $true
     }
     catch {
         $_ | Trace-Exception
@@ -1525,7 +1523,7 @@ function Invoke-PSRemoteCommand {
         [System.String]$Activity,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
-        [int]$ExecutionTimeout = 600
+        [int]$ExecutionTimeout = 900
     )
 
     $params = @{
@@ -2389,7 +2387,7 @@ function Wait-PSJob {
         [System.String]$Activity = (Get-PSCallStack)[1].Command,
 
         [Parameter(Mandatory = $false)]
-        [int]$ExecutionTimeOut = 600,
+        [int]$ExecutionTimeOut = 900,
 
         [Parameter(Mandatory = $false)]
         [int]$PollingInterval = 1
@@ -2412,12 +2410,13 @@ function Wait-PSJob {
             $status = "Progress: {0}%. Waiting for {1}" -f $percent, ($runningChildJobs.Location -join ', ')
             Write-Progress -Activity $Activity -Status $status -PercentComplete $percent -Id $job.Id
 
-            # check the stopwatch and break out of loop if we hit execution timeout limit
+            # check the stopwatch and if the elapsed time is greater than the timeout, stop the job
+            # and set the job state to failed
             if ($stopWatch.Elapsed.TotalSeconds -ge $ExecutionTimeOut) {
                 $stopWatch.Stop()
 
+                "[{0}] Job {1} has exceeded the timeout of {2} seconds. Stopping job." -f $Name, $job.Name, $ExecutionTimeOut | Trace-Output -Level:Warning
                 Get-Job -Name $Name | Stop-Job -Confirm:$false
-                throw New-Object System.TimeoutException("Unable to complete operation within the specified timeout period")
             }
 
             # pause the loop per polling interval value
@@ -2865,26 +2864,51 @@ function Get-EnvironmentMode {
 function Get-EnvironmentRole {
     $array = @('Common')
 
-    $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
-    foreach ($feature in $featuresInstalled) {
-        if ($feature.Name -ieq 'NetworkController') {
-            $array += 'NetworkController'
+    try {
+        $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
+        if ($null -eq $featuresInstalled) {
+            return $array
         }
 
-        if ($feature.Name -ieq 'Hyper-V') {
-            $array += 'Server'
+        # in some environments we may have multiple roles installed, such as Hyper-V and NetworkController
+        # which is valid configuration type when using failover cluster NC deployments
+        # however is not valid for SoftwareLoadBalancer or RemoteAccess or NetworkController (SF) to exist on Hyper-V host
+        if ($featuresInstalled.Name -icontains 'NetworkController') {
+
+            # if FabricHostSvc is running, we will assume that this is a Service Fabric NC cluster
+            if (Get-Service -Name 'FabricHostSvc' -ErrorAction Ignore) {
+                $array += 'NetworkController'
+            }
+
+            # if SDNApiService is running, we will assume that this is a Windows Server NC cluster
+            if (Get-Service -Name 'SDNApiService' -ErrorAction Ignore) {
+                $array += 'NetworkController'
+                $array += 'Server'
+            }
         }
 
-        if ($feature.Name -ieq 'RemoteAccess') {
+        if ($featuresInstalled.Name -icontains 'RemoteAccess') {
             $array += 'Gateway'
         }
 
-        if ($feature.Name -ieq 'SoftwareLoadBalancer') {
+        if ($featuresInstalled.Name -icontains 'SoftwareLoadBalancer') {
             $array += 'LoadBalancerMux'
         }
+
+        # examine the features installed to determine if this is a Hyper-V host
+        # if we have Hyper-V installed we want to exclude the SoftwareLoadBalancer and RemoteAccess roles
+        # as these roles are not valid on Hyper-V hosts
+        if ($featuresInstalled.Name -icontains 'Hyper-V') {
+            if ($featuresInstalled.Name -inotcontains "SoftwareLoadBalancer" -and $featuresInstalled.Name -inotcontains "RemoteAccess") {
+                $array += 'Server'
+            }
+        }
+    }
+    catch {
+        # suppress any errors here, as we do not want to fail the script
     }
 
-    return $array
+    return ($array | Sort-Object -Unique)
 }
 
 function Get-NugetArtifactPath {

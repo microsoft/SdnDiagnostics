@@ -2522,7 +2522,7 @@ function Test-SdnResourceConfigurationState {
     $array = @()
 
     try {
-        "Validating configuration state of {0}" -f $SdnEnvironmentObject.Role.ResourceName | Trace-Output
+        "Validating configuration state of {0}" -f $Resource | Trace-Output
 
         $sdnResources = Get-SdnResource @PSBoundParameters
         foreach ($object in $sdnResources) {
