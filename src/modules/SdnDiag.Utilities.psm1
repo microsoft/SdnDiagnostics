@@ -1816,11 +1816,16 @@ function New-PSRemotingSession {
     )
 
     begin {
+        [bool]$disableSeeding = $Global:SdnDiagnostics.Config.DisableModuleSeeding
+        [bool]$importModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession
+
         $importRemoteModule = {
-            param([string]$arg0, $arg1)
+            param([string]$arg0, $arg1, $arg2)
             try {
                 Import-Module $arg0 -ErrorAction Stop
-                $Global:SdnDiagnostics.Config = $arg1
+                $Global:SdnDiagnostics.Config.ModuleName = $arg0
+                $Global:SdnDiagnostics.Config.DisableModuleSeeding = $arg1
+                $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession = $arg2
             }
             catch {
                 throw $_
@@ -1859,7 +1864,7 @@ function New-PSRemotingSession {
                     $moduleImported = Invoke-Command -Session $session -ScriptBlock $confirmRemoteModuleImported -ArgumentList @($ModuleName) -ErrorAction Stop
                     if (-NOT $moduleImported) {
                         "Importing module {0} on remote session {1}" -f $ModuleName, $session.Name | Trace-Output -Level:Verbose
-                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $importModuleOnRemoteSession) -ErrorAction Stop
                     }
                 }
 
@@ -1912,7 +1917,7 @@ function New-PSRemotingSession {
                 "Created powershell session {0} to {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
                 if ($ImportModuleOnRemoteSession) {
                     "Importing module {0} on remote session {1}" -f $ModuleName, $session.Name | Trace-Output -Level:Verbose
-                    Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                    Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $importModuleOnRemoteSession) -ErrorAction Stop
                 }
 
                 # add the session to the array
@@ -2883,7 +2888,6 @@ function Get-EnvironmentRole {
             # if SDNApiService is running, we will assume that this is a Windows Server NC cluster
             if (Get-Service -Name 'SDNApiService' -ErrorAction Ignore) {
                 $array += 'NetworkController'
-                $array += 'Server'
             }
         }
 
@@ -2896,11 +2900,17 @@ function Get-EnvironmentRole {
         }
 
         # examine the features installed to determine if this is a Hyper-V host
-        # if we have Hyper-V installed we want to exclude the SoftwareLoadBalancer and RemoteAccess roles
-        # as these roles are not valid on Hyper-V hosts
+        # if the NetworkVirtualization feature is installed, we will assume that this is a Hyper-V host
+        # if the NetworkVirtualization feature is not installed, we will check to see if this is hosting virtual machines
         if ($featuresInstalled.Name -icontains 'Hyper-V') {
-            if ($featuresInstalled.Name -inotcontains "SoftwareLoadBalancer" -and $featuresInstalled.Name -inotcontains "RemoteAccess") {
+            if ($featuresInstalled.Name -icontains 'NetworkVirtualization') {
                 $array += 'Server'
+            }
+            else {
+                $virtualMachine = Get-CimInstance -Namespace 'root\virtualization\v2' -ClassName 'Msvm_ComputerSystem' -ErrorAction Ignore | Where-Object {$_.Caption -ieq  'Virtual Machine'}
+                if ($virtualMachine) {
+                    $array += 'Server'
+                }
             }
         }
     }
