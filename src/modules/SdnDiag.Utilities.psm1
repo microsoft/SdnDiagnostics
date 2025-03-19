@@ -2910,7 +2910,9 @@ function Get-EnvironmentRole {
             else {
                 $vSwitch = Get-CimInstance -Namespace "root\virtualization\v2" -Class "Msvm_VirtualEthernetSwitch" -ErrorAction Ignore
                 if ($vSwitch) {
-                    $array += 'Server'
+                    if ((Get-EnvironmentMode) -ine 'AzureStackHub') {
+                        $array += 'Server'
+                    }
                 }
             }
         }
