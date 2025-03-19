@@ -667,21 +667,11 @@ function Get-ServerConfigState {
         Get-SdnOvsdbPhysicalPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
-        # Gather Hyper-V network details
-        "Gathering Hyper-V network configuration details" | Trace-Output -Level:Verbose
-        Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
-        Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMSystemSwitchExtensionPortFeature -FeatureId "9940cd46-8b06-43bb-b9d5-93d50381fd56" | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMSwitchTeam | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-
         # enumerate the vm switches and gather details
         "Gathering VMSwitch details" | Trace-Output -Level:Verbose
+        Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-VMSwitchTeam | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-VMSystemSwitchExtensionPortFeature -FeatureId "9940cd46-8b06-43bb-b9d5-93d50381fd56" | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         $vmSwitch = Get-VMSwitch
         if ($vmSwitch) {
             $vmSwitchRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VMSwitch") -ItemType Directory -Force
@@ -711,6 +701,15 @@ function Get-ServerConfigState {
                 "Failed to execute {0}" -f $cmd | Trace-Output -Level:Error
             }
         }
+
+        # Gather Hyper-V network details
+        "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
+        Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception

@@ -535,6 +535,8 @@ function Get-CommonConfigState {
         Get-NetAdapterBinding | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterChecksumOffload | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterStatistics | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
         netsh winhttp show proxy | Export-ObjectToFile -FilePath $outDir -Name 'netsh_winhttp_show_proxy' -FileType txt -Force
