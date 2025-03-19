@@ -530,24 +530,17 @@ function Get-CommonConfigState {
         Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRdma | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterAdvancedProperty | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterBinding | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterChecksumOffload | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterStatistics | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
         netsh winhttp show proxy | Export-ObjectToFile -FilePath $outDir -Name 'netsh_winhttp_show_proxy' -FileType txt -Force
 
-        $netAdapter = Get-NetAdapter
-        if ($netAdapter) {
-            $netAdapterRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath 'NetAdapter') -ItemType Directory -Force
-            foreach ($adapter in $netAdapter) {
-                $prefix = $adapter.Name.ToString().Replace(' ','_').Trim()
-                $adapter | Get-NetAdapterAdvancedProperty -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterAdvancedProperty' -FileType txt -Format List
-                $adapter | Get-NetAdapterBinding -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterBinding' -FileType txt -Format List
-                $adapter | Get-NetAdapterChecksumOffload -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterChecksumOffload' -FileType txt -Format List
-                $adapter | Get-NetAdapterHardwareInfo -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterHardwareInfo' -FileType txt -Format List
-                $adapter | Get-NetAdapterRsc -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterRsc' -FileType txt -Format List
-                $adapter | Get-NetAdapterSriov -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterSriov' -FileType txt -Format List
-                $adapter | Get-NetAdapterStatistics -ErrorAction $ErrorActionPreference | Export-ObjectToFile -FilePath $netAdapterRootDir.FullName -Prefix $prefix -Name 'Get-NetAdapterStatistics' -FileType txt -Format List
-            }
-        }
+        Get-SmbClientNetworkInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-SmbClientConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         # Gather DNS client settings
         Get-DnsClient | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
