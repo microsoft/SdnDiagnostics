@@ -2900,19 +2900,16 @@ function Get-EnvironmentRole {
         }
 
         # examine the features installed to determine if this is a Hyper-V host
-        # check to see if any virtual machines are running on the node
-        # if no virtual machines are on the system, we will check to see if any virtual switches are present
+        # if the NetworkVirtualization feature is installed, we will assume that this is a Hyper-V host
+        # if the NetworkVirtualization feature is not installed, we will check to see if this is hosting virtual machines
         if ($featuresInstalled.Name -icontains 'Hyper-V') {
-            $virtualMachine = Get-CimInstance -Namespace 'root\virtualization\v2' -ClassName 'Msvm_ComputerSystem' -ErrorAction Ignore | Where-Object {$_.Caption -ieq  'Virtual Machine'}
-            if ($virtualMachine) {
+            if ($featuresInstalled.Name -icontains 'NetworkVirtualization') {
                 $array += 'Server'
             }
             else {
-                $vSwitch = Get-CimInstance -Namespace "root\virtualization\v2" -Class "Msvm_VirtualEthernetSwitch" -ErrorAction Ignore
-                if ($vSwitch) {
-                    if ((Get-EnvironmentMode) -ine 'AzureStackHub') {
-                        $array += 'Server'
-                    }
+                $virtualMachine = Get-CimInstance -Namespace 'root\virtualization\v2' -ClassName 'Msvm_ComputerSystem' -ErrorAction Ignore | Where-Object {$_.Caption -ieq  'Virtual Machine'}
+                if ($virtualMachine) {
+                    $array += 'Server'
                 }
             }
         }
