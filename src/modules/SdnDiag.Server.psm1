@@ -705,11 +705,14 @@ function Get-ServerConfigState {
         # Gather Hyper-V network details
         "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
         Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
-        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+
+        # due to the number of properties returned from Get-VMNetworkAdapter, we need to export as a text file
+        # otherwise it takes several minutes to write the data to the file and risks a timeout
+        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
     }
     catch {
         $_ | Trace-Exception
