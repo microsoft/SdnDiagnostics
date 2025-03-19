@@ -1817,10 +1817,12 @@ function New-PSRemotingSession {
 
     begin {
         $importRemoteModule = {
-            param([string]$arg0, $arg1)
+            param([string]$arg0, [bool]$arg1, [bool]$arg2)
             try {
                 Import-Module $arg0 -ErrorAction Stop
-                $Global:SdnDiagnostics.Config = $arg1
+                $Global:SdnDiagnostics.Config.ModuleName = $arg0
+                $Global:SdnDiagnostics.Config.DisableModuleSeeding = $arg1
+                $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession = $arg2
             }
             catch {
                 throw $_
@@ -1859,7 +1861,7 @@ function New-PSRemotingSession {
                     $moduleImported = Invoke-Command -Session $session -ScriptBlock $confirmRemoteModuleImported -ArgumentList @($ModuleName) -ErrorAction Stop
                     if (-NOT $moduleImported) {
                         "Importing module {0} on remote session {1}" -f $ModuleName, $session.Name | Trace-Output -Level:Verbose
-                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $Global:SdnDiagnostics.Config) -ErrorAction Stop
+                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $Global:SdnDiagnostics.Config.DisableModuleSeeding, $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession) -ErrorAction Stop
                     }
                 }
 
