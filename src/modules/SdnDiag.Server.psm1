@@ -634,7 +634,7 @@ function Get-ServerConfigState {
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose
-        foreach ($vm in (Get-WmiObject -na root\virtualization\v2 msvm_computersystem)) {
+        foreach ($vm in (Get-WmiObject -Namespace 'root\virtualization\v2' -Class 'msvm_computersystem')) {
             foreach ($vma in $vm.GetRelated("Msvm_SyntheticEthernetPort")) {
                 foreach ($port in $vma.GetRelated("Msvm_SyntheticEthernetPortSettingData").GetRelated("Msvm_EthernetPortAllocationSettingData").GetRelated("Msvm_EthernetSwitchPort")) {
                     $outputDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
