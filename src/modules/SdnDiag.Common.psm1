@@ -517,26 +517,50 @@ function Get-CommonConfigState {
         # gather network related configuration details
         "Gathering network details" | Trace-Output -Level:Verbose
 
-        # declare -Force on these to ensure the files written as txt/csv to prevent automatic conversion to json
-        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        # nettcpip module commands
+        Get-NetCompartment | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPAddress | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPInterface -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPv4Protocol | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPv6Protocol | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetNeighbor -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        Get-NetOffloadGlobalSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetPrefixPolicy | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
         Get-NetTCPConnection | Select-Object LocalAddress, LocalPort, RemoteAddress, RemotePort, State, OwningProcess, @{n="ProcessName";e={(Get-Process -Id $_.OwningProcess -ErrorAction $ErrorActionPreference).ProcessName}} `
         | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetTCPConnection' -FileType csv -Force
+        Get-NetTCPSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetTransportFilter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetUDPEndpoint | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetUDPSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
-        Get-NetIPInterface | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        # netconnection module commands
         Get-NetConnectionProfile | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapter | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterRdma | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+
+        # netadapter module commands
+        Get-NetAdapter -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterAdvancedProperty | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterBinding | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterChecksumOffload | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterDataPathConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterEncapsulatedPacketTaskOffload | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterHardwareInfo | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterIPsecOffload | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterLso | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterPacketDirect| Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterPowerManagement | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterQos | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRdma | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRsc | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRss | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriov | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterSriovVf | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterStatistics | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterUso | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterVmq | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterVmqQueue | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterVPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         ipconfig /allcompartments /all | Export-ObjectToFile -FilePath $outDir -Name 'ipconfig_allcompartments' -FileType txt -Force
         netsh winhttp show proxy | Export-ObjectToFile -FilePath $outDir -Name 'netsh_winhttp_show_proxy' -FileType txt -Force
