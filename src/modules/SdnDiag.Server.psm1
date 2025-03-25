@@ -704,15 +704,53 @@ function Get-ServerConfigState {
 
         # Gather Hyper-V network details
         "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
-        Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        $virtualMachines = Get-VM
+        if ($virtualMachines) {
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType csv -Force
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
+        }
 
-        # due to the number of properties returned from Get-VMNetworkAdapter, we need to export as a text file
-        # otherwise it takes several minutes to write the data to the file and risks a timeout
+        # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
+        # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
         Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+
+        # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
+        # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
+        if ($virtualMachines) {
+            $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
+            foreach ($vm in $virtualMachines) {
+                $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
+                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
+
+                $vmAdapters = $vm | Get-VMNetworkAdapter
+                foreach ($adapter in $vmAdapters) {
+                    $adapterNameFormatted = $adapter.Name.ToString().Replace(" ", "_").Trim()
+                    $prefix = $vmNameFormatted + "_" + $adapterNameFormatted
+
+                    $adapter | Get-VMNetworkAdapterAcl | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
+
+                    $adapter | Get-VMNetworkAdapterExtendedAcl | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType txt -Format List
+
+                    $adapter | Get-VMNetworkAdapterIsolation | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
+
+                    $adapter | Get-VMNetworkAdapterRoutingDomainMapping | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
+
+                    $adapter | Get-VMNetworkAdapterTeamMapping | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
+
+                    $adapter | Get-VMNetworkAdapterVLAN | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                }
+            }
+        }
     }
     catch {
         $_ | Trace-Exception
