@@ -638,16 +638,16 @@ function Get-ServerConfigState {
             foreach ($vma in $vm.GetRelated("Msvm_SyntheticEthernetPort")) {
                 foreach ($port in $vma.GetRelated("Msvm_SyntheticEthernetPortSettingData").GetRelated("Msvm_EthernetPortAllocationSettingData").GetRelated("Msvm_EthernetSwitchPort")) {
                     $outputDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
-                    vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_nat_range' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_rule' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_mapping' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_unifiied_flow' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_flow_settings' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_flow_stats' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_flow_stats' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_state' -Name $port.Name -FileType txt -Force
+                    vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_nat_range' -FileType txt -Force
+                    vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_rule' -FileType txt -Force
+                    vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_mapping' -FileType txt -Force
+                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_unifiied_flow'  -FileType txt -Force
+                    vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_settings' -FileType txt -Force
+                    vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_stats'  -FileType txt -Force
+                    vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_flow_stats' -FileType txt -Force
+                    vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_state' -FileType txt -Force
 
-                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'Get-SdnVfpPortState' -Name $port.Name -FileType txt -Format Table
+                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'Get-SdnVfpPortState' -FileType txt -Format Table
                 }
             }
         }
@@ -726,28 +726,36 @@ function Get-ServerConfigState {
                 $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
                 $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
 
-                $vmAdapters = $vm | Get-VMNetworkAdapter
+                $vmAdapters = $vm.NetworkAdapters
+                if ($null -eq $vmAdapters) {
+                    continue
+                }
+
                 foreach ($adapter in $vmAdapters) {
-                    $adapterNameFormatted = $adapter.Name.ToString().Replace(" ", "_").Trim()
-                    $prefix = $vmNameFormatted + "_" + $adapterNameFormatted
+                    try {
+                        $prefix = (Format-MacAddress -MacAddress $adapter.MacAddress)
 
-                    $adapter | Get-VMNetworkAdapterAcl | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
+                        Get-VMNetworkAdapterAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
 
-                    $adapter | Get-VMNetworkAdapterExtendedAcl | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType txt -Format List
+                        Get-VMNetworkAdapterExtendedAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType txt -Format List
 
-                    $adapter | Get-VMNetworkAdapterIsolation | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
+                        Get-VMNetworkAdapterIsolation -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
 
-                    $adapter | Get-VMNetworkAdapterRoutingDomainMapping | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
+                        Get-VMNetworkAdapterRoutingDomainMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
 
-                    $adapter | Get-VMNetworkAdapterTeamMapping | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
+                        Get-VMNetworkAdapterTeamMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
 
-                    $adapter | Get-VMNetworkAdapterVLAN | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                        | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                        Get-VMNetworkAdapterVLAN -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                        }
+                    catch {
+                        "Failed to enumerate VMNetworkAdapter for {0}" -f $adapter.Name | Trace-Output -Level:Warning
+                    }
                 }
             }
         }
