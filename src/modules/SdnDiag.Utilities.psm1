@@ -1126,8 +1126,6 @@ function Format-MacAddressNoDashes {
         [System.String]$MacAddress
     )
 
-    "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
-
     if($MacAddress.Split('-').Count -eq 6){
         foreach($obj in $MacAddress.Split('-')){
             if($obj.Length -ne 2){
@@ -1150,8 +1148,6 @@ function Format-MacAddressWithDashes {
     param (
         [System.String]$MacAddress
     )
-
-    "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
 
     if($MacAddress.Split('-').Count -eq 6){
         foreach($obj in $MacAddress.Split('-')){
