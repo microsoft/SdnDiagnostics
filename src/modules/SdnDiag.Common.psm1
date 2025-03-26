@@ -1281,7 +1281,7 @@ function Enable-SdnVipTrace {
             # since the ipConfiguration is a subobject of the network interface, we need to split the resourceRef to get the network interface resource
             # since we know the resourceRefs are defined as /networkInterfaces/{guid}/ipConfigurations/{guid}, we can split on the '/' and get the 3rd element
             $netInterface = Get-SdnResource @ncRestParams -ResourceRef "/networkInterfaces/$($_.Split('/')[2])"
-            $macAddress = Format-MacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
+            $macAddress = Format-SdnMacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
             $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
             if ($null -ieq $vfpPort) {
                 throw "Unable to locate vfp switch port for $macAddress"

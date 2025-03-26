@@ -723,7 +723,7 @@ function Get-ServerConfigState {
                 # calling each function such as Get-VMNetworkAdapter or Get-VMNetworkAdapterVlan will enumerate the VMNetworkAdapters again and slow down the process
                 foreach ($adapter in $vmAdapters) {
                     try {
-                        $prefix = (Format-MacAddress -MacAddress $adapter.MacAddress)
+                        $prefix = (Format-SdnMacAddress -MacAddress $adapter.MacAddress)
 
                         $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
                         $adapter.AclList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
@@ -2554,7 +2554,7 @@ function Get-SdnVMNetworkAdapter {
     try {
         $adapters = Get-VMNetworkAdapter @PSBoundParameters
         if ($PSBoundParameters.ContainsKey('MacAddress')) {
-            $macAddress = Format-MacAddress -MacAddress $MacAddress
+            $macAddress = Format-SdnMacAddress -MacAddress $MacAddress
             $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress }
         }
 

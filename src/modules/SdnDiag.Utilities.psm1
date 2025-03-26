@@ -1093,7 +1093,7 @@ function Format-ByteSize {
     })
 }
 
-function Format-MacAddress {
+function Format-SdnMacAddress {
     <#
     .SYNOPSIS
         Returns a consistent MAC address back formatted with or without dashes
