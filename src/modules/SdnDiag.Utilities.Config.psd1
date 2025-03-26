@@ -8,4 +8,14 @@
     )
     DefaultModuleDirectory = "C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics"
     WorkingDirectory = "C:\Windows\Tracing\SdnDiag"
+    ExportFiles = @{
+        Depth3 = @(
+            'Get-NetAdapterChecksumOffload'
+            'Get-NetAdapterLso'
+            'Get-NetAdapterRdma'
+            'Get-NetAdapterRsc'
+            'Get-NetIPConfiguration'
+            'Get-SdnVfpVmSwitchPort'
+        )
+    }
 }

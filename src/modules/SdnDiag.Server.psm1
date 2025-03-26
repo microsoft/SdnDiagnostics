@@ -734,24 +734,12 @@ function Get-ServerConfigState {
                 foreach ($adapter in $vmAdapters) {
                     try {
                         $prefix = (Format-MacAddress -MacAddress $adapter.MacAddress)
-
-                        Get-VMNetworkAdapterAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
-
-                        Get-VMNetworkAdapterExtendedAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType txt -Format List
-
-                        Get-VMNetworkAdapterIsolation -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
-
-                        Get-VMNetworkAdapterRoutingDomainMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
-
-                        Get-VMNetworkAdapterTeamMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
-
-                        Get-VMNetworkAdapterVLAN -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
-                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                        Get-VMNetworkAdapterAcl -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
+                        Get-VMNetworkAdapterExtendedAcl -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
+                        Get-VMNetworkAdapterIsolation -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
+                        Get-VMNetworkAdapterRoutingDomainMapping -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
+                        Get-VMNetworkAdapterTeamMapping -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
+                        Get-VMNetworkAdapterVLAN -VMNetworkAdapter $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -FileType txt -Format List
                         }
                     catch {
                         "Failed to enumerate VMNetworkAdapter for {0}" -f $adapter.Name | Trace-Output -Level:Warning

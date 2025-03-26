@@ -555,7 +555,7 @@ function Get-CommonConfigState {
         Get-NetAdapterQos -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterRdma -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterRsc -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetAdapterRss -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetAdapterRss -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List -Force
         Get-NetAdapterSriov -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterSriovVf -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetAdapterStatistics -IncludeHidden | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
