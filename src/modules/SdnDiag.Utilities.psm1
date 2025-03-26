@@ -2992,4 +2992,45 @@ function Get-SubnetMaskFromCidr {
     return ( $octets -join ('.') )
 }
 
+function Remove-PropertiesFromObject {
+    <#
+    .SYNOPSIS
+        Creates a PSCustomObject with the specified properties removed.
+    .PARAMETER Object
+        The object to remove properties from.
+    .PARAMETER PropertiesToRemove
+        The properties to remove from the object.
+    .EXAMPLE
+        $object = Get-Process | Select-Object -First 1
+        $object | Remove-PropertiesFromObject -PropertiesToRemove 'Handles', 'VM'
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        $Object,
 
+        [Parameter()]
+        [string[]]$PropertiesToRemove
+    )
+
+    begin {
+        $array = @()
+    }
+    process {
+        foreach ($obj in $Object) {
+            $customObject = [PSCustomObject]@{}
+            foreach ($property in $Object.PSObject.Properties) {
+                if  ($PropertiesToRemove -contains $property.Name) {
+                    continue
+                }
+
+                $customObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+            }
+
+            $array += $customObject
+        }
+    }
+    end {
+        return $array
+    }
+}

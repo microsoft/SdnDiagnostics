@@ -634,20 +634,20 @@ function Get-ServerConfigState {
 
         # Gather VFP port configuration details
         "Gathering VFP port details" | Trace-Output -Level:Verbose
-        foreach ($vm in (Get-WmiObject -na root\virtualization\v2 msvm_computersystem)) {
+        foreach ($vm in (Get-WmiObject -Namespace 'root\virtualization\v2' -Class 'msvm_computersystem')) {
             foreach ($vma in $vm.GetRelated("Msvm_SyntheticEthernetPort")) {
                 foreach ($port in $vma.GetRelated("Msvm_SyntheticEthernetPortSettingData").GetRelated("Msvm_EthernetPortAllocationSettingData").GetRelated("Msvm_EthernetSwitchPort")) {
                     $outputDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
-                    vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_nat_range' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_rule' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_mapping' -Name $port.Name -FileType txt -Force
-                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_list_unifiied_flow' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_flow_settings' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_flow_stats' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_flow_stats' -Name $port.Name -FileType txt -Force
-                    vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'vfpctrl_get_port_state' -Name $port.Name -FileType txt -Force
+                    vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_nat_range' -FileType txt -Force
+                    vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_rule' -FileType txt -Force
+                    vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_mapping' -FileType txt -Force
+                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_unifiied_flow'  -FileType txt -Force
+                    vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_settings' -FileType txt -Force
+                    vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_stats'  -FileType txt -Force
+                    vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_flow_stats' -FileType txt -Force
+                    vfpctrl /get-port-state /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_state' -FileType txt -Force
 
-                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix 'Get-SdnVfpPortState' -Name $port.Name -FileType txt -Format Table
+                    Get-SdnVfpPortState -PortName $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'Get-SdnVfpPortState' -FileType txt -Format Table
                 }
             }
         }
@@ -704,15 +704,61 @@ function Get-ServerConfigState {
 
         # Gather Hyper-V network details
         "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
-        Get-VM | Export-ObjectToFile -FilePath $outDir -FileType csv -Force
+        $virtualMachines = Get-VM
+        if ($virtualMachines) {
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType csv -Force
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
+        }
 
-        # due to the number of properties returned from Get-VMNetworkAdapter, we need to export as a text file
-        # otherwise it takes several minutes to write the data to the file and risks a timeout
+        # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
+        # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
         Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
         Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+
+        # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
+        # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
+        if ($virtualMachines) {
+            $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
+            foreach ($vm in $virtualMachines) {
+                $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
+                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
+
+                $vmAdapters = $vm.NetworkAdapters
+                if ($null -eq $vmAdapters) {
+                    continue
+                }
+
+                foreach ($adapter in $vmAdapters) {
+                    try {
+                        $prefix = (Format-MacAddress -MacAddress $adapter.MacAddress)
+
+                        Get-VMNetworkAdapterAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterAcl' -FileType txt -Format List
+
+                        Get-VMNetworkAdapterExtendedAcl -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterExtendedAcl' -FileType txt -Format List
+
+                        Get-VMNetworkAdapterIsolation -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterIsolation' -FileType txt -Format List
+
+                        Get-VMNetworkAdapterRoutingDomainMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterRoutingDomainMapping' -FileType txt -Format List
+
+                        Get-VMNetworkAdapterTeamMapping -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterTeamMapping' -FileType txt -Format List
+
+                        Get-VMNetworkAdapterVLAN -VMNetworkAdapter $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' `
+                            | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VMNetworkAdapterVLAN' -FileType txt -Format List
+                        }
+                    catch {
+                        "Failed to enumerate VMNetworkAdapter for {0}" -f $adapter.Name | Trace-Output -Level:Warning
+                    }
+                }
+            }
+        }
     }
     catch {
         $_ | Trace-Exception
@@ -1325,136 +1371,130 @@ function Get-VfpVMSwitchPort {
     #>
 
     $arrayList = [System.Collections.ArrayList]::new()
+    $vfpResults = vfpctrl /list-vmswitch-port
+    if([string]::IsNullOrEmpty($vfpResults)) {
+        $msg = "Unable to retrieve vmswitch ports from vfpctrl"
+        throw New-Object System.NullReferenceException($msg)
+    }
 
-    try {
-        $vfpResults = vfpctrl /list-vmswitch-port
-        if([string]::IsNullOrEmpty($vfpPortState)) {
-            $msg = "Unable to retrieve vmswitch ports from vfpctrl"
-            throw New-Object System.NullReferenceException($msg)
+    # if the line contains a failure, then throw an error and exit the function
+    # this is typically the first line in the output
+    if ($vfpResults[0] -ilike "ERROR:*") {
+        $msg = $vfpResults[0].Split(':')[1].Trim()
+        throw New-Object System.Exception($msg)
+    }
+
+    foreach ($line in $vfpResults) {
+        $line = $line.Trim()
+
+        if ([string]::IsNullOrEmpty($line)) {
+            continue
         }
 
-        # if the line contains a failure, then throw an error and exit the function
-        # this is typically the first line in the output
-        if ($vfpPortState[0] -ilike "ERROR:*") {
-            $msg = $vfpPortState[0].Split(':')[1].Trim()
-            throw New-Object System.Exception($msg)
-        }
+        # lines in the VFP output that contain : contain properties and values
+        # need to split these based on count of ":" to build key and values
+        # some values related to ingress packet drops have multiple ":" so need to account for that
+        # example: {property} : {reason} : {value}
+        # example: {property} : {value}
+        if ($line.Contains(":")) {
+            [System.String[]]$results = $line.Split(':').Trim()
+            if ($results.Count -eq 3) {
+                $key    = $results[1].Replace(' ','').Trim() # we want the key to align with the {reason}
+                $value  = $results[2].Trim()
 
-        foreach ($line in $vfpResults) {
-            $line = $line.Trim()
-
-            if ([string]::IsNullOrEmpty($line)) {
-                continue
-            }
-
-            # lines in the VFP output that contain : contain properties and values
-            # need to split these based on count of ":" to build key and values
-            # some values related to ingress packet drops have multiple ":" so need to account for that
-            # example: {property} : {reason} : {value}
-            # example: {property} : {value}
-            if ($line.Contains(":")) {
-                [System.String[]]$results = $line.Split(':').Trim()
-                if ($results.Count -eq 3) {
-                    $key    = $results[1].Replace(' ','').Trim() # we want the key to align with the {reason}
-                    $value  = $results[2].Trim()
-
-                    if ($results[0].Trim() -eq 'Ingress packet drops') {
-                        $object.NicStatistics.IngressDropReason.$key = $value
-                    }
-                    elseif($results[0].Trim() -eq 'Egress packet drops') {
-                        $object.NicStatistics.EgressDropReason.$key = $value
-                    }
+                if ($results[0].Trim() -eq 'Ingress packet drops') {
+                    $object.NicStatistics.IngressDropReason.$key = $value
                 }
-                elseif ($results.Count -eq 2) {
-                    $key    = $results[0].Trim() # we want the key to align with the {property}
-                    $value  = $results[1].Trim()
-
-                    switch ($key) {
-                        # all ports start with the port name property
-                        # so we will key off this property to know when to add the object to the array
-                        # and to create a new object
-                        'Port name' {
-                            if ($object) {
-                                [void]$arrayList.Add($object)
-                            }
-
-                            $object = [VfpVmSwitchPort]@{
-                                PortName = $value
-                            }
-
-                            continue
-                        }
-
-                        "SR-IOV Weight" { $object.SRIOVWeight = $value }
-                        "SR-IOV Usage" { $object.SRIOVUsage = $value }
-
-                        # populate the NicStatistics object
-                        'Bytes Sent' { $object.NicStatistics.BytesSent = $value }
-                        'Bytes Received' { $object.NicStatistics.BytesReceived = $value }
-                        'Ingress Packet Drops' { $object.NicStatistics.IngressPacketDrops = $value }
-                        'Egress Packet Drops' { $object.NicStatistics.EgressPacketDrops = $value }
-                        'Ingress VFP Drops' { $object.NicStatistics.IngressVfpDrops = $value }
-                        'Egress VFP Drops' { $object.NicStatistics.EgressVfpDrops = $value }
-
-                        # populate the VmNicStatistics object
-                        'Packets Sent' { $object.VmNicStatistics.PacketsSent = $value }
-                        'Packets Received' { $object.VmNicStatistics.PacketsReceived = $value }
-                        'Interrupts Received' { $object.VmNicStatistics.InterruptsReceived = $value }
-                        'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
-                        'Send Buffer Allocation Size' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
-                        'Receive Buffer Allocation Count' { $object.VmNicStatistics.ReceiveBufferAllocationCount = $value }
-                        'Receive Buffer Allocation Size' { $object.VmNicStatistics.ReceiveBufferAllocationSize = $value }
-                        'Pending Link Change' { $object.VmNicStatistics.PendingLinkChange = $value }
-                        'Ring Buffer Full Errors' { $object.VmNicStatistics.RingBufferFullErrors = $value }
-                        'Pending Routed Packets' { $object.VmNicStatistics.PendingRoutedPackets = $value }
-                        'Insufficient Receive Buffers' { $object.VmNicStatistics.InsufficientReceiveBuffers = $value }
-                        'Insufficient Send Buffers' { $object.VmNicStatistics.InsufficientSendBuffers = $value }
-                        'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperationsBuffers = $value }
-                        'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceededErrors = $value }
-                        'Vsp Paused' { $object.VmNicStatistics.VspPaused = $value }
-
-                        # most of the property names, we can just trim and remove the white spaces
-                        # which will align to the class property names
-                        default {
-                            try {
-                                $key = $key.Replace(' ','').Trim()
-                                $object.$key = $value
-                            }
-                            catch {
-                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                                continue
-                            }
-                        }
-                    }
+                elseif($results[0].Trim() -eq 'Egress packet drops') {
+                    $object.NicStatistics.EgressDropReason.$key = $value
                 }
             }
-            else {
-                switch -Wildcard ($line) {
-                    "Port is*" { $object.PortState = $line.Split(' ')[2].Replace('.','').Trim() }
-                    "MAC Learning is*" { $object.MacLearning = $line.Split(' ')[3].Replace('.','').Trim() }
-                    "NIC is*" { $object.NicState = $line.Split(' ')[2].Replace('.','').Trim() }
-                    "*list-vmswitch-port*" {
-                        # we have reached the end of the file at this point
-                        # and should add any remaining objects to the array
+            elseif ($results.Count -eq 2) {
+                $key    = $results[0].Trim() # we want the key to align with the {property}
+                $value  = $results[1].Trim()
+
+                switch ($key) {
+                    # all ports start with the port name property
+                    # so we will key off this property to know when to add the object to the array
+                    # and to create a new object
+                    'Port name' {
                         if ($object) {
                             [void]$arrayList.Add($object)
                         }
-                    }
-                    default {
-                        # the line does not contain anything we looking for
-                        # and we can skip it and proceed to next
+
+                        $object = [VfpVmSwitchPort]@{
+                            PortName = $value
+                        }
+
                         continue
+                    }
+
+                    "SR-IOV Weight" { $object.SRIOVWeight = $value }
+                    "SR-IOV Usage" { $object.SRIOVUsage = $value }
+
+                    # populate the NicStatistics object
+                    'Bytes Sent' { $object.NicStatistics.BytesSent = $value }
+                    'Bytes Received' { $object.NicStatistics.BytesReceived = $value }
+                    'Ingress Packet Drops' { $object.NicStatistics.IngressPacketDrops = $value }
+                    'Egress Packet Drops' { $object.NicStatistics.EgressPacketDrops = $value }
+                    'Ingress VFP Drops' { $object.NicStatistics.IngressVfpDrops = $value }
+                    'Egress VFP Drops' { $object.NicStatistics.EgressVfpDrops = $value }
+
+                    # populate the VmNicStatistics object
+                    'Packets Sent' { $object.VmNicStatistics.PacketsSent = $value }
+                    'Packets Received' { $object.VmNicStatistics.PacketsReceived = $value }
+                    'Interrupts Received' { $object.VmNicStatistics.InterruptsReceived = $value }
+                    'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
+                    'Send Buffer Allocation Size' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
+                    'Receive Buffer Allocation Count' { $object.VmNicStatistics.ReceiveBufferAllocationCount = $value }
+                    'Receive Buffer Allocation Size' { $object.VmNicStatistics.ReceiveBufferAllocationSize = $value }
+                    'Pending Link Change' { $object.VmNicStatistics.PendingLinkChange = $value }
+                    'Ring Buffer Full Errors' { $object.VmNicStatistics.RingBufferFullErrors = $value }
+                    'Pending Routed Packets' { $object.VmNicStatistics.PendingRoutedPackets = $value }
+                    'Insufficient Receive Buffers' { $object.VmNicStatistics.InsufficientReceiveBuffers = $value }
+                    'Insufficient Send Buffers' { $object.VmNicStatistics.InsufficientSendBuffers = $value }
+                    'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperationsBuffers = $value }
+                    'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceededErrors = $value }
+                    'Vsp Paused' { $object.VmNicStatistics.VspPaused = $value }
+
+                    # most of the property names, we can just trim and remove the white spaces
+                    # which will align to the class property names
+                    default {
+                        try {
+                            $key = $key.Replace(' ','').Trim()
+                            $object.$key = $value
+                        }
+                        catch {
+                            $_ | Trace-Exception
+                            $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                            continue
+                        }
                     }
                 }
             }
         }
+        else {
+            switch -Wildcard ($line) {
+                "Port is*" { $object.PortState = $line.Split(' ')[2].Replace('.','').Trim() }
+                "MAC Learning is*" { $object.MacLearning = $line.Split(' ')[3].Replace('.','').Trim() }
+                "NIC is*" { $object.NicState = $line.Split(' ')[2].Replace('.','').Trim() }
+                "*list-vmswitch-port*" {
+                    # we have reached the end of the file at this point
+                    # and should add any remaining objects to the array
+                    if ($object) {
+                        [void]$arrayList.Add($object)
+                    }
+                }
+                default {
+                    # the line does not contain anything we looking for
+                    # and we can skip it and proceed to next
+                    continue
+                }
+            }
+        }
+    }
 
-        return $arrayList
-    }
-    catch {
-        return $object
-        $_ | Trace-Exception
-    }
+    return $arrayList
 }
 
 function Get-SdnNetAdapterEncapOverheadConfig {
