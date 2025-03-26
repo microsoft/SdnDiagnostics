@@ -14,6 +14,8 @@
             'Get-NetAdapterLso'
             'Get-NetAdapterRdma'
             'Get-NetAdapterRsc'
+            'Get-NetAdapterRss'
+            'Get-NetAdapterStatistics'
             'Get-NetIPConfiguration'
             'Get-SdnVfpVmSwitchPort'
         )

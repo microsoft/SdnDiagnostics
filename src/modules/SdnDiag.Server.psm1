@@ -710,13 +710,11 @@ function Get-ServerConfigState {
             $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
         }
 
-        # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
-        # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
-        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
-        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table -Force
+        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
 
         # when enumerating the VMNetworkAdapters, we need to remove the ParentAdapter and CimSession properties
         # this is because of a flaw with Get-VMNetworkAdapter cmdlets embedding the CIM information numerous times within a single object
