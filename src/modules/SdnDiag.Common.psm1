@@ -522,8 +522,8 @@ function Get-CommonConfigState {
         Get-NetIPAddress -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetIPConfiguration -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetIPInterface -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetIPv4Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv4Protocol_IPv4' -FileType txt -Format List
-        Get-NetIPv6Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv4Protocol_IPv6' -FileType txt -Format List
+        Get-NetIPv4Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv4Protocol' -FileType txt -Format List
+        Get-NetIPv6Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv6Protocol' -FileType txt -Format List
         Get-NetNeighbor -AddressFamily IPv6 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetNeighbor_IPv6' -FileType txt -Format Table -Force
         Get-NetNeighbor -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetNeighbor_IPv4' -FileType txt -Format Table -Force
         Get-NetOffloadGlobalSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
