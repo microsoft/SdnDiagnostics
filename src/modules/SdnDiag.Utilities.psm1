@@ -963,7 +963,7 @@ function Export-ObjectToFile {
         # this is to prevent the json object from being too large and causing issues with serialization
         # or causing the json object to not have enough details
         if ($FileType -ieq 'json') {
-            if ($Name -iin $script:SdnDiagnostics_Utilities.Config.ExportFiles['Depth3']) {
+            if ($Name -iin $script:SdnDiagnostics_Utilities.Config.ExportFileJsonDepth['3']) {
                 $Depth = 3
             }
             else {
