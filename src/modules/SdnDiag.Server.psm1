@@ -742,10 +742,10 @@ function Get-ServerConfigState {
         # enumerate the data for all adapters and place in the root output directory
         Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
+        Get-VMNetworkAdapterRoutingDomainMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
     }
     catch {
         $_ | Trace-Exception
