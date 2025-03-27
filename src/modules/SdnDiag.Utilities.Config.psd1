@@ -8,4 +8,16 @@
     )
     DefaultModuleDirectory = "C:\Program Files\WindowsPowerShell\Modules\SdnDiagnostics"
     WorkingDirectory = "C:\Windows\Tracing\SdnDiag"
+    ExportFileJsonDepth = @{
+        3 = @(
+            'Get-NetAdapterChecksumOffload'
+            'Get-NetAdapterLso'
+            'Get-NetAdapterRdma'
+            'Get-NetAdapterRsc'
+            'Get-NetAdapterRss'
+            'Get-NetAdapterStatistics'
+            'Get-NetIPConfiguration'
+            'Get-SdnVfpVmSwitchPort'
+        )
+    }
 }

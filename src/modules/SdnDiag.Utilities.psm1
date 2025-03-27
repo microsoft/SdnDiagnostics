@@ -952,7 +952,6 @@ function Export-ObjectToFile {
 
     begin {
         $arrayList = [System.Collections.ArrayList]::new()
-
         # if the environment is AzureStackHCI or AzureStackHub, then we will default to json
         # unless the user defines Force to override the default behavior to prevent issues with trying to convert non-standard objects to json
         # such as data related to netsh or other legacy command line tools
@@ -964,13 +963,11 @@ function Export-ObjectToFile {
         # this is to prevent the json object from being too large and causing issues with serialization
         # or causing the json object to not have enough details
         if ($FileType -ieq 'json') {
-            switch ($Name) {
-                'Get-SdnVfpVmSwitchPort' {
-                    $Depth = 3
-                }
-                default {
-                    # do nothing unique
-                }
+            if ($Name -iin $script:SdnDiagnostics_Utilities.Config.ExportFileJsonDepth['3']) {
+                $Depth = 3
+            }
+            else {
+                # accept the default depth of 2 for all other objects
             }
         }
 
@@ -995,13 +992,33 @@ function Export-ObjectToFile {
         }
     }
     process {
-        # if the object is null, then we will not add it to the array list
-        # this is to prevent the array list from being empty and causing issues with the export
-        if ($null -eq $Object) {
-            return
-        }
+        foreach ($obj in $Object) {
+            if ($null -eq $obj) {
+                continue  # skips this object, continues with next object
+            }
 
-        $arrayList.AddRange($Object)
+            # we need to enum the object type as there may be lots of extra properties that are not needed
+            # which we will want to remove from the object beofre exporting it out
+            if ($FileType -ieq 'json') {
+                $objectTypeName = $obj.GetType().Name
+                switch -Wildcard ($objectTypeName) {
+                    'CimInstance' {
+                        $obj = $obj | Remove-PropertiesFromObject -PropertiesToRemove 'CimClass','CimInstanceProperties','CimSystemProperties'
+                        break
+                    }
+                    'VMNetworkAdapter*' {
+                        $obj = $obj | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession'
+                        break
+                    }
+                    default {
+                        # do nothing here at this time
+                    }
+                }
+            }
+
+            # leverage void to prevent noise generated from the add method
+            [void]$arrayList.Add($obj)
+        }
     }
     end {
         # if no objects are passed, then do not create the file
@@ -1076,7 +1093,7 @@ function Format-ByteSize {
     })
 }
 
-function Format-MacAddress {
+function Format-SdnMacAddress {
     <#
     .SYNOPSIS
         Returns a consistent MAC address back formatted with or without dashes
@@ -1109,8 +1126,6 @@ function Format-MacAddressNoDashes {
         [System.String]$MacAddress
     )
 
-    "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
-
     if($MacAddress.Split('-').Count -eq 6){
         foreach($obj in $MacAddress.Split('-')){
             if($obj.Length -ne 2){
@@ -1133,8 +1148,6 @@ function Format-MacAddressWithDashes {
     param (
         [System.String]$MacAddress
     )
-
-    "Processing {0}" -f $MacAddress | Trace-Output -Level:Verbose
 
     if($MacAddress.Split('-').Count -eq 6){
         foreach($obj in $MacAddress.Split('-')){

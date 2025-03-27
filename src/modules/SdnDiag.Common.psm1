@@ -522,10 +522,10 @@ function Get-CommonConfigState {
         Get-NetIPAddress -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetIPConfiguration -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetIPInterface -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetIPv4Protocol | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
-        Get-NetIPv6Protocol | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
+        Get-NetIPv4Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv4Protocol' -FileType txt -Format List
+        Get-NetIPv6Protocol | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIPv6Protocol' -FileType txt -Format List
         Get-NetNeighbor -AddressFamily IPv6 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetNeighbor_IPv6' -FileType txt -Format Table -Force
-        Get-NetNeighbor -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetNeighbor_IPv6' -FileType txt -Format Table -Force
+        Get-NetNeighbor -AddressFamily IPv4 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetNeighbor_IPv4' -FileType txt -Format Table -Force
         Get-NetOffloadGlobalSetting | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetPrefixPolicy | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-NetRoute -AddressFamily IPv6 -IncludeAllCompartments | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetRoute_IPv6' -FileType txt -Format Table -Force
@@ -1281,7 +1281,7 @@ function Enable-SdnVipTrace {
             # since the ipConfiguration is a subobject of the network interface, we need to split the resourceRef to get the network interface resource
             # since we know the resourceRefs are defined as /networkInterfaces/{guid}/ipConfigurations/{guid}, we can split on the '/' and get the 3rd element
             $netInterface = Get-SdnResource @ncRestParams -ResourceRef "/networkInterfaces/$($_.Split('/')[2])"
-            $macAddress = Format-MacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
+            $macAddress = Format-SdnMacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
             $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
             if ($null -ieq $vfpPort) {
                 throw "Unable to locate vfp switch port for $macAddress"
