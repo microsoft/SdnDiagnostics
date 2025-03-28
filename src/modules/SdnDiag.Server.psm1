@@ -711,13 +711,13 @@ function Get-ServerConfigState {
 
             $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
             foreach ($vm in $virtualMachines) {
-                $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
-                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
-
                 $vmAdapters = $vm.NetworkAdapters
                 if ($null -eq $vmAdapters) {
                     continue
                 }
+
+                $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
+                $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
 
                 # enumerate the VMNetworkAdapters and gather details within the VM properties itself to speed up data processing
                 # calling each function such as Get-VMNetworkAdapter or Get-VMNetworkAdapterVlan will enumerate the VMNetworkAdapters again and slow down the process
@@ -725,7 +725,8 @@ function Get-ServerConfigState {
                     try {
                         $prefix = (Format-SdnMacAddress -MacAddress $adapter.MacAddress)
 
-                        $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
+                        $adapterModified = $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'AclList','ExtendedAclList','IsolationSetting','RoutingDomainList','VlanSetting','CimSession'
+                        $adapterModified | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
                         $adapter.AclList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
                         $adapter.ExtendedAclList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
                         $adapter.IsolationSetting | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
@@ -744,7 +745,6 @@ function Get-ServerConfigState {
         Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_All' -FileType txt -Format Table
         Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format Table
-        Get-VMNetworkAdapterTeamMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterTeamMapping_ManagementOS' -FileType txt -Format Table
         Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
         Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN _ManagementOS' -FileType txt -Format Table
