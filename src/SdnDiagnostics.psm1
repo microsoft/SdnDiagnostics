@@ -973,7 +973,7 @@ function Start-SdnDataCollection {
             ArgumentList     = @($tempDirectory.FullName)
             AsJob            = $true
             PassThru         = $true
-            ExecutionTimeout = 1200 # 20 minutes
+            ExecutionTimeout = 1800 # 30 minutes
             Activity         = "Collect Configuration State"
         }
         Invoke-PSRemoteCommand @splat
@@ -999,7 +999,7 @@ function Start-SdnDataCollection {
                 ArgumentList     = @($tempDirectory.FullName)
                 AsJob            = $true
                 PassThru         = $true
-                ExecutionTimeout = 1200 # 20 minutes
+                ExecutionTimeout = 1800 # 30 minutes
                 Activity         = 'Collect Get-NetView'
             }
             $null = Invoke-PSRemoteCommand @splat
