@@ -967,13 +967,14 @@ function Start-SdnDataCollection {
 
         "Collect configuration state details" | Trace-Output
         $splat = @{
-            ComputerName = $dataCollectionNodes.Name
-            Credential   = $Credential
-            ScriptBlock  = $collectConfigStateSB
-            ArgumentList = @($tempDirectory.FullName)
-            AsJob        = $true
-            PassThru     = $true
-            Activity     = "Collect Configuration State"
+            ComputerName     = $dataCollectionNodes.Name
+            Credential       = $Credential
+            ScriptBlock      = $collectConfigStateSB
+            ArgumentList     = @($tempDirectory.FullName)
+            AsJob            = $true
+            PassThru         = $true
+            ExecutionTimeout = 1200 # 20 minutes
+            Activity         = "Collect Configuration State"
         }
         Invoke-PSRemoteCommand @splat
 
@@ -992,13 +993,14 @@ function Start-SdnDataCollection {
         if ($IncludeNetView) {
             "Collecting Get-NetView" | Trace-Output
             $splat = @{
-                ComputerName = $dataCollectionNodes.Name
-                Credential   = $Credential
-                ScriptBlock  = $collectNetViewSB
-                ArgumentList = @($tempDirectory.FullName)
-                AsJob        = $true
-                PassThru     = $true
-                Activity     = 'Collect Get-NetView'
+                ComputerName     = $dataCollectionNodes.Name
+                Credential       = $Credential
+                ScriptBlock      = $collectNetViewSB
+                ArgumentList     = @($tempDirectory.FullName)
+                AsJob            = $true
+                PassThru         = $true
+                ExecutionTimeout = 1200 # 20 minutes
+                Activity         = 'Collect Get-NetView'
             }
             $null = Invoke-PSRemoteCommand @splat
         }
