@@ -706,7 +706,7 @@ function Get-ServerConfigState {
         "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
         $virtualMachines = Get-VM
         if ($virtualMachines) {
-            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format Table -Force
+            $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format List -Force
             $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
 
             $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
@@ -727,11 +727,11 @@ function Get-ServerConfigState {
 
                         $adapterModified = $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'AclList','ExtendedAclList','IsolationSetting','RoutingDomainList','VlanSetting','CimSession'
                         $adapterModified | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
-                        $adapter.AclList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
-                        $adapter.ExtendedAclList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
-                        $adapter.IsolationSetting | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
-                        $adapter.RoutingDomainList | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_RoutingDomainList' -FileType txt -Format List
-                        $adapter.VlanSetting | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_VlanSetting' -FileType txt -Format List
+                        $adapter.AclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
+                        $adapter.ExtendedAclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
+                        $adapter.IsolationSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
+                        $adapter.RoutingDomainList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_RoutingDomainList' -FileType txt -Format List
+                        $adapter.VlanSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_VlanSetting' -FileType txt -Format List
                     }
                     catch {
                         "Failed to enumerate VMNetworkAdapter for {0}" -f $adapter.Name | Trace-Output -Level:Warning
@@ -740,16 +740,16 @@ function Get-ServerConfigState {
             }
         }
 
-        # enumerate the data for all adapters and place in the root output directory
-        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-SdnVMNetworkAdapterPortProfile_All' -FileType txt -Format Table
-        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_All' -FileType txt -Format Table
-        Get-VMNetworkAdapterIsolation | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format Table
-        Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterTeamMapping_ManagementOS' -FileType txt -Format Table
-        Get-VMNetworkAdapterVLAN | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN _ManagementOS' -FileType txt -Format Table
-        Get-VMNetworkAdapterRoutingDomainMapping | Export-ObjectToFile -FilePath $outDir -FileType txt -Format Table
-        Get-VMNetworkAdapterRoutingDomainMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterRoutingDomainMapping_ManagementOS' -FileType txt -Format Table
+        # enumerate the data for all adapters
+        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_All' -FileType txt -Format List
+        Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-SdnVMNetworkAdapterPortProfile_All' -FileType txt -Format List
+
+        # collect the management OS network adapter details
+        # we do not need this information for general vmnetworkadapters as they are already collected above
+        Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format List
+        Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterTeamMapping_ManagementOS' -FileType txt -Format List
+        Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN _ManagementOS' -FileType txt -Format List
+        Get-VMNetworkAdapterRoutingDomainMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterRoutingDomainMapping_ManagementOS' -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
