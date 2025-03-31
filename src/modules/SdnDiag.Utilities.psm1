@@ -1001,12 +1001,12 @@ function Export-ObjectToFile {
             # which we will want to remove from the object beofre exporting it out
             if ($FileType -ieq 'json') {
                 $objectTypeName = $obj.GetType().Name
-                switch -Wildcard ($objectTypeName) {
+                switch ($objectTypeName) {
                     'CimInstance' {
                         $obj = $obj | Remove-PropertiesFromObject -PropertiesToRemove 'CimClass','CimInstanceProperties','CimSystemProperties'
                         break
                     }
-                    'VMNetworkAdapter*' {
+                    'VMNetworkAdapter' {
                         $obj = $obj | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession'
                         break
                     }
