@@ -2354,7 +2354,7 @@ function Test-SdnHostAgentConnectionStateToApiService {
         }
 
         if ($tcpConnection) {
-            if ($tcpConnection.ConnectionState -ine 'Connected') {
+            if ($tcpConnection.State -ine 'Established') {
                 $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
                 if ($serviceState.Status -ine 'Running') {
                     $sdnHealthTest.Result = 'WARN'
