@@ -2475,7 +2475,7 @@ function Test-SdnServiceFabricNodeStatus {
             $sdnHealthTest.Result = 'FAIL'
         }
         else {
-            if ($ncNodes.NodeStatus -ine 'Up') {
+            if ($ncNodes.Status -ine 'Up') {
                 $sdnHealthTest.Result = 'FAIL'
                 $sdnHealthTest.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
             }
