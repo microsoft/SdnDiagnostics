@@ -2354,7 +2354,7 @@ function Test-SdnHostAgentConnectionStateToApiService {
         }
 
         if ($tcpConnection) {
-            if ($tcpConnection.ConnectionState -ine 'Connected') {
+            if ($tcpConnection.State -ine 'Established') {
                 $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
                 if ($serviceState.Status -ine 'Running') {
                     $sdnHealthTest.Result = 'WARN'
@@ -2470,14 +2470,14 @@ function Test-SdnServiceFabricNodeStatus {
     $sdnHealthTest = New-SdnHealthTest
 
     try {
-        $ncNodes = Get-SdnServiceFabricNode -NodeName $env:COMPUTERNAME -ErrorAction Stop
-        if ($null -eq $ncNodes) {
+        $ncNode = Get-SdnServiceFabricNode -NodeName $env:COMPUTERNAME -ErrorAction Stop
+        if ($null -eq $ncNode) {
             $sdnHealthTest.Result = 'FAIL'
         }
         else {
-            if ($ncNodes.NodeStatus -ine 'Up') {
+            if ($ncNode.NodeStatus -ine 'Up' -or $ncNode.HealthState -ine 'Ok') {
                 $sdnHealthTest.Result = 'FAIL'
-                $sdnHealthTest.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up.'
+                $sdnHealthTest.Remediation = 'Examine the Service Fabric Nodes for Network Controller to determine why the node is not Up or Healthy.'
             }
         }
     }
