@@ -61,8 +61,10 @@
         'Debug-SdnServer',
         'Disable-SdnDiagTraceOutputLogging',
         'Disable-SdnRasGatewayTracing',
+        'Disable-SdnServiceFabricNode',
         'Enable-SdnDiagTraceOutputLogging',
         'Enable-SdnRasGatewayTracing',
+        'Enable-SdnServiceFabricNode',
         'Enable-SdnVipTrace',
         'Get-SdnAuditLog',
         'Get-SdnApiEndpoint'
@@ -143,6 +145,7 @@
         'New-SdnServerCertificate',
         'Remove-SdnExpressBgpHost',
         'Repair-SdnDiagnosticsScheduledTask',
+        'Restart-SdnServiceFabricClusterNodes',
         'Set-SdnCertificateAcl',
         'Set-SdnNetworkController',
         'Set-SdnResource',
