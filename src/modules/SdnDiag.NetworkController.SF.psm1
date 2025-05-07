@@ -2031,12 +2031,12 @@ function Get-SdnServiceFabricNode {
 
         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
         $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
-
+        $serviceFabricNode = Get-ServiceFabricNode
         if ($param1) {
-            Get-ServiceFabricNode -NodeName $param1
+            $serviceFabricNode | Where-Object {$_.NodeName -ilike $param1}
         }
         else {
-            Get-ServiceFabricNode
+            $serviceFabricNode
         }
     }
 
@@ -2950,20 +2950,49 @@ function Disable-SdnServiceFabricNode {
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $executionTimeOut = 300 # seconds
 
+    # call the Get-SdnServiceFabricNode function to get the node name in the correct case
+    # service fabric node names are case sensitive, so we need to make sure that we are using the correct case for the node name
+    $serviceFabricNodes = Get-SdnServiceFabricNode -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
+    $fabricNode = $serviceFabricNodes | Where-Object {$_.NodeName -ieq $NodeName}
+
+    # if the node is already disabled, then we do not need to do anything
+    if ($fabricNode.NodeStatus -ieq 'Disabled') {
+        "Node $($fabricNode.NodeName) is already disabled" | Trace-Output
+        return $fabricNode
+    }
+
+    # make sure that we do not have any nodes that are already disabled
+    if ($serviceFabricNodes.NodeStatus -icontains 'Disabled') {
+        "One or more nodes are already disabled" | Trace-Output -Level:Warning
+        return ($serviceFabricNodes | Where-Object {$_.NodeStatus -icontains 'Disabled'})
+    }
+
+    # check to see if the service fabric cluster is healthy before we disable the node
+    # if the cluster is not healthy, then we cannot disable the node
+    $isClusterHealthy = Confirm-SdnServiceFabricHealthy -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
+    if (-NOT $isClusterHealthy) {
+        "Service Fabric Cluster is not healthy, cannot disable node" | Trace-Output -Level:Warning
+        return
+    }
+
+    # execute the command to disable the node
+    # the 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
+    "Attempting to disable node {0}" -f $fabricNode.NodeName | Trace-Output
     $null = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {
         param([string]$param1)
+        $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
         Disable-ServiceFabricNode -NodeName $param1 -Intent Restart -Force
-    } -ArgumentList @($NodeName) -ErrorAction Stop
+    } -ArgumentList @($fabricNode.NodeName) -ErrorAction Stop
 
     try {
         while ($true) {
             if ($stopWatch.Elapsed.TotalSeconds -gt $executionTimeOut) {
                 $stopWatch.Stop()
-                throw New-Object System.Exception("Timeout waiting for node $NodeName to be disabled")
+                throw New-Object System.Exception("Timeout waiting for node $($fabricNode.NodeName) to be disabled")
             }
 
             $fabricNode = Get-SdnServiceFabricNode @PSBoundParameters
-            if ($fabricNode.NodeStatus -ieq 'Disable') {
+            if ($fabricNode.NodeStatus -ieq 'Disabled') {
                 "Node $($fabricNode.NodeName) is disabled" | Trace-Output
                 break
             }
@@ -3014,20 +3043,30 @@ function Enable-SdnServiceFabricNode {
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $executionTimeOut = 300 # seconds
 
+    # service fabric node names are case sensitive, so we need to make sure that we are using the correct case for the node name
+    # Get-SdnServiceFabricNode will return the node name in the correct case, so we will use that to get the correct node name
+    $fabricNode = Get-SdnServiceFabricNode @PSBoundParameters
+    if ($fabricNode.NodeStatus -icontains 'Up') {
+        "Node $($fabricNode.NodeName) is already enabled" | Trace-Output
+        return $fabricNode
+    }
+
+    "Attempting to enable node {0}" -f $fabricNode.NodeName | Trace-Output
     $null = Invoke-SdnServiceFabricCommand -NetworkController $NetworkController -Credential $Credential -ScriptBlock {
         param([string]$param1)
+        $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
         Enable-ServiceFabricNode -NodeName $param1
-    } -ArgumentList @($NodeName) -ErrorAction Stop
+    } -ArgumentList @($fabricNode.NodeName) -ErrorAction Stop
 
     try {
         while ($true) {
             if ($stopWatch.Elapsed.TotalSeconds -gt $executionTimeOut) {
                 $stopWatch.Stop()
-                throw New-Object System.Exception("Timeout waiting for node $NodeName to be disabled")
+                throw New-Object System.Exception("Timeout waiting for node $($fabricNode.NodeName) to be disabled")
             }
 
             $fabricNode = Get-SdnServiceFabricNode @PSBoundParameters
-            if ($fabricNode.NodeStatus -ieq 'Enabled') {
+            if ($fabricNode.NodeStatus -ieq 'Up') {
                 "Node $($fabricNode.NodeName) is enabled" | Trace-Output
                 break
             }
@@ -3049,15 +3088,23 @@ function Enable-SdnServiceFabricNode {
 }
 
 
-function Wait-SdnServiceFabricHealthy {
+function Confirm-SdnServiceFabricHealthy {
     <#
     .SYNOPSIS
         Waits for the Service Fabric Cluster and Application to be healthy.
+    .PARAMETER NetworkController
+        Specifies the name of the network controller node on which this cmdlet operates. If ommitted, the cmdlet will run on the local machine.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Wait
+        Switch parameter to wait for the Service Fabric Cluster and Application to be healthy. Default is false.
     .PARAMETER ExecutionTimeout
         The maximum time to wait for the Service Fabric Cluster and Application to be healthy, in seconds. Default is 300 seconds.
+    .EXAMPLE
+        PS> Confirm-SdnServiceFabricHealthy -NetworkController 'NC01' -Credential (Get-Credential) -Wait -ExecutionTimeout 600
     #>
 
-    [PSCmdletBinding()]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $false)]
         [System.String]$NetworkController = $env:COMPUTERNAME,
@@ -3067,7 +3114,10 @@ function Wait-SdnServiceFabricHealthy {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
+        [switch]$Wait,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
         [int]$ExecutionTimeout = 300
     )
 
@@ -3101,8 +3151,9 @@ function Wait-SdnServiceFabricHealthy {
             catch {
                 # transient errors are expected, so we will retry the operation
                 # if we have retried 3 times, then we will throw an exception and stop the operation
+                # if the Wait parameter is set to false, then we will throw an exception and stop the operation
                 $retryAttempt++
-                if ($retryAttempt -ge 3) {
+                if ($retryAttempt -ge 3 -or $Wait -eq $false) {
                     $stopWatch.Stop()
                     throw New-Object System.Exception("Unable to get Service Fabric Cluster and Application health after 3 attempts")
                 }
@@ -3121,6 +3172,12 @@ function Wait-SdnServiceFabricHealthy {
                 break
             }
             else {
+                # if we did not declare wait, break out of the loop and return the health state
+                # if we declared wait, then we will continue to check the health of the cluster and application
+                if ($Wait -eq $false) {
+                    break
+                }
+
                 "Service Fabric Cluster or Application is not healthy yet, waiting..." | Trace-Output
                 Start-Sleep -Seconds 15
             }
@@ -3166,7 +3223,7 @@ function Restart-SdnServiceFabricClusterNodes {
 
         # before we start the operation, we need to check if the cluster and application are healthy
         # if the cluster and application are not healthy, then we will throw an exception and stop the operation
-        $healthState = Wait-SdnServiceFabricHealthy @PSBoundParameters -ExecutionTimeout 30
+        $healthState = Confirm-SdnServiceFabricHealthy @PSBoundParameters -ExecutionTimeout 30
         if ($healthState -ne $true) {
             throw (New-Object System.Exception("Service Fabric Cluster and Application are not healthy. Please fix the issues before restarting the nodes."))
         }
@@ -3199,7 +3256,7 @@ function Restart-SdnServiceFabricClusterNodes {
             }
 
             # STEP 5: WAIT FOR THE CLUSTER TO BE HEALTHY
-            $healthState = Wait-SdnServiceFabricHealthy @PSBoundParameters
+            $healthState = Confirm-SdnServiceFabricHealthy @PSBoundParameters
             if ($healthState -ne $true) {
                 throw New-Object System.Exception("Service Fabric Cluster and Application are not healthy after restarting node $($node.NodeName)")
             }
