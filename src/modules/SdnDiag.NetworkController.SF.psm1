@@ -3327,7 +3327,7 @@ function Restart-SdnServiceFabricClusterNodes {
 
                 try {
                     $enableNodeOp = Enable-SdnServiceFabricNode @PSBoundParameters -NodeName $node.NodeName
-                    if ($enableNodeOp.NodeStatus -ieq 'Enabled') {
+                    if ($enableNodeOp.NodeStatus -ieq 'Up') {
                         break
                     }
                 }
