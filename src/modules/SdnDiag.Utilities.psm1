@@ -3092,12 +3092,12 @@ function Test-ComputerIsAccessible {
 
                 $ping = Test-Connection -ComputerName $ComputerName -Count 1 -Quiet
                 if ($ping) {
-                    "{0} is accessible." -f $ComputerName | Trace-Output
+                    "{0} is accessible over the network." -f $ComputerName | Trace-Output
                     $stopWatch.Stop()
                     return $true
                 }
                 else {
-                    "{0} is not accessible. Attempting connection again in {1} seconds. Timeout: {2} seconds" -f $ComputerName, $Interval, $Timeout | Trace-Output
+                    "{0} is not accessible over the network. Attempting network connection again in {1} seconds. Timeout: {2} seconds" -f $ComputerName, $Interval, $Timeout | Trace-Output -Level:Warning
                     Start-Sleep -Seconds $Interval
                 }
             }

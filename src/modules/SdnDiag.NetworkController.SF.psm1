@@ -3061,7 +3061,7 @@ function Disable-SdnServiceFabricNode {
                 break
             }
             else {
-                "Node $($fabricNode.NodeName) is not disabled yet, waiting..." | Trace-Output
+                "Node $($fabricNode.NodeName) is not disabled. Waiting..." | Trace-Output
                 Start-Sleep -Seconds 15
             }
         }
@@ -3136,7 +3136,7 @@ function Enable-SdnServiceFabricNode {
                 break
             }
             else {
-                "Node $($fabricNode.NodeName) is not enabled yet, waiting..." | Trace-Output
+                "Node $($fabricNode.NodeName) is not enabled. Waiting..." | Trace-Output
                 Start-Sleep -Seconds 15
             }
         }
@@ -3319,12 +3319,11 @@ function Restart-SdnServiceFabricClusterNodes {
             $attempt = 0
             $maxAttempts = 10
             while ($true){
-                $attempt++
-
                 if ($attempt -gt $maxAttempts) {
                     throw New-Object System.Exception("Unable to enable node $($node.NodeName) after $maxAttempts attempts")
                 }
 
+                $attempt++
                 try {
                     $enableNodeOp = Enable-SdnServiceFabricNode @PSBoundParameters -NodeName $node.NodeName
                     if ($enableNodeOp.NodeStatus -ieq 'Up') {
