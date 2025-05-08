@@ -3027,7 +3027,7 @@ function Disable-SdnServiceFabricNode {
 
         $maxNodesToDisable = Get-MaxNodesToDisable -TotalNodes $totalClusterNodeCount
         if ($disabledNodeCount -ge $maxNodesToDisable) {
-            throw New-Object System.Exception("There are already $disabledNodeCount nodes disabled, cannot disable any more nodes in $totalClusterNodeCount node cluster without losing quorom")
+            throw New-Object System.Exception("There are already $disabledNodeCount nodes disabled. Cannot disable any more nodes in $totalClusterNodeCount node cluster without losing quorom")
         }
     }
 
@@ -3287,6 +3287,8 @@ function Restart-SdnServiceFabricClusterNodes {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    $ErrorActionPreference = 'Stop'
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         throw System.NotSupportedException("This function is not supported to be run on the Network Controller itself. Please retry this operation from a different node.")
