@@ -3337,7 +3337,8 @@ function Restart-SdnServiceFabricClusterNodes {
                 }
             }
 
-            Confirm-SdnServiceFabricHealthy @PSBoundParameters -Wait
+            # wait for cluster/app health to be ok before proceeding to the next node
+            $null = Confirm-SdnServiceFabricHealthy @PSBoundParameters -Wait
         }
     }
     catch {
