@@ -3072,7 +3072,10 @@ function Test-ComputerIsAccessible {
         [switch]$Wait,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
-        [int]$Timeout = 300
+        [int]$Timeout = 300,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
+        [int]$Interval = 10
     )
 
     switch ($PSCmdlet.ParameterSetName) {
@@ -3089,10 +3092,13 @@ function Test-ComputerIsAccessible {
 
                 $ping = Test-Connection -ComputerName $ComputerName -Count 1 -Quiet
                 if ($ping) {
+                    "{0} is accessible." -f $ComputerName | Trace-Output
+                    $stopWatch.Stop()
                     return $true
                 }
                 else {
-                    Start-Sleep -Seconds 10
+                    "{0} is not accessible. Attempting connection again in {1} seconds. Timeout: {2} seconds" -f $ComputerName, $Interval, $Timeout | Trace-Output
+                    Start-Sleep -Seconds $Interval
                 }
             }
         }

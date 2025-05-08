@@ -8,6 +8,9 @@ Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 $configurationData = Import-PowerShellDataFile -Path $PSScriptRoot\SdnDiag.NetworkController.SF.Config.psd1
 New-Variable -Name 'SdnDiagnostics_NC_SF' -Scope 'Script' -Force -Value @{
     Config = $configurationData
+    Cache = @{
+        ServiceFabricNodeName = @()
+    }
 }
 
 ##########################
@@ -19,6 +22,16 @@ New-Variable -Name 'SdnDiagnostics_NC_SF' -Scope 'Script' -Force -Value @{
 ##########################
 
 $argScriptBlock = @{
+    ServiceFabricNodeName = {
+        param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
+        $nodeName = $Script:SdnDiagnostics_NC_SF.Cache.ServiceFabricNodeName
+
+        if ([string]::IsNullOrEmpty($wordToComplete)) {
+            return ($nodeName | Sort-Object)
+        }
+
+        return $nodeName | Where-Object {$_ -like "*$wordToComplete*"} | Sort-Object
+    }
     ServiceFabricServiceName = {
         param($commandName, $parameterName, $wordToComplete, $commandAst, $fakeBoundParameters)
         $serviceName = @(
@@ -66,14 +79,42 @@ $argScriptBlock = @{
     }
 }
 
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricReplica' -ParameterName 'ServiceName' -ScriptBlock $argScriptBlock.ServiceFabricServiceName
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricReplica' -ParameterName 'ServiceTypeName' -ScriptBlock $argScriptBlock.ServiceFabricServiceTypeName
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricService' -ParameterName 'ServiceName' -ScriptBlock $argScriptBlock.ServiceFabricServiceName
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricService' -ParameterName 'ServiceTypeName' -ScriptBlock $argScriptBlock.ServiceFabricServiceTypeName
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition' -ParameterName 'ServiceName' -ScriptBlock $argScriptBlock.ServiceFabricServiceName
-Register-ArgumentCompleter -CommandName 'Get-SdnServiceFabricPartition' -ParameterName 'ServiceTypeName' -ScriptBlock $argScriptBlock.ServiceFabricServiceTypeName
-Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceName' -ScriptBlock $argScriptBlock.ServiceFabricServiceName
-Register-ArgumentCompleter -CommandName 'Move-SdnServiceFabricReplica' -ParameterName 'ServiceTypeName' -ScriptBlock $argScriptBlock.ServiceFabricServiceTypeName
+$sfNodeParam = @{
+    CommandName = @(
+        'Disable-SdnServiceFabricNode'
+        'Enable-SdnServiceFabricNode'
+        'Get-SdnServiceFabricNode'
+        'Move-SdnServiceFabricReplica'
+    )
+    ParameterName = 'NodeName'
+    ScriptBlock = $argScriptBlock.ServiceFabricNodeName
+}
+
+$sfServiceTypeParam = @{
+    CommandName = @(
+        'Get-SdnServiceFabricReplica'
+        'Get-SdnServiceFabricService'
+        'Get-SdnServiceFabricPartition'
+        'Move-SdnServiceFabricReplica'
+    )
+    ParameterName = 'ServiceTypeName'
+    ScriptBlock = $argScriptBlock.ServiceFabricServiceTypeName
+}
+
+$sfServiceNameParam = @{
+    CommandName = @(
+        'Get-SdnServiceFabricReplica'
+        'Get-SdnServiceFabricService'
+        'Get-SdnServiceFabricPartition'
+        'Move-SdnServiceFabricReplica'
+    )
+    ParameterName = 'ServiceName'
+    ScriptBlock = $argScriptBlock.ServiceFabricServiceName
+}
+
+Register-ArgumentCompleter @sfNodeParam
+Register-ArgumentCompleter @sfServiceTypeParam
+Register-ArgumentCompleter @sfServiceNameParam
 
 ##########################
 ####### FUNCTIONS ########
@@ -1991,6 +2032,8 @@ function Get-SdnServiceFabricNode {
         Specifies a user account that has permission to perform this action. The default is the current user.
     .PARAMETER NodeName
         Specifies the name of the Service Fabric node whose information is being returned. If not specified, the cmdlet will return information for all the nodes in the cluster.
+    .PARAMETER Disabled
+        Specifies that only disabled nodes should be returned. This parameter is mutually exclusive with the NodeName parameter.
     .EXAMPLE
         PS> Get-SdnServiceFabricNode -NetworkController 'Prefix-NC01' -Credential (Get-Credential)
     .EXAMPLE
@@ -1999,7 +2042,7 @@ function Get-SdnServiceFabricNode {
         PS> Get-SdnServiceFabricNode -NodeName 'Prefix-NC01'
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'Default')]
     param (
         [Parameter(Mandatory = $false)]
         [System.String]$NetworkController = $env:COMPUTERNAME,
@@ -2009,20 +2052,23 @@ function Get-SdnServiceFabricNode {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
-        [System.String]$NodeName
+        [Parameter(Mandatory = $true, ParameterSetName = 'NodeName')]
+        [System.String]$NodeName,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Disabled')]
+        [Switch]$Disabled
     )
+
 
     $sfParams = @{
         NetworkController = $NetworkController
         Credential = $Credential
     }
-    if ($NodeName) {
-        $sfParams.Add('ArgumentList', @($NodeName))
-    }
 
     $sb = {
-        param([string]$param1)
+        [CmdletBinding()]
+        param([string]$param1, [bool]$param2)
+
         # check if service fabric service is running
         $serviceState = Get-Service -Name 'FabricHostSvc' -ErrorAction Stop
         if ($serviceState.Status -ne 'Running') {
@@ -2032,21 +2078,31 @@ function Get-SdnServiceFabricNode {
         # The 3>$null 4>$null sends unwanted verbose and debug streams into the bit bucket
         $null = Connect-ServiceFabricCluster -TimeoutSec 15 3>$null 4>$null
         $serviceFabricNode = Get-ServiceFabricNode
-        if ($param1) {
-            $serviceFabricNode | Where-Object {$_.NodeName -ilike $param1}
+        if (-NOT ([string]::IsNullOrEmpty($param1))) {
+            return ($serviceFabricNode | Where-Object { $_.NodeName -ilike $param1 })
         }
-        else {
-            $serviceFabricNode
+
+        if ($param2) {
+            return ($serviceFabricNode | Where-Object { $_.NodeStatus -eq 'Disabled' })
         }
+
+        return $serviceFabricNode
     }
 
     try {
-        Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb
+        $results = Invoke-SdnServiceFabricCommand @sfParams -ScriptBlock $sb -ArgumentList @($NodeName, $Disabled.IsPresent)
     }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+
+    # set the cache for node names so we can leverage argument completers
+    if ($results -and !$PSBoundParameters.ContainsKey('NodeName')) {
+        $Script:SdnDiagnostics_NC_SF.Cache.ServiceFabricNodeName = $results.NodeName
+    }
+
+    return $results
 }
 
 function Get-SdnServiceFabricPartition {
@@ -2947,6 +3003,7 @@ function Disable-SdnServiceFabricNode {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $executionTimeOut = 300 # seconds
 
@@ -2963,15 +3020,22 @@ function Disable-SdnServiceFabricNode {
 
     # make sure that we do not have any nodes that are already disabled
     if ($serviceFabricNodes.NodeStatus -icontains 'Disabled') {
-        "One or more nodes are already disabled" | Trace-Output -Level:Warning
-        return ($serviceFabricNodes | Where-Object {$_.NodeStatus -icontains 'Disabled'})
+        $disabledSFNodes = $serviceFabricNodes | Where-Object {$_.NodeStatus -ieq 'Disabled'}
+
+        $totalClusterNodeCount = $serviceFabricNodes.NodeName.Count
+        $disabledNodeCount = $disabledSFNodes.NodeName.Count
+
+        $maxNodesToDisable = Get-MaxNodesToDisable -TotalNodes $totalClusterNodeCount
+        if ($disabledNodeCount -ge $maxNodesToDisable) {
+            throw New-Object System.Exception("There are already $disabledNodeCount nodes disabled, cannot disable any more nodes in $totalClusterNodeCount node cluster without losing quorom")
+        }
     }
 
     # check to see if the service fabric cluster is healthy before we disable the node
     # if the cluster is not healthy, then we cannot disable the node
     $isClusterHealthy = Confirm-SdnServiceFabricHealthy -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
     if (-NOT $isClusterHealthy) {
-        "Service Fabric Cluster is not healthy, cannot disable node" | Trace-Output -Level:Warning
+        "Service Fabric Cluster is not healthy, cannot disable $($fabricNode.NodeName)" | Trace-Output -Level:Warning
         return
     }
 
@@ -3040,12 +3104,13 @@ function Enable-SdnServiceFabricNode {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
     $executionTimeOut = 300 # seconds
 
     # service fabric node names are case sensitive, so we need to make sure that we are using the correct case for the node name
     # Get-SdnServiceFabricNode will return the node name in the correct case, so we will use that to get the correct node name
-    $fabricNode = Get-SdnServiceFabricNode @PSBoundParameters
+    $fabricNode = Get-SdnServiceFabricNode @PSBoundParameters -ErrorAction Stop
     if ($fabricNode.NodeStatus -icontains 'Up') {
         "Node $($fabricNode.NodeName) is already enabled" | Trace-Output
         return $fabricNode
@@ -3118,11 +3183,12 @@ function Confirm-SdnServiceFabricHealthy {
         [switch]$Wait,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
-        [int]$ExecutionTimeout = 300
+        [int]$ExecutionTimeout = 900 # seconds, default is 15 minutes
     )
 
     $sfParams = $PSBoundParameters
-    $sfParams.Remove('ExecutionTimeout')
+    [void]$sfParams.Remove('ExecutionTimeout')
+    [void]$sfParams.Remove('Wait')
     if ($sfParams.ContainsKey('ErrorAction')) {
         $sfParams.ErrorAction = 'Stop'
     }
@@ -3134,14 +3200,18 @@ function Confirm-SdnServiceFabricHealthy {
     $healthState = $false
     $retryAttempt = 0
 
-    "Checking Service Fabric Health" | Trace-Output
+    "Checking Service Fabric Health." | Trace-Output
+    if ($Wait) {
+        "Waiting for up to $ExecutionTimeout seconds for Service Fabric Cluster and Application to be healthy." | Trace-Output
+    }
+
     try {
         while ($true) {
             # check if the elapsed time is greater than the execution timeout, if so, then we will throw an exception and stop the operation
             # if the elapsed time is less than the execution timeout, then we will continue to check the health of the cluster and application
             if ($stopWatch.Elapsed.TotalSeconds -gt $ExecutionTimeout) {
                 $stopWatch.Stop()
-                throw New-Object System.Exception("Timeout waiting for Service Fabric Cluster and Application to be healthy")
+                throw New-Object System.TimeoutException("Application or Cluster is not healthy after $ExecutionTimeout seconds")
             }
 
             try {
@@ -3149,18 +3219,18 @@ function Confirm-SdnServiceFabricHealthy {
                 $clusterHealth = Get-SdnServiceFabricClusterHealth @sfParams
             }
             catch {
-                # transient errors are expected, so we will retry the operation
-                # if we have retried 3 times, then we will throw an exception and stop the operation
+                # handle transient errors, such as network issues or service fabric cluster not being available
+                # if we have tried 3 times, then we will throw an exception and stop the operation
                 # if the Wait parameter is set to false, then we will throw an exception and stop the operation
                 $retryAttempt++
                 if ($retryAttempt -ge 3 -or $Wait -eq $false) {
                     $stopWatch.Stop()
-                    throw New-Object System.Exception("Unable to get Service Fabric Cluster and Application health after 3 attempts")
+                    throw $_ # rethrow the exception
                 }
 
                 $_ | Trace-Exception
-                "Transient error while getting Service Fabric Cluster and Application health. Retrying.." | Trace-Output -Level:Warning
-                Start-Sleep -Seconds 15
+                "Error returned while attempting to query Service Fabric Cluster and Application health. Retrying.." | Trace-Output -Level:Warning
+                Start-Sleep -Seconds 30
                 continue
             }
 
@@ -3178,8 +3248,10 @@ function Confirm-SdnServiceFabricHealthy {
                     break
                 }
 
-                "Service Fabric Cluster or Application is not healthy yet, waiting..." | Trace-Output
-                Start-Sleep -Seconds 15
+                "Service Fabric Cluster AggregatedHealthState: {0} | Application Health AggregatedHealthState: {1}. Waiting..." `
+                -f $clusterHealth.AggregatedHealthState, $applicationHealth.AggregatedHealthState | Trace-Output
+
+                Start-Sleep -Seconds 30
             }
         }
     }
@@ -3205,7 +3277,7 @@ function Restart-SdnServiceFabricClusterNodes {
         Specifies a user account that has permission to perform this action. The default is the current user.
     #>
 
-    [PSCmdletBinding()]
+    [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
         [System.String]$NetworkController,
@@ -3216,20 +3288,13 @@ function Restart-SdnServiceFabricClusterNodes {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        throw System.NotSupportedException("This function is not supported to be run on the Network Controller itself. Please retry this operation from a different node.")
+    }
+
     try {
-        if (Confirm-IsNetworkController -NetworkController $NetworkController) {
-            throw System.NotSupportedException("This function is not supported to be run on the Network Controller itself. Please retry this operation from a different node.")
-        }
-
-        # before we start the operation, we need to check if the cluster and application are healthy
-        # if the cluster and application are not healthy, then we will throw an exception and stop the operation
-        $healthState = Confirm-SdnServiceFabricHealthy @PSBoundParameters -ExecutionTimeout 30
-        if ($healthState -ne $true) {
-            throw (New-Object System.Exception("Service Fabric Cluster and Application are not healthy. Please fix the issues before restarting the nodes."))
-        }
-
-        $networkControllerNodes = Get-SdnNetworkControllerNode @PSBoundParameters
-        foreach ($node in $networkControllerNodes) {
+        $networkControllerSFNodes = Get-SdnServiceFabricNode @PSBoundParameters | Sort-Object -Property NodeName
+        foreach ($node in $networkControllerSFNodes) {
             # STEP 1: DISABLE THE NODE
             $disableNodeOp = Disable-SdnServiceFabricNode @PSBoundParameters -NodeName $node.NodeName
             if ($disableNodeOp.NodeStatus -ine 'Disabled') {
@@ -3245,25 +3310,55 @@ function Restart-SdnServiceFabricClusterNodes {
             # STEP 3: WAIT FOR THE NODE TO BE RESTARTED
             "Waiting for node $($node.NodeName) to be restarted..." | Trace-Output
             Start-Sleep -Seconds 30 # wait for 30 seconds before checking if the node is accessible
-            if (-NOT (Wait-ComputerIsAccessible -ComputerName $node.IpAddressOrFQDN)) {
+            if (-NOT (Test-ComputerIsAccessible -ComputerName $node.IpAddressOrFQDN -Wait)) {
                 throw New-Object System.Exception("Unable to access node $($node.NodeName) after restart")
             }
 
-            # STEP 4: ENABLE THE NODE
-            $enableNodeOp = Enable-SdnServiceFabricNode @PSBoundParameters -NodeName $node.NodeName
-            if ($enableNodeOp.NodeStatus -ine 'Enabled') {
-                throw New-Object System.Exception("Unable to enable node $($node.NodeName)")
+            # STEP 4: ENABLE THE NODE AND WAIT FOR HEALTH TO BE OK
+            # we do this in while loop as if we call this too soon, FabricHostSvc may not be running and terminating error may be thrown
+            $attempt = 0
+            $maxAttempts = 10
+            while ($true){
+                $attempt++
+
+                if ($attempt -gt $maxAttempts) {
+                    throw New-Object System.Exception("Unable to enable node $($node.NodeName) after $maxAttempts attempts")
+                }
+
+                try {
+                    $enableNodeOp = Enable-SdnServiceFabricNode @PSBoundParameters -NodeName $node.NodeName
+                    if ($enableNodeOp.NodeStatus -ieq 'Enabled') {
+                        break
+                    }
+                }
+                catch {
+                    $_ | Trace-Exception
+                    "Unable to enable node $($node.NodeName). Attempt $attempt/$maxAttempts. Waiting 60 seconds before retrying..." | Trace-Output -Level:Warning
+                    Start-Sleep -Seconds 60 # wait for 30 seconds
+                }
             }
 
-            # STEP 5: WAIT FOR THE CLUSTER TO BE HEALTHY
-            $healthState = Confirm-SdnServiceFabricHealthy @PSBoundParameters
-            if ($healthState -ne $true) {
-                throw New-Object System.Exception("Service Fabric Cluster and Application are not healthy after restarting node $($node.NodeName)")
-            }
+            Confirm-SdnServiceFabricHealthy @PSBoundParameters -Wait
         }
     }
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
     }
+}
+
+function Get-MaxNodesToDisable {
+    param (
+        [Parameter(Mandatory = $true)]
+        [ValidateRange(3, 9)] # Service Fabric supports 3 to 9 nodes
+        [int]$TotalNodes
+    )
+
+    # Calculate the minimum number of nodes required for quorum
+    $quorum = [math]::Floor($TotalNodes / 2) + 1
+
+    # Calculate the maximum number of nodes that can be disabled
+    $maxDisabledNodes = $TotalNodes - $quorum
+
+    return $maxDisabledNodes
 }
