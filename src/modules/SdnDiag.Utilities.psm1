@@ -3047,3 +3047,62 @@ function Remove-PropertiesFromObject {
         return $array
     }
 }
+
+function Test-ComputerIsAccessible {
+    <#
+    .SYNOPSIS
+        Tests if a computer is accessible by pinging it.
+    .PARAMETER ComputerName
+        The name of the computer to test.
+    .PARAMETER Wait
+        Wait for the computer to become accessible.
+    .PARAMETER Timeout
+        The timeout in seconds to wait for the computer to become accessible. Default is 300 seconds.
+    .EXAMPLE
+        Test-ComputerIsAccessible -ComputerName 'contoso-nc01'
+    .EXAMPLE
+        Test-ComputerIsAccessible -ComputerName 'contoso-nc01' -Wait -Timeout 60
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'Wait')]
+        [switch]$Wait,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
+        [int]$Timeout = 300,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Wait')]
+        [int]$Interval = 10
+    )
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'Default' {
+            $ping = Test-Connection -ComputerName $ComputerName -Count 1 -Quiet
+            return $ping
+        }
+        'Wait' {
+            $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
+            while ($true) {
+                if ($stopWatch.Elapsed.TotalSeconds -ge $Timeout) {
+                    return $false
+                }
+
+                $ping = Test-Connection -ComputerName $ComputerName -Count 1 -Quiet
+                if ($ping) {
+                    "{0} is accessible over the network." -f $ComputerName | Trace-Output
+                    $stopWatch.Stop()
+                    return $true
+                }
+                else {
+                    "{0} is not accessible over the network. Attempting network connection again in {1} seconds. Timeout: {2} seconds" -f $ComputerName, $Interval, $Timeout | Trace-Output -Level:Warning
+                    Start-Sleep -Seconds $Interval
+                }
+            }
+        }
+    }
+
+    return $false
+}
