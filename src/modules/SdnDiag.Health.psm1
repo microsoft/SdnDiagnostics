@@ -2870,7 +2870,7 @@ function Test-SdnMuxConnectionStateToSlbManager {
     $sdnHealthTest = New-SdnHealthTest
 
     try {
-        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore
+        $tcpConnection = Get-NetTCPConnection -LocalPort 8560 -ErrorAction Ignore | Where-Object {$_.LocalAddress -ine "0.0.0.0"}
         if ($null -eq $tcpConnection -or $tcpConnection.State -ine 'Established') {
             $sdnHealthTest.Result = 'FAIL'
             $sdnHealthTest.Remediation += "Move SlbManager service primary role to another node. Examine the TCP / TLS connectivity for the SlbManager service."
