@@ -667,6 +667,22 @@ function Get-ServerConfigState {
         Get-SdnOvsdbPhysicalPort | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
         Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
+        # check if networkatc service is running and if so, gather the configuration
+        if ((Get-Service -Name 'NetworkAtc' -ErrorAction Ignore).Status -eq 'Running') {
+            $netIntentStatus = Get-NetIntentStatus -ComputerName $env:COMPUTERNAME
+            # due to the way the Get-NetIntentStatus cmdlet works, we need to eliminate the empty objects
+            # and the objects that are type string
+            $netIntentStatusObject = @()
+            foreach ($obj in $netIntentStatus) {
+                if ([string]::IsNullOrEmpty($obj) -or $obj.GetType().Name -ieq 'String'){
+                    continue
+                }
+                $netIntentStatusObject += $obj
+            }
+
+            $netIntentStatusObject | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntentStatus' -FileType txt -Format List
+        }
+
         # enumerate the vm switches and gather details
         "Gathering VMSwitch details" | Trace-Output -Level:Verbose
         Get-SdnNetAdapterEncapOverheadConfig | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
