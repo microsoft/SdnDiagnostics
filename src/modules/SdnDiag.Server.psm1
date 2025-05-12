@@ -669,6 +669,8 @@ function Get-ServerConfigState {
 
         # check if networkatc service is running and if so, gather the configuration
         if ((Get-Service -Name 'NetworkAtc' -ErrorAction Ignore).Status -eq 'Running') {
+            Get-NetIntent | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntent' -FileType txt -Format List
+
             $netIntentStatus = Get-NetIntentStatus -ComputerName $env:COMPUTERNAME
             # due to the way the Get-NetIntentStatus cmdlet works, we need to eliminate the empty objects
             # and the objects that are type string
