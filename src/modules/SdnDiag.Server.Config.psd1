@@ -15,6 +15,7 @@
         EventLogProviders = @(
             "Microsoft-Windows-Hyper-V*"
             "Microsoft-Windows-NetworkController-NcHostAgent-Admin"
+            "Microsoft-Windows-Networking-NetworkAtc*"
         )
         RegKeyPaths = @(
             "HKLM:\Software\Microsoft\NetworkController"
