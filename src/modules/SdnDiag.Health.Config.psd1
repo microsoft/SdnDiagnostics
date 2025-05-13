@@ -103,7 +103,12 @@
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. In addition, network traffic may be impacted."
             PublicDocUrl = ""
         }
-        'Test-SdnVfpEnabledVMSwitch'= @{
+        'Test-SdnVfpEnabledVMSwitch' = @{
+            Description = "No VMSwitches detected with VFP enabled on the Hyper-V host(s)."
+            Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host."
+            PublicDocUrl = ""
+        }
+        'Test-SdnVfpEnabledVMSwitchMultiple' = @{
             Description = "Multiple VFP enabled virtual switches detected on the Hyper-V host(s)."
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host."
             PublicDocUrl = ""
