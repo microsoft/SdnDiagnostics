@@ -2389,7 +2389,9 @@ function Test-SdnVfpEnabledVMSwitchMultiple {
     $sdnHealthTest = New-SdnHealthTest
 
     try {
-        # if there is more than one VMSwitch configured with VFP, this is a failure
+        # return back a list of VMSwitches that are configured with VFP
+        # if there are no VMSwitches configured with VFP, this is a failure and it will be handled in the VfpEnabledVMSwitch test
+        # if there is more than one VMSwitch configured with VFP, this is a failure as SDN does not support this configuration
         $vmSwitches = Get-SdnVMSwitch -VfpEnabled
         if ($vmSwitches.Count -gt 1) {
             $sdnHealthTest.Result = 'FAIL'
@@ -2416,7 +2418,9 @@ function Test-SdnVfpEnabledVMSwitch {
     $sdnHealthTest = New-SdnHealthTest
 
     try {
-        # if there is more than one VMSwitch configured with VFP, this is a failure
+        # return back a list of VMSwitches that are configured with VFP
+        # if there are no VMSwitches configured with VFP, this is a failure
+        # if there is more than one VMSwitch configured with VFP, while this is a failure it will be handled in the VfpEnabledVMSwitchMultiple test
         $vmSwitches = Get-SdnVMSwitch -VfpEnabled
         if ($vmSwitches.Count -eq 0 -or $null -eq $vmSwitches) {
             $sdnHealthTest.Result = 'FAIL'
