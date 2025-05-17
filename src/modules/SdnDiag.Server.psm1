@@ -3377,8 +3377,13 @@ function Get-SdnVMSwitch {
     try {
         $vmSwitch = Get-VMSwitch @PSBoundParameters
         foreach ($switch in $vmSwitch) {
-            $vfpExtension = $vmSwitch.Extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
-            if ($vfpExtension.Enabled -ieq $true) {
+            if ($VfpEnabled) {
+                $vfpExtension = $switch.Extensions | Where-Object { $_.Name -eq 'Microsoft Azure VFP Switch Extension' }
+                if ($vfpExtension.Enabled -ieq $true) {
+                    $array += $switch
+                }
+            }
+            else {
                 $array += $switch
             }
         }
@@ -3386,10 +3391,6 @@ function Get-SdnVMSwitch {
     catch {
         $_ | Trace-Exception
         $_ | Write-Error
-    }
-
-    if ($array.Count -gt 1) {
-        "Multiple switches detected with VFP enabled" | Trace-Output -Level:Warning
     }
 
     return $array

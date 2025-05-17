@@ -185,6 +185,7 @@
         'Test-SdnClusterServiceState',
         'Test-SdnServiceState',
         'Test-SdnVfpEnabledVMSwitch',
+        'Test-SdnVfpEnabledVMSwitchMultiple',
         'Test-SdnVfpPortTuple'
     )
 
