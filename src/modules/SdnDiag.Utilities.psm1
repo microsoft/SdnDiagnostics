@@ -2883,8 +2883,15 @@ function Get-EnvironmentRole {
     $array = @('Common')
 
     try {
-        $featuresInstalled = Get-WindowsFeature | Where-Object {$_.Installed -ieq $true}
-        if ($null -eq $featuresInstalled) {
+        # due to some weird functionality in the Get-WindowsFeature cmdlet, we need to check to see if the cmdlet exists
+        # and if it does, we will check to see if the features are installed
+        if (Get-Command -Name Get-WindowsFeature -ErrorAction Ignore) {
+            $featuresInstalled = Get-WindowsFeature -ErrorAction Ignore | Where-Object {$_.Installed -ieq $true}
+            if ($null -eq $featuresInstalled) {
+                return $array
+            }
+        }
+        else {
             return $array
         }
 
