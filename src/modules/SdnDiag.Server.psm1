@@ -2569,16 +2569,19 @@ function Get-SdnVMNetworkAdapter {
         Import-Module -Name Hyper-V -Force -ErrorAction Stop
     }
 
-    # remove the credential parameter if it is empty to avoid passing it to the cmdlet
+    $vmNetworkAdaptersParams = $PSBoundParameters
+    [void]$vmNetworkAdaptersParams.Remove('MacAddress')
     if ($Credential -eq [System.Management.Automation.PSCredential]::Empty) {
-        [void]$PSBoundParameters.Remove('Credential')
+        [void]$vmNetworkAdaptersParams.Remove('Credential')
     }
 
     try {
-        $adapters = Get-VMNetworkAdapter @PSBoundParameters
-        if ($PSBoundParameters.ContainsKey('MacAddress')) {
+        $adapters = Get-VMNetworkAdapter @vmNetworkAdaptersParams
+
+        if ($MacAddress) {
             $macAddress = Format-SdnMacAddress -MacAddress $MacAddress
-            $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress }
+            $macAddress1 = Format-SdnMacAddress -MacAddress $MacAddress -Dashes
+            $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress -or $_.MacAddress -eq $macAddress1 }
         }
 
         return ($adapters | Sort-Object -Property Name)
@@ -2811,12 +2814,12 @@ function Set-SdnVMNetworkAdapterPortProfile {
 
         [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
         [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
-        $vmAdapterParams = $PSBoundParameters
-        [void]$vmAdapterParams.Remove('ProfileId')
-        [void]$vmAdapterParams.Remove('ProfileData')
-        if ($PSBoundParameters.ContainsKey('HostVmNic')) {
-            [void]$vmAdapterParams.Remove('HostVmNic')
-            $vmAdapterParams.Add('ManagementOS', $HostVmNic)
+        $vmAdapterParams = @{
+            VMName = $VMName
+            MacAddress = $MacAddress
+        }
+        if ($HostVmNic) {
+            $vmAdapterParams.Add('ManagementOS', $true)
         }
 
         $vmNic = Get-SdnVmNetworkAdapter @vmAdapterParams
