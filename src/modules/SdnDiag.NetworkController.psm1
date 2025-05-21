@@ -321,13 +321,20 @@ function Get-SdnClusterType {
     )
 
     $sb = {
-        # with failover cluster, the SDNApiService will run as a service within windows
-        # so we can check if the service exists to determine if it is a failover cluster configuration regardless if running
-        $service = Get-Service -Name 'SDNApiService' -ErrorAction Ignore
-        if ($service) {
+        # 1. First check if ClusSvc service exists
+        $clusService = Get-Service -Name 'ClusSvc' -ErrorAction Ignore
+        if ($null -eq $clusService) {
+            # If ClusSvc doesn't exist, it's not a FailoverCluster
+            return 'ServiceFabric'
+        }
+        
+        # 2. If ClusSvc exists, check for the ApiService cluster group
+        $apiServiceGroup = Get-ClusterGroup -Name 'ApiService' -ErrorAction Ignore
+        if ($apiServiceGroup) {
             return 'FailoverCluster'
         }
-
+        
+        # Default to ServiceFabric if nothing else matches
         return 'ServiceFabric'
     }
 
