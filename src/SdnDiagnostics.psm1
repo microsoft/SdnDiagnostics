@@ -1,6 +1,44 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+param (
+    [switch]$SkipUpdate = $false
+)
+
+[void]$PSBoundParameters.Remove('SkipUpdate')
+
+########################################
+#### MODULE INITIALIZATION #############
+########################################
+
+function Test-LatestVersion {
+    [CmdletBinding()]
+    param ()
+    [string]$moduleName = 'SdnDiagnostics'
+
+    try {
+        # Get the currently imported version
+        $currentModule = Get-Module -Name $moduleName -ListAvailable | Sort-Object Version -Descending | Select-Object -First 1
+        $currentVersion = $currentModule.Version
+        Write-Verbose -Message "Current version: $currentVersion"
+
+        # Query PSGallery for the latest version
+        $latestModule = Find-Module -Name $moduleName -Repository PSGallery -ErrorAction Stop
+        $latestVersion = $latestModule.Version
+        Write-Verbose -Message "Latest version: $latestVersion"
+
+        if ([version]$latestVersion -gt [version]$currentVersion) {
+            Write-Information -MessageData "A $moduleName module version ($latestVersion) is available. Run 'Update-Module -Name $moduleName' to update." -InformationAction Continue
+        }
+        else {
+            Write-Verbose -Message "You are running the latest version of $moduleName."
+        }
+    }
+    catch {
+        Write-Information -MessageData "Unable to connect to PowerShell Gallery to look for latest version of $moduleName.`nCheck manually to ensure you are running the latest version." -InformationAction Continue
+    }
+}
+
 New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
@@ -63,6 +101,11 @@ if (Confirm-IsFailoverClusterNC) {
             Write-Warning "Failed to import NetworkControllerFc module. Error: $_"
         }
     }
+}
+
+# if skipupdate is not set, check for the latest version of the module
+if (!$SkipUpdate){
+    Test-LatestVersion @PSBoundParameters
 }
 
 ##########################
