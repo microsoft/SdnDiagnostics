@@ -44,6 +44,7 @@
                     "{dbc217a8-018f-4d8e-a849-acea31bc93f9}" # Microsoft.Windows.NetworkController.HostAgent.VSwitchPlugin
                     "{41DC7652-AAF6-4428-BBBB-CFBDA322F9F3}" # Microsoft.Windows.NetworkController.HostAgent.FirewallPlugin
                     "{F2605199-8A9B-4EBD-B593-72F32DEEC058}" # Microsoft.Windows.NetworkController.HostAgent.ServiceInsertionPlugin
+                    "{f6be3d13-c3d4-44bb-ad4d-3498b51f981e}" # Microsoft.Windows.NetworkController.HostAgent.GatewayPlugin
                 )
                 Level = 4
                 Keywords = "0xFFFFFFFFFFFFFFFF"
