@@ -559,7 +559,8 @@ function Start-SdnCertificateRotation {
 
         "== STAGE: ROTATE SOUTHBOUND CERTIFICATE CREDENTIALS ==" | Trace-Output
 
-        $null = Update-NetworkControllerCredentialResource @ncRestParams -NewRestCertThumbprint $CertRotateConfig["NcRestCert"] -ErrorAction Stop
+        $restCertificate = Get-SdnCertificate -Path 'Cert:\LocalMachine\My' -Thumbprint $CertRotateConfig["NcRestCert"]
+        $null = Update-NetworkControllerCredentialResource @ncRestParams -RestCert $restCertificate -ErrorAction Stop
 
         "Southbound certificate rotation completed" | Trace-Output
 

@@ -672,8 +672,8 @@ function Update-NetworkControllerCredentialResource {
         Update the Credential Resource in Network Controller with new certificate.
     .PARAMETER NcUri
         The Network Controller REST URI.
-    .PARAMETER NewRestCertThumbprint
-        The new Network Controller REST Certificate Thumbprint to be used by credential resource.
+    .PARAMETER RestCert
+        The new Network Controller REST Certificate to be used by credential resource.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
     #>
@@ -685,8 +685,7 @@ function Update-NetworkControllerCredentialResource {
         $NcUri,
 
         [Parameter(Mandatory = $true)]
-        [System.String]
-        $NewRestCertThumbprint,
+        [X509Certificate]$RestCert,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
@@ -731,18 +730,28 @@ function Update-NetworkControllerCredentialResource {
         foreach ($connection in $servers.properties.connections | Where-Object { $_.credentialType -ieq "X509Certificate" -or $_.credentialType -ieq "X509CertificateSubjectName" }) {
             $cred = Get-SdnResource @ncRestParams -ResourceRef $connection.credential.resourceRef
 
-            # if for any reason the certificate thumbprint has been updated, then skip the update operation for this credential resource
-            if ($cred.properties.value -ieq $NewRestCertThumbprint) {
-                "{0} has already updated to {1}" -f $cred.resourceRef, $NewRestCertThumbprint | Trace-Output
+            switch ($cred.properties.type) {
+                'X509Certificate' {
+                    [string]$newValue = $RestCert.Thumbprint
+                }
+                'X509CertificateSubjectName' {
+                    [string]$newValue = $RestCert.Subject.Split('=')[1].Trim()
+                }
+            }
+
+            # check if the credential resource already has the new value
+            # if it does, then we can skip the update
+            if ($cred.properties.value -ieq $newValue) {
+                "{0} has already updated to {1}" -f $cred.resourceRef, $newValue | Trace-Output
                 continue
             }
 
-            "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $NewRestCertThumbprint | Trace-Output
-            $cred.properties.value = $NewRestCertThumbprint
+            "{0} will be updated from {1} to {2}" -f $cred.resourceRef, $cred.properties.value, $newValue | Trace-Output
+            $cred.properties.value = $newValue
             $putParams.Body = $cred | ConvertTo-Json -Depth 100
             $putParams.Uri = Get-SdnApiEndpoint -NcUri $NcUri -ResourceRef $cred.resourceRef
 
-            # update the credential resource with new certificate thumbprint
+            # update the credential resource with new certificate details
             # and confirm the provisioning state is succeeded
             $null = Invoke-WebRequestWithRetry @putParams
             try {
