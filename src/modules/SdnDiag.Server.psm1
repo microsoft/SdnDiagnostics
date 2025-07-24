@@ -3457,8 +3457,9 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $repairRequired = $false
     $ncRestParams = @{
-        NcUri = $NcUri
+        NcUri    = $NcUri
         Resource = 'NetworkInterfaces'
     }
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
@@ -3468,11 +3469,11 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
     }
 
-    $portProfileParams = @{
-        VMName = $VMName
-        MacAddress = [System.String]::Empty
+    $repairPortProfileParams = @{
+        VMName      = $VMName
+        MacAddress  = [System.String]::Empty
+        ProfileId   = [System.Guid]::Empty
         ProfileData = 1
-        ProfileId = [System.Guid]::Empty
     }
 
     try {
@@ -3485,16 +3486,47 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             throw New-Object System.ArgumentException("Unable to locate NetworkInterface with MAC Address $formattedMacAddress.")
         }
 
-        $portProfileParams.MacAddress = $formattedMacAddress
-        $portProfileParams.ProfileId = $networkInterfaces.InstanceId
+        $repairPortProfileParams.MacAddress = $formattedMacAddress
+        $repairPortProfileParams.ProfileId = $networkInterfaces.InstanceId
 
         # check to see if the Hyper-V host is local or remote host
         if (-not (Test-ComputerNameIsLocal -ComputerName $HyperVHost)) {
-            $portProfileParams.Add('HyperVHost', $HyperVHost)
-            $portProfileParams.Add('Credential', $Credential)
+            $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
+            $repairPortProfileParams.Add('Credential', $Credential)
+
+            $currentPortProfileSettings = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -MacAddress $formattedMacAddress
+        }
+        else {
+            $currentPortProfileSettings = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
+                param($vmName, $macAddress)
+                Get-SdnVMNetworkAdapterPortProfile -VMName $vmName -MacAddress $macAddress
+            } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
+        }
+        if ($null -ieq $currentPortProfileSettings) {
+            throw New-Object System.ArgumentException("Unable to locate Port Profile for VM $VMName with MAC Address $formattedMacAddress.")
         }
 
-        Set-VMNetworkAdapterPortProfile @portProfileParams
+        # ensure that the profile id matches the instance id of the networkinterface
+        $formattedCurrentProfileId = [System.Guid]::Parse($currentPortProfileSettings.ProfileId).Guid
+        if ($formattedCurrentProfileId -ne $repairPortProfileParams.ProfileId) {
+            $repairPortProfileParams.ProfileId = $networkInterfaces.InstanceId
+            "Current ProfileId [{0}] does not match expected ProfileId [{1}]." -f $formattedCurrentProfileId, $repairPortProfileParams.ProfileId | Trace-Output -Level:Information
+            $repairRequired = $true
+        }
+
+        # ensure that the profile data is set to 1 (VfpEnabled)
+        if ($currentPortProfileSettings.ProfileData -ne 1) {
+            "Current ProfileData [{0}] does not match expected ProfileData [1] (VfpEnabled)." -f $currentPortProfileSettings.ProfileData | Trace-Output -Level:Information
+            $repairRequired = $true
+        }
+
+        if ($repairRequired) {
+            "Repairing Port Profile for VM $VMName with MAC Address $formattedMacAddress." | Trace-Output
+            Set-VMNetworkAdapterPortProfile @repairPortProfileParams
+        }
+        else {
+            "Port Profile for VM $VMName with MAC Address $formattedMacAddress is already in the correct state." | Trace-Output -Level:Information
+        }
     }
     catch {
         $_ | Trace-Exception
