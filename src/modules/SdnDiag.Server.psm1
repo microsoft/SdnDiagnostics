@@ -3398,3 +3398,106 @@ function Get-SdnVMSwitch {
 
     return $array
 }
+
+function Repair-SdnVMNetworkAdapterPortProfile {
+    <#
+    .SYNOPSIS
+        Repairs the port profile applied to the virtual machine network interfaces.
+    .DESCRIPTION
+        This cmdlet repairs the port profile applied to the virtual machine network interfaces by retrieving the network interface from Network Controller and applying the port profile to the VM network adapter.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the VM network adapter.
+    .PARAMETER NcUri
+        Specifies the URI of the Network Controller REST API.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. If omitted, the current user is used.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+    .PARAMETER HyperVHost
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of the computer that is hosting the virtual machine.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user. If omitted, the current user is used.
+    .EXAMPLE
+        Repair-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -NcUri 'https://nc.contoso.com' -HyperVHost 'Contoso-N01'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$VMName,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$MacAddress,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$HyperVHost,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $ncRestParams = @{
+        NcUri = $NcUri
+        Resource = 'NetworkInterfaces'
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
+    $portProfileParams = @{
+        VMName = $VMName
+        MacAddress = [System.String]::Empty
+        ProfileData = 1
+        ProfileId = [System.Guid]::Empty
+    }
+
+    try {
+        # format the mac address to match the format used by Network Controller
+        # then invoke request to retrieve the network interfaces that match the MAC address
+        # we need the InstanceId of the network interface
+        $formattedMacAddress = Format-SdnMacAddress -MacAddress $MacAddress
+        $networkInterfaces = Get-SdnResource @ncRestParams -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
+        if ($null -eq $networkInterfaces) {
+            throw New-Object System.ArgumentException("Unable to locate NetworkInterface with MAC Address $formattedMacAddress.")
+        }
+
+        $portProfileParams.MacAddress = $formattedMacAddress
+        $portProfileParams.ProfileId = $networkInterfaces.InstanceId
+
+        # check to see if the Hyper-V host is local or remote host
+        if (-not (Test-ComputerNameIsLocal -ComputerName $HyperVHost)) {
+            $portProfileParams.Add('HyperVHost', $HyperVHost)
+            $portProfileParams.Add('Credential', $Credential)
+        }
+
+        Set-VMNetworkAdapterPortProfile @portProfileParams
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
