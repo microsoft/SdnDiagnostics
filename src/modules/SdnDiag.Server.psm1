@@ -3494,12 +3494,15 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
             $repairPortProfileParams.Add('Credential', $Credential)
 
-            $currentPortProfileSettings = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -MacAddress $formattedMacAddress
+            $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -ErrorAction Stop
+            $currentPortProfileSettings = $vmNetworkAdapters | Where-Object {$_.MacAddress -eq $formattedMacAddress}
         }
         else {
             $currentPortProfileSettings = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                 param($vmName, $macAddress)
-                Get-SdnVMNetworkAdapterPortProfile -VMName $vmName -MacAddress $macAddress
+
+                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName -MacAddress $macAddress
+                return ($vmNetworkAdapters | Where-Object {$_.MacAddress -eq $macAddress})
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
         }
         if ($null -ieq $currentPortProfileSettings) {
