@@ -2874,10 +2874,12 @@ function Set-SdnVMNetworkAdapterPortProfile {
                         [Parameter(Position = 4)][Switch]$param5
                     )
 
-                    Set-VMNetworkAdapterPortProfile -VMName $param1 -MacAddress $param2 -ProfileId $param3 -ProfileData $param4
+                    # we need to call the exported function Set-VMNetworkAdapterPortProfile
+                    Set-SdnVMNetworkAdapterPortProfile -VMName $param1 -MacAddress $param2 -ProfileId $param3 -ProfileData $param4
                 } -ArgumentList @($splat.VMName, $splat.MacAddress, $splat.ProfileId, $splat.ProfileData, $splat.$HostVmNic)
             }
             'Local' {
+                # we can call the function directly
                 Set-VMNetworkAdapterPortProfile @splat
             }
         }
@@ -3490,18 +3492,18 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $repairPortProfileParams.ProfileId = $networkInterfaces.InstanceId
 
         # check to see if the Hyper-V host is local or remote host
-        if (-not (Test-ComputerNameIsLocal -ComputerName $HyperVHost)) {
-            $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
-            $repairPortProfileParams.Add('Credential', $Credential)
-
+        if (Test-ComputerNameIsLocal -ComputerName $HyperVHost) {
             $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -ErrorAction Stop
             $currentPortProfileSettings = $vmNetworkAdapters | Where-Object {$_.MacAddress -eq $formattedMacAddress}
         }
         else {
+            $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
+            $repairPortProfileParams.Add('Credential', $Credential)
+
             $currentPortProfileSettings = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                 param($vmName, $macAddress)
 
-                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName -MacAddress $macAddress
+                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName
                 return ($vmNetworkAdapters | Where-Object {$_.MacAddress -eq $macAddress})
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
         }
@@ -3525,7 +3527,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
 
         if ($repairRequired) {
             "Repairing Port Profile for VM $VMName with MAC Address $formattedMacAddress." | Trace-Output
-            Set-VMNetworkAdapterPortProfile @repairPortProfileParams
+            Set-SdnVMNetworkAdapterPortProfile @repairPortProfileParams
         }
         else {
             "Port Profile for VM $VMName with MAC Address $formattedMacAddress is already in the correct state." | Trace-Output -Level:Information
