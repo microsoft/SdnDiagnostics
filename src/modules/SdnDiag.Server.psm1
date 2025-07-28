@@ -3425,24 +3425,15 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         Repair-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -NcUri 'https://nc.contoso.com' -HyperVHost 'Contoso-N01'
     #>
 
-    [CmdletBinding(DefaultParameterSetName = 'RestCredential_Local')]
+    [CmdletBinding()]
     param (
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $true)]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $true)]
         [System.String]$MacAddress,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $true)]
         [ValidateScript({
             if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
                 throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
@@ -3451,26 +3442,26 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         })]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Local')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Local')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $false)]
         [X509Certificate]$NcRestCertificate,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $true)]
         [System.String]$HyperVHost,
 
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Remote')]
-        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Remote')]
+        [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate') -and $PSBoundParameters.ContainsKey('NcRestCredential')) {
+        throw "NcRestCertificate and NcRestCredential are mutually exclusive"
+    }
 
     $repairRequired = $false
     $ncRestParams = @{
