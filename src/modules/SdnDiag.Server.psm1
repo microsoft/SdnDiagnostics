@@ -3420,20 +3420,29 @@ function Repair-SdnVMNetworkAdapterPortProfile {
     .PARAMETER HyperVHost
         Type the NetBIOS name, an IP address, or a fully qualified domain name of the computer that is hosting the virtual machine.
     .PARAMETER Credential
-        Specifies a user account that has permission to perform this action. The default is the current user. If omitted, the current user is used.
+        Specifies a user account that has permission to perform this action on the HyperVHost. The default is the current user. If omitted, the current user is used.
     .EXAMPLE
         Repair-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -NcUri 'https://nc.contoso.com' -HyperVHost 'Contoso-N01'
     #>
 
-    [CmdletBinding()]
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential_Local')]
     param (
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
         [System.String]$VMName,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
         [System.String]$MacAddress,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Local')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
         [ValidateScript({
             if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
                 throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
@@ -3442,18 +3451,22 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         })]
         [Uri]$NcUri,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Remote')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Local')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Remote')]
         [X509Certificate]$NcRestCertificate,
 
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate_Remote')]
         [System.String]$HyperVHost,
 
-        [Parameter(Mandatory = $false)]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential_Remote')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCertificate_Remote')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
