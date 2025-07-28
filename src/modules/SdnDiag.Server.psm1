@@ -3496,7 +3496,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
 
         # we want to ensure that the network interface is not a load balancer mux interface
         # as we do not support this currently
-        if ($networkInterface.properties.loadBalancerMuxExternal -or $networkInterface.properties.gateway) {
+        if ($networkInterface.properties.loadBalancerMuxExternal -or $networkInterface.properties.loadBalancerMuxInternal -or $networkInterface.properties.gateway) {
             throw New-Object System.NotSupportedException("NetworkInterface $($networkInterface.resourceRef) with MAC Address $formattedMacAddress is a Gateway or LoadBalancerMux interface and cannot be repaired using this cmdlet.")
         }
 
