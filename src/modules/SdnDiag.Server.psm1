@@ -2745,7 +2745,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
     .PARAMETER ProfileId
         The InstanceID of the Network Interface taken from Network Controller. If ommited, defaults to an empty GUID to enable network connectivity for non-NC managed VMs.
     .PARAMETER ProfileData
-        1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux). If ommited, defaults to 1.
+        1 = VfpEnabled, 2 = VfpDisabled, 6 = VfpEnabledDHCP. If ommited, defaults to 1.
     .PARAMETER HostVmNic
         Indicates if NIC is a host NIC. If ommited, defaults to false.
     .PARAMETER HyperVHost
@@ -3475,7 +3475,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         VMName      = $VMName
         MacAddress  = [System.String]::Empty
         ProfileId   = [System.Guid]::Empty
-        ProfileData = 1
+        ProfileData = 2
     }
 
     try {
@@ -3483,13 +3483,37 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         # then invoke request to retrieve the network interfaces that match the MAC address
         # we need the InstanceId of the network interface
         $formattedMacAddress = Format-SdnMacAddress -MacAddress $MacAddress
-        $networkInterfaces = Get-SdnResource @ncRestParams -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
-        if ($null -eq $networkInterfaces) {
+        $networkInterface = Get-SdnResource @ncRestParams -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
+        if ($null -eq $networkInterface) {
             throw New-Object System.ArgumentException("Unable to locate NetworkInterface with MAC Address $formattedMacAddress.")
         }
 
+        # throw an exception if there are multiple network interfaces with the same MAC address
+        # as this is not expected and will cause other issues in the environment
+        if ($networkInterface.Count -gt 1) {
+            throw New-Object System.ArgumentException("Multiple networkInterface found with MAC Address $formattedMacAddress. Please ensure that the MAC address is unique across the environment.")
+        }
+
+        # we want to ensure that the network interface is not a load balancer mux interface
+        # as we do not support this currently
+        if ($networkInterface.properties.loadBalancerMuxExternal -or $networkInterface.properties.gateway) {
+            throw New-Object System.NotSupportedException("NetworkInterface $($networkInterface.resourceRef) with MAC Address $formattedMacAddress is a Gateway or LoadBalancerMux interface and cannot be repaired using this cmdlet.")
+        }
+
+        # we will need to determine the port profile settings that we want to apply to the VM network adapter
+        # this can be determined by looking at the IP configuration of the network interface
+        # LNETs w/ DHCP enabled workloads will have ProfileData set to 6
+        # else we would set it to 1 (VfpEnabled)
+        $ipConfig = $networkInterface.properties.ipConfigurations[0]
+        if ($ipConfig.properties.privateIPAllocationMethod -ieq "Unmanaged" -and $ipConfig.properties.subnet.resourceRef -ilike "/logicalNetworks/*") {
+            $repairPortProfileParams.ProfileData = 6
+        }
+        else {
+            $repairPortProfileParams.ProfileData = 1
+        }
+
         $repairPortProfileParams.MacAddress = $formattedMacAddress
-        $repairPortProfileParams.ProfileId = $networkInterfaces.InstanceId
+        $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
 
         # check to see if the Hyper-V host is local or remote host
         if (Test-ComputerNameIsLocal -ComputerName $HyperVHost) {
@@ -3514,7 +3538,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         # ensure that the profile id matches the instance id of the networkinterface
         $formattedCurrentProfileId = [System.Guid]::Parse($currentPortProfileSettings.ProfileId).Guid
         if ($formattedCurrentProfileId -ne $repairPortProfileParams.ProfileId) {
-            $repairPortProfileParams.ProfileId = $networkInterfaces.InstanceId
+            $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
             "Current ProfileId [{0}] does not match expected ProfileId [{1}]." -f $formattedCurrentProfileId, $repairPortProfileParams.ProfileId | Trace-Output -Level:Information
             $repairRequired = $true
         }
