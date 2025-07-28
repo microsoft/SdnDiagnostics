@@ -694,24 +694,25 @@ function Test-SdnExpressBGP {
 
             $RestoreMuxState = $false
             $mux = Get-Service -Name 'SlbMux' -ErrorAction SilentlyContinue
-            if ($null -ne $mux) {
+            if ($mux) {
                 $muxstartup = $mux.starttype
                 $muxstatus = $mux.status
 
                 if (($muxstatus -ne "Stopped") -or ($Muxstartup -ne "Disabled")) {
                     if ($force) {
                         $RestoreMuxState = $true
-                        Set-Service -Name -startup Disabled
-                        stop-Service -Name
+                        Set-Service -Name 'SlbMux' -StartupType Disabled
+                        Stop-Service -Name 'SlbMux'
                     }
                     else {
-                        throw "SLB Mux service is active.  Use -force to temporarily disable it during test."
+                        throw "SLB Mux service is active. Use -force to temporarily disable it during test."
                     }
                 }
             }
             else {
-                $muxstate = $null
+                $muxStatus = $null
             }
+
 
             $IPEndpoint = New-object System.Net.IPEndPoint([IPAddress]$LocalIPAddress, 0)
             try {
