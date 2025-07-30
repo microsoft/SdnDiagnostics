@@ -146,6 +146,7 @@
         'New-SdnServerCertificate',
         'Remove-SdnExpressBgpHost',
         'Repair-SdnDiagnosticsScheduledTask',
+        'Repair-SdnVMNetworkAdapterPortProfile',
         'Restart-SdnServiceFabricClusterNodes',
         'Set-SdnCertificateAcl',
         'Set-SdnNetworkController',

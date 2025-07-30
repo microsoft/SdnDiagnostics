@@ -2745,7 +2745,7 @@ function Set-SdnVMNetworkAdapterPortProfile {
     .PARAMETER ProfileId
         The InstanceID of the Network Interface taken from Network Controller. If ommited, defaults to an empty GUID to enable network connectivity for non-NC managed VMs.
     .PARAMETER ProfileData
-        1 = VfpEnabled, 2 = VfpDisabled (usually in the case of Mux). If ommited, defaults to 1.
+        1 = VfpEnabled, 2 = VfpDisabled, 6 = VfpEnabledDHCP. If ommited, defaults to 1.
     .PARAMETER HostVmNic
         Indicates if NIC is a host NIC. If ommited, defaults to false.
     .PARAMETER HyperVHost
@@ -2874,10 +2874,12 @@ function Set-SdnVMNetworkAdapterPortProfile {
                         [Parameter(Position = 4)][Switch]$param5
                     )
 
-                    Set-VMNetworkAdapterPortProfile -VMName $param1 -MacAddress $param2 -ProfileId $param3 -ProfileData $param4
+                    # we need to call the exported function Set-VMNetworkAdapterPortProfile
+                    Set-SdnVMNetworkAdapterPortProfile -VMName $param1 -MacAddress $param2 -ProfileId $param3 -ProfileData $param4
                 } -ArgumentList @($splat.VMName, $splat.MacAddress, $splat.ProfileId, $splat.ProfileData, $splat.$HostVmNic)
             }
             'Local' {
+                # we can call the function directly
                 Set-VMNetworkAdapterPortProfile @splat
             }
         }
@@ -3397,4 +3399,170 @@ function Get-SdnVMSwitch {
     }
 
     return $array
+}
+
+function Repair-SdnVMNetworkAdapterPortProfile {
+    <#
+    .SYNOPSIS
+        Repairs the port profile applied to the virtual machine network interfaces.
+    .DESCRIPTION
+        This cmdlet repairs the port profile applied to the virtual machine network interfaces by retrieving the network interface from Network Controller and applying the port profile to the VM network adapter.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the VM network adapter.
+    .PARAMETER NcUri
+        Specifies the URI of the Network Controller REST API.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. If omitted, the current user is used.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+    .PARAMETER HyperVHost
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of the computer that is hosting the virtual machine.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action on the HyperVHost. The default is the current user. If omitted, the current user is used.
+    .EXAMPLE
+        Repair-SdnVMNetworkAdapterPortProfile -VMName 'TestVM01' -MacAddress 001DD826100E -NcUri 'https://nc.contoso.com' -HyperVHost 'Contoso-N01'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$VMName,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$MacAddress,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$HyperVHost,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate') -and $PSBoundParameters.ContainsKey('NcRestCredential')) {
+        throw "NcRestCertificate and NcRestCredential are mutually exclusive"
+    }
+
+    $repairRequired = $false
+    $ncRestParams = @{
+        NcUri    = $NcUri
+        Resource = 'NetworkInterfaces'
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
+    $repairPortProfileParams = @{
+        VMName      = $VMName
+        MacAddress  = [System.String]::Empty
+        ProfileId   = [System.Guid]::Empty
+        ProfileData = 2
+    }
+
+    try {
+        # format the mac address to match the format used by Network Controller
+        # then invoke request to retrieve the network interfaces that match the MAC address
+        # we need the InstanceId of the network interface
+        $formattedMacAddress = Format-SdnMacAddress -MacAddress $MacAddress
+        $networkInterface = Get-SdnResource @ncRestParams -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
+        if ($null -eq $networkInterface) {
+            throw New-Object System.ArgumentException("Unable to locate NetworkInterface with MAC Address $formattedMacAddress.")
+        }
+
+        # throw an exception if there are multiple network interfaces with the same MAC address
+        # as this is not expected and will cause other issues in the environment
+        if ($networkInterface.Count -gt 1) {
+            throw New-Object System.ArgumentException("Multiple networkInterface found with MAC Address $formattedMacAddress. Please ensure that the MAC address is unique across the environment.")
+        }
+
+        # we want to ensure that the network interface is not a load balancer mux interface
+        # as we do not support this currently
+        if ($networkInterface.properties.loadBalancerMuxExternal -or $networkInterface.properties.loadBalancerMuxInternal -or $networkInterface.properties.gateway) {
+            throw New-Object System.NotSupportedException("NetworkInterface $($networkInterface.resourceRef) with MAC Address $formattedMacAddress is a Gateway or LoadBalancerMux interface and cannot be repaired using this cmdlet.")
+        }
+
+        # we will need to determine the port profile settings that we want to apply to the VM network adapter
+        # this can be determined by looking at the IP configuration of the network interface
+        # LNETs w/ DHCP enabled workloads will have ProfileData set to 6
+        # else we would set it to 1 (VfpEnabled)
+        $ipConfig = $networkInterface.properties.ipConfigurations[0]
+        if ($ipConfig.properties.privateIPAllocationMethod -ieq "Unmanaged" -and $ipConfig.properties.subnet.resourceRef -ilike "/logicalNetworks/*") {
+            $repairPortProfileParams.ProfileData = 6
+        }
+        else {
+            $repairPortProfileParams.ProfileData = 1
+        }
+
+        $repairPortProfileParams.MacAddress = $formattedMacAddress
+        $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
+
+        # check to see if the Hyper-V host is local or remote host
+        if (Test-ComputerNameIsLocal -ComputerName $HyperVHost) {
+            $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -ErrorAction Stop
+            $currentPortProfileSettings = $vmNetworkAdapters | Where-Object {$_.MacAddress -eq $formattedMacAddress}
+        }
+        else {
+            $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
+            $repairPortProfileParams.Add('Credential', $Credential)
+
+            $currentPortProfileSettings = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
+                param($vmName, $macAddress)
+
+                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName
+                return ($vmNetworkAdapters | Where-Object {$_.MacAddress -eq $macAddress})
+            } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
+        }
+        if ($null -ieq $currentPortProfileSettings) {
+            throw New-Object System.ArgumentException("Unable to locate Port Profile for VM $VMName with MAC Address $formattedMacAddress.")
+        }
+
+        # ensure that the profile id matches the instance id of the networkinterface
+        $formattedCurrentProfileId = [System.Guid]::Parse($currentPortProfileSettings.ProfileId).Guid
+        if ($formattedCurrentProfileId -ne $repairPortProfileParams.ProfileId) {
+            $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
+            "Current ProfileId [{0}] does not match expected ProfileId [{1}]." -f $formattedCurrentProfileId, $repairPortProfileParams.ProfileId | Trace-Output -Level:Information
+            $repairRequired = $true
+        }
+
+        # ensure that the profile data matches what we expect
+        if ($currentPortProfileSettings.ProfileData -ne $repairPortProfileParams.ProfileData) {
+            "Current ProfileData [{0}] does not match expected ProfileData [{1}]." -f $currentPortProfileSettings.ProfileData, $repairPortProfileParams.ProfileData | Trace-Output -Level:Information
+            $repairRequired = $true
+        }
+
+        if ($repairRequired) {
+            "Repairing Port Profile for VM $VMName with MAC Address $formattedMacAddress." | Trace-Output
+            Set-SdnVMNetworkAdapterPortProfile @repairPortProfileParams
+        }
+        else {
+            "Port Profile for VM $VMName with MAC Address $formattedMacAddress is already in the correct state." | Trace-Output -Level:Information
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
 }
