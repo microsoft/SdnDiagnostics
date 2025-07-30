@@ -3547,9 +3547,9 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $repairRequired = $true
         }
 
-        # ensure that the profile data is set to 1 (VfpEnabled)
-        if ($currentPortProfileSettings.ProfileData -ne 1) {
-            "Current ProfileData [{0}] does not match expected ProfileData [1] (VfpEnabled)." -f $currentPortProfileSettings.ProfileData | Trace-Output -Level:Information
+        # ensure that the profile data matches what we expect
+        if ($currentPortProfileSettings.ProfileData -ne $repairPortProfileParams.ProfileData) {
+            "Current ProfileData [{0}] does not match expected ProfileData [{1}]." -f $currentPortProfileSettings.ProfileData, $repairPortProfileParams.ProfileData | Trace-Output -Level:Information
             $repairRequired = $true
         }
 
