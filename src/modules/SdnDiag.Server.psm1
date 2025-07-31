@@ -3466,7 +3466,6 @@ function Repair-SdnVMNetworkAdapterPortProfile {
     $repairRequired = $false
     $ncRestParams = @{
         NcUri    = $NcUri
-        Resource = 'NetworkInterfaces'
     }
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
@@ -3487,10 +3486,14 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         # then invoke request to retrieve the network interfaces that match the MAC address
         # we need the InstanceId of the network interface
         $formattedMacAddress = Format-SdnMacAddress -MacAddress $MacAddress
-        $networkInterface = Get-SdnResource @ncRestParams -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
+        $networkInterface = Get-SdnResource @ncRestParams -Resource 'NetworkInterfaces' -ErrorAction Stop | Where-Object { $_.properties.privateMacAddress -eq $formattedMacAddress }
         if ($null -eq $networkInterface) {
             throw New-Object System.ArgumentException("Unable to locate NetworkInterface with MAC Address $formattedMacAddress.")
         }
+        $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
+        $repairPortProfileParams.MacAddress = $formattedMacAddress
+
+        $ipConfig = $networkInterface.properties.ipConfigurations[0]
 
         # throw an exception if there are multiple network interfaces with the same MAC address
         # as this is not expected and will cause other issues in the environment
@@ -3498,26 +3501,48 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             throw New-Object System.ArgumentException("Multiple networkInterface found with MAC Address $formattedMacAddress. Please ensure that the MAC address is unique across the environment.")
         }
 
-        # we want to ensure that the network interface is not a load balancer mux interface
-        # as we do not support this currently
+        # we want to ensure that the network interface is not a load balancer mux or gateway interface
         if ($networkInterface.properties.loadBalancerMuxExternal -or $networkInterface.properties.loadBalancerMuxInternal -or $networkInterface.properties.gateway) {
             throw New-Object System.NotSupportedException("NetworkInterface $($networkInterface.resourceRef) with MAC Address $formattedMacAddress is a Gateway or LoadBalancerMux interface and cannot be repaired using this cmdlet.")
         }
 
-        # we will need to determine the port profile settings that we want to apply to the VM network adapter
-        # this can be determined by looking at the IP configuration of the network interface
-        # LNETs w/ DHCP enabled workloads will have ProfileData set to 6
-        # else we would set it to 1 (VfpEnabled)
-        $ipConfig = $networkInterface.properties.ipConfigurations[0]
-        if ($ipConfig.properties.privateIPAllocationMethod -ieq "Unmanaged" -and $ipConfig.properties.subnet.resourceRef -ilike "/logicalNetworks/*") {
-            $repairPortProfileParams.ProfileData = 6
+        # determine if we are dealing with a logicalNetwork
+        # as there is some unique profile data we need to set for logical networks
+        if ($ipConfig.properties.subnet.resourceRef -ilike "/logicalNetworks/*") {
+            $isLogicalNetwork = $true
+        }
+        else {
+            $isLogicalNetwork = $false
+        }
+
+
+        if ($isLogicalNetwork) {
+            $accessControlListAssociated = $false
+            if ($null -ne $ipConfig.properties.accessControlList.resourceRef) {
+                $accessControlListAssociated = $true
+            }
+            else {
+                $subnet = Get-SdnResource @ncRestParams -ResourceRef $ipConfig.properties.subnet.resourceRef -ErrorAction Stop
+                if ($null -ne $subnet.properties.accessControlList.resourceRef) {
+                    $accessControlListAssociated = $true
+                }
+            }
+
+            # if we using an accessControlList and the privateIPAllocationMethod is unmanaged, then we will configure the port profile with profile data of 6
+            if ($ipConfig.properties.privateIPAllocationMethod -ieq "Unmanaged" -and $accessControlListAssociated) {
+                $repairPortProfileParams.ProfileData = 6
+            }
+
+            # if we not using an accessControlList, then we will configure default access policies
+            # by setting an empty guid and profile data of 2
+            else {
+                $repairPortProfileParams.ProfileData = 2
+                $repairPortProfileParams.ProfileId = [System.Guid]::Empty
+            }
         }
         else {
             $repairPortProfileParams.ProfileData = 1
         }
-
-        $repairPortProfileParams.MacAddress = $formattedMacAddress
-        $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
 
         # check to see if the Hyper-V host is local or remote host
         if (Test-ComputerNameIsLocal -ComputerName $HyperVHost) {
