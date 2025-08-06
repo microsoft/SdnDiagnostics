@@ -2661,9 +2661,6 @@ function Test-SdnResourceConfigurationState {
                     }
                 }
             }
-            'Success' {
-                return $sdnHealthTest
-            }
 
             default {
                 # do nothing
@@ -2763,10 +2760,6 @@ function Test-SdnResourceProvisioningState {
                 # since we do not know what operations happened prior to this, we will log a warning
                 # and ask the user to monitor the provisioningState
                 $sdnHealthTest.Remediation += "[$($sdnResource.resourceRef)] is reporting $($sdnResource.properties.provisioningState). Monitor to ensure that provisioningState moves to Succeeded."
-            }
-
-            'Succeeded' {
-                return $sdnHealthTest
             }
 
             default {
