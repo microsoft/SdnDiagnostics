@@ -286,6 +286,51 @@ class VMNetAdapterPortProfile {
     [string]$PortName
 }
 
+class VfpPortFlowStats {
+    $InboundFlowStats = [VfpPortFlowStatsInbound]::new()
+    $OutboundFlowStats = [VfpPortFlowStatsOutbound]::new()
+
+    VfpPortFlowStats() {
+        $this.InboundFlowStats = [VfpPortFlowStatsInbound]::new()
+        $this.OutboundFlowStats = [VfpPortFlowStatsOutbound]::new()
+    }
+
+    VfpPortFlowStats([VfpPortFlowStatsOutbound]$outbound, [VfpPortFlowStatsInbound]$inbound) {
+        $this.OutboundFlowStats = $outbound
+        $this.InboundFlowStats = $inbound
+    }
+}
+
+class VfpPortFlowStatsInbound {
+    $TotalEntry = [VfpPortFlowStatistics]::new()
+    $TotalFlow = [VfpPortFlowStatistics]::new()
+    $HalfOpenFlow = [VfpPortFlowStatistics]::new()
+    $TCPFlow = [VfpPortFlowStatistics]::new()
+    $UDPFlow = [VfpPortFlowStatistics]::new()
+    $OtherFlow = [VfpPortFlowStatistics]::new()
+}
+
+class VfpPortFlowStatsOutbound {
+    $TotalEntry = [VfpPortFlowStatistics]::new()
+    $TotalFlow = [VfpPortFlowStatistics]::new()
+    $HalfOpenFlow = [VfpPortFlowStatistics]::new()
+    $TCPFlow = [VfpPortFlowStatistics]::new()
+    $UDPFlow = [VfpPortFlowStatistics]::new()
+    $OtherFlow = [VfpPortFlowStatistics]::new()
+}
+
+class VfpPortFlowStatistics {
+    [int]$count
+    [int]$limit
+    [int]$maximum
+    [int]$created
+    [int]$matched
+    [int]$ufs_created_per_second
+    [int]$max_ufs_created_per_second
+    [int]$ufs_deleted_per_second
+    [int]$max_ufs_deleted_per_second
+}
+
 ##########################
 #### ARG COMPLETERS ######
 ##########################
@@ -3566,3 +3611,125 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $_ | Write-Error
     }
 }
+
+function Get-SdnVfpPortFlowStat {
+       <#
+    .SYNOPSIS
+        Returns the current VFP port flow statistics for the specified port.
+    .DESCRIPTION
+        Executes 'vfpctrl.exe /get-port-flow-stats /port $port' to return back the current flow statistics of the port specified.
+    .PARAMETER PortName
+        The port name to return the flow statistics for.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVfpPortFlowStat -PortName 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [GUID]$PortName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $params = @{
+        PortName = $PortName
+    }
+
+    function Get-VfpPortFlowStat {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName
+        )
+
+        $currentProcessing = [System.String]::Empty
+
+        $vfpPortFlowStatResults = vfpctrl /get-port-flow-stats /port $PortName
+        if([string]::IsNullOrEmpty($vfpPortFlowStatResults)) {
+            $msg = "Unable to get port flow stats for $PortName from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
+        }
+
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpPortFlowStatResults[0] -ilike "ERROR:*") {
+            $msg = $vfpPortFlowStatResults[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpPortFlowStatResults) {
+            # skip if the line is empty or null
+            if([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            $line = $line.Trim()
+            if ($line.Contains(":")) {
+                $objectName = ($line -replace '.*\[(.*?)\].*', '$1' -replace " ","").Trim() # extract the object name from within the brackets
+                $parts = $line -split ":" # split the line into key/value pairs
+                $key = $parts[0].Trim() -replace '^\[.*?\]\s*', '' -replace " ","_" # remove the bracket, bracket content and spaces from the key
+                $value = $parts[1].Trim() # get the value after the colon
+
+                switch ($currentProcessing) {
+                    'Outbound' {
+                        $outbound.$objectName.$key = $value
+                    }
+                    'Inbound' {
+                        $inbound.$objectName.$key = $value
+                    }
+                }
+            }
+            else {
+                switch -Wildcard ($line) {
+                    "Direction - OUT" {
+                        $outbound = [VfpPortFlowStatsOutbound]::new()
+                        $currentProcessing = 'Outbound'
+                    }
+                    "Direction - IN" {
+                        $inbound = [VfpPortFlowStatsInbound]::new()
+                        $currentProcessing = 'Inbound'
+                    }
+
+                    # this should indicate the end of the results from vpctrl
+                    "*Command get-port-flow-stats succeeded*" {
+                        $vfpPortFlowStats = [VfpPortFlowStats]::new($outbound, $inbound)
+                    }
+                    "*ITEM LIST*" { continue }
+                    "*====*" { continue }
+                }
+            }
+        }
+
+        return $vfpPortFlowStats
+    }
+
+    try {
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
+                param ([guid]$arg0)
+                Get-SdnVfpPortFlowStat -PortName $arg0
+            } -ArgumentList @($params.PortName)
+        }
+        else {
+            $results = Get-VfpPortFlowStat @params
+        }
+
+        return $results
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
