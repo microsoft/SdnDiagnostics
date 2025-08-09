@@ -320,15 +320,15 @@ class VfpPortFlowStatsOutbound {
 }
 
 class VfpPortFlowStatistics {
-    [int]$count
-    [int]$limit
-    [int]$maximum
-    [int]$created
-    [int]$matched
-    [int]$ufs_created_per_second
-    [int]$max_ufs_created_per_second
-    [int]$ufs_deleted_per_second
-    [int]$max_ufs_deleted_per_second
+    [int64]$count
+    [int64]$limit
+    [int64]$maximum
+    [int64]$created
+    [int64]$matched
+    [int64]$ufs_created_per_second
+    [int64]$max_ufs_created_per_second
+    [int64]$ufs_deleted_per_second
+    [int64]$max_ufs_deleted_per_second
 }
 
 ##########################
