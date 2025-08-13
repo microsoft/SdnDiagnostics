@@ -1501,7 +1501,7 @@ function Get-SdnVfpPortGroup {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [string]$ComputerName,
+        [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
@@ -1703,7 +1703,7 @@ function Get-SdnVfpPortLayer {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [string]$ComputerName,
+        [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -1873,6 +1873,12 @@ function Get-SdnVfpPortRule {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    $params = @{
+        PortName = $PortName
+        Layer = $Layer
+        Group = $Group
+    }
+
     function Get-VfpPortRule {
         <#
         .SYNOPSIS
@@ -2028,78 +2034,19 @@ function Get-SdnVfpPortRule {
                         # so we will key off this property to know when to add the object to the array
                         # as well as create a new object
                         'Rule' {
-                            if ($object) {
-                                [void]$arrayList.Add($object)
-                            }
-
-                            # create the custom object based on the layer
-                            # so that we can add appropriate properties
+                            if ($object) { [void]$arrayList.Add($object) }
                             switch ($Layer) {
-                                "GW_PA_ROUTE_LAYER" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "FW_ADMIN_LAYER_ID" {
-                                    $object = [VfpFirewallRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "VNET_DR_REDIRECTION_LAYER" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "FW_CONTROLLER_LAYER_ID" {
-                                    $object = [VfpFirewallRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "VNET_METER_LAYER_OUT" {
-                                    $object = [VfpMeterRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "VNET_MAC_REWRITE_LAYER" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "VNET_ENCAP_LAYER" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "VNET_PA_ROUTE_LAYER" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "SLB_NAT_LAYER" {
-                                    $object = [VfpRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                "SLB_DECAP_LAYER_STATEFUL" {
-                                    $object = [VfpEncapRule]@{
-                                        Rule = $value
-                                    }
-                                }
-
-                                default {
-                                    $object = [VfpRule]@{
-                                        Rule = $value
-                                    }
-                                }
+                                "GW_PA_ROUTE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "FW_ADMIN_LAYER_ID" { $object = [VfpFirewallRule]@{ Rule = $value } }
+                                "VNET_DR_REDIRECTION_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "FW_CONTROLLER_LAYER_ID" { $object = [VfpFirewallRule]@{ Rule = $value } }
+                                "VNET_METER_LAYER_OUT" { $object = [VfpMeterRule]@{ Rule = $value } }
+                                "VNET_MAC_REWRITE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "VNET_ENCAP_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "VNET_PA_ROUTE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "SLB_NAT_LAYER" { $object = [VfpRule]@{ Rule = $value } }
+                                "SLB_DECAP_LAYER_STATEFUL" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                default { $object = [VfpRule]@{ Rule = $value } }
                             }
                         }
 
@@ -2156,12 +2103,6 @@ function Get-SdnVfpPortRule {
     }
 
     try {
-        $params = @{
-            PortName = $PortName
-            Layer = $Layer
-            Group = $Group
-        }
-
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
@@ -2173,7 +2114,7 @@ function Get-SdnVfpPortRule {
         }
 
         if ($Name) {
-            return ($results | Where-Object {$_.Rule -ieq $Name -or $_.'FriendlyName' -ieq $Name})
+            return ($results | Where-Object { $_.Rule -ieq $Name -or $_.'FriendlyName' -ieq $Name })
         }
 
         return $results
