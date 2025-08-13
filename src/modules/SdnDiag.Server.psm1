@@ -3653,41 +3653,43 @@ function Get-SdnVfpPortFlowStat {
             [GUID]$PortName
         )
 
-        $currentProcessing = [System.String]::Empty
-
         $vfpPortFlowStatResults = vfpctrl /get-port-flow-stats /port $PortName
         if([string]::IsNullOrEmpty($vfpPortFlowStatResults)) {
-            $msg = "Unable to get port flow stats for $PortName from vfpctrl"
-            throw New-Object System.NullReferenceException($msg)
+            throw "Unable to get port flow stats for $PortName from vfpctrl"
         }
 
-        # if the line contains a failure, then throw an error and exit the function
-        # this is typically the first line in the output
         if ($vfpPortFlowStatResults[0] -ilike "ERROR:*") {
-            $msg = $vfpPortFlowStatResults[0].Split(':')[1].Trim()
-            throw New-Object System.Exception($msg)
+            throw ($vfpPortFlowStatResults[0].Split(':')[1].Trim())
         }
+
+        $outbound = $null
+        $inbound = $null
+        $currentProcessing = [System.String]::Empty
+        $vfpPortFlowStats = $null
+
+        # Pre-compile regex for bracket extraction
+        # This regex will match text within brackets
+        $bracketRegex = [regex]::new('\[(.*?)\]', [System.Text.RegularExpressions.RegexOptions]::Compiled)
 
         foreach ($line in $vfpPortFlowStatResults) {
-            # skip if the line is empty or null
-            if([string]::IsNullOrEmpty($line)) {
-                continue
-            }
-
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
             $line = $line.Trim()
+
             if ($line.Contains(":")) {
-                $objectName = ($line -replace '.*\[(.*?)\].*', '$1' -replace " ","").Trim() # extract the object name from within the brackets
-                $parts = $line -split ":" # split the line into key/value pairs
-                $key = $parts[0].Trim() -replace '^\[.*?\]\s*', '' -replace " ","_" # remove the bracket, bracket content and spaces from the key
-                $value = $parts[1].Trim() # get the value after the colon
+                # Fast bracket extraction
+                $objectName = $null
+                $bracketMatch = $bracketRegex.Match($line)
+                if ($bracketMatch.Success) {
+                    $objectName = $bracketMatch.Groups[1].Value.Replace(" ","")
+                }
+
+                $parts = $line.Split(":", 2)
+                $key = $parts[0].Trim() -replace '^\[.*?\]\s*', '' -replace " ","_"
+                $value = $parts[1].Trim()
 
                 switch ($currentProcessing) {
-                    'Outbound' {
-                        $outbound.$objectName.$key = $value
-                    }
-                    'Inbound' {
-                        $inbound.$objectName.$key = $value
-                    }
+                    'Outbound' { $outbound.$objectName.$key = $value }
+                    'Inbound'  { $inbound.$objectName.$key  = $value }
                 }
             }
             else {
@@ -3700,8 +3702,6 @@ function Get-SdnVfpPortFlowStat {
                         $inbound = [VfpPortFlowStatsInbound]::new()
                         $currentProcessing = 'Inbound'
                     }
-
-                    # this should indicate the end of the results from vpctrl
                     "*Command get-port-flow-stats succeeded*" {
                         $vfpPortFlowStats = [VfpPortFlowStats]::new($outbound, $inbound)
                     }
