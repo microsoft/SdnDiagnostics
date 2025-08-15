@@ -783,7 +783,7 @@ function Get-SdnApiEndpoint {
     .EXAMPLE
         PS> Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName 'VirtualNetworks'
     .EXAMPLE
-        PS> Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceName '/virtualnetworks/contoso-vnet01'
+        PS> Get-SdnApiEndpoint -NcUri $NcUri.AbsoluteUri -ResourceRef '/VirtualNetworks/contoso-vnet01'
     #>
 
     [CmdletBinding()]
@@ -2656,6 +2656,10 @@ function Set-SdnResource {
         The resource type you want to perform the operation against.
     .PARAMETER ResourceId
         Specify the unique ID of the resource.
+    .PARAMETER OperationType
+        Specify the operation type to perform on the resource (Add or Update or Delete).
+    .PARAMETER Object
+        The object that represents the resource to be created or updated. This parameter is required for Add and Update operations.
     .PARAMETER ApiVersion
         The API version to use when invoking against the NC REST API endpoint.
     .PARAMETER NcRestCertificate
@@ -2667,6 +2671,8 @@ function Set-SdnResource {
         PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -ResourceRef "/networkInterfaces/contoso-nic1" -Object $object
     .EXAMPLE
         PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource "networkInterfaces" -ResourceId "contoso-nic1" -Object $object
+    .EXAMPLE
+        PS> Set-SdnResource -NcUri "https://nc.$env:USERDNSDOMAIN" -Resource "networkInterfaces" -ResourceId "contoso-nic1" -OperationType "Delete"
     #>
 
     [CmdletBinding(SupportsShouldProcess = $true, ConfirmImpact = 'High')]
@@ -2684,8 +2690,13 @@ function Set-SdnResource {
         [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
         [System.String]$ResourceId,
 
-        [Parameter(Mandatory = $true, ParameterSetName = 'ResourceRef')]
-        [Parameter(Mandatory = $true, ParameterSetName = 'Resource')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
+        [ValidateSet('Add', 'Update', 'Delete')]
+        [System.String]$OperationType = 'Update',
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Resource')]
         [System.Object]$Object,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'ResourceRef')]
@@ -2703,21 +2714,17 @@ function Set-SdnResource {
         [X509Certificate]$NcRestCertificate
     )
 
+    if ($OperationType -ieq 'Add' -or $OperationType -ieq 'Update') {
+        if ($null -eq $Object) {
+            throw New-Object System.ArgumentException("The Object parameter is required for Add or Update operations.")
+        }
+    }
+
     $restParams = @{
         Uri     = $null
         Method  = 'Get'
         UseBasicParsing = $true
         ErrorAction = 'Stop'
-    }
-
-    $putRestParams = @{
-        Uri     = $null
-        Method  = 'Put'
-        UseBasicParsing = $true
-        ErrorAction = 'Stop'
-        Body = $null
-        Headers = @{"Accept"="application/json"}
-        ContentType = "application/json; charset=UTF-8"
     }
 
     $confirmParams = @{
@@ -2746,35 +2753,57 @@ function Set-SdnResource {
             }
         }
 
-        $putRestParams.Uri = $uri
-        $restParams.Uri = $uri
-
-        # perform a query against the resource to ensure it exists
-        # as we only support operations against existing resources within this function
-        try {
-            $null = Invoke-RestMethodWithRetry @restParams
+        if ([string]::IsNullOrEmpty($uri)) {
+            throw New-Object System.ArgumentException("Unable to generate a valid URI. Ensure the NcUri and Resource or ResourceRef parameters are specified correctly.")
         }
-        catch [System.Net.WebException] {
-            if ($_.Exception.Response.StatusCode -eq "NotFound") {
-                throw New-Object System.NotSupportedException("Resource was not found. Ensure the resource exists before attempting to update it.")
+        else {
+            $restParams.Uri = $uri
+        }
+
+        # if we doing an update or delete operation
+        # ensure that the resource exists prior to performing operation
+        if ($OperationType -eq 'Update' -or $OperationType -eq 'Delete') {
+            try {
+                $null = Invoke-RestMethodWithRetry @restParams
             }
-            else {
+            catch [System.Net.WebException] {
+                if ($_.Exception.Response.StatusCode -eq "NotFound") {
+                    throw New-Object System.NotSupportedException("Resource was not found. Ensure the resource exists before attempting to update it.")
+                }
+                else {
+                    throw $_
+                }
+            }
+            catch {
                 throw $_
             }
         }
-        catch {
-            throw $_
-        }
 
-        $modifiedObject = Remove-PropertiesFromObject -Object $Object -PropertiesToRemove @('ConfigurationState','ProvisioningState')
-        $jsonBody = $modifiedObject | ConvertTo-Json -Depth 100
-        $putRestParams.Body = $jsonBody
+        switch ($OperationType) {
+            'Delete' {
+                $removeRestParams = $restParams.Clone()
+                $removeRestParams.Method = 'DELETE'
+                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($removeRestParams.Method) to remove the resource at $($removeRestParams.Uri)")) {
+                    $null = Invoke-RestMethodWithRetry @removeRestParams
+                }
+            }
+            default {
+                $modifiedObject = Remove-PropertiesFromObject -Object $Object -PropertiesToRemove @('ConfigurationState','ProvisioningState')
+                $jsonBody = $modifiedObject | ConvertTo-Json -Depth 100
 
-        if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with PUT to configure the properties of $($putRestParams.Uri)`n`t$jsonBody")) {
-            $null = Invoke-RestMethodWithRetry @putRestParams
-            if (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmParams) {
-                $result = Invoke-RestMethodWithRetry @restParams
-                return $result
+                $putRestParams = $restParams.Clone()
+                $putRestParams.Method = 'PUT'
+                $putRestParams.Add("Headers", @{"Content-Type"="application/json"})
+                $putRestParams.Add("ContentType", "application/json; charset=UTF-8")
+                $putRestParams.Add("Body", $jsonBody)
+
+                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($putRestParams.Method) to configure the properties of $($putRestParams.Uri)`n`t$jsonBody")) {
+                    $null = Invoke-RestMethodWithRetry @putRestParams
+                    if (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmParams) {
+                        $result = Invoke-RestMethodWithRetry @restParams
+                        return $result
+                    }
+                }
             }
         }
     }
