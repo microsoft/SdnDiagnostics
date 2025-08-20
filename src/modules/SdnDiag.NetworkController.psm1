@@ -2815,11 +2815,6 @@ function Set-SdnResource {
         $_ | Trace-Exception
         $_ | Write-Error
     }
-    finally {
-        if ($streamReader) {
-            $streamReader.Dispose()
-        }
-    }
 }
 
 function Show-SdnVipState {
