@@ -2768,7 +2768,7 @@ function Set-SdnResource {
             }
             catch [System.Net.WebException] {
                 if ($_.Exception.Response.StatusCode -eq "NotFound") {
-                    throw New-Object System.NotSupportedException("Resource was not found. Ensure the resource exists before attempting to update it.")
+                    throw New-Object System.NotSupportedException("Resource was not found. Ensure the resource exists before attempting to perform $($OperationType) operation.")
                 }
                 else {
                     throw $_
@@ -2783,7 +2783,7 @@ function Set-SdnResource {
             'Delete' {
                 $removeRestParams = $restParams.Clone()
                 $removeRestParams.Method = 'DELETE'
-                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($removeRestParams.Method) to remove the resource at $($removeRestParams.Uri)")) {
+                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($removeRestParams.Method) for the resource at $($removeRestParams.Uri)")) {
                     $null = Invoke-RestMethodWithRetry @removeRestParams
                 }
             }
@@ -2797,7 +2797,7 @@ function Set-SdnResource {
                 $putRestParams.Add("ContentType", "application/json; charset=UTF-8")
                 $putRestParams.Add("Body", $jsonBody)
 
-                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($putRestParams.Method) to configure the properties of $($putRestParams.Uri)`n`t$jsonBody")) {
+                if ($PSCmdlet.ShouldProcess($uri, "Invoke-RestMethod will be called with $($putRestParams.Method) for the resource at $($putRestParams.Uri)`n`t$jsonBody")) {
                     $null = Invoke-RestMethodWithRetry @putRestParams
                     if (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmParams) {
                         $result = Invoke-RestMethodWithRetry @restParams
