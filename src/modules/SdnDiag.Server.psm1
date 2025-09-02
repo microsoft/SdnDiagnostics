@@ -2677,14 +2677,8 @@ function New-SdnServerCertificate {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $config = Get-SdnModuleConfiguration -Role 'Server'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a Server, run this on Server.")
-    }
-
-    # ensure that the module is running as local administrator
-    Confirm-IsAdmin
+    Confirm-IsServer # ensure that the module is running on a Server
+    Confirm-IsAdmin # ensure that the module is running as local administrator
 
     try {
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
@@ -2695,9 +2689,27 @@ function New-SdnServerCertificate {
             $CertPath = Get-Item -Path $Path
         }
 
-        $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
+        $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName' -ErrorAction Stop
         $subjectName = "CN={0}" -f $serverCert
-        $certificate = New-SdnSelfSignedCertificate -Subject $subjectName -NotAfter $NotAfter
+
+        # check if there is a certificate present for Azure Stack Certification Authority for Azure Local systems
+        # if so, we will use that certificate otherwise we will generate a new self-signed certificate
+        if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI') {
+            $azStackHCICertificates = Get-SdnServerCertificate -ErrorAction Ignore
+            if ($azStackHCICertificates) {
+                $azStackCertAuthorityCerts = $azStackHCICertificates | Where-Object { $_.Issuer -ieq 'CN=AzureStackCertificationAuthority' }
+                if ($azStackCertAuthorityCerts) {
+                    $certificate = $azStackCertAuthorityCerts | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+                    "Using certificate Issuer:{0} Subject:{1} Thumbprint:{2} NotAfter:{3}" -f $certificate.Issuer, $certificate.Subject, $certificate.Thumbprint, $certificate.NotAfter | Trace-Output
+                }
+            }
+        }
+
+        # if we not on Azure Stack HCI system, or we did not locate an AzureStackCertificationAuthority certificate
+        # we will generate a new self-signed certificate that will be used
+        if ($null -ieq $certificate) {
+            $certificate = New-SdnSelfSignedCertificate -Subject $subjectName -NotAfter $NotAfter
+        }
 
         # after the certificate has been generated, we want to export the certificate and save the file to directory
         # This allows the rest of the function to pick up these files and perform the steps as normal
