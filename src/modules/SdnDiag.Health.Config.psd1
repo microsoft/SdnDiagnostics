@@ -65,12 +65,12 @@
             Impact = "Minimum amount of nodes are required to maintain quorum and cluster availability. Services will be in read-only state if quorum is lost and may result in data loss."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure/service-fabric/service-fabric-disaster-recovery"
         }
-        'Test-ResourceConfigurationState' = @{
-            Description = "Infrastructure resource configuration is not Succeeded."
+        'Test-SdnResourceConfigurationState' = @{
+            Description = "Infrastructure resource configuration is not Success."
             Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"
         }
-        'Test-ResourceProvisioningState' = @{
+        'Test-SdnResourceProvisioningState' = @{
             Description = "Infrastructure resource provisioning is not Succeeded."
             Impact = "SDN services and functionality may be impacted."
             PublicDocUrl = "https://learn.microsoft.com/en-us/windows-server/networking/sdn/troubleshoot/troubleshoot-windows-server-software-defined-networking-stack#hoster-validate-system-health"

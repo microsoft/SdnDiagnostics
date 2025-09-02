@@ -1054,7 +1054,7 @@ function Write-HealthValidationInfo {
     $outputString += "[$ComputerName] $Name"
     $outputString += "`r`n`r`n"
     $outputString += "Description:`t$($details.Description)`r`n"
-    $outputString += "Impact:`t`t`t$($details.Impact)`r`n"
+    $outputString += "Impact:`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
         $outputString += "Remediation:`r`n`t - $($Remediation -join "`r`n`t - ")`r`n"
@@ -1141,6 +1141,12 @@ function Debug-SdnFabricInfrastructure {
         throw New-Object System.NullReferenceException("Unable to retrieve environment details")
     }
 
+    $ncRestParams = $restCredParam.Clone()
+    $ncRestParams.Add('NcUri', $environmentInfo.NcUrl)
+    $ncRestParamsResource = $ncRestParams.Clone()
+    $ncRestParamsResource.Add('ResourceId', [string]::Empty)
+    $ncRestParamsResource.Add('Resource', [string]::Empty)
+
     try {
         # if we opted to specify the ComputerName rather than Role, we need to determine which role
         # the computer names are associated with
@@ -1201,6 +1207,64 @@ function Debug-SdnFabricInfrastructure {
 
             $healthReport = Invoke-SdnCommand @params
 
+            # update the health report results with the configuration/provisioning state of the resources
+            switch ($object) {
+                'Gateway' {
+                    $ncRestParamsResource.Resource = 'Gateways'
+                    $sdnGateways = Get-SdnGateway @ncRestParams
+                    foreach ($gateway in $sdnGateways){
+                        $ncRestParamsResource.ResourceId = $gateway.ResourceId
+                        $mgmtFqdnIpAddress = Get-SdnGateway @ncRestParams -ResourceId $gateway.ResourceId -ManagementAddressOnly
+                        $netBiosFQDN = Get-ComputerNameFQDNandNetBIOS -ComputerName $mgmtFqdnIpAddress
+                        foreach ($report in $healthReport) {
+                            if ($report.ComputerName -ieq $netBiosFQDN.ComputerNameNetBIOS -or $report.ComputerName -ieq $netBiosFQDN.ComputerNameFQDN) {
+                                $report.HealthTest += @(
+                                    Test-SdnResourceProvisioningState @ncRestParamsResource
+                                    Test-SdnResourceConfigurationState @ncRestParamsResource
+                                )
+                            }
+                        }
+                    }
+                }
+                'LoadBalancerMux' {
+                    $ncRestParamsResource.Resource = 'LoadBalancerMuxes'
+                    $sdnMuxes = Get-SdnLoadBalancerMux @ncRestParams
+                    foreach ($mux in $sdnMuxes){
+                        $ncRestParamsResource.ResourceId = $mux.ResourceId
+                        $mgmtFqdnIpAddress = Get-SdnLoadBalancerMux @ncRestParams -ResourceId $mux.ResourceId -ManagementAddressOnly
+                        $netBiosFQDN = Get-ComputerNameFQDNandNetBIOS -ComputerName $mgmtFqdnIpAddress
+                        foreach ($report in $healthReport) {
+                            if ($report.ComputerName -ieq $netBiosFQDN.ComputerNameNetBIOS -or $report.ComputerName -ieq $netBiosFQDN.ComputerNameFQDN) {
+                                $report.HealthTest += @(
+                                    Test-SdnResourceProvisioningState @ncRestParamsResource
+                                    Test-SdnResourceConfigurationState @ncRestParamsResource
+                                )
+                            }
+                        }
+                    }
+                }
+                'NetworkController' {
+                    # we do not need to do anything here for provisioning or configuration state.
+                }
+                'Server' {
+                    $ncRestParamsResource.Resource = 'Servers'
+                    $sdnServers = Get-SdnServer @ncRestParams
+                    foreach ($server in $sdnServers){
+                        $ncRestParamsResource.ResourceId = $server.ResourceId
+                        $mgmtFqdnIpAddress = Get-SdnServer @ncRestParams -ResourceId $server.ResourceId -ManagementAddressOnly
+                        $netBiosFQDN = Get-ComputerNameFQDNandNetBIOS -ComputerName $mgmtFqdnIpAddress
+                        foreach ($report in $healthReport) {
+                            if ($report.ComputerName -ieq $netBiosFQDN.ComputerNameNetBIOS -or $report.ComputerName -ieq $netBiosFQDN.ComputerNameFQDN) {
+                                $report.HealthTest += @(
+                                    Test-SdnResourceProvisioningState @ncRestParamsResource
+                                    Test-SdnResourceConfigurationState @ncRestParamsResource
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+
             # evaluate the results of the tests and determine if any completed with Warning or FAIL
             # if so, we will want to set the Result of the report to reflect this
             foreach ($test in $healthReport) {
@@ -1227,7 +1291,6 @@ function Debug-SdnFabricInfrastructure {
             # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
             $aggregateHealthReport | ForEach-Object {
                 if ($_.Result -ine 'PASS') {
-
                     # enumerate all the individual role tests performed so we can determine if any completed that are not PASS
                     $_.RoleTest | ForEach-Object {
                         $c = $_.ComputerName
@@ -2533,6 +2596,9 @@ function Test-SdnResourceConfigurationState {
         [string]$Resource,
 
         [Parameter(Mandatory = $true)]
+        [string]$ResourceId,
+
+        [Parameter(Mandatory = $true)]
         [ValidateScript({
                 if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
                     throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
@@ -2551,109 +2617,85 @@ function Test-SdnResourceConfigurationState {
     )
 
     $sdnHealthTest = New-SdnHealthTest
-    $array = @()
 
     try {
-        "Validating configuration state of {0}" -f $Resource | Trace-Output
+        "Validating configuration state of {0} within {1}" -f $ResourceID, $Resource | Trace-Output -Level:Verbose
+        $sdnResource = Get-SdnResource @PSBoundParameters -WarningAction SilentlyContinue
 
-        $sdnResources = Get-SdnResource @PSBoundParameters
-        foreach ($object in $sdnResources) {
-
-            # if we have a resource that is not in a success state, we will skip validation
-            # as we do not expect configurationState to be accurate if provisioningState is not Success
-            if ($object.properties.provisioningState -ine 'Succeeded') {
-                continue
-            }
-
-            # examine the configuration state of the resources and display errors to the screen
-            $errorMessages = @()
-            switch ($object.properties.configurationState.Status) {
-                'Warning' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthTest.Result -ne 'FAIL') {
-                        $sdnHealthTest.Result = 'WARNING'
-                    }
-
-                    $traceLevel = 'Warning'
-                }
-
-                'Failure' {
-                    $sdnHealthTest.Result = 'FAIL'
-                    $traceLevel = 'Error'
-                }
-
-                'InProgress' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthTest.Result -ne 'FAIL') {
-                        $sdnHealthTest.Result = 'WARNING'
-                    }
-
-                    $traceLevel = 'Warning'
-                }
-
-                'Uninitialized' {
-                    # in scenarios where state is redundant, we will not fail the test
-                    if ($object.properties.state -ieq 'Redundant') {
-                        # do nothing
-                    }
-                    else {
-                        # if we already have a failure, we will not change the result to warning
-                        if ($sdnHealthTest.Result -ne 'FAIL') {
-                            $sdnHealthTest.Result = 'WARNING'
-                        }
-
-                        $traceLevel = 'Warning'
-                    }
-                }
-
-                default {
-                    $traceLevel = 'Verbose'
-                }
-            }
-
-            if ($object.properties.configurationState.detailedInfo) {
-                foreach ($detail in $object.properties.configurationState.detailedInfo) {
-                    switch ($detail.code) {
-                        'Success' {
-                            # do nothing
-                        }
-
-                        default {
-                            $errorMessages += $detail.message
-                            try {
-                                $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
-                                $sdnHealthTest.Remediation += "[{0}] {1}" -f $object.resourceRef, $errorDetails.Action
-                            }
-                            catch {
-                                "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
-                                $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $object.resourceRef
-                                $sdnHealthTest.Remediation += $remediationString
-                            }
-                        }
-                    }
-                }
-
-                # print the overall configuration state to screen, with each of the messages that were captured
-                # as part of the detailedinfo property
-                if ($errorMessages) {
-                    $msg = "{0} is reporting configurationState status {1}:`n`t- {2}" -f $object.resourceRef, $object.properties.configurationState.Status, ($errorMessages -join "`n`t- ")
-                }
-                else {
-                    $msg = "{0} is reporting configurationState status {1}" -f $object.resourceRef, $object.properties.configurationState.Status
-                }
-
-                $msg | Trace-Output -Level $traceLevel.ToString()
-            }
-
-            $details = [PSCustomObject]@{
-                resourceRef        = $object.resourceRef
-                configurationState = $object.properties.configurationState
-            }
-
-            $array += $details
+        # if we have a resource that is not in a success state, we will skip validation
+        # as we do not expect configurationState to be accurate if provisioningState is not Success
+        if ($sdnResource.properties.provisioningState -ine 'Succeeded') {
+            return $sdnHealthTest
         }
 
-        $sdnHealthTest.Properties = $array
+        # examine the configuration state of the resource and display errors to the screen
+        $errorMessages = @()
+        switch ($sdnResource.properties.configurationState.Status) {
+            'Warning' {
+                # if we already have a failure, we will not change the result to warning
+                if ($sdnHealthTest.Result -ne 'FAIL') {
+                    $sdnHealthTest.Result = 'WARNING'
+                }
+            }
+
+            'Failure' {
+                $sdnHealthTest.Result = 'FAIL'
+            }
+
+            'InProgress' {
+                # if we already have a failure, we will not change the result to warning
+                if ($sdnHealthTest.Result -ne 'FAIL') {
+                    $sdnHealthTest.Result = 'WARNING'
+                }
+            }
+
+            'Uninitialized' {
+                # in scenarios where state is redundant, we will not fail the test
+                if ($sdnResource.properties.state -ieq 'Redundant') {
+                    # do nothing
+                }
+                else {
+                    # if we already have a failure, we will not change the result to warning
+                    if ($sdnHealthTest.Result -ne 'FAIL') {
+                        $sdnHealthTest.Result = 'WARNING'
+                    }
+                }
+            }
+
+            default {
+                # do nothing
+            }
+        }
+
+        if ($sdnResource.properties.configurationState.detailedInfo) {
+            foreach ($detail in $sdnResource.properties.configurationState.detailedInfo) {
+                switch ($detail.code) {
+                    'Success' {
+                        # do nothing
+                    }
+
+                    default {
+                        $errorMessages += $detail.message
+                        try {
+                            $errorDetails = Get-HealthData -Property 'ConfigurationStateErrorCodes' -Id $detail.code
+                            $sdnHealthTest.Remediation += "[{0}] {1}" -f $sdnResource.resourceRef, $errorDetails.Action
+                        }
+                        catch {
+                            "Unable to locate remediation actions for {0}" -f $detail.code | Trace-Output -Level:Warning
+                            $remediationString = "[{0}] Examine the configurationState property to determine why configuration failed." -f $sdnResource.resourceRef
+                            $sdnHealthTest.Remediation += $remediationString
+                        }
+                    }
+                }
+            }
+        }
+
+        $details = [PSCustomObject]@{
+            resourceRef        = $sdnResource.resourceRef
+            configurationState = $sdnResource.properties.configurationState
+        }
+
+        $sdnHealthTest.Properties = $details
     }
     catch {
         $_ | Trace-Exception
@@ -2675,6 +2717,9 @@ function Test-SdnResourceProvisioningState {
         [string]$Resource,
 
         [Parameter(Mandatory = $true)]
+        [string]$ResourceId,
+
+        [Parameter(Mandatory = $true)]
         [ValidateScript({
                 if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
                     throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
@@ -2693,52 +2738,41 @@ function Test-SdnResourceProvisioningState {
     )
 
     $sdnHealthTest = New-SdnHealthTest
-    $array = @()
 
     try {
-        "Validating provisioning state of {0}" -f $Resource | Trace-Output
+        "Validating provisioning state of {0} in {1}" -f $ResourceId, $Resource | Trace-Output -Level:Verbose
 
-        $sdnResources = Get-SdnResource @PSBoundParameters
-        foreach ($object in $sdnResources) {
-            # examine the provisioning state of the resources and display errors to the screen
-            $msg = "{0} is reporting provisioning state: {1}" -f $object.resourceRef, $object.properties.provisioningState
+        $sdnResource = Get-SdnResource @PSBoundParameters -WarningAction SilentlyContinue
+        switch ($sdnResource.properties.provisioningState) {
+            'Failed' {
+                $sdnHealthTest.Result = 'FAIL'
+                $msg | Trace-Output -Level:Error
 
-            switch ($object.properties.provisioningState) {
-                'Failed' {
-                    $sdnHealthTest.Result = 'FAIL'
-                    $msg | Trace-Output -Level:Error
-
-                    $sdnHealthTest.Remediation += "[$($object.resourceRef)] Examine the Network Controller logs to determine why provisioning is $($object.properties.provisioningState)."
-                }
-
-                'Updating' {
-                    # if we already have a failure, we will not change the result to warning
-                    if ($sdnHealthTest.Result -ne 'FAIL') {
-                        $sdnHealthTest.Result = 'WARNING'
-                    }
-
-                    # since we do not know what operations happened prior to this, we will log a warning
-                    # and ask the user to monitor the provisioningState
-                    $msg | Trace-Output -Level:Warning
-                    $sdnHealthTest.Remediation += "[$($object.resourceRef)] Is reporting $($object.properties.provisioningState). Monitor to ensure that provisioningState moves to Succeeded."
-                }
-
-                default {
-                    # this should cover scenario where provisioningState is 'Deleting' or Succeeded
-                    $msg | Trace-Output -Level:Verbose
-                }
+                $sdnHealthTest.Remediation += "[$($sdnResource.resourceRef)] Examine the Network Controller logs to determine why provisioning is $($sdnResource.properties.provisioningState)."
             }
 
-            $details = [PSCustomObject]@{
-                resourceRef       = $object.resourceRef
-                provisioningState = $object.properties.provisioningState
+            'Updating' {
+                # if we already have a failure, we will not change the result to warning
+                if ($sdnHealthTest.Result -ne 'FAIL') {
+                    $sdnHealthTest.Result = 'WARNING'
+                }
+
+                # since we do not know what operations happened prior to this, we will log a warning
+                # and ask the user to monitor the provisioningState
+                $sdnHealthTest.Remediation += "[$($sdnResource.resourceRef)] is reporting $($sdnResource.properties.provisioningState). Monitor to ensure that provisioningState moves to Succeeded."
             }
 
-            $array += $details
+            default {
+                # DO NOTHING
+            }
         }
 
-        $sdnHealthTest.Properties = $array
-        return $sdnHealthTest
+        $details = [PSCustomObject]@{
+            resourceRef       = $sdnResource.resourceRef
+            provisioningState = $sdnResource.properties.provisioningState
+        }
+
+        $sdnHealthTest.Properties = $details
     }
     catch {
         $_ | Trace-Exception
