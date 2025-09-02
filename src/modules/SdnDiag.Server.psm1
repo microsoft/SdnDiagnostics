@@ -286,6 +286,51 @@ class VMNetAdapterPortProfile {
     [string]$PortName
 }
 
+class VfpPortFlowStats {
+    $InboundFlowStats = [VfpPortFlowStatsInbound]::new()
+    $OutboundFlowStats = [VfpPortFlowStatsOutbound]::new()
+
+    VfpPortFlowStats() {
+        $this.InboundFlowStats = [VfpPortFlowStatsInbound]::new()
+        $this.OutboundFlowStats = [VfpPortFlowStatsOutbound]::new()
+    }
+
+    VfpPortFlowStats([VfpPortFlowStatsOutbound]$outbound, [VfpPortFlowStatsInbound]$inbound) {
+        $this.OutboundFlowStats = $outbound
+        $this.InboundFlowStats = $inbound
+    }
+}
+
+class VfpPortFlowStatsInbound {
+    $TotalEntry = [VfpPortFlowStatistics]::new()
+    $TotalFlow = [VfpPortFlowStatistics]::new()
+    $HalfOpenFlow = [VfpPortFlowStatistics]::new()
+    $TCPFlow = [VfpPortFlowStatistics]::new()
+    $UDPFlow = [VfpPortFlowStatistics]::new()
+    $OtherFlow = [VfpPortFlowStatistics]::new()
+}
+
+class VfpPortFlowStatsOutbound {
+    $TotalEntry = [VfpPortFlowStatistics]::new()
+    $TotalFlow = [VfpPortFlowStatistics]::new()
+    $HalfOpenFlow = [VfpPortFlowStatistics]::new()
+    $TCPFlow = [VfpPortFlowStatistics]::new()
+    $UDPFlow = [VfpPortFlowStatistics]::new()
+    $OtherFlow = [VfpPortFlowStatistics]::new()
+}
+
+class VfpPortFlowStatistics {
+    [int64]$count
+    [int64]$limit
+    [int64]$maximum
+    [int64]$created
+    [int64]$matched
+    [int64]$ufs_created_per_second
+    [int64]$max_ufs_created_per_second
+    [int64]$ufs_deleted_per_second
+    [int64]$max_ufs_deleted_per_second
+}
+
 ##########################
 #### ARG COMPLETERS ######
 ##########################
@@ -293,70 +338,6 @@ class VMNetAdapterPortProfile {
 ##########################
 ####### FUNCTIONS ########
 ##########################
-
-function Get-OvsdbAddressMapping {
-    <#
-    .SYNOPSIS
-        Returns a list of address mappings from within the OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbAddressMapping
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-    $paMappingTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Locator table' }
-    $caMappingTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
-    $logicalSwitchTable = $ovsdbResults | Where-Object { $_.caption -eq 'Logical_Switch table' }
-
-    if ($null -eq $caMappingTable) {
-        return $null
-    }
-
-    # enumerate the json rules for each of the tables and create psobject for the mappings
-    # unfortunately these values do not return in key/value pair and need to manually map each property
-    foreach ($caMapping in $caMappingTable.Data) {
-
-        # create the object
-        $addressMapping = [OvsdbAddressMapping]@{
-            UUID            = $caMapping[1][1]
-            CustomerAddress = $caMapping[2]
-            MacAddress      = $caMapping[0]
-            MappingType     = $caMapping[5]
-        }
-
-        $locator = $caMapping[3][1]
-        $logicalSwitch = $caMapping[4][1]
-
-        # Get PA from locator table
-        foreach ($paMapping in $paMappingTable.Data) {
-            $curLocator = $paMapping[0][1]
-            if ($curLocator -eq $locator) {
-                $addressMapping.ProviderAddress = $paMapping[3]
-                $addressMapping.EncapType = $paMapping[4]
-                break
-            }
-        }
-
-        # Get Rdid and VSID from logical switch table
-        foreach ($switch in $logicalSwitchTable.Data) {
-            $curSwitch = $switch[0][1]
-            if ($curSwitch -eq $logicalSwitch) {
-                $addressMapping.RoutingDomainId = $switch[1]
-                $addressMapping.VSwitchID = $switch[3]
-                break
-            }
-        }
-
-        # add the object to the array
-        [void]$arrayList.Add($addressMapping)
-    }
-
-    return $arrayList
-}
 
 function Get-OvsdbDatabase {
     [CmdletBinding()]
@@ -380,223 +361,6 @@ function Get-OvsdbDatabase {
     else {
         return $databaseResults
     }
-}
-
-function Get-OvsdbFirewallRuleTable {
-    <#
-    .SYNOPSIS
-        Returns a list of firewall rules defined within the firewall table of the OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbFirewallRuleTable
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_firewall
-    $firewallTable = $ovsdbResults | Where-Object { $_.caption -eq 'FW_Rules table' }
-
-    if ($null -eq $firewallTable) {
-        return $null
-    }
-    # enumerate the json rules and create object for each firewall rule returned
-    # there is no nice way to generate this and requires manually mapping as only the values are return
-    foreach ($obj in $firewallTable.data) {
-        $result = [OvsdbFirewallRule]@{
-            UUID               = $obj[0][1]
-            Action             = $obj[1]
-            Direction          = $obj[2]
-            DestinationAddress = $obj[3]
-            DestinationPort    = $obj[4]
-            Logging            = $obj[5]
-            Priority           = $obj[6]
-            Protocols          = $obj[7]
-            RuleId             = $obj[8]
-            State              = $obj[9]
-            Type               = $obj[10]
-            SourceAddress      = $obj[11]
-            SourcePort         = $obj[12]
-            VirtualNicId       = $obj[13]
-        }
-
-        # add the psobject to array list
-        [void]$arrayList.Add($result)
-    }
-
-    return $arrayList
-}
-
-function Get-OvsdbGlobalTable {
-    <#
-    .SYNOPSIS
-        Returns the global table configuration from OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbGlobalTable
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-    $globalTable = $ovsdbResults | Where-Object { $_.caption -eq 'Global table' }
-
-    if ($null -eq $globalTable) {
-        return $null
-    }
-
-    # enumerate the json results and add to psobject
-    foreach ($obj in $globalTable.data) {
-        $result = [OvsdbGlobalTable]@{
-            uuid     = $obj[0][1]
-            CurrentConfig  = $obj[1]
-            NextConfig = $obj[4]
-            Switches = $obj[6][1]
-        }
-
-        # add the psobject to array
-        [void]$arrayList.Add($result)
-    }
-
-    return $arrayList
-}
-
-function Get-OvsdbPhysicalPortTable {
-    <#
-    .SYNOPSIS
-        Returns a list of ports defined within the Physical_Port table of the OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbPhysicalPortTable
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-    $portTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Port table' }
-
-    if ($null -eq $portTable) {
-        return $null
-    }
-
-    # enumerate the json objects and create psobject for each port
-    foreach ($obj in $portTable.data) {
-        $physicalPort = [OvsdbPhysicalPort]@{
-            UUID        = $obj[0][1]
-            Description = $obj[1]
-            Name        = $obj[2].Trim('{', '}')  # remove the curly braces from the name
-        }
-
-        # there are numerous key/value pairs within this object with some having different properties
-        # enumerate through the properties and add property and value for each
-        foreach ($property in $obj[4][1]) {
-            $physicalPort | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
-        }
-
-        # add the psobject to array
-        [void]$arrayList.Add($physicalPort)
-    }
-
-    return $arrayList
-}
-
-function Get-OvsdbRouterTable {
-    <#
-    .SYNOPSIS
-        Returns the logical router table configuration from OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbRouterTable
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-    $routerTable = $ovsdbResults | Where-Object { $_.caption -eq 'Logical_Router table' }
-
-    if ($null -eq $routerTable) {
-        return $null
-    }
-
-    # enumerate the json results and add to psobject
-    foreach ($obj in $routerTable.data) {
-        $staticroute = @()
-        if($obj[5][1].count -gt 0){
-            foreach($route in $obj[5][1]){
-                if(![string]::IsNullOrEmpty(($staticroute))){
-                    $staticroute += ', '
-                }
-                $staticRoute += "$($route[0])=$($route[1])"
-            }
-        }
-
-        $switchbinding = @()
-        if($obj[6][1].count -gt 0){
-            foreach($switch in $obj[6][1]){
-                if(![string]::IsNullOrEmpty(($switchbinding))){
-                    $switchbinding += ', '
-                }
-
-                $switchbinding += "$($switch[0])=$($switch[1][1])"
-            }
-        }
-
-        $result = [OvsdbRouter]@{
-            uuid     = $obj[0][1]
-            Description  = $obj[1]
-            EnableLogicalRouter = $obj[2]
-            VirtualNetworkId = $obj[3]
-            StaticRoutes = $staticroute
-            SwitchBinding = $switchbinding
-        }
-
-        # add the psobject to array
-        [void]$arrayList.Add($result)
-    }
-
-    return $arrayList
-}
-
-function Get-OvsdbUcastMacRemoteTable {
-    <#
-    .SYNOPSIS
-        Returns a list of mac addresses defined within the Ucast_Macs_Remote table of the OVSDB database.
-    .EXAMPLE
-        PS> Get-OvsdbUcastMacRemoteTable
-    #>
-
-    [CmdletBinding()]
-    param()
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
-    $ucastMacsRemoteTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
-
-    if ($null -eq $ucastMacsRemoteTable) {
-        return $null
-    }
-
-    # enumerate the json objects and create psobject for each port
-    foreach ($obj in $ucastMacsRemoteTable.data) {
-        $result = [OvsdbUcastMacRemote]@{
-            UUID            = $obj[1][1]
-            MacAddress      = $obj[0]
-            CustomerAddress = $obj[2]
-            Locator         = $obj[3][1]
-            LogicalSwitch   = $obj[4][1]
-            MappingType     = $obj[5]
-        }
-
-        [void]$arrayList.Add($result)
-    }
-
-    return $arrayList
 }
 
 function Get-ServerConfigState {
@@ -776,734 +540,6 @@ function Get-ServerConfigState {
 
     $ProgressPreference = 'Continue'
     $ErrorActionPreference = $currentErrorActionPreference
-}
-
-function Get-VfpPortGroup {
-    <#
-    .SYNOPSIS
-        Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
-
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortName,
-
-        [Parameter(Mandatory = $true)]
-        [System.String]$Layer
-    )
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $vfpGroups = vfpctrl /list-group /port $PortName /layer $Layer
-
-    if([string]::IsNullOrEmpty($vfpGroups)) {
-        $msg = "Unable to list groups within $Layer for $PortName from vfpctrl"
-        throw New-Object System.NullReferenceException($msg)
-    }
-
-    # if the line contains a failure, then throw an error and exit the function
-    # this is typically the first line in the output
-    if ($vfpGroups[0] -ilike "ERROR:*") {
-        $msg = $vfpGroups[0].Split(':')[1].Trim()
-        throw New-Object System.Exception($msg)
-    }
-
-    foreach ($line in $vfpGroups) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrEmpty($line)) {
-            continue
-        }
-
-        # in situations where the value might be nested in another line we need to do some additional data processing
-        # subkey is declared below if the value is null after the split
-        if ($subKey) {
-            if($null -eq $subObject){
-                $subObject = New-Object -TypeName PSObject
-            }
-            if ($null -eq $subArrayList) {
-                $subArrayList = [System.Collections.ArrayList]::new()
-            }
-
-            switch ($subKey) {
-                'Conditions' {
-                    # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
-                    # we also see common pattern that Match type is the next property after Conditions, so we can use that to determine when
-                    # no further processing is needed for this sub value
-                    if ($line.Contains('Match type')) {
-                        $object.Conditions = $subObject
-
-                        $subObject = $null
-                        $subKey = $null
-                    }
-
-                    # if <none> is defined for conditions, we can also assume there is nothing to define
-                    elseif ($line.Contains('<none>')) {
-                        $object.Conditions = $null
-
-                        $subObject = $null
-                        $subKey = $null
-                    }
-
-                    elseif ($line.Contains(':')) {
-                        [System.String[]]$subResults = $line.Split(':').Trim()
-                        $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
-                    }
-                }
-            }
-        }
-
-        # lines in the VFP output that contain : contain properties and values
-        # need to split these based on count of ":" to build key and values
-        if ($line.Contains(':')) {
-            [System.String[]]$results = $line.Split(':').Trim()
-            if ($results.Count -eq 2) {
-                [System.String]$key = $results[0].Trim()
-                [System.String]$value = $results[1].Trim()
-
-                switch ($key) {
-                    # group is typically the first property in the output
-                    # so we will key off this property to know when to add the object to the array
-                    # as well as create a new object
-                    'Group' {
-                        if ($object) {
-                            [void]$arrayList.Add($object)
-                        }
-
-                        $object = [VfpGroup]@{
-                            Group = $value
-                        }
-                    }
-                    'Friendly Name' { $object.FriendlyName = $value }
-                    'Match type' { $object.MatchType = $value }
-                    'Conditions' { $subKey = $key }
-                    'Priority' { $object.Priority = $value}
-
-                    default {
-                        try {
-                            $object.$key = $value
-                        }
-                        catch {
-                            $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                            continue
-                        }
-                    }
-                }
-            }
-        }
-        elseif ($line.Contains('Command list-group succeeded!')) {
-            if ($object) {
-                [void]$arrayList.Add($object)
-            }
-        }
-    }
-
-    return ($arrayList | Sort-Object -Property Priority)
-}
-
-function Get-VfpPortLayer {
-    <#
-    .SYNOPSIS
-        Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
-    .PARAMETER PortName
-        The Port Name for the network interface
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortName
-    )
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $vfpLayers = vfpctrl /list-layer /port $PortName
-
-    if([string]::IsNullOrEmpty($vfpLayers)) {
-        $msg = "Unable to list layers for $PortName from vfpctrl"
-        throw New-Object System.NullReferenceException($msg)
-    }
-
-    # if the line contains a failure, then throw an error and exit the function
-    # this is typically the first line in the output
-    if ($vfpLayers[0] -ilike "ERROR:*") {
-        $msg = $vfpLayers[0].Split(':')[1].Trim()
-        throw New-Object System.Exception($msg)
-    }
-
-    foreach ($line in $vfpLayers) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrEmpty($line)) {
-            continue
-        }
-
-        # lines in the VFP output that contain : contain properties and values
-        # need to split these based on count of ":" to build key and values
-        if ($line.Contains(':')) {
-            [System.String[]]$results = $line.Split(':').Trim()
-            if ($results.Count -eq 2) {
-                [System.String]$key = $results[0].Trim()
-                [System.String]$value = $results[1].Trim()
-
-                switch ($key) {
-                    # layer is typically the first property in the output
-                    # so we will key off this property to know when to add the object to the array
-                    # as well as create a new object
-                    'Layer' {
-                        if ($object) {
-                            [void]$arrayList.Add($object)
-                        }
-
-                        $object = [VfpLayer]@{
-                            Layer = $value
-                        }
-                    }
-
-                    # process the rest of the values as normal
-                    'Priority' { $object.Priority = $value}
-                    'Friendly name' { $object.FriendlyName = $value}
-                    'Flags' { $object.Flags = $value}
-
-                    default {
-                        try {
-                            $object.$key = $value
-                        }
-                        catch {
-                            $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                            continue
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            switch -Wildcard ($line) {
-                # this should indicate the end of the results from vpctrl
-                # if we have an object, add it to the array list
-                "*Command list-layer succeeded*" {
-                    if ($object) {
-                        [void]$arrayList.Add($object)
-                    }
-                }
-            }
-        }
-    }
-
-    return ($arrayList | Sort-Object -Property Priority)
-}
-
-function Get-VfpPortRule {
-    <#
-    .SYNOPSIS
-        Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
-    .PARAMETER PortName
-        The Port name for the network interface.
-    .PARAMETER Layer
-        Specify the target layer.
-    .PARAMETER Group
-        Specify the group layer.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortName,
-
-        [Parameter(Mandatory = $true)]
-        [System.String]$Layer,
-
-        [Parameter(Mandatory = $true)]
-        [System.String]$Group
-    )
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $vfpRules = vfpctrl /list-rule /port $PortName /layer $Layer /group $Group
-    if([string]::IsNullOrEmpty($vfpRules)) {
-        $msg = "Unable to list rules for $Layer and $Group for $PortName from vfpctrl"
-        throw New-Object System.NullReferenceException($msg)
-    }
-
-    # if the line contains a failure, then throw an error and exit the function
-    # this is typically the first line in the output
-    if ($vfpRules[0] -ilike "ERROR:*") {
-        $msg = $vfpRules[0].Split(':')[1].Trim()
-        throw New-Object System.Exception($msg)
-    }
-
-    foreach ($line in $vfpRules) {
-        $line = $line.Trim()
-        if ([string]::IsNullOrEmpty($line)) {
-            continue
-        }
-
-        # in situations where the value might be nested in another line we need to do some additional data processing
-        # subkey is declared below if the value is null after the split
-        if ($subKey) {
-            $doneProcessingSubKey = $false
-            if($null -eq $subObject){
-                $subObject = [PSCustomObject]::new()
-            }
-            if ($null -eq $subArrayList) {
-                $subArrayList = [System.Collections.ArrayList]::new()
-            }
-
-            switch ($subKey) {
-                'Conditions' {
-                    # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
-                    # we also see common pattern that Flow TTL is the next property after Conditions, so we can use that to determine when
-                    # no further processing is needed for this sub value
-                    if ($line.Contains('Flow TTL')) {
-                        $object.Conditions = $subObject
-
-                        $doneProcessingSubKey = $true
-                        $subObject = $null
-                        $subKey = $null
-                    }
-
-                    # if <none> is defined for conditions, we can also assume there is nothing to define
-                    elseif ($line.Contains('<none>')) {
-                        $object.Conditions = $null
-
-                        $doneProcessingSubKey = $true
-                        $subObject = $null
-                        $subKey = $null
-                    }
-
-                    else {
-                        # split the values and add to sub object, that we will then insert into the main object
-                        # once we are done processing all the sub values
-                        [System.String[]]$subResults = $line.Split(':').Trim()
-                        $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
-                    }
-                }
-                'Encap Destination(s)' {
-                    # once we reach the next line where we have a ':' we can assume we are done processing the sub value
-                    if ($line.Contains(':')) {
-                        $object.EncapDestination = $subObject
-
-                        $subObject = $null
-                        $subKey = $null
-                    }
-                    else {
-                        [System.String[]]$subResults = $line.Replace('{','').Replace('}','').Split(',').Trim()
-                        foreach ($subResult in $subResults) {
-                            [System.String]$subKeyName = $subResult.Split('=')[0].Trim()
-                            [System.String]$subKeyValue = $subResult.Split('=')[1].Trim()
-
-                            $subObject | Add-Member -MemberType NoteProperty -Name $subKeyName -Value $subKeyValue
-                        }
-                    }
-                }
-                'Rule Data' {
-                    # once we reach the next line where we have a ':' we can assume we are done processing the sub value
-                    if ($line.Contains(':')) {
-                        $object.RuleData = $subObject
-
-                        $subObject = @()
-                        $subKey = $null
-                    }
-                    else {
-                        $subObject += $line.Trim()
-                    }
-                }
-                'Modify' {
-                    # this will have a pattern of multiple lines nested under Modify: in which we see a pattern of property:value format
-                    # we also see common pattern that Transposition or FlagsEx or Set VLAN is the next property after Conditions, so we can use that to determine when
-                    # no further processing is needed for this sub value
-                    if ($line.Contains('Transposition') -or $line.Contains('FlagsEx') -or $line.Contains('Set VLAN')) {
-                        $object.Modify = $subObject
-
-                        $subObject = [PSCustomObject]::new()
-                        $subKey = $null
-                    }
-                    else {
-                        # split the values and add to sub object, that we will then insert into the main object
-                        # once we are done processing all the sub values
-                        [System.String[]]$subResults = $line.Split(':').Trim()
-                        $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
-                    }
-                }
-            }
-
-            if ($doneProcessingSubKey) {
-                # we are done processing the subkey, so we can proceed to the rest of the script
-            }
-            else {
-                # we are not done processing the subkey values, so we need to continue to the next line
-                continue
-            }
-        }
-
-        # lines in the VFP output that contain : contain properties and values
-        # need to split these based on count of ":" to build key and values
-        if ($line.Contains(':')) {
-            [System.String[]]$results = $line.Split(':')
-            if ($results.Count -eq 2) {
-                [System.String]$key = $results[0].Trim()
-                [System.String]$value = $results[1].Trim()
-
-                switch ($key) {
-                    # rule is typically the first property in the output
-                    # so we will key off this property to know when to add the object to the array
-                    # as well as create a new object
-                    'Rule' {
-                        if ($object) {
-                            [void]$arrayList.Add($object)
-                        }
-
-                        # create the custom object based on the layer
-                        # so that we can add appropriate properties
-                        switch ($Layer) {
-                            "GW_PA_ROUTE_LAYER" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "FW_ADMIN_LAYER_ID" {
-                                $object = [VfpFirewallRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "VNET_DR_REDIRECTION_LAYER" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "FW_CONTROLLER_LAYER_ID" {
-                                $object = [VfpFirewallRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "VNET_METER_LAYER_OUT" {
-                                $object = [VfpMeterRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "VNET_MAC_REWRITE_LAYER" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "VNET_ENCAP_LAYER" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "VNET_PA_ROUTE_LAYER" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "SLB_NAT_LAYER" {
-                                $object = [VfpRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            "SLB_DECAP_LAYER_STATEFUL" {
-                                $object = [VfpEncapRule]@{
-                                    Rule = $value
-                                }
-                            }
-
-                            default {
-                                $object = [VfpRule]@{
-                                    Rule = $value
-                                }
-                            }
-                        }
-                    }
-
-                    # because some rules defined within groups do not have a rule name defined such as NAT layers,
-                    # grab the friendly name and update the ps object
-                    'Friendly name' {
-                        if([String]::IsNullOrEmpty($object.Rule)) {
-                            $object.Rule = $value
-                        }
-
-                        $object.FriendlyName = $value
-                    }
-
-                    'Conditions' { $subkey = $key ; continue }
-                    'Encap Destination(s)' { $subkey = $key ; continue }
-                    'Rule Data' { $subkey = $key ; continue }
-                    'Modify' { $subkey = $key ; continue }
-
-                    default {
-                        $key = $key.Replace(' ','').Trim()
-
-                        try {
-                            $object.$key = $value
-                        }
-                        catch {
-                            # this is the fallback method to just add a property to the object
-                            # outside of the defined class properties
-                            $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                            continue
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            switch -Wildcard ($line) {
-                # this should indicate the end of the results from vpctrl
-                # if we have an object, add it to the array list
-                "*Command list-rule succeeded*" {
-                    if ($object) {
-                        [void]$arrayList.Add($object)
-                    }
-                }
-                "*ITEM LIST*" { continue }
-                "*====*" { continue }
-                default {
-                    $object.Properties += $line.Trim()
-                }
-            }
-        }
-    }
-
-    return ($arrayList | Sort-Object -Property Priority)
-}
-
-function Get-VfpPortState {
-    <#
-    .SYNOPSIS
-        Returns the current VFP port state for a particular port Id.
-    .DESCRIPTION
-        Executes 'vfpctrl.exe /get-port-state /port $port' to return back the current state of the port specified.
-    .PARAMETER PortName
-        The port name to return the state for.
-    #>
-
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [GUID]$PortName
-    )
-
-    $object = [VfpPortState]::new()
-
-    $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
-    if([string]::IsNullOrEmpty($vfpPortState)) {
-        $msg = "Unable to get port state for $PortName from vfpctrl"
-        throw New-Object System.NullReferenceException($msg)
-    }
-
-    # if the line contains a failure, then throw an error and exit the function
-    # this is typically the first line in the output
-    if ($vfpPortState[0] -ilike "ERROR:*") {
-        $msg = $vfpPortState[0].Split(':')[1].Trim()
-        throw New-Object System.Exception($msg)
-    }
-
-    foreach ($line in $vfpPortState) {
-        # skip if the line is empty or null
-        if([string]::IsNullOrEmpty($line)) {
-            continue
-        }
-
-        # split the line by the colon and trim the spaces
-        $subValue = $line.Split(':').Trim()
-        if ($subValue.Count -eq 2) {
-
-            # due to some errors observed in environments, we need to wrap the conversion in a try/catch block
-            # that way we can continue processing the remaining properties and not fail the entire function
-            try {
-                $propertyName = $subValue[0].Trim()
-                $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
-            }
-            catch {
-                "Unable to process value {0} for {1}`r`n`t{2}" -f $subValue[1].Trim(), $propertyName, $_.Exception | Trace-Output -Level:Warning
-                continue
-            }
-
-            switch ($propertyName) {
-                # update the VfpPortState properties
-                'Enabled' { $object.Enabled = $propertyValue }
-                'Blocked' { $object.Blocked = $propertyValue }
-                'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
-                'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
-                'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
-                'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
-                'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
-                'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
-                'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
-                'VM Context Set' { $object.IsVmContextSet = $propertyValue }
-
-                # update the OffLoadStateDetails properties
-                'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
-                'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
-                'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
-                'NVGRE Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupported = $propertyValue }
-                'NVGRE VMQ Enabled' { $object.PortState.VmqSupported = $propertyValue }
-                'VXLAN LSO Offload Enabled' { $object.PortState.LsoV2SupportedVxlan = $propertyValue }
-                'VXLAN RSS Enabled' { $object.PortState.RssSupportedVxlan = $propertyValue }
-                'VXLAN Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupportedVxlan = $propertyValue }
-                'VXLAN Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
-                'VXLAN VMQ Enabled' { $object.PortState.VmqSupportedVxlan = $propertyValue }
-                'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
-
-                default {
-                    $propertyName = $propertyName.Replace(' ','').Trim()
-
-                    try {
-                        $object.$propertyName = $propertyValue
-                    }
-                    catch {
-                        $object | Add-Member -MemberType NoteProperty -Name $propertyName -Value $propertyValue
-                        continue
-                    }
-                }
-            }
-        }
-        else {
-            # if the line does not have key/value pairs, then continue to next line
-            continue
-        }
-    }
-
-    return $object
-}
-
-function Get-VfpVMSwitchPort {
-    <#
-    .SYNOPSIS
-        Returns a list of ports from within VFP.
-    #>
-
-    $arrayList = [System.Collections.ArrayList]::new()
-    $vfpResults = vfpctrl /list-vmswitch-port
-    if([string]::IsNullOrEmpty($vfpResults)) {
-        $msg = "Unable to retrieve vmswitch ports from vfpctrl"
-        throw New-Object System.NullReferenceException($msg)
-    }
-
-    # if the line contains a failure, then throw an error and exit the function
-    # this is typically the first line in the output
-    if ($vfpResults[0] -ilike "ERROR:*") {
-        $msg = $vfpResults[0].Split(':')[1].Trim()
-        throw New-Object System.Exception($msg)
-    }
-
-    foreach ($line in $vfpResults) {
-        $line = $line.Trim()
-
-        if ([string]::IsNullOrEmpty($line)) {
-            continue
-        }
-
-        # lines in the VFP output that contain : contain properties and values
-        # need to split these based on count of ":" to build key and values
-        # some values related to ingress packet drops have multiple ":" so need to account for that
-        # example: {property} : {reason} : {value}
-        # example: {property} : {value}
-        if ($line.Contains(":")) {
-            [System.String[]]$results = $line.Split(':').Trim()
-            if ($results.Count -eq 3) {
-                $key    = $results[1].Replace(' ','').Trim() # we want the key to align with the {reason}
-                $value  = $results[2].Trim()
-
-                if ($results[0].Trim() -eq 'Ingress packet drops') {
-                    $object.NicStatistics.IngressDropReason.$key = $value
-                }
-                elseif($results[0].Trim() -eq 'Egress packet drops') {
-                    $object.NicStatistics.EgressDropReason.$key = $value
-                }
-            }
-            elseif ($results.Count -eq 2) {
-                $key    = $results[0].Trim() # we want the key to align with the {property}
-                $value  = $results[1].Trim()
-
-                switch ($key) {
-                    # all ports start with the port name property
-                    # so we will key off this property to know when to add the object to the array
-                    # and to create a new object
-                    'Port name' {
-                        if ($object) {
-                            [void]$arrayList.Add($object)
-                        }
-
-                        $object = [VfpVmSwitchPort]@{
-                            PortName = $value
-                        }
-
-                        continue
-                    }
-
-                    "SR-IOV Weight" { $object.SRIOVWeight = $value }
-                    "SR-IOV Usage" { $object.SRIOVUsage = $value }
-
-                    # populate the NicStatistics object
-                    'Bytes Sent' { $object.NicStatistics.BytesSent = $value }
-                    'Bytes Received' { $object.NicStatistics.BytesReceived = $value }
-                    'Ingress Packet Drops' { $object.NicStatistics.IngressPacketDrops = $value }
-                    'Egress Packet Drops' { $object.NicStatistics.EgressPacketDrops = $value }
-                    'Ingress VFP Drops' { $object.NicStatistics.IngressVfpDrops = $value }
-                    'Egress VFP Drops' { $object.NicStatistics.EgressVfpDrops = $value }
-
-                    # populate the VmNicStatistics object
-                    'Packets Sent' { $object.VmNicStatistics.PacketsSent = $value }
-                    'Packets Received' { $object.VmNicStatistics.PacketsReceived = $value }
-                    'Interrupts Received' { $object.VmNicStatistics.InterruptsReceived = $value }
-                    'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
-                    'Send Buffer Allocation Size' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
-                    'Receive Buffer Allocation Count' { $object.VmNicStatistics.ReceiveBufferAllocationCount = $value }
-                    'Receive Buffer Allocation Size' { $object.VmNicStatistics.ReceiveBufferAllocationSize = $value }
-                    'Pending Link Change' { $object.VmNicStatistics.PendingLinkChange = $value }
-                    'Ring Buffer Full Errors' { $object.VmNicStatistics.RingBufferFullErrors = $value }
-                    'Pending Routed Packets' { $object.VmNicStatistics.PendingRoutedPackets = $value }
-                    'Insufficient Receive Buffers' { $object.VmNicStatistics.InsufficientReceiveBuffers = $value }
-                    'Insufficient Send Buffers' { $object.VmNicStatistics.InsufficientSendBuffers = $value }
-                    'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperationsBuffers = $value }
-                    'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceededErrors = $value }
-                    'Vsp Paused' { $object.VmNicStatistics.VspPaused = $value }
-
-                    # most of the property names, we can just trim and remove the white spaces
-                    # which will align to the class property names
-                    default {
-                        try {
-                            $key = $key.Replace(' ','').Trim()
-                            $object.$key = $value
-                        }
-                        catch {
-                            $_ | Trace-Exception
-                            $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
-                            continue
-                        }
-                    }
-                }
-            }
-        }
-        else {
-            switch -Wildcard ($line) {
-                "Port is*" { $object.PortState = $line.Split(' ')[2].Replace('.','').Trim() }
-                "MAC Learning is*" { $object.MacLearning = $line.Split(' ')[3].Replace('.','').Trim() }
-                "NIC is*" { $object.NicState = $line.Split(' ')[2].Replace('.','').Trim() }
-                "*list-vmswitch-port*" {
-                    # we have reached the end of the file at this point
-                    # and should add any remaining objects to the array
-                    if ($object) {
-                        [void]$arrayList.Add($object)
-                    }
-                }
-                default {
-                    # the line does not contain anything we looking for
-                    # and we can skip it and proceed to next
-                    continue
-                }
-            }
-        }
-    }
-
-    return $arrayList
 }
 
 function Get-SdnNetAdapterEncapOverheadConfig {
@@ -1773,6 +809,70 @@ function Get-SdnOvsdbAddressMapping {
         [int]$Timeout = 300
     )
 
+    function Get-OvsdbAddressMapping {
+        <#
+        .SYNOPSIS
+            Returns a list of address mappings from within the OVSDB database.
+        .EXAMPLE
+            PS> Get-OvsdbAddressMapping
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+        $paMappingTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Locator table' }
+        $caMappingTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
+        $logicalSwitchTable = $ovsdbResults | Where-Object { $_.caption -eq 'Logical_Switch table' }
+
+        if ($null -eq $caMappingTable) {
+            return $null
+        }
+
+        # enumerate the json rules for each of the tables and create psobject for the mappings
+        # unfortunately these values do not return in key/value pair and need to manually map each property
+        foreach ($caMapping in $caMappingTable.Data) {
+
+            # create the object
+            $addressMapping = [OvsdbAddressMapping]@{
+                UUID            = $caMapping[1][1]
+                CustomerAddress = $caMapping[2]
+                MacAddress      = $caMapping[0]
+                MappingType     = $caMapping[5]
+            }
+
+            $locator = $caMapping[3][1]
+            $logicalSwitch = $caMapping[4][1]
+
+            # Get PA from locator table
+            foreach ($paMapping in $paMappingTable.Data) {
+                $curLocator = $paMapping[0][1]
+                if ($curLocator -eq $locator) {
+                    $addressMapping.ProviderAddress = $paMapping[3]
+                    $addressMapping.EncapType = $paMapping[4]
+                    break
+                }
+            }
+
+            # Get Rdid and VSID from logical switch table
+            foreach ($switch in $logicalSwitchTable.Data) {
+                $curSwitch = $switch[0][1]
+                if ($curSwitch -eq $logicalSwitch) {
+                    $addressMapping.RoutingDomainId = $switch[1]
+                    $addressMapping.VSwitchID = $switch[3]
+                    break
+                }
+            }
+
+            # add the object to the array
+            [void]$arrayList.Add($addressMapping)
+        }
+
+        return $arrayList
+    }
+
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbAddressMapping } -Credential $Credential `
@@ -1831,6 +931,52 @@ function Get-SdnOvsdbFirewallRule {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    function Get-OvsdbFirewallRuleTable {
+        <#
+        .SYNOPSIS
+            Returns a list of firewall rules defined within the firewall table of the OVSDB database.
+        .EXAMPLE
+            PS> Get-OvsdbFirewallRuleTable
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_firewall
+        $firewallTable = $ovsdbResults | Where-Object { $_.caption -eq 'FW_Rules table' }
+
+        if ($null -eq $firewallTable) {
+            return $null
+        }
+        # enumerate the json rules and create object for each firewall rule returned
+        # there is no nice way to generate this and requires manually mapping as only the values are return
+        foreach ($obj in $firewallTable.data) {
+            $result = [OvsdbFirewallRule]@{
+                UUID               = $obj[0][1]
+                Action             = $obj[1]
+                Direction          = $obj[2]
+                DestinationAddress = $obj[3]
+                DestinationPort    = $obj[4]
+                Logging            = $obj[5]
+                Priority           = $obj[6]
+                Protocols          = $obj[7]
+                RuleId             = $obj[8]
+                State              = $obj[9]
+                Type               = $obj[10]
+                SourceAddress      = $obj[11]
+                SourcePort         = $obj[12]
+                VirtualNicId       = $obj[13]
+            }
+
+            # add the psobject to array list
+            [void]$arrayList.Add($result)
+        }
+
+        return $arrayList
+    }
+
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbFirewallRule } -Credential $Credential
@@ -1876,6 +1022,42 @@ function Get-SdnOvsdbGlobalTable {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    function Get-OvsdbGlobalTable {
+        <#
+        .SYNOPSIS
+            Returns the global table configuration from OVSDB database.
+        .EXAMPLE
+            PS> Get-OvsdbGlobalTable
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+        $globalTable = $ovsdbResults | Where-Object { $_.caption -eq 'Global table' }
+
+        if ($null -eq $globalTable) {
+            return $null
+        }
+
+        # enumerate the json results and add to psobject
+        foreach ($obj in $globalTable.data) {
+            $result = [OvsdbGlobalTable]@{
+                uuid     = $obj[0][1]
+                CurrentConfig  = $obj[1]
+                NextConfig = $obj[4]
+                Switches = $obj[6][1]
+            }
+
+            # add the psobject to array
+            [void]$arrayList.Add($result)
+        }
+
+        return $arrayList
+    }
 
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
@@ -1944,6 +1126,47 @@ function Get-SdnOvsdbPhysicalPort {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    function Get-OvsdbPhysicalPortTable {
+        <#
+        .SYNOPSIS
+            Returns a list of ports defined within the Physical_Port table of the OVSDB database.
+        .EXAMPLE
+            PS> Get-OvsdbPhysicalPortTable
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+        $portTable = $ovsdbResults | Where-Object { $_.caption -eq 'Physical_Port table' }
+
+        if ($null -eq $portTable) {
+            return $null
+        }
+
+        # enumerate the json objects and create psobject for each port
+        foreach ($obj in $portTable.data) {
+            $physicalPort = [OvsdbPhysicalPort]@{
+                UUID        = $obj[0][1]
+                Description = $obj[1]
+                Name        = $obj[2].Trim('{', '}')  # remove the curly braces from the name
+            }
+
+            # there are numerous key/value pairs within this object with some having different properties
+            # enumerate through the properties and add property and value for each
+            foreach ($property in $obj[4][1]) {
+                $physicalPort | Add-Member -MemberType NoteProperty -Name $property[0] -Value $property[1]
+            }
+
+            # add the psobject to array
+            [void]$arrayList.Add($physicalPort)
+        }
+
+        return $arrayList
+    }
+
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $result = Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbPhysicalPort } -Credential $Credential
@@ -1996,6 +1219,62 @@ function Get-SdnOvsdbRouterTable {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
+    function Get-OvsdbRouterTable {
+        <#
+        .SYNOPSIS
+            Returns the logical router table configuration from OVSDB database.
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+        $routerTable = $ovsdbResults | Where-Object { $_.caption -eq 'Logical_Router table' }
+
+        if ($null -eq $routerTable) {
+            return $null
+        }
+
+        # enumerate the json results and add to psobject
+        foreach ($obj in $routerTable.data) {
+            $staticroute = @()
+            if($obj[5][1].count -gt 0){
+                foreach($route in $obj[5][1]){
+                    if(![string]::IsNullOrEmpty(($staticroute))){
+                        $staticroute += ', '
+                    }
+                    $staticRoute += "$($route[0])=$($route[1])"
+                }
+            }
+
+            $switchbinding = @()
+            if($obj[6][1].count -gt 0){
+                foreach($switch in $obj[6][1]){
+                    if(![string]::IsNullOrEmpty(($switchbinding))){
+                        $switchbinding += ', '
+                    }
+
+                    $switchbinding += "$($switch[0])=$($switch[1][1])"
+                }
+            }
+
+            $result = [OvsdbRouter]@{
+                uuid     = $obj[0][1]
+                Description  = $obj[1]
+                EnableLogicalRouter = $obj[2]
+                VirtualNetworkId = $obj[3]
+                StaticRoutes = $staticroute
+                SwitchBinding = $switchbinding
+            }
+
+            # add the psobject to array
+            [void]$arrayList.Add($result)
+        }
+
+        return $arrayList
+    }
+
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             Invoke-PSRemoteCommand -ComputerName $ComputerName -ScriptBlock { Get-SdnOvsdbRouterTable } -Credential $Credential
@@ -2034,6 +1313,42 @@ function Get-SdnOvsdbUcastMacRemoteTable {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    function Get-OvsdbUcastMacRemoteTable {
+        <#
+        .SYNOPSIS
+            Returns a list of mac addresses defined within the Ucast_Macs_Remote table of the OVSDB database.
+        .EXAMPLE
+            PS> Get-OvsdbUcastMacRemoteTable
+        #>
+
+        [CmdletBinding()]
+        param()
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $ovsdbResults = Get-OvsdbDatabase -Table ms_vtep
+        $ucastMacsRemoteTable = $ovsdbResults | Where-Object { $_.caption -eq 'Ucast_Macs_Remote table' }
+
+        if ($null -eq $ucastMacsRemoteTable) {
+            return $null
+        }
+
+        # enumerate the json objects and create psobject for each port
+        foreach ($obj in $ucastMacsRemoteTable.data) {
+            $result = [OvsdbUcastMacRemote]@{
+                UUID            = $obj[1][1]
+                MacAddress      = $obj[0]
+                CustomerAddress = $obj[2]
+                Locator         = $obj[3][1]
+                LogicalSwitch   = $obj[4][1]
+                MappingType     = $obj[5]
+            }
+
+            [void]$arrayList.Add($result)
+        }
+
+        return $arrayList
+    }
 
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
@@ -2186,7 +1501,7 @@ function Get-SdnVfpPortGroup {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
-        [string]$ComputerName,
+        [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Name')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Default')]
@@ -2195,12 +1510,135 @@ function Get-SdnVfpPortGroup {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        $params = @{
-            PortName = $PortName
-            Layer = $Layer
+    $params = @{
+        PortName = $PortName
+        Layer = $Layer
+    }
+
+    function Get-VfpPortGroup {
+        <#
+        .SYNOPSIS
+            Enumerates the groups contained within the specific Virtual Filtering Platform (VFP) layer specified for the port.
+
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName,
+
+            [Parameter(Mandatory = $true)]
+            [System.String]$Layer
+        )
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $vfpGroups = vfpctrl /list-group /port $PortName /layer $Layer
+
+        if([string]::IsNullOrEmpty($vfpGroups)) {
+            $msg = "Unable to list groups within $Layer for $PortName from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
         }
 
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpGroups[0] -ilike "ERROR:*") {
+            $msg = $vfpGroups[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpGroups) {
+            $line = $line.Trim()
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            # in situations where the value might be nested in another line we need to do some additional data processing
+            # subkey is declared below if the value is null after the split
+            if ($subKey) {
+                if($null -eq $subObject){
+                    $subObject = New-Object -TypeName PSObject
+                }
+                if ($null -eq $subArrayList) {
+                    $subArrayList = [System.Collections.ArrayList]::new()
+                }
+
+                switch ($subKey) {
+                    'Conditions' {
+                        # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
+                        # we also see common pattern that Match type is the next property after Conditions, so we can use that to determine when
+                        # no further processing is needed for this sub value
+                        if ($line.Contains('Match type')) {
+                            $object.Conditions = $subObject
+
+                            $subObject = $null
+                            $subKey = $null
+                        }
+
+                        # if <none> is defined for conditions, we can also assume there is nothing to define
+                        elseif ($line.Contains('<none>')) {
+                            $object.Conditions = $null
+
+                            $subObject = $null
+                            $subKey = $null
+                        }
+
+                        elseif ($line.Contains(':')) {
+                            [System.String[]]$subResults = $line.Split(':').Trim()
+                            $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
+                        }
+                    }
+                }
+            }
+
+            # lines in the VFP output that contain : contain properties and values
+            # need to split these based on count of ":" to build key and values
+            if ($line.Contains(':')) {
+                [System.String[]]$results = $line.Split(':').Trim()
+                if ($results.Count -eq 2) {
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    switch ($key) {
+                        # group is typically the first property in the output
+                        # so we will key off this property to know when to add the object to the array
+                        # as well as create a new object
+                        'Group' {
+                            if ($object) {
+                                [void]$arrayList.Add($object)
+                            }
+
+                            $object = [VfpGroup]@{
+                                Group = $value
+                            }
+                        }
+                        'Friendly Name' { $object.FriendlyName = $value }
+                        'Match type' { $object.MatchType = $value }
+                        'Conditions' { $subKey = $key }
+                        'Priority' { $object.Priority = $value}
+
+                        default {
+                            try {
+                                $object.$key = $value
+                            }
+                            catch {
+                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                                continue
+                            }
+                        }
+                    }
+                }
+            }
+            elseif ($line.Contains('Command list-group succeeded!')) {
+                if ($object) {
+                    [void]$arrayList.Add($object)
+                }
+            }
+        }
+
+        return ($arrayList | Sort-Object -Property Priority)
+    }
+
+    try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param ([guid]$arg0, [string]$arg1)
@@ -2265,7 +1703,7 @@ function Get-SdnVfpPortLayer {
         [System.String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [string]$ComputerName,
+        [System.String]$ComputerName,
 
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
@@ -2273,11 +1711,101 @@ function Get-SdnVfpPortLayer {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        $params = @{
-            PortName = $PortName
+    $params = @{
+        PortName = $PortName
+    }
+
+    function Get-VfpPortLayer {
+        <#
+        .SYNOPSIS
+            Enumerates the layers contained within Virtual Filtering Platform (VFP) for specified for the port.
+        .PARAMETER PortName
+            The Port Name for the network interface
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName
+        )
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $vfpLayers = vfpctrl /list-layer /port $PortName
+
+        if([string]::IsNullOrEmpty($vfpLayers)) {
+            $msg = "Unable to list layers for $PortName from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
         }
 
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpLayers[0] -ilike "ERROR:*") {
+            $msg = $vfpLayers[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpLayers) {
+            $line = $line.Trim()
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            # lines in the VFP output that contain : contain properties and values
+            # need to split these based on count of ":" to build key and values
+            if ($line.Contains(':')) {
+                [System.String[]]$results = $line.Split(':').Trim()
+                if ($results.Count -eq 2) {
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    switch ($key) {
+                        # layer is typically the first property in the output
+                        # so we will key off this property to know when to add the object to the array
+                        # as well as create a new object
+                        'Layer' {
+                            if ($object) {
+                                [void]$arrayList.Add($object)
+                            }
+
+                            $object = [VfpLayer]@{
+                                Layer = $value
+                            }
+                        }
+
+                        # process the rest of the values as normal
+                        'Priority' { $object.Priority = $value}
+                        'Friendly name' { $object.FriendlyName = $value}
+                        'Flags' { $object.Flags = $value}
+
+                        default {
+                            try {
+                                $object.$key = $value
+                            }
+                            catch {
+                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                                continue
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                switch -Wildcard ($line) {
+                    # this should indicate the end of the results from vpctrl
+                    # if we have an object, add it to the array list
+                    "*Command list-layer succeeded*" {
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+                    }
+                }
+            }
+        }
+
+        return ($arrayList | Sort-Object -Property Priority)
+    }
+
+    try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0)
@@ -2345,13 +1873,236 @@ function Get-SdnVfpPortRule {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    try {
-        $params = @{
-            PortName = $PortName
-            Layer = $Layer
-            Group = $Group
+    $params = @{
+        PortName = $PortName
+        Layer = $Layer
+        Group = $Group
+    }
+
+    function Get-VfpPortRule {
+        <#
+        .SYNOPSIS
+            Enumerates the rules contained within the specific group within Virtual Filtering Platform (VFP) layer specified for the port.
+        .PARAMETER PortName
+            The Port name for the network interface.
+        .PARAMETER Layer
+            Specify the target layer.
+        .PARAMETER Group
+            Specify the group layer.
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName,
+
+            [Parameter(Mandatory = $true)]
+            [System.String]$Layer,
+
+            [Parameter(Mandatory = $true)]
+            [System.String]$Group
+        )
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $vfpRules = vfpctrl /list-rule /port $PortName /layer $Layer /group $Group
+        if([string]::IsNullOrEmpty($vfpRules)) {
+            $msg = "Unable to list rules for $Layer and $Group for $PortName from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
         }
 
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpRules[0] -ilike "ERROR:*") {
+            $msg = $vfpRules[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpRules) {
+            $line = $line.Trim()
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            # in situations where the value might be nested in another line we need to do some additional data processing
+            # subkey is declared below if the value is null after the split
+            if ($subKey) {
+                $doneProcessingSubKey = $false
+                if($null -eq $subObject){
+                    $subObject = [PSCustomObject]::new()
+                }
+                if ($null -eq $subArrayList) {
+                    $subArrayList = [System.Collections.ArrayList]::new()
+                }
+
+                switch ($subKey) {
+                    'Conditions' {
+                        # this will have a pattern of multiple lines nested under Conditions: in which we see a pattern of property:value format
+                        # we also see common pattern that Flow TTL is the next property after Conditions, so we can use that to determine when
+                        # no further processing is needed for this sub value
+                        if ($line.Contains('Flow TTL')) {
+                            $object.Conditions = $subObject
+
+                            $doneProcessingSubKey = $true
+                            $subObject = $null
+                            $subKey = $null
+                        }
+
+                        # if <none> is defined for conditions, we can also assume there is nothing to define
+                        elseif ($line.Contains('<none>')) {
+                            $object.Conditions = $null
+
+                            $doneProcessingSubKey = $true
+                            $subObject = $null
+                            $subKey = $null
+                        }
+
+                        else {
+                            # split the values and add to sub object, that we will then insert into the main object
+                            # once we are done processing all the sub values
+                            [System.String[]]$subResults = $line.Split(':').Trim()
+                            $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
+                        }
+                    }
+                    'Encap Destination(s)' {
+                        # once we reach the next line where we have a ':' we can assume we are done processing the sub value
+                        if ($line.Contains(':')) {
+                            $object.EncapDestination = $subObject
+
+                            $subObject = $null
+                            $subKey = $null
+                        }
+                        else {
+                            [System.String[]]$subResults = $line.Replace('{','').Replace('}','').Split(',').Trim()
+                            foreach ($subResult in $subResults) {
+                                [System.String]$subKeyName = $subResult.Split('=')[0].Trim()
+                                [System.String]$subKeyValue = $subResult.Split('=')[1].Trim()
+
+                                $subObject | Add-Member -MemberType NoteProperty -Name $subKeyName -Value $subKeyValue
+                            }
+                        }
+                    }
+                    'Rule Data' {
+                        # once we reach the next line where we have a ':' we can assume we are done processing the sub value
+                        if ($line.Contains(':')) {
+                            $object.RuleData = $subObject
+
+                            $subObject = @()
+                            $subKey = $null
+                        }
+                        else {
+                            $subObject += $line.Trim()
+                        }
+                    }
+                    'Modify' {
+                        # this will have a pattern of multiple lines nested under Modify: in which we see a pattern of property:value format
+                        # we also see common pattern that Transposition or FlagsEx or Set VLAN is the next property after Conditions, so we can use that to determine when
+                        # no further processing is needed for this sub value
+                        if ($line.Contains('Transposition') -or $line.Contains('FlagsEx') -or $line.Contains('Set VLAN')) {
+                            $object.Modify = $subObject
+
+                            $subObject = [PSCustomObject]::new()
+                            $subKey = $null
+                        }
+                        else {
+                            # split the values and add to sub object, that we will then insert into the main object
+                            # once we are done processing all the sub values
+                            [System.String[]]$subResults = $line.Split(':').Trim()
+                            $subObject | Add-Member -MemberType NoteProperty -Name $subResults[0] -Value $subResults[1]
+                        }
+                    }
+                }
+
+                if ($doneProcessingSubKey) {
+                    # we are done processing the subkey, so we can proceed to the rest of the script
+                }
+                else {
+                    # we are not done processing the subkey values, so we need to continue to the next line
+                    continue
+                }
+            }
+
+            # lines in the VFP output that contain : contain properties and values
+            # need to split these based on count of ":" to build key and values
+            if ($line.Contains(':')) {
+                [System.String[]]$results = $line.Split(':')
+                if ($results.Count -eq 2) {
+                    [System.String]$key = $results[0].Trim()
+                    [System.String]$value = $results[1].Trim()
+
+                    switch ($key) {
+                        # rule is typically the first property in the output
+                        # so we will key off this property to know when to add the object to the array
+                        # as well as create a new object
+                        'Rule' {
+                            if ($object) { [void]$arrayList.Add($object) }
+                            switch ($Layer) {
+                                "GW_PA_ROUTE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "FW_ADMIN_LAYER_ID" { $object = [VfpFirewallRule]@{ Rule = $value } }
+                                "VNET_DR_REDIRECTION_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "FW_CONTROLLER_LAYER_ID" { $object = [VfpFirewallRule]@{ Rule = $value } }
+                                "VNET_METER_LAYER_OUT" { $object = [VfpMeterRule]@{ Rule = $value } }
+                                "VNET_MAC_REWRITE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "VNET_ENCAP_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "VNET_PA_ROUTE_LAYER" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                "SLB_NAT_LAYER" { $object = [VfpRule]@{ Rule = $value } }
+                                "SLB_DECAP_LAYER_STATEFUL" { $object = [VfpEncapRule]@{ Rule = $value } }
+                                default { $object = [VfpRule]@{ Rule = $value } }
+                            }
+                        }
+
+                        # because some rules defined within groups do not have a rule name defined such as NAT layers,
+                        # grab the friendly name and update the ps object
+                        'Friendly name' {
+                            if([String]::IsNullOrEmpty($object.Rule)) {
+                                $object.Rule = $value
+                            }
+
+                            $object.FriendlyName = $value
+                        }
+
+                        'Conditions' { $subkey = $key ; continue }
+                        'Encap Destination(s)' { $subkey = $key ; continue }
+                        'Rule Data' { $subkey = $key ; continue }
+                        'Modify' { $subkey = $key ; continue }
+
+                        default {
+                            $key = $key.Replace(' ','').Trim()
+
+                            try {
+                                $object.$key = $value
+                            }
+                            catch {
+                                # this is the fallback method to just add a property to the object
+                                # outside of the defined class properties
+                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                                continue
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                switch -Wildcard ($line) {
+                    # this should indicate the end of the results from vpctrl
+                    # if we have an object, add it to the array list
+                    "*Command list-rule succeeded*" {
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+                    }
+                    "*ITEM LIST*" { continue }
+                    "*====*" { continue }
+                    default {
+                        $object.Properties += $line.Trim()
+                    }
+                }
+            }
+        }
+
+        return ($arrayList | Sort-Object -Property Priority)
+    }
+
+    try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
             $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
                 param([guid]$arg0, [string]$arg1, [string]$arg2)
@@ -2363,7 +2114,7 @@ function Get-SdnVfpPortRule {
         }
 
         if ($Name) {
-            return ($results | Where-Object {$_.Rule -ieq $Name -or $_.'FriendlyName' -ieq $Name})
+            return ($results | Where-Object { $_.Rule -ieq $Name -or $_.'FriendlyName' -ieq $Name })
         }
 
         return $results
@@ -2406,6 +2157,106 @@ function Get-SdnVfpPortState {
 
     $params = @{
         PortName = $PortName
+    }
+
+    function Get-VfpPortState {
+        <#
+        .SYNOPSIS
+            Returns the current VFP port state for a particular port Id.
+        .DESCRIPTION
+            Executes 'vfpctrl.exe /get-port-state /port $port' to return back the current state of the port specified.
+        .PARAMETER PortName
+            The port name to return the state for.
+        #>
+
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName
+        )
+
+        $object = [VfpPortState]::new()
+
+        $vfpPortState = vfpctrl.exe /get-port-state /port $PortName
+        if([string]::IsNullOrEmpty($vfpPortState)) {
+            $msg = "Unable to get port state for $PortName from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
+        }
+
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpPortState[0] -ilike "ERROR:*") {
+            $msg = $vfpPortState[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpPortState) {
+            # skip if the line is empty or null
+            if([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            # split the line by the colon and trim the spaces
+            $subValue = $line.Split(':').Trim()
+            if ($subValue.Count -eq 2) {
+
+                # due to some errors observed in environments, we need to wrap the conversion in a try/catch block
+                # that way we can continue processing the remaining properties and not fail the entire function
+                try {
+                    $propertyName = $subValue[0].Trim()
+                    $propertyValue = [System.Convert]::ToBoolean($subValue[1].Trim())
+                }
+                catch {
+                    "Unable to process value {0} for {1}`r`n`t{2}" -f $subValue[1].Trim(), $propertyName, $_.Exception | Trace-Output -Level:Warning
+                    continue
+                }
+
+                switch ($propertyName) {
+                    # update the VfpPortState properties
+                    'Enabled' { $object.Enabled = $propertyValue }
+                    'Blocked' { $object.Blocked = $propertyValue }
+                    'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
+                    'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
+                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
+                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
+                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
+                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
+                    'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
+                    'VM Context Set' { $object.IsVmContextSet = $propertyValue }
+
+                    # update the OffLoadStateDetails properties
+                    'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
+                    'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
+                    'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
+                    'NVGRE Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupported = $propertyValue }
+                    'NVGRE VMQ Enabled' { $object.PortState.VmqSupported = $propertyValue }
+                    'VXLAN LSO Offload Enabled' { $object.PortState.LsoV2SupportedVxlan = $propertyValue }
+                    'VXLAN RSS Enabled' { $object.PortState.RssSupportedVxlan = $propertyValue }
+                    'VXLAN Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupportedVxlan = $propertyValue }
+                    'VXLAN Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
+                    'VXLAN VMQ Enabled' { $object.PortState.VmqSupportedVxlan = $propertyValue }
+                    'Inner MAC VMQ Enabled' { $object.PortState.InnerMacVmqEnabled = $propertyValue }
+
+                    default {
+                        $propertyName = $propertyName.Replace(' ','').Trim()
+
+                        try {
+                            $object.$propertyName = $propertyValue
+                        }
+                        catch {
+                            $object | Add-Member -MemberType NoteProperty -Name $propertyName -Value $propertyValue
+                            continue
+                        }
+                    }
+                }
+            }
+            else {
+                # if the line does not have key/value pairs, then continue to next line
+                continue
+            }
+        }
+
+        return $object
     }
 
     try {
@@ -2483,6 +2334,140 @@ function Get-SdnVfpVmSwitchPort {
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
+
+    function Get-VfpVMSwitchPort {
+        <#
+        .SYNOPSIS
+            Returns a list of ports from within VFP.
+        #>
+
+        $arrayList = [System.Collections.ArrayList]::new()
+        $vfpResults = vfpctrl /list-vmswitch-port
+        if([string]::IsNullOrEmpty($vfpResults)) {
+            $msg = "Unable to retrieve vmswitch ports from vfpctrl"
+            throw New-Object System.NullReferenceException($msg)
+        }
+
+        # if the line contains a failure, then throw an error and exit the function
+        # this is typically the first line in the output
+        if ($vfpResults[0] -ilike "ERROR:*") {
+            $msg = $vfpResults[0].Split(':')[1].Trim()
+            throw New-Object System.Exception($msg)
+        }
+
+        foreach ($line in $vfpResults) {
+            $line = $line.Trim()
+
+            if ([string]::IsNullOrEmpty($line)) {
+                continue
+            }
+
+            # lines in the VFP output that contain : contain properties and values
+            # need to split these based on count of ":" to build key and values
+            # some values related to ingress packet drops have multiple ":" so need to account for that
+            # example: {property} : {reason} : {value}
+            # example: {property} : {value}
+            if ($line.Contains(":")) {
+                [System.String[]]$results = $line.Split(':').Trim()
+                if ($results.Count -eq 3) {
+                    $key    = $results[1].Replace(' ','').Trim() # we want the key to align with the {reason}
+                    $value  = $results[2].Trim()
+
+                    if ($results[0].Trim() -eq 'Ingress packet drops') {
+                        $object.NicStatistics.IngressDropReason.$key = $value
+                    }
+                    elseif($results[0].Trim() -eq 'Egress packet drops') {
+                        $object.NicStatistics.EgressDropReason.$key = $value
+                    }
+                }
+                elseif ($results.Count -eq 2) {
+                    $key    = $results[0].Trim() # we want the key to align with the {property}
+                    $value  = $results[1].Trim()
+
+                    switch ($key) {
+                        # all ports start with the port name property
+                        # so we will key off this property to know when to add the object to the array
+                        # and to create a new object
+                        'Port name' {
+                            if ($object) {
+                                [void]$arrayList.Add($object)
+                            }
+
+                            $object = [VfpVmSwitchPort]@{
+                                PortName = $value
+                            }
+
+                            continue
+                        }
+
+                        "SR-IOV Weight" { $object.SRIOVWeight = $value }
+                        "SR-IOV Usage" { $object.SRIOVUsage = $value }
+
+                        # populate the NicStatistics object
+                        'Bytes Sent' { $object.NicStatistics.BytesSent = $value }
+                        'Bytes Received' { $object.NicStatistics.BytesReceived = $value }
+                        'Ingress Packet Drops' { $object.NicStatistics.IngressPacketDrops = $value }
+                        'Egress Packet Drops' { $object.NicStatistics.EgressPacketDrops = $value }
+                        'Ingress VFP Drops' { $object.NicStatistics.IngressVfpDrops = $value }
+                        'Egress VFP Drops' { $object.NicStatistics.EgressVfpDrops = $value }
+
+                        # populate the VmNicStatistics object
+                        'Packets Sent' { $object.VmNicStatistics.PacketsSent = $value }
+                        'Packets Received' { $object.VmNicStatistics.PacketsReceived = $value }
+                        'Interrupts Received' { $object.VmNicStatistics.InterruptsReceived = $value }
+                        'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
+                        'Send Buffer Allocation Size' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
+                        'Receive Buffer Allocation Count' { $object.VmNicStatistics.ReceiveBufferAllocationCount = $value }
+                        'Receive Buffer Allocation Size' { $object.VmNicStatistics.ReceiveBufferAllocationSize = $value }
+                        'Pending Link Change' { $object.VmNicStatistics.PendingLinkChange = $value }
+                        'Ring Buffer Full Errors' { $object.VmNicStatistics.RingBufferFullErrors = $value }
+                        'Pending Routed Packets' { $object.VmNicStatistics.PendingRoutedPackets = $value }
+                        'Insufficient Receive Buffers' { $object.VmNicStatistics.InsufficientReceiveBuffers = $value }
+                        'Insufficient Send Buffers' { $object.VmNicStatistics.InsufficientSendBuffers = $value }
+                        'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperationsBuffers = $value }
+                        'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceededErrors = $value }
+                        'Vsp Paused' { $object.VmNicStatistics.VspPaused = $value }
+
+                        # most of the property names, we can just trim and remove the white spaces
+                        # which will align to the class property names
+                        default {
+                            try {
+                                $key = $key.Replace(' ','').Trim()
+                                $object.$key = $value
+                            }
+                            catch {
+                                $_ | Trace-Exception
+                                $object | Add-Member -MemberType NoteProperty -Name $key -Value $value
+                                continue
+                            }
+                        }
+                    }
+                }
+            }
+            else {
+                switch -Wildcard ($line) {
+                    "Port is*" { $object.PortState = $line.Split(' ')[2].Replace('.','').Trim() }
+                    "MAC Learning is*" { $object.MacLearning = $line.Split(' ')[3].Replace('.','').Trim() }
+                    "NIC is*" { $object.NicState = $line.Split(' ')[2].Replace('.','').Trim() }
+                    "*list-vmswitch-port*" {
+                        # we have reached the end of the file at this point
+                        # and should add any remaining objects to the array
+                        if ($object) {
+                            [void]$arrayList.Add($object)
+                        }
+                    }
+                    default {
+                        # the line does not contain anything we looking for
+                        # and we can skip it and proceed to next
+                        continue
+                    }
+                }
+            }
+        }
+
+        return $arrayList
+    }
+
 
     try {
         if ($PSBoundParameters.ContainsKey('ComputerName')) {
@@ -3566,3 +3551,125 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $_ | Write-Error
     }
 }
+
+function Get-SdnVfpPortFlowStat {
+       <#
+    .SYNOPSIS
+        Returns the current VFP port flow statistics for the specified port.
+    .DESCRIPTION
+        Executes 'vfpctrl.exe /get-port-flow-stats /port $port' to return back the current flow statistics of the port specified.
+    .PARAMETER PortName
+        The port name to return the flow statistics for.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of a remote computer. The default is the local computer.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVfpPortFlowStat -PortName 3DC59D2B-9BFE-4996-AEB6-2589BD20B559
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [GUID]$PortName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $params = @{
+        PortName = $PortName
+    }
+
+    function Get-VfpPortFlowStat {
+        [CmdletBinding()]
+        param (
+            [Parameter(Mandatory = $true)]
+            [GUID]$PortName
+        )
+
+        $vfpPortFlowStatResults = vfpctrl /get-port-flow-stats /port $PortName
+        if([string]::IsNullOrEmpty($vfpPortFlowStatResults)) {
+            throw "Unable to get port flow stats for $PortName from vfpctrl"
+        }
+
+        if ($vfpPortFlowStatResults[0] -ilike "ERROR:*") {
+            throw ($vfpPortFlowStatResults[0].Split(':')[1].Trim())
+        }
+
+        $outbound = $null
+        $inbound = $null
+        $currentProcessing = [System.String]::Empty
+        $vfpPortFlowStats = $null
+
+        # Pre-compile regex for bracket extraction
+        # This regex will match text within brackets
+        $bracketRegex = [regex]::new('\[(.*?)\]', [System.Text.RegularExpressions.RegexOptions]::Compiled)
+
+        foreach ($line in $vfpPortFlowStatResults) {
+            if ([string]::IsNullOrWhiteSpace($line)) { continue }
+            $line = $line.Trim()
+
+            if ($line.Contains(":")) {
+                # Fast bracket extraction
+                $objectName = $null
+                $bracketMatch = $bracketRegex.Match($line)
+                if ($bracketMatch.Success) {
+                    $objectName = $bracketMatch.Groups[1].Value.Replace(" ","")
+                }
+
+                $parts = $line.Split(":", 2)
+                $key = $parts[0].Trim() -replace '^\[.*?\]\s*', '' -replace " ","_"
+                $value = $parts[1].Trim()
+
+                switch ($currentProcessing) {
+                    'Outbound' { $outbound.$objectName.$key = $value }
+                    'Inbound'  { $inbound.$objectName.$key  = $value }
+                }
+            }
+            else {
+                switch -Wildcard ($line) {
+                    "Direction - OUT" {
+                        $outbound = [VfpPortFlowStatsOutbound]::new()
+                        $currentProcessing = 'Outbound'
+                    }
+                    "Direction - IN" {
+                        $inbound = [VfpPortFlowStatsInbound]::new()
+                        $currentProcessing = 'Inbound'
+                    }
+                    "*Command get-port-flow-stats succeeded*" {
+                        $vfpPortFlowStats = [VfpPortFlowStats]::new($outbound, $inbound)
+                    }
+                    "*ITEM LIST*" { continue }
+                    "*====*" { continue }
+                }
+            }
+        }
+
+        return $vfpPortFlowStats
+    }
+
+    try {
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $results = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock {
+                param ([guid]$arg0)
+                Get-SdnVfpPortFlowStat -PortName $arg0
+            } -ArgumentList @($params.PortName)
+        }
+        else {
+            $results = Get-VfpPortFlowStat @params
+        }
+
+        return $results
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+

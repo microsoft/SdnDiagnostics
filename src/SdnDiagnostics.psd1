@@ -128,6 +128,7 @@
         'Get-SdnVfpPortGroup',
         'Get-SdnVfpPortLayer',
         'Get-SdnVfpPortRule',
+        'Get-SdnVfpPortFlowStat',
         'Get-SdnVfpPortState',
         'Get-SdnWorkingDirectory',
         'Import-SdnCertificate',
