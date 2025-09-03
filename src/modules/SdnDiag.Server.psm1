@@ -2693,7 +2693,7 @@ function New-SdnServerCertificate {
         $subjectName = "CN={0}" -f $serverCert
 
         # check if there is a certificate present for Azure Stack Certification Authority for Azure Local systems
-        # if so, we will use that certificate otherwise we will generate a new self-signed certificate
+        # if so, we will not generate a new certificate as they should be leveraging the certificate from the Azure Stack CA
         if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI') {
             $azStackHCICertificates = Get-SdnServerCertificate -ErrorAction Ignore
             if ($azStackHCICertificates) {
@@ -2701,6 +2701,9 @@ function New-SdnServerCertificate {
                 if ($azStackCertAuthorityCerts) {
                     $certificate = $azStackCertAuthorityCerts | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
                     "Using certificate Issuer:{0} Subject:{1} Thumbprint:{2} NotAfter:{3}" -f $certificate.Issuer, $certificate.Subject, $certificate.Thumbprint, $certificate.NotAfter | Trace-Output
+
+                    # locate the AzureStackCertificationAuthority certificate within the root store
+                    $certificate = Get-SdnCertificate -Path "Cert:\LocalMachine\Root" -Subject $certificate.Issuer
                 }
             }
         }
@@ -3037,34 +3040,14 @@ function Start-SdnServerCertificateRotation {
     Confirm-IsAdmin
 
     $array = @()
-    $ncRestParams = @{
-        NcUri = $null
-    }
-    $putRestParams = @{
-        Body = $null
-        Content = "application/json; charset=UTF-8"
-        Headers = @{"Accept"="application/json"}
-        Method = 'Put'
-        Uri = $null
-        UseBasicParsing = $true
-    }
-    $confirmStateParams = @{
-        TimeoutInSec = 600
-        UseBasicParsing = $true
-    }
-
+    $updateRequired = $false
+    $restCredParam = @{}
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
-        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        $putRestParams.Add('Certificate', $NcRestCertificate)
     }
     else {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
-        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        $putRestParams.Add('Credential', $NcRestCredential)
     }
-    $confirmStateParams += $restCredParam
-
 
     try {
         "Starting certificate rotation" | Trace-Output
@@ -3084,7 +3067,8 @@ function Start-SdnServerCertificateRotation {
             throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
         }
 
-        $ncRestParams.NcUri = $sdnFabricDetails.NcUrl
+        $ncRestParams = $restCredParam.Clone()
+        $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
         $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
@@ -3128,29 +3112,37 @@ function Start-SdnServerCertificateRotation {
         # loop through all the objects to perform PUT operation against the server resource
         # to update the base64 encoding for the certificate that NC should use when communicating with the server resource
         foreach ($obj in $array) {
-            "Updating certificate information for {0}" -f $obj.ResourceRef | Trace-Output
-            $server = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
-            $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+            "Processing certificate information for {0}" -f $obj.ResourceRef | Trace-Output
 
+            # if the certificate is self-signed, we need to create base64 encoding to inject into the server rest resource
+            $isSelfSigned = Confirm-IsCertSelfSigned -Certificate $obj.Certificate
+            if ($isSelfSigned) {
+                $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+            }
+            else {
+                $encoding = $null
+            }
+
+            $server = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
             if ($server.properties.certificate) {
-                $server.properties.certificate = $encoding
+                # update the certificate property of the server resource with the proper encoding
+                if ($server.properties.certificate -ine $encoding) {
+                    $updateRequired = $true
+                    $server.properties.certificate = $encoding
+                }
             }
             else {
                 # in instances where the certificate property does not exist, we will need to add it
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
-                $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
+                if ($null -ne $encoding) {
+                    $updateRequired = $true
+                    $server.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
+                }
             }
-            $putRestParams.Body = ($server | ConvertTo-Json -Depth 100)
 
-            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $server.resourceRef
-            $putRestParams.Uri = $endpoint
-
-            $null = Invoke-RestMethodWithRetry @putRestParams
-            if (-NOT (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmStateParams)) {
-                throw New-Object System.Exception("ProvisioningState is not succeeded")
-            }
-            else {
-                "Successfully updated the certificate information for {0}" -f $obj.ResourceRef | Trace-Output
+            if ($updateRequired) {
+                "Updating server resource {0} with new certificate information" -f $server.resourceRef | Trace-Output
+                Set-SdnResource @ncRestParams -ResourceRef $server.resourceRef -Object $server -OperationType 'Update' -Confirm:$false -ErrorAction Stop
             }
 
             # after we have generated the certificates and updated the servers to use the new certificate
