@@ -153,7 +153,7 @@ function Copy-CertificateToFabric {
     switch ($PSCmdlet.ParameterSetName) {
         'LoadBalancerMuxNode' {
             foreach ($controller in $FabricDetails.NetworkController) {
-                # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
+                # if the certificate being passed is self-signed, we will need to copy the certificate to the network controller nodes
                 # within the fabric and install under localmachine\root as appropriate
                 if (Confirm-IsCertSelfSigned -Certificate $certData) {
                     "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `

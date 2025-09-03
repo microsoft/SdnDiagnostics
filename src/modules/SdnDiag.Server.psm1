@@ -2699,11 +2699,13 @@ function New-SdnServerCertificate {
             if ($azStackHCICertificates) {
                 $azStackCertAuthorityCerts = $azStackHCICertificates | Where-Object { $_.Issuer -ieq 'CN=AzureStackCertificationAuthority' }
                 if ($azStackCertAuthorityCerts) {
-                    $certificate = $azStackCertAuthorityCerts | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
-                    "Using certificate Issuer:{0} Subject:{1} Thumbprint:{2} NotAfter:{3}" -f $certificate.Issuer, $certificate.Subject, $certificate.Thumbprint, $certificate.NotAfter | Trace-Output
+                    # pick the most recent certificate based on the NotBefore date
+                    # this will handle scenarios if ever the NotAfter default is decreased
+                    $newestCertificate = $azStackCertAuthorityCerts | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
+                    "Using certificate Issuer:{0} Subject:{1} Thumbprint:{2}" -f $newestCertificate.Issuer, $newestCertificate.Subject, $newestCertificate.Thumbprint | Trace-Output
 
                     # locate the AzureStackCertificationAuthority certificate within the root store
-                    $certificate = Get-SdnCertificate -Path "Cert:\LocalMachine\Root" -Subject $certificate.Issuer
+                    $certificate = Get-SdnCertificate -Path "Cert:\LocalMachine\Root" -Subject $newestCertificate.Issuer
                 }
             }
         }
@@ -3117,7 +3119,14 @@ function Start-SdnServerCertificateRotation {
             # if the certificate is self-signed, we need to create base64 encoding to inject into the server rest resource
             $isSelfSigned = Confirm-IsCertSelfSigned -Certificate $obj.Certificate
             if ($isSelfSigned) {
-                $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+
+                # If the certificate is self-signed and issued by AzureStackCertificationAuthority, we don't need to update the encoding
+                if ($obj.Certificate.Issuer -ieq 'CN=AzureStackCertificationAuthority') {
+                    $encoding = $null
+                }
+                else {
+                    $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+                }
             }
             else {
                 $encoding = $null
