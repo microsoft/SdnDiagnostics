@@ -153,7 +153,7 @@ function Copy-CertificateToFabric {
     switch ($PSCmdlet.ParameterSetName) {
         'LoadBalancerMuxNode' {
             foreach ($controller in $FabricDetails.NetworkController) {
-                # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
+                # if the certificate being passed is self-signed, we will need to copy the certificate to the network controller nodes
                 # within the fabric and install under localmachine\root as appropriate
                 if (Confirm-IsCertSelfSigned -Certificate $certData) {
                     "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
@@ -267,15 +267,15 @@ function Copy-CertificateToFabric {
             }
         }
 
-        # for ServerNodes, we must distribute the server certificate and install to the cert:\localmachine\root directory on each of the
-        # network controller nodes
+        # for ServerNodes, we must distribute the server certificate and install to the
+        # cert:\localmachine\root directory on each of the network controller nodes
         'ServerNode' {
             foreach ($controller in $FabricDetails.NetworkController) {
-                # if the certificate being passed is self-signed, we will need to copy the certificate to the other controller nodes
+                # if the certificate being passed is self-signed, or issued by AzureStackCertificationAuthority we will need to copy the certificate to the other controller nodes
                 # within the fabric and install under localmachine\root as appropriate
-                if (Confirm-IsCertSelfSigned -Certificate $certData) {
-                    "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f `
-                    $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
+                $isSelfSigned = Confirm-IsCertSelfSigned -Certificate $certData
+                if ($isSelfSigned -or $certData.Issuer -ieq 'CN=AzureStackCertificationAuthority') {
+                    "Importing certificate [Subject: {0} Thumbprint:{1}] to {2}" -f $certData.Subject, $certData.Thumbprint, $controller | Trace-Output
 
                     [System.String]$remoteFilePath = Join-Path -Path $certFileInfo.Directory.FullName -ChildPath $certFileInfo.Name
                     $null = Invoke-PSRemoteCommand -ComputerName $controller -Credential $Credential -ScriptBlock {

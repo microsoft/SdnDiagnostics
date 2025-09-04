@@ -608,33 +608,14 @@ function Start-SdnMuxCertificateRotation {
     Confirm-IsAdmin
 
     $array = @()
-    $ncRestParams = @{
-        NcUri = $null
-    }
-    $putRestParams = @{
-        Body = $null
-        Content = "application/json; charset=UTF-8"
-        Headers = @{"Accept"="application/json"}
-        Method = 'Put'
-        Uri = $null
-        UseBasicParsing = $true
-    }
-    $confirmStateParams = @{
-        TimeoutInSec = 600
-        UseBasicParsing = $true
-    }
-
+    $updateRequired = $false
+    $restCredParam = @{}
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
-        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
-        $putRestParams.Add('Certificate', $NcRestCertificate)
     }
     else {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
-        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
-        $putRestParams.Add('Credential', $NcRestCredential)
     }
-    $confirmStateParams += $restCredParam
 
     try {
         "Starting certificate rotation" | Trace-Output
@@ -654,7 +635,8 @@ function Start-SdnMuxCertificateRotation {
             throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
         }
 
-        $ncRestParams.NcUri = $sdnFabricDetails.NcUrl
+        $ncRestParams = $restCredParam.Clone()
+        $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
         $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
@@ -699,29 +681,38 @@ function Start-SdnMuxCertificateRotation {
         # loop through all the objects to perform PUT operation against the virtualServer resource
         # to update the base64 encoding for the certificate that NC should use when communicating with the virtualServer resource
         foreach ($obj in $array) {
-            "Updating certificate information for {0}" -f $obj.ResourceRef | Trace-Output
+            "Processing certificate information for {0}" -f $obj.ResourceRef | Trace-Output
             $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
-            $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
 
+            # if the certificate is self-signed, we need to create base64 encoding to inject into the server rest resource
+            $isSelfSigned = Confirm-IsCertSelfSigned -Certificate $obj.Certificate
+            if ($isSelfSigned) {
+                $encoding = [System.Convert]::ToBase64String($obj.Certificate.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+            }
+            else {
+                $encoding = $null
+            }
+
+            $virtualServer = Get-SdnResource @ncRestParams -ResourceRef $obj.ResourceRef
             if ($virtualServer.properties.certificate) {
-                $virtualServer.properties.certificate = $encoding
+                # update the certificate property of the server resource with the proper encoding
+                if ($virtualServer.properties.certificate -ine $encoding) {
+                    $updateRequired = $true
+                    $virtualServer.properties.certificate = $encoding
+                }
             }
             else {
                 # in instances where the certificate property does not exist, we will need to add it
                 # this typically will occur if converting from CA issued certificate to self-signed certificate
-                $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
+                if ($null -ne $encoding) {
+                    $updateRequired = $true
+                    $virtualServer.properties | Add-Member -MemberType NoteProperty -Name 'certificate' -Value $encoding -Force
+                }
             }
-            $putRestParams.Body = ($virtualServer | ConvertTo-Json -Depth 100)
 
-            $endpoint = Get-SdnApiEndpoint -NcUri $sdnFabricDetails.NcUrl -ResourceRef $virtualServer.resourceRef
-            $putRestParams.Uri = $endpoint
-
-            $null = Invoke-RestMethodWithRetry @putRestParams
-            if (-NOT (Confirm-ProvisioningStateSucceeded -NcUri $putRestParams.Uri @confirmStateParams)) {
-                throw New-Object System.Exception("ProvisioningState is not succeeded")
-            }
-            else {
-                "Successfully updated the certificate information for {0}" -f $obj.ResourceRef | Trace-Output
+            if ($updateRequired) {
+                "Updating virtual server resource {0} with new certificate information" -f $virtualServer.resourceRef | Trace-Output
+                Set-SdnResource @ncRestParams -ResourceRef $virtualServer.resourceRef -Object $virtualServer -OperationType 'Update' -Confirm:$false -ErrorAction Stop
             }
 
             # after we have generated the certificates and updated the servers to use the new certificate
