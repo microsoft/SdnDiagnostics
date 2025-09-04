@@ -53,6 +53,7 @@
         'Clear-SdnWorkingDirectory',
         'Copy-SdnFileFromComputer',
         'Copy-SdnFileToComputer',
+        'Clear-SdnHealthFault',
         'Confirm-SdnServiceFabricHealthy',
         'Convert-SdnEtwTraceToTxt',
         'Debug-SdnFabricInfrastructure',
