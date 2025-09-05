@@ -19,6 +19,6 @@ $revision = "{0}{1}" -f $hour.ToString().Trim(), $minute.ToString().Trim()
 $buildNumber = "{0}.{1}.{2}.{3}" -f $major, $minor, $patch.ToString().Trim(), $revision.Trim()
 
 [Environment]::SetEnvironmentVariable("CUSTOM_VERSION", $buildNumber, "User")
-Write-Host "##vso[task.setvariable variable=CUSTOM_VERSION;]${buildNumber}"
+Write-Host "##vso[task.setvariable variable=CUSTOM_VERSION;isOutput=true]${buildNumber}"
 
 return $buildNumber
