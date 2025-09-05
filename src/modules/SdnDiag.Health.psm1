@@ -1730,8 +1730,9 @@ function Clear-SdnHealthFault {
     )
 
     $currentHealthFaults = Get-HealthFault -ErrorAction Stop
-    if (-NOT ($currentHealthFaults | Where-Object { $_.FaultUniqueID -eq $Id })) {
-        throw New-Object System.ArgumentException("No health fault with ID '$Id' exists.")
+    $fault = $currentHealthFaults | Where-Object { $_.FaultId -eq $Id }
+    if ($null -ieq $fault) {
+        throw New-Object System.ArgumentException("No health fault found with the specified ID: $Id")
     }
 
     DeleteFaultById -faultUniqueID $Id

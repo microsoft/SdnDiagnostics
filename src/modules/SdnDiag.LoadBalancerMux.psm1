@@ -729,11 +729,11 @@ function Start-SdnMuxCertificateRotation {
             } -ArgumentList $obj.Certificate
 
             if ($certsToExamine) {
-                "`nMultiple certificates detected for Subject: {0}. Examine the certificates and cleanup if no longer needed." -f $obj.Certificate.Subject | Trace-Output -Level:Warning
-                foreach ($cert in $certsToExamine) {
-                    "`t[{0}] Thumbprint: {1}" -f $cert.PSComputerName, $cert.Thumbprint | Trace-Output -Level:Warning
+                $certDetails = $certsToExamine | ForEach-Object {
+                    "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
                 }
-
+                Write-Host "" # insert empty line for better readability
+                "Multiple certificates detected on {0}. Examine and cleanup duplicate certificates:`r`n{1}" -f $obj.ManagementAddress, ($certDetails -join "`r`n") | Trace-Output -Level:Warning
                 Write-Host "" # insert empty line for better readability
             }
 
