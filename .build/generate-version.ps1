@@ -18,7 +18,8 @@ $revision = "{0}{1}" -f $hour.ToString().Trim(), $minute.ToString().Trim()
 # we want to format as #.YYMM.DD.HHMM : 8.2104.12.1120
 $buildNumber = "{0}.{1}.{2}.{3}" -f $major, $minor, $patch.ToString().Trim(), $revision.Trim()
 
-[Environment]::SetEnvironmentVariable("CUSTOM_VERSION", $buildNumber, "User")
+[Environment]::SetEnvironmentVariable("CUSTOM_VERSION", $buildNumber, "Process")
+Write-Host "##vso[task.setvariable variable=CUSTOM_VERSION]${buildNumber}"
 Write-Host "##vso[task.setvariable variable=CUSTOM_VERSION;isOutput=true]${buildNumber}"
 
 return $buildNumber
