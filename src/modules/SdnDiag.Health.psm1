@@ -369,12 +369,22 @@ function Debug-SdnFabricInfrastructure {
         [X509Certificate]$NcRestCertificate
     )
 
-    $script:SdnDiagnostics_Health.Cache = $null
-    $aggregateHealthReport = @()
+    # if we are running in a remote session, we need to do some extra validation
+    if ($PSSenderInfo) {
+        # if we are running in a remote session and CredSSP is not enabled, then we need to ensure that
+        # the user has supplied -Credential to avoid double-hop authentication issues
+        if (-not (Get-WSManCredSSPState)) {
+            if ($Credential -ieq [System.Management.Automation.PSCredential]::Empty -or $null -ieq $Credential) {
+                throw New-Object System.NotSupportedException("Debug-SdnFabricInfrastructure cannot be run in a remote session without supplying -Credential.")
+            }
+        }
+    }
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
 
+    $script:SdnDiagnostics_Health.Cache = $null
+    $aggregateHealthReport = @()
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
     }
