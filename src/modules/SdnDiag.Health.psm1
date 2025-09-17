@@ -227,7 +227,6 @@ function New-SdnHealthTest {
         OccurrenceTime = [System.DateTime]::UtcNow
         Properties     = @()
         Remediation    = @()
-        HealthFault    = [PSCustomObject]@()
     }
 
     return $object
@@ -746,10 +745,15 @@ function Debug-SdnLoadBalancerMux {
     try {
         $healthReport.HealthTest += @(
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
-            Test-SdnServiceState -ServiceName $services
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-SdnMuxConnectionStateToSlbManager
         )
+
+        foreach ($service in $services) {
+            $healthReport.HealthTest += @(
+                Test-SdnServiceState -ServiceName $service
+            )
+        }
 
         # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
         # if any of the tests completed with WARN, we will set the aggregate result to WARN
