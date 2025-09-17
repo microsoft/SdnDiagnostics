@@ -752,6 +752,17 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
+    # if we are running in a remote session, we need to do some extra validation
+    if ($PSSenderInfo) {
+        # if we are running in a remote session and CredSSP is not enabled, then we need to ensure that
+        # the user has supplied -Credential to avoid double-hop authentication issues
+        if (-not (Get-WSManCredSSPState)) {
+            if ($Credential -ieq [System.Management.Automation.PSCredential]::Empty -or $null -ieq $Credential) {
+                throw New-Object System.NotSupportedException("Start-SdnDataCollection cannot be run in a remote session without supplying -Credential.")
+            }
+        }
+    }
+
     $ErrorActionPreference = 'Continue'
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
 
