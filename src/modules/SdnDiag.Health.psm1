@@ -1100,7 +1100,7 @@ function Test-ServerHostId {
             }
 
             $sdnHealthTest.Properties = [PSCustomObject]@{
-                CurrentHostID = $remoteHostID
+                CurrentHostID = $remoteHostID.HostID
                 ExpectedHostID = $InstanceId
             }
         }
