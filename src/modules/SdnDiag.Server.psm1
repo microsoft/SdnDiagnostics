@@ -2706,6 +2706,9 @@ function New-SdnServerCertificate {
 
                     # locate the AzureStackCertificationAuthority certificate within the root store
                     $certificate = Get-SdnCertificate -Path "Cert:\LocalMachine\Root" -Subject $newestCertificate.Issuer
+                    if ($certificate) {
+                        $certificate = $certificate | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
+                    }
                 }
             }
         }
