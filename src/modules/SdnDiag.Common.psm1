@@ -1152,6 +1152,197 @@ function Convert-SdnEtwTraceToTxt {
     }
 }
 
+function Enable-SdnVipTrace {
+    <#
+    .SYNOPSIS
+        Enables network tracing on the SDN fabric infrastructure related to the specified VIP address.
+    .PARAMETER VirtualIP
+        Specify the Virtual IP address that you want to enable SDN fabric tracing for.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Credential
+        Specifies a user account that has permission to access the infrastructure nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER OutputDirectory
+        Optional. Specifies a specific path and folder in which to save the files.
+    .PARAMETER MaxTraceSize
+        Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true)]
+        [System.String]$VirtualIP,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxTraceSize = 1536
+    )
+
+    $networkTraceNodes = @()
+    Reset-SdnDiagTraceMapping
+
+    $ncRestParams = @{
+        NcUri = $NcUri
+        ErrorAction = 'Stop'
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
+
+    try {
+        # lets try and locate the resources associated with the public VIP address
+        # the SdnPublicIpPoolUsageSummary is useful for this scenario, as it has the logic to scan both publicIpAddresses and loadBalancers
+        # to locate the VIP IP we are looking for
+        $publicIpAddressUsage = Get-SdnPublicIPPoolUsageSummary @ncRestParams
+        $publicIpResource = $publicIpAddressUsage | Where-Object {$_.IPAddress -ieq $VirtualIP}
+        if ($null -ieq $publicIpResource) {
+            throw "Unable to locate resources associated to $VirtualIP"
+        }
+
+        # get the load balancer muxes, as we will need to enable tracing on them
+        $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ManagementAddressOnly
+        $networkTraceNodes += $loadBalancerMuxes
+
+        # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
+        # as we will use this reference to locate where the resources are located within the fabric
+        $servers = Get-SdnServer @ncRestParams -ManagementAddressOnly
+        $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
+
+        # determine the network interfaces associated with the public IP address
+        $associatedResource = Get-SdnResource @ncRestParams -ResourceRef $publicIpResource.AssociatedResource
+        switch -Wildcard ($associatedResource.resourceRef) {
+            "/loadBalancers/*" {
+                "{0} is associated with load balancer {1}" -f $VirtualIP, $associatedResource.resourceRef | Trace-Output
+
+                # depending on the environments, the associatedResource may come back as the parent load balancer object
+                # or may be the frontend IP configuration object so in either situation, we should just split the resourceRef string and query to get the
+                # parent load balancer object to ensure consistency
+                $parentResource = "{0}/{1}" -f $associatedResource.resourceRef.Split('/')[1], $associatedResource.resourceRef.Split('/')[2]
+                $loadBalancer = Get-SdnResource @ncRestParams -ResourceRef $parentResource
+
+                $ipConfigurations = $loadBalancer.properties.backendAddressPools.properties.backendIPConfigurations.resourceRef
+            }
+            "/networkInterfaces/*" {
+                "{0} is associated with network interface {1}" -f $VirtualIP, $associatedResource.resourceRef | Trace-Output
+                $ipConfigurations = $associatedResource.resourceRef
+            }
+
+            # public IP address(es) should only ever be associated to load balancer or network interface resources
+            # except in the case for the gateway pool, which we would not expect in this scenario at this time
+            default {
+                throw "Unable to determine associated resource type"
+            }
+        }
+
+        $ipConfigurations | ForEach-Object {
+            $ipConfig = Get-SdnResource @ncRestParams -ResourceRef $_
+            if ($null -ieq $ipConfig) {
+                throw "Unable to locate resource for $($_)"
+            }
+
+            "Located associated resource {0} with DIP address {1}" -f $ipConfig.resourceRef, $ipconfig.properties.privateIPAddress | Trace-Output
+
+            # we need the mac address of the network interface to locate the vfp switch port
+            # since the ipConfiguration is a subobject of the network interface, we need to split the resourceRef to get the network interface resource
+            # since we know the resourceRefs are defined as /networkInterfaces/{guid}/ipConfigurations/{guid}, we can split on the '/' and get the 3rd element
+            $netInterface = Get-SdnResource @ncRestParams -ResourceRef "/networkInterfaces/$($_.Split('/')[2])"
+            $macAddress = Format-SdnMacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
+            $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
+            if ($null -ieq $vfpPort) {
+                throw "Unable to locate vfp switch port for $macAddress"
+            }
+
+            "Located vfp switch port {0} on {1}" -f $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
+
+            # once we have the information we need, we can update our internal cache mapping
+            Add-SdnDiagTraceMapping `
+                -MacAddress $vfpPort.MacAddress `
+                -InfraHost $vfpPort.PSComputerName `
+                -PortId $vfpPort.PortId `
+                -PortName $vfpPort.Portname `
+                -NicName $vfpPort.NICname `
+                -VmName $vfpPort.VMname `
+                -VmInternalId $vfpPort.VMID `
+                -PrivateIpAddress $ipConfig.properties.privateIPAddress
+        }
+
+        # once we have identified all the nodes we will enable tracing on
+        # add the server(s) to the list of nodes we will enable tracing on
+        # as this will be used to disable tracing once we are done
+        $networkTraceNodes += $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys
+        $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+
+        # ensure that we have SdnDiagnostics installed to the nodes that we need to enable tracing for
+        Install-SdnDiagnostics -ComputerName $networkTraceNodes -Credential $Credential
+
+        "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Server: {1}`r`n" `
+        -f ($loadBalancerMuxes -join ', '), ($Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -join ', ') | Trace-Output
+
+        # enable tracing on the infastructure
+        $traceInfo = @()
+        $traceInfo += Start-SdnNetshTrace -ComputerName $loadBalancerMuxes -Role 'LoadBalancerMux' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+        $traceInfo += Start-SdnNetshTrace -ComputerName $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys -Role 'Server' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+
+        "Tracing has been enabled on the SDN infrastructure nodes {0}" -f ($traceInfo.PSComputerName -join ', ') | Trace-Output
+        # at this point, tracing should be enabled on the sdn fabric and we can wait for user input to disable
+        # once we receive user input, we will disable tracing on the infrastructure node(s)
+        $null = Get-UserInput -Message "`r`nPress any key to disable tracing..."
+        $null = Stop-SdnNetshTrace -ComputerName $networkTraceNodes -Credential $Credential
+
+        "Tracing has been disabled on the SDN infrastructure. Saving configuration details to {0}\{1}_TraceMapping.json" -f (Get-WorkingDirectory), $VirtualIP | Trace-Output
+        $Script:SdnDiagnostics_Common.Cache['TraceMapping'] | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Prefix $VirtualIP -Name 'TraceMapping' -FileType json -Depth 3
+
+        $traceFileInfo = @()
+        foreach ($obj in $traceInfo) {
+            $traceFileInfo += [PSCustomObject]@{
+                ComputerName = $obj.PSComputerName
+                FileName = $obj.FileName
+            }
+        }
+
+        return $traceFileInfo
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function Get-SdnCertificate {
     <#
         .SYNOPSIS
@@ -2163,4 +2354,207 @@ function Confirm-IsCertSelfSigned {
     }
 
     return $false
+}
+
+function Enable-SdnGatewayConnectionTrace {
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Object]$NetworkInterface,
+
+        [Parameter(Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter(Mandatory = $false)]
+        [System.String]$OutputDirectory = "$(Get-WorkingDirectory)\NetworkTraces",
+
+        [Parameter(Mandatory = $true, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [int]$MaxTraceSize = 1536
+    )
+
+    $traceInfo = @()
+    $traceFileInfo = @()
+    $networkTraceNodes = @()
+    $gatewayTraceNodes = @()
+    $loadBalancerMuxTraceNodes = @()
+    $serverTraceNodes = @()
+
+    Reset-SdnDiagTraceMapping
+
+    $ncRestParams = @{
+        NcUri = $NcUri
+        ErrorAction = 'Stop'
+    }
+
+    switch ($PSCmdlet.ParameterSetName) {
+        'RestCertificate' {
+            $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+        }
+        'RestCredential' {
+            $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+        }
+    }
+
+    try {
+        # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
+        # as we will use this reference to locate where the resources are located within the fabric
+        $servers = Get-SdnServer @ncRestParams -ManagementAddressOnly
+        $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
+
+        # since we only support ipConfigurations within the same virtual network, we will only look at the first ipConfiguration
+        $subnetResourceRef = $NetworkInterface.properties.ipConfigurations[0].properties.subnet.resourceRef
+        $virtualNetworkResourceRef = $subnetResourceRef.Substring(0, $subnetResourceRef.LastIndexOf('/subnets'))
+
+        # retrieve current list of the virtualGateways on the system
+        # we then need to determine which gateway is associated with the virtual network
+        $virtualGateways = Get-SdnResource @ncRestParams -Resource 'virtualGateways'
+        foreach ($vgw in $virtualGateways) {
+            if ($vgw.properties.gatewaySubnets.resourceRef -match $virtualNetworkResourceRef) {
+                "Located {0} associated with {1}" -f $vgw.resourceRef, $virtualNetworkResourceRef | Trace-Output
+                $virtualGateway = $vgw
+                break  # exit once found
+            }
+        }
+        if ($null -eq $virtualGateway) {
+            throw "Unable to locate virtual gateway associated with virtual network {0}" -f $virtualNetworkResourceRef
+        }
+
+        # as we can have multiple networkConnections associated to the virtual gateway, and networkConnection
+        # can be placed on single or multiple gateway VMs, we need to enumerate through each networkConnection
+        # to determine which gateway VMs we need to enable tracing on
+        "{0} has {1} network connections" -f $virtualGateway.resourceRef, $virtualGateway.properties.networkConnections.Count | Trace-Output
+        foreach ($netConnection in $virtualGateway.properties.networkConnections) {
+            "Determining gateway VM for network connection {0}" -f $netConnection.resourceRef | Trace-Output
+            $gatewayFqdn = Get-SdnGateway @ncRestParams -ResourceRef $netconnection.properties.gateway.resourceRef -ManagementAddressOnly
+            $gatewayResource = Get-SdnResource @ncRestParams -ResourceRef $netconnection.properties.gateway.resourceRef
+            if ($gatewayFqdn) {
+                "Located gateway VM {0} for network connection {1}" -f $gatewayFqdn, $netConnection.resourceRef | Trace-Output
+                $gatewayTraceNodes += $gatewayFqdn
+
+                $netInterface = Get-SdnResource @ncRestParams -ResourceRef $gatewayResource.properties.networkInterfaces.externalNetworkInterface.resourceRef
+                $macAddress = Format-SdnMacAddress -MacAddress $netInterface.properties.privateMacAddress -Dashes
+                $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
+                if ($vfpPort) {
+                    "Located {0} external network interface vfp switch port {1} on {2}" -f $gatewayFqdn, $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
+                    Add-SdnDiagTraceMapping `
+                        -MacAddress $vfpPort.MacAddress `
+                        -InfraHost $vfpPort.PSComputerName `
+                        -PortId $vfpPort.PortId `
+                        -PortName $vfpPort.PortName `
+                        -NicName $vfpPort.NICname `
+                        -VmName $vfpPort.VMname `
+                        -VmInternalId $vfpPort.VMID `
+                        -PrivateIpAddress $netInterface.properties.privateIPAddress
+                }
+                else {
+                    "Unable to locate external network interface vfp switch port for gateway network interface with mac address {0}" -f $macAddress | Trace-Output -Level:Warning
+                }
+            }
+        }
+        $gatewayTraceNodes = $gatewayTraceNodes | Select-Object -Unique
+
+        # if we are using S2S gateway connection, we will need to add the muxes to the trace nodes
+        $connectionType = $virtualGateway.properties.networkConnections.properties.connectionType
+        if ($connectionType -icontains "IPSec") {
+            "IPSec gateway connection detected. Including LoadBalancerMux nodes for tracing." | Trace-Output
+            $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ManagementAddressOnly
+            $loadBalancerMuxTraceNodes += $loadBalancerMuxes
+        }
+
+        # now we need to locate the server vfp switch port based on the mac address of the network interface
+        $macAddress = Format-SdnMacAddress -MacAddress $NetworkInterface.properties.privateMacAddress -Dashes
+        $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
+        if ($null -ieq $vfpPort) {
+            throw "Unable to locate vfp switch port for $macAddress"
+        }
+        "Located vfp switch port {0} on {1}" -f $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
+        Add-SdnDiagTraceMapping `
+            -MacAddress $vfpPort.MacAddress `
+            -InfraHost $vfpPort.PSComputerName `
+            -PortId $vfpPort.PortId `
+            -PortName $vfpPort.Portname `
+            -NicName $vfpPort.NICname `
+            -VmName $vfpPort.VMname `
+            -VmInternalId $vfpPort.VMID `
+            -PrivateIpAddress $ipConfig.properties.privateIPAddress
+
+        # add the server nodes identified in the trace mapping to the server trace nodes array
+        $serverTraceNodes += $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys
+        $serverTraceNodes = $serverTraceNodes | Select-Object -Unique
+
+        # consolidate all the nodes that we need to enable tracing on
+        # this will include the gateway(s), load balancer mux(es) and server(s)
+        $networkTraceNodes += $gatewayTraceNodes
+        $networkTraceNodes += $loadBalancerMuxTraceNodes
+        $networkTraceNodes += $serverTraceNodes
+        $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+
+        "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Gateway: {1}`r`n`t - Server: {2}`r`n" `
+        -f ($loadBalancerMuxTraceNodes -join ', '), ($gatewayTraceNodes -join ', '), ($serverTraceNodes -join ', ') | Trace-Output
+
+        # ensure that we have SdnDiagnostics installed to the nodes that we need to enable tracing for
+        "Ensuring current version of SdnDiagnostics is installed on the infrastructure nodes" | Trace-Output
+        Install-SdnDiagnostics -ComputerName $networkTraceNodes -Credential $Credential
+
+        # enable tracing on the infastructure
+        if ($loadBalancerMuxTraceNodes) {
+            "Enabling tracing on LoadBalancerMux nodes: {0}" -f ($loadBalancerMuxTraceNodes -join ', ') | Trace-Output
+            $traceInfo += Start-SdnNetshTrace -ComputerName $loadBalancerMuxTraceNodes -Role 'LoadBalancerMux' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+        }
+        if ($gatewayTraceNodes) {
+            "Enabling tracing on Gateway nodes: {0}" -f ($gatewayTraceNodes -join ', ') | Trace-Output
+            $traceInfo += Start-SdnNetshTrace -ComputerName $gatewayTraceNodes -Role 'Gateway' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+        }
+        if ($serverTraceNodes) {
+            "Enabling tracing on Server nodes: {0}" -f ($serverTraceNodes -join ', ') | Trace-Output
+            $traceInfo += Start-SdnNetshTrace -ComputerName $serverTraceNodes -Role 'Server' -Credential $Credential -OutputDirectory $OutputDirectory -MaxTraceSize $MaxTraceSize
+        }
+
+        "Tracing has been enabled on the SDN infrastructure nodes {0}" -f ($traceInfo.PSComputerName -join ', ') | Trace-Output
+        # at this point, tracing should be enabled on the sdn fabric and we can wait for user input to disable
+        # once we receive user input, we will disable tracing on the infrastructure node(s)
+        $null = Get-UserInput -Message "`r`nPress any key to disable tracing..."
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+    finally {
+        # always stop the tracing on the infrastructure nodes, even if there was an error during the process
+        if ($traceInfo) {
+            $null = Stop-SdnNetshTrace -ComputerName $networkTraceNodes -Credential $Credential
+
+            "Tracing has been disabled on the SDN infrastructure. Saving configuration details to {0}\TraceMapping.json" -f (Get-WorkingDirectory) | Trace-Output
+            $Script:SdnDiagnostics_Common.Cache['TraceMapping'] | Export-ObjectToFile -FilePath (Get-WorkingDirectory) -Name 'GatewayTraceMapping' -FileType json -Depth 3
+
+            # build the return object
+            foreach ($obj in $traceInfo) {
+                $traceFileInfo += [PSCustomObject]@{
+                    ComputerName = $obj.PSComputerName
+                    FileName = $obj.FileName
+                }
+            }
+        }
+    }
+
+    return $traceFileInfo
 }

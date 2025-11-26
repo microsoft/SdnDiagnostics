@@ -65,6 +65,7 @@
         'Disable-SdnRasGatewayTracing',
         'Disable-SdnServiceFabricNode',
         'Enable-SdnDiagTraceOutputLogging',
+        'Enable-SdnGatewayConnectionTrace',
         'Enable-SdnRasGatewayTracing',
         'Enable-SdnServiceFabricNode',
         'Enable-SdnVipTrace',
