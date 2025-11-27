@@ -2459,6 +2459,11 @@ function Invoke-SdnResourceDump {
                 }
             }
         }
+
+        $files = Get-ChildItem -Path $outputDir.FullName
+        "Resource dump completed. {0} files exported to {1}" -f $files.Count, $outputDir.FullName | Trace-Output
+
+        return (Get-ChildItem -Path $outputDir.FullName)
     }
     catch {
         $_ | Trace-Exception
