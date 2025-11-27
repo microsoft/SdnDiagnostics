@@ -1305,7 +1305,7 @@ function Enable-SdnVipTrace {
         # add the server(s) to the list of nodes we will enable tracing on
         # as this will be used to disable tracing once we are done
         $networkTraceNodes += $Script:SdnDiagnostics_Common.Cache['TraceMapping'].Keys
-        $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+        $networkTraceNodes = $networkTraceNodes | Sort-Object -Unique
 
         # ensure that we have SdnDiagnostics installed to the nodes that we need to enable tracing for
         Install-SdnDiagnostics -ComputerName $networkTraceNodes -Credential $Credential
@@ -2357,6 +2357,28 @@ function Confirm-IsCertSelfSigned {
 }
 
 function Enable-SdnNetworkInterfaceTrace {
+    <#
+    .SYNOPSIS
+        Enables network tracing for a specified network interface within an SDN fabric.
+    .DESCRIPTION
+        Enables network tracing for a specified network interface within an SDN fabric by configuring the necessary trace mappings and initiating trace collection on the relevant infrastructure nodes.
+    .PARAMETER NetworkInterface
+        Specifies the network interface object to enable tracing for. This object is typically retrieved using the 'Get-SdnResource -Resource NetworkInterface' cmdlet.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Credential
+        Specifies a user account that has permission to access the infrastructure nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER OutputDirectory
+        Optional. Specifies a specific path and folder in which to save the files.
+    .PARAMETER MaxTraceSize
+        Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
+    #>
+
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
@@ -2397,14 +2419,10 @@ function Enable-SdnNetworkInterfaceTrace {
     $gatewayTraceNodes = @()
     $loadBalancerMuxTraceNodes = @()
     $serverTraceNodes = @()
-
-    Reset-SdnDiagTraceMapping
-
     $ncRestParams = @{
         NcUri = $NcUri
         ErrorAction = 'Stop'
     }
-
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
             $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
@@ -2413,6 +2431,8 @@ function Enable-SdnNetworkInterfaceTrace {
             $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         }
     }
+
+    Reset-SdnDiagTraceMapping
 
     try {
         # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
@@ -2439,9 +2459,9 @@ function Enable-SdnNetworkInterfaceTrace {
         if ($null -ieq $vfpPort) {
             throw "Unable to locate vfp switch port for $macAddress"
         }
+
         "Located vfp switch port {0} on {1}" -f $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
         $serverTraceNodes += $vfpPort.PSComputerName
-
         Add-SdnDiagTraceMapping `
             -MacAddress $vfpPort.MacAddress `
             -InfraHost $vfpPort.PSComputerName `
@@ -2494,14 +2514,14 @@ function Enable-SdnNetworkInterfaceTrace {
 
         # consolidate all the nodes that we need to enable tracing on
         # this will include the gateway(s), load balancer mux(es) and server(s)
-        $gatewayTraceNodes = $gatewayTraceNodes | Select-Object -Unique
-        $loadBalancerMuxTraceNodes = $loadBalancerMuxTraceNodes | Select-Object -Unique
-        $serverTraceNodes = $serverTraceNodes | Select-Object -Unique
+        $gatewayTraceNodes = $gatewayTraceNodes | Sort-Object -Unique
+        $loadBalancerMuxTraceNodes = $loadBalancerMuxTraceNodes | Sort-Object -Unique
+        $serverTraceNodes = $serverTraceNodes | Sort-Object -Unique
 
         $networkTraceNodes += $gatewayTraceNodes
         $networkTraceNodes += $loadBalancerMuxTraceNodes
         $networkTraceNodes += $serverTraceNodes
-        $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+        $networkTraceNodes = $networkTraceNodes | Sort-Object -Unique
 
         "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Gateway: {1}`r`n`t - Server: {2}`r`n" `
         -f ($loadBalancerMuxTraceNodes -join ', '), ($gatewayTraceNodes -join ', '), ($serverTraceNodes -join ', ') | Trace-Output
@@ -2555,6 +2575,28 @@ function Enable-SdnNetworkInterfaceTrace {
 }
 
 function Enable-SdnNetworkConnectionTrace {
+    <#
+    .SYNOPSIS
+        Enables network tracing for a specified network connection within a virtual gateway resource.
+    .DESCRIPTION
+        Enables network tracing for a specified network connection within a virtual gateway resource by configuring the necessary trace mappings and initiating trace collection on the relevant infrastructure nodes.
+    .PARAMETER NetworkConnection
+        Specifies the network connection object to enable tracing for. This object is typically retrieved using the 'Get-SdnResource -Resource VirtualGateways'.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER Credential
+        Specifies a user account that has permission to access the infrastructure nodes. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API.
+        Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to access the northbound NC API interface. The default is the current user.
+    .PARAMETER OutputDirectory
+        Optional. Specifies a specific path and folder in which to save the files.
+    .PARAMETER MaxTraceSize
+        Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
+    #>
+
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
@@ -2595,14 +2637,10 @@ function Enable-SdnNetworkConnectionTrace {
     $gatewayTraceNodes = @()
     $loadBalancerMuxTraceNodes = @()
     $serverTraceNodes = @()
-
-    Reset-SdnDiagTraceMapping
-
     $ncRestParams = @{
         NcUri = $NcUri
         ErrorAction = 'Stop'
     }
-
     switch ($PSCmdlet.ParameterSetName) {
         'RestCertificate' {
             $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
@@ -2611,6 +2649,8 @@ function Enable-SdnNetworkConnectionTrace {
             $ncRestParams.Add('NcRestCredential', $NcRestCredential)
         }
     }
+
+    Reset-SdnDiagTraceMapping
 
     try {
         # we want to query the servers within the SDN fabric so we can get a list of the vfp switch ports across the hyper-v hosts
@@ -2635,7 +2675,7 @@ function Enable-SdnNetworkConnectionTrace {
         $networkTraceNodes += $gatewayTraceNodes
         $networkTraceNodes += $loadBalancerMuxTraceNodes
         $networkTraceNodes += $serverTraceNodes
-        $networkTraceNodes = $networkTraceNodes | Select-Object -Unique
+        $networkTraceNodes = $networkTraceNodes | Sort-Object -Unique
 
         "Network traces will be enabled on:`r`n`t - LoadBalancerMux: {0}`r`n`t - Gateway: {1}`r`n`t - Server: {2}`r`n" `
         -f ($loadBalancerMuxTraceNodes -join ', '), ($gatewayTraceNodes -join ', '), ($serverTraceNodes -join ', ') | Trace-Output
@@ -2709,7 +2749,12 @@ function Get-GatewayTraceMapping {
         [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $gatewayTraceNodes = @()
@@ -2768,9 +2813,6 @@ function Get-GatewayTraceMapping {
             }
         }
 
-        $gatewayTraceNodes = $gatewayTraceNodes | Select-Object -Unique
-        $serverTraceNodes = $serverTraceNodes | Select-Object -Unique
-
         # if we are using S2S gateway connection, we will need to add the muxes to the trace nodes
         if ($NetworkConnection.properties.connectionType -ieq "IPSec") {
             "IPSec gateway connection detected. Including LoadBalancerMux nodes for tracing." | Trace-Output
@@ -2779,9 +2821,9 @@ function Get-GatewayTraceMapping {
             $serverTraceNodes += $data.Server
         }
 
-        $loadBalancerMuxTraceNodes = $loadBalancerMuxTraceNodes | Select-Object -Unique
-        $serverTraceNodes = $serverTraceNodes | Select-Object -Unique
-        $gatewayTraceNodes = $gatewayTraceNodes | Select-Object -Unique
+        $loadBalancerMuxTraceNodes = $loadBalancerMuxTraceNodes | Sort-Object -Unique
+        $serverTraceNodes = $serverTraceNodes | Sort-Object -Unique
+        $gatewayTraceNodes = $gatewayTraceNodes | Sort-Object -Unique
     }
     catch {
         $_ | Trace-Exception
@@ -2813,7 +2855,12 @@ function Get-LoadBalancerMuxTraceMapping {
         [Parameter(Mandatory = $false, ParameterSetName = 'RestCredential')]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $loadBalancerMuxNodes = @()
@@ -2841,7 +2888,7 @@ function Get-LoadBalancerMuxTraceMapping {
             $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
         }
 
-        $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ManagementAddressOnly
+        $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams
         foreach ($LoadBalancerMux in $loadBalancerMuxes) {
             $loadBalancerMuxFqdn = Get-SdnLoadBalancerMux @ncRestParams -ResourceRef $LoadBalancerMux.resourceRef -ManagementAddressOnly
             $loadBalancerMuxNodes += $loadBalancerMuxFqdn
@@ -2849,17 +2896,17 @@ function Get-LoadBalancerMuxTraceMapping {
             $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.VMname -ieq $netBiosAndFQDN.ComputerNameNetBIOS -or $_.VMname -ieq $netBiosAndFQDN.ComputerNameFQDN}
             if ($vfpPort) {
                 foreach ($port in $vfpPort) {
-                "Located {0} network interface vfp switch port {1} on {2}" -f $loadBalancerMuxFqdn, $port.PortName, $port.PSComputerName | Trace-Output
-                $serverNodes += $port.PSComputerName
+                    "Located {0} network interface vfp switch port {1} on {2}" -f $loadBalancerMuxFqdn, $port.PortName, $port.PSComputerName | Trace-Output
+                    $serverNodes += $port.PSComputerName
 
-                Add-SdnDiagTraceMapping `
-                    -MacAddress $port.MacAddress `
-                    -InfraHost $port.PSComputerName `
-                    -PortId $port.PortId `
-                    -PortName $port.PortName `
-                    -NicName $port.NICname `
-                    -VmName $port.VMname `
-                    -VmInternalId $port.VMID
+                    Add-SdnDiagTraceMapping `
+                        -MacAddress $port.MacAddress `
+                        -InfraHost $port.PSComputerName `
+                        -PortId $port.PortId `
+                        -PortName $port.PortName `
+                        -NicName $port.NICname `
+                        -VmName $port.VMname `
+                        -VmInternalId $port.VMID
                 }
             }
             else {
@@ -2867,8 +2914,8 @@ function Get-LoadBalancerMuxTraceMapping {
             }
         }
 
-        $loadBalancerMuxNodes = $loadBalancerMuxNodes | Select-Object -Unique
-        $serverNodes = $serverNodes | Select-Object -Unique
+        $loadBalancerMuxNodes = $loadBalancerMuxNodes | Sort-Object -Unique
+        $serverNodes = $serverNodes | Sort-Object -Unique
     }
     catch {
         $_ | Trace-Exception
