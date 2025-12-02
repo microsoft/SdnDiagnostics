@@ -2383,11 +2383,11 @@ function Enable-SdnNetworkInterfaceTrace {
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateScript({
-            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkInterface') {
+            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkInterfaces') {
                 return $true
             }
             else {
-                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkInterface'")
+                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkInterfaces'")
             }
         })]
         [Object]$NetworkInterface,
@@ -2609,11 +2609,11 @@ function Enable-SdnNetworkConnectionTrace {
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateScript({
-            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkConnection') {
+            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkConnections') {
                 return $true
             }
             else {
-                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkConnection'")
+                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkConnections'")
             }
         })]
         [Object]$NetworkConnection,

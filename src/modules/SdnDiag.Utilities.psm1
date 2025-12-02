@@ -3141,7 +3141,24 @@ function Confirm-ResourceType {
         }
 
         # resource URI is in the format of /{resourceType}/{resourceId}
-        $currentResourceType = $Resource.resourceRef.Split('/')[1]
+        # child resources such as NetworkConnections will be in format of /{resourceType}/{resourceId}/{childResourceType}/{childResourceId}
+        # so we need to split the resourceRef and get the second element for comparison
+        switch ($Resource.resourceRef.Split('/').Count) {
+            3 {
+                $currentResourceType = $Resource.resourceRef.Split('/')[1]
+            }
+            5 {
+                $currentResourceType = $Resource.resourceRef.Split('/')[3]
+            }
+            7 {
+                $currentResourceType = $Resource.resourceRef.Split('/')[5]
+            }
+            default {
+                "Unexpected resourceRef format: '{0}'" -f $Resource.resourceRef | Trace-Output -Level:Error
+                return $false
+            }
+        }
+
         if ($currentResourceType -ine $ResourceType) {
             "Resource type mismatch. Expected: '{0}', Received: '{1}'" -f $ResourceType, $currentResourceType | Trace-Output -Level:Error
             return $false
