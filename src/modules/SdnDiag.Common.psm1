@@ -2382,6 +2382,14 @@ function Enable-SdnNetworkInterfaceTrace {
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [ValidateScript({
+            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkInterface') {
+                return $true
+            }
+            else {
+                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkInterface'")
+            }
+        })]
         [Object]$NetworkInterface,
 
         [Parameter(Mandatory = $true)]
@@ -2600,6 +2608,14 @@ function Enable-SdnNetworkConnectionTrace {
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [ValidateScript({
+            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkConnection') {
+                return $true
+            }
+            else {
+                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkConnection'")
+            }
+        })]
         [Object]$NetworkConnection,
 
         [Parameter(Mandatory = $true)]

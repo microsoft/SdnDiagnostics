@@ -3113,3 +3113,46 @@ function Test-ComputerIsAccessible {
 
     return $false
 }
+
+function Confirm-ResourceType {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [Object]$Resource,
+
+        [Parameter(Mandatory = $true)]
+        [System.String]$ResourceType
+    )
+
+    # Define properties
+    # reference https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/8f2107a0-fb49-4a0b-bdbb-ab1b3c02e233
+    $requiredProperties = @('resourceId', 'resourceRef', 'instanceId', 'properties')
+    # $optionalProperties = @('resourceMetadata', 'tags', 'etag')
+
+    try {
+        # Check if all required properties exist (case-insensitive)
+        $resourceProperties = $Resource.PSObject.Properties.Name
+        foreach ($requiredProp in $requiredProperties) {
+            $found = $resourceProperties | Where-Object { $_ -ieq $requiredProp }
+            if (-not $found) {
+                "Required property '{0}' is missing from the resource object" -f $requiredProp | Trace-Output -Level:Error
+                return $false
+            }
+        }
+
+        # resource URI is in the format of /{resourceType}/{resourceId}
+        $currentResourceType = $Resource.resourceRef.Split('/')[1]
+        if ($currentResourceType -ine $ResourceType) {
+            "Resource type mismatch. Expected: '{0}', Received: '{1}'" -f $ResourceType, $currentResourceType | Trace-Output -Level:Error
+            return $false
+        }
+
+        return $true
+    }
+    catch {
+        $_ | Trace-Exception
+        $_.Exception.Message | Write-Error
+    }
+
+    return $false
+}
