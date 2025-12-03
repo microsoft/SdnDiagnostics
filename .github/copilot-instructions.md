@@ -56,12 +56,11 @@ Place role-specific functions in appropriate module files:
 
 # Remote Execution
 - Use `New-PSRemotingSession` for creating remote sessions
-- Use `Invoke-PSRemoteCommand` for executing commands remotely
+- Use `Invoke-PSRemoteCommand` for executing commands remotely. This function should handle session management and error handling.
 - Always pass `$Credential` parameter for remote operations
-- Clean up sessions when done using `Remove-PSRemotingSession`
 
 # REST API Interactions
-- Use `Invoke-RestMethodWithRetry` for Network Controller REST API calls
+- Use `Invoke-RestMethodWithRetry` or `Invoke-WebRequestWithRetry` for Network Controller REST API calls
 - Support both certificate and credential-based authentication
 - Always include parameter sets for `RestCertificate` and `RestCredential`
 - Use `@ncRestParams` splatting pattern for REST parameters
