@@ -2444,13 +2444,34 @@ function Invoke-SdnResourceDump {
                 }
 
                 if ($sdnResource) {
+                    # for some resources we want to mask sensitive information
+                    # such as credentials and certificates, so we will do that here
+                    switch ($key) {
+                        'Credentials' {
+                            $sdnResource | ForEach-Object {
+                                if ($_.properties.type -ieq 'UserNamePassword') {
+                                    $_.properties.value = "removed_for_security_reasons"
+                                }
+                            }
+                        }
+                        'Servers' {
+                            $sdnResource | ForEach-Object {
+                                if ($_.properties.certificate) {
+                                    $first5 = $_.properties.certificate.Substring(0,5)
+                                    $last5  = $_.properties.certificate.Substring($_.properties.certificate.Length - 5, 5)
 
-                    # parse the value if we are enumerating credentials property as we
-                    # will be redacting the value to ensure we do not compromise credentials
-                    if ($key -ieq 'Credentials') {
-                        $sdnResource | ForEach-Object {
-                            if ($_.properties.type -ieq 'UserNamePassword') {
-                                $_.properties.value = "removed_for_security_reasons"
+                                    $_.properties.certificate = "{0}...{1}" -f $first5, $last5
+                                }
+                            }
+                        }
+                        'VirtualServers' {
+                            $sdnResource | ForEach-Object {
+                                if ($_.properties.certificate) {
+                                    $first5 = $_.properties.certificate.Substring(0,5)
+                                    $last5  = $_.properties.certificate.Substring($_.properties.certificate.Length - 5, 5)
+
+                                    $_.properties.certificate = "{0}...{1}" -f $first5, $last5
+                                }
                             }
                         }
                     }
