@@ -38,12 +38,12 @@ catch {
 
 ## Logging and Tracing
 - Use Trace-Output function for all logging with appropriate -Level parameter
-  -Level:Verbose for detailed debug information
-  -Level:Information for general information (default)
-  -Level:Warning for warnings
-  -Level:Error for errors
-  -Level:Exception for exceptions (handled by Trace-Exception)
-  -Level:Success for successful operations
+  - **Level:Verbose** for detailed debug information
+  - **Level:Information** for general information (default)
+  - **Level:Warning** for warnings
+  - **Level:Error** for errors
+  - **Level:Exception** for exceptions (handled by Trace-Exception)
+  - **Level:Success** for successful operations
 
 ## Module Organization
 Place role-specific functions in appropriate module files:
