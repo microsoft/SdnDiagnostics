@@ -432,8 +432,12 @@ function Get-ServerConfigState {
         Get-SdnOvsdbUcastMacRemoteTable | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
 
         # check if networkatc service is running and if so, gather the configuration
-        if ((Get-Service -Name 'NetworkAtc' -ErrorAction Ignore).Status -eq 'Running') {
+        $networkAtcService = Get-Service -Name 'NetworkAtc' -ErrorAction Ignore
+        if ($networkAtcService.Status -eq 'Running') {
+            "Gathering Network ATC configuration details" | Trace-Output -Level:Verbose
             Get-NetIntent | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntent' -FileType txt -Format List
+            Get-NetIntentAllGoalStates -ComputerName $env:COMPUTERNAME | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntentAllGoalStates' -FileType txt -Format List
+            Get-NetIntent -GlobalOverrides | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntent_GlobalOverrides' -FileType txt -Format List
 
             $netIntentStatus = Get-NetIntentStatus -ComputerName $env:COMPUTERNAME
             # due to the way the Get-NetIntentStatus cmdlet works, we need to eliminate the empty objects
@@ -445,7 +449,6 @@ function Get-ServerConfigState {
                 }
                 $netIntentStatusObject += $obj
             }
-
             $netIntentStatusObject | Export-ObjectToFile -FilePath $outDir -Name 'Get-NetIntentStatus' -FileType txt -Format List
         }
 
