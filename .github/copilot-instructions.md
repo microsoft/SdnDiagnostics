@@ -90,8 +90,8 @@ $Credential = [System.Management.Automation.PSCredential]::Empty
 - Document any prerequisites or dependencies
 - Include related links where applicable
 
-Common Patterns
-Network Controller REST Parameter Pattern
+## Common Patterns
+### Network Controller REST Parameter Pattern
 ```powershell
 $ncRestParams = @{
     NcUri = $NcUri
