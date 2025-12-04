@@ -36,7 +36,7 @@ catch {
 }
 ```
 
-# Logging and Tracing
+## Logging and Tracing
 - Use Trace-Output function for all logging with appropriate -Level parameter
   -Level:Verbose for detailed debug information
   -Level:Information for general information (default)
@@ -45,7 +45,7 @@ catch {
   -Level:Exception for exceptions (handled by Trace-Exception)
   -Level:Success for successful operations
 
-# Module Organization
+## Module Organization
 Place role-specific functions in appropriate module files:
 - `SdnDiag.Common.psm1` - Functions common to all roles
 - `SdnDiag.Gateway.psm1` - Gateway-specific functions
@@ -54,24 +54,24 @@ Place role-specific functions in appropriate module files:
 - `SdnDiag.Server.psm1` - Server/host-specific functions
 - `SdnDiag.Utilities.psm1` - Utility helper functions
 
-# Remote Execution
+## Remote Execution
 - Use `New-PSRemotingSession` for creating remote sessions
 - Use `Invoke-PSRemoteCommand` for executing commands remotely. This function should handle session management and error handling.
 - Always pass `$Credential` parameter for remote operations
 
-# REST API Interactions
+## REST API Interactions
 - Use `Invoke-RestMethodWithRetry` or `Invoke-WebRequestWithRetry` for Network Controller REST API calls
 - Support both certificate and credential-based authentication
 - Always include parameter sets for `RestCertificate` and `RestCredential`
 - Use `@ncRestParams` splatting pattern for REST parameters
 
-# Data Collection
+## Data Collection
 - Use `Initialize-DataCollection` to prepare output directories and validate disk space
 - Use `Export-ObjectToFile` to save results with consistent formatting
 - Support `-OutputDirectory` parameter for all data collection functions
 - Include time range parameters (`-FromDate`, `-ToDate`) where applicable
 
-# Credential Handling
+## Credential Handling
 - Use `[System.Management.Automation.PSCredential]` type
 - Default to `[System.Management.Automation.PSCredential]::Empty`
 - Include `[System.Management.Automation.Credential()]` attribute
@@ -84,7 +84,7 @@ Example:
 $Credential = [System.Management.Automation.PSCredential]::Empty
 ```
 
-# Documentation
+## Documentation
 - Include synopsis, description, parameter descriptions, and examples
 - Use proper markdown formatting in comment-based help
 - Document any prerequisites or dependencies
@@ -106,7 +106,7 @@ switch ($PSCmdlet.ParameterSetName) {
 $result = Get-SdnResource @ncRestParams -ResourceRef $resourceRef
 ```
 
-# Security Best Practices
+## Security Best Practices
 - Never log credentials or secrets
 - Use SecureString for password parameters
 - Validate user input with appropriate attributes
