@@ -368,12 +368,22 @@ function Debug-SdnFabricInfrastructure {
         [X509Certificate]$NcRestCertificate
     )
 
-    $script:SdnDiagnostics_Health.Cache = $null
-    $aggregateHealthReport = @()
+    # if we are running in a remote session, we need to do some extra validation
+    if ($PSSenderInfo) {
+        # if we are running in a remote session and CredSSP is not enabled, then we need to ensure that
+        # the user has supplied -Credential to avoid double-hop authentication issues
+        if (-not (Get-WSManCredSSPState)) {
+            if ($Credential -ieq [System.Management.Automation.PSCredential]::Empty -or $null -ieq $Credential) {
+                throw New-Object System.NotSupportedException("Debug-SdnFabricInfrastructure cannot be run in a remote session without supplying -Credential.")
+            }
+        }
+    }
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
 
+    $script:SdnDiagnostics_Health.Cache = $null
+    $aggregateHealthReport = @()
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
     }
@@ -503,6 +513,7 @@ function Debug-SdnFabricInfrastructure {
                                 $report.HealthTest += @(
                                     Test-SdnResourceProvisioningState @ncRestParamsResource
                                     Test-SdnResourceConfigurationState @ncRestParamsResource
+                                    Test-ServerHostId -ComputerName $mgmtFqdnIpAddress -Credential $Credential -InstanceId $server.InstanceId
                                 )
                             }
                         }
@@ -1061,26 +1072,40 @@ function Test-ServerHostId {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [string[]]$InstanceId
-    )
+        [string]$ComputerName,
 
-    Confirm-IsServer
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $true)]
+        [string]$InstanceId
+    )
 
     $sdnHealthTest = New-SdnHealthTest
     $regkeyPath = 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters'
 
+    $scriptBlock = {
+        param ($path)
+        $regHostId = Get-ItemProperty -Path $path -Name 'HostId' -ErrorAction Ignore
+        return $regHostId
+    }
+
     try {
-        $regHostId = Get-ItemProperty -Path $regkeyPath -Name 'HostId' -ErrorAction Ignore
-        if ($null -ieq $regHostId) {
+        $remoteHostID = Invoke-SdnCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList $regkeyPath
+        if ($null -ieq $remoteHostID) {
             $sdnHealthTest.Result = 'FAIL'
         }
         else {
-            if ($regHostId.HostId -inotin $InstanceId) {
+            if ($remoteHostID.HostId -ine $InstanceId) {
                 $sdnHealthTest.Result = 'FAIL'
-                $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the correct InstanceId from the NC Servers API."
-                $sdnHealthTest.Properties = [PSCustomObject]@{
-                    HostID = $regHostId
-                }
+                $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the InstanceId of the Server Resource"
+            }
+
+            $sdnHealthTest.Properties = [PSCustomObject]@{
+                CurrentHostID = $remoteHostID.HostID
+                ExpectedHostID = $InstanceId
             }
         }
     }
