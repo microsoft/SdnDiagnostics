@@ -27,12 +27,12 @@
             PublicDocUrl = ""
         }
         'Test-SdnCertificateExpired' = @{
-            Description = "One or more SDN certificates are expired or will expire within 30 days."
-            Impact = "Network Controller will have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            Description = "SDN infrastructure node certificate is expired."
+            Impact = "Network Controller may have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
         }
         'Test-SdnCertificateMultiple' = @{
-            Description = "Multiple certificates with the same subject name exist in the SDN infrastructure node's certificate store."
+            Description = "Multiple certificates with the same subject name and NetworkController OID exist in the SDN infrastructure node's certificate store."
             Impact = "Network Controller may have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
         }
