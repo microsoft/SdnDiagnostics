@@ -19,12 +19,22 @@
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
             Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
-            PublicDocUrl = ""
+            PublicDocUrl = "https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/site-behavior-performance/http-403-forbidden-access-website"
         }
         'Test-SdnServiceState' = @{
             Description = "Identified service(s) are not running on the SDN infrastructure node(s)."
             Impact = "SDN services and functionality will be impacted without the service running."
             PublicDocUrl = ""
+        }
+        'Test-SdnCertificateExpired' = @{
+            Description = "One or more SDN certificates are expired or will expire within 30 days."
+            Impact = "Network Controller will have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
+        }
+        'Test-SdnCertificateMultiple' = @{
+            Description = "Multiple certificates with the same subject name exist in the SDN infrastructure node's certificate store."
+            Impact = "Network Controller will have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
         }
 
         # GATEWAY TESTS

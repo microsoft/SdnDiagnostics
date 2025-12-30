@@ -703,6 +703,8 @@ function Debug-SdnServer {
             Test-SdnHostAgentConnectionStateToApiService
             Test-SdnVfpEnabledVMSwitch
             Test-SdnVfpEnabledVMSwitchMultiple
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
         )
 
         foreach ($service in $services) {
@@ -747,6 +749,8 @@ function Debug-SdnLoadBalancerMux {
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-SdnMuxConnectionStateToSlbManager
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
         )
 
         foreach ($service in $services) {
@@ -974,6 +978,84 @@ function Test-SdnNetworkControllerApiNameResolution {
     return $sdnHealthTest
 }
 
+function Test-SdnCertificateExpired {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate
+                }
+            }
+        }
+
+        if ($certificate) {
+            $certificate = $certificate | Where-Object { $_.NotAfter -lt (Get-Date).ToUniversalTime() }
+            if ($certificate -or $certificate.Count -gt 0) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation = "Certificate(s) have expired. Renew the certificate(s) used for SDN components."
+                $certificate | ForEach-Object {
+                    $sdnHealthTest.Properties += [PSCustomObject]@{
+                        Thumbprint = $_.Thumbprint
+                        Subject    = $_.Subject
+                        NotAfter   = $_.NotAfter
+                        NotBefore  = $_.NotBefore
+                        Issuer     = $_.Issuer
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-SdnCertificateMultiple {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate
+                }
+            }
+        }
+
+        if ($null -ne $certificate -and $certificate.Count -gt 1) {
+            # eliminate the most current certificate from the array as we do not want to flag that one
+            $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
+            $certDetails = $certificate | ForEach-Object {
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
+            }
+
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation = "Multiple certificates detected. Examine and cleanup the certificates if no longer needed:`r`n{0}." -f ($certDetails -join "`r`n")
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
 
 ###################################
 #### SERVER HEALTH VALIDATIONS ####
