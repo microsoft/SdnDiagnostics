@@ -2705,7 +2705,7 @@ function New-SdnServerCertificate {
         # check if there is a certificate present for Azure Stack Certification Authority for Azure Local systems
         # if so, we will not generate a new certificate as they should be leveraging the certificate from the Azure Stack CA
         if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI') {
-            $azStackHCICertificates = Get-SdnServerCertificate -ErrorAction Ignore
+            $azStackHCICertificates = Get-SdnServerCertificate -NetworkControllerOid -ErrorAction Ignore
             if ($azStackHCICertificates) {
                 $azStackCertAuthorityCerts = $azStackHCICertificates | Where-Object { $_.Issuer -ieq 'CN=AzureStackCertificationAuthority' }
                 if ($azStackCertAuthorityCerts) {
