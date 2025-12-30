@@ -1430,17 +1430,24 @@ function Get-SdnProviderAddress {
 
 function Get-SdnServerCertificate {
     <#
-        .SYNOPSIS
+    .SYNOPSIS
         Returns the certificate used by the SDN Host Agent.
+    .DESCRIPTION
+        This cmdlet retrieves the certificate used by the SDN Host Agent from the local machine's personal certificate store.
+        It reads the certificate's common name (CName) from the registry and searches for the corresponding certificate in the 'Cert:\LocalMachine\My' store.
+    .PARAMETER NetworkControllerOid
+        Switch indicating to include the Network Controller OID when searching for the certificate.
     #>
 
     [CmdletBinding()]
-    param()
+    param (
+        [switch]$NetworkControllerOid
+    )
 
     try {
         $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
         $subjectName = "CN={0}" -f $serverCert
-        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid
+        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid:$NetworkControllerOid
         return $certificate
     }
     catch {
@@ -2698,7 +2705,7 @@ function New-SdnServerCertificate {
         # check if there is a certificate present for Azure Stack Certification Authority for Azure Local systems
         # if so, we will not generate a new certificate as they should be leveraging the certificate from the Azure Stack CA
         if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI') {
-            $azStackHCICertificates = Get-SdnServerCertificate -ErrorAction Ignore
+            $azStackHCICertificates = Get-SdnServerCertificate -NetworkControllerOid -ErrorAction Ignore
             if ($azStackHCICertificates) {
                 $azStackCertAuthorityCerts = $azStackHCICertificates | Where-Object { $_.Issuer -ieq 'CN=AzureStackCertificationAuthority' }
                 if ($azStackCertAuthorityCerts) {
