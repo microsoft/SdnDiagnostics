@@ -1079,7 +1079,7 @@ function Test-SdnCertificateMultiple {
                 "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
             }
 
-            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Result = 'WARN'
             $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
         }
     }

@@ -33,7 +33,7 @@
         }
         'Test-SdnCertificateMultiple' = @{
             Description = "Multiple certificates with the same subject name exist in the SDN infrastructure node's certificate store."
-            Impact = "Network Controller will have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            Impact = "Network Controller may have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
             PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
         }
 
