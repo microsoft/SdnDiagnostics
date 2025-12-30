@@ -1063,10 +1063,10 @@ function Test-SdnCertificateMultiple {
         foreach ($r in $role) {
             switch ($r) {
                 'LoadBalancerMux' {
-                    $certificate = Get-SdnMuxCertificate
+                    $certificate = Get-SdnMuxCertificate -NetworkControllerOid
                 }
                 'Server' {
-                    $certificate = Get-SdnServerCertificate
+                    $certificate = Get-SdnServerCertificate -NetworkControllerOid
                 }
             }
         }
