@@ -13,12 +13,12 @@
         }
         'Test-SdnNetworkControllerApiNameResolution' = @{
             Description = "Network Controller URL is not resolvable."
-            Impact = "Calls to Network Controller NB API will fail resulting in policy configuration failures and unable to manage SDN resources."
+            Impact = "Calls to Network Controller API will fail resulting in policy configuration failures and unable to manage SDN resources."
             PublicDocUrl = ""
         }
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
-            Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
+            Impact = "Network Controller will have issues communicating to hosts resulting in policy configuration failures."
             PublicDocUrl = "https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/site-behavior-performance/http-403-forbidden-access-website#cause-2-non-self-signed-certificates-are-in-trusted-root-certification-authorities-certificate-store"
         }
         'Test-SdnServiceState' = @{
