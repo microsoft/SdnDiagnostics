@@ -302,7 +302,13 @@ function Write-HealthValidationInfo {
     $outputString += "Impact:`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        $outputString += "Remediation:`r`n`t - $($Remediation -join "`r`n`t - ")`r`n"
+        if ($Remediation -ieq [array]) {
+            $outputString += "Remediation:`r`n`t- $($Remediation -join "`r`n`t - ")`r`n"
+        }
+        else {
+            $outputString += "Remediation:`t$Remediation`r`n"
+        }
+
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -844,15 +850,18 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
             $sdnHealthTest.Result = 'FAIL'
-
             $rootCerts | ForEach-Object {
-                $sdnHealthTest.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
                 $array += [PSCustomObject]@{
                     Thumbprint = $_.Thumbprint
                     Subject    = $_.Subject
                     Issuer     = $_.Issuer
+                    NotAfter   = $_.NotAfter
+                    NotBefore  = $_.NotBefore
                 }
             }
+
+            $sdnHealthTest.Remediation = "Move any non-self-signed certificated out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store:`r`n{0}." -f ($certDetails -join "`r`n")
         }
 
         $sdnHealthTest.Properties = $array
@@ -1046,7 +1055,7 @@ function Test-SdnCertificateMultiple {
             }
 
             $sdnHealthTest.Result = 'FAIL'
-            $sdnHealthTest.Remediation = "Multiple certificates detected. Examine and cleanup the certificates if no longer needed:`r`n{0}." -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Multiple certificates detected. Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
         }
     }
     catch {

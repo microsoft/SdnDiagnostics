@@ -19,7 +19,7 @@
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
             Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
-            PublicDocUrl = "https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/site-behavior-performance/http-403-forbidden-access-website"
+            PublicDocUrl = "https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/site-behavior-performance/http-403-forbidden-access-website#cause-2-non-self-signed-certificates-are-in-trusted-root-certification-authorities-certificate-store"
         }
         'Test-SdnServiceState' = @{
             Description = "Identified service(s) are not running on the SDN infrastructure node(s)."
