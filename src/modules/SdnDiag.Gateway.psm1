@@ -113,7 +113,7 @@ function Disable-SdnRasGatewayTracing {
 
     try {
         # since there has not been a time when this as returned an error, just invoking the expression and not doing any error handling
-        Invoke-Expression -Command "netsh ras set tracing * disabled"
+        & netsh ras set tracing * disabled
 
         Start-Sleep -Seconds 5
         $files = Get-Item -Path "$($config.properties.commonPaths.rasGatewayTraces)\*" -Include '*.log','*.etl'
@@ -155,7 +155,7 @@ function Enable-SdnRasGatewayTracing {
         }
 
         # enable ras tracing
-        $expression = Invoke-Expression -Command "netsh ras set tracing * enabled"
+        $expression = & netsh ras set tracing * enabled
         if($expression -ilike "*Unable to start ETW*"){
             $msg = $expression[1]
             throw New-Object -TypeName System.Exception($msg)
