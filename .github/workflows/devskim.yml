@@ -4,6 +4,7 @@
 # documentation.
 
 name: DevSkim
+permissions: read-all
 
 on:
   push:
