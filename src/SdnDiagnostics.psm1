@@ -962,7 +962,7 @@ function Start-SdnDataCollection {
 
             $slbStateInfo = Get-SdnSlbStateInformation @ncRestParams
             $slbStateInfo | ConvertTo-Json -Depth 100 | Out-File "$($OutputDirectory.FullName)\SlbState.Json"
-            Invoke-SdnResourceDump @ncRestParams -OutputDirectory $OutputDirectory.FullName
+            $null = Invoke-SdnResourceDump @ncRestParams -OutputDirectory $OutputDirectory.FullName
             Get-SdnNetworkControllerState -NetworkController $NetworkController -OutputDirectory $OutputDirectory.FullName -Credential $Credential @restCredParam
         }
 
@@ -1216,4 +1216,3 @@ function Get-SdnLogFile {
         $_ | Write-Error
     }
 }
-
