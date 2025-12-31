@@ -405,7 +405,7 @@ function Get-ServerConfigState {
                     vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_nat_range' -FileType txt -Force
                     vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_rule' -FileType txt -Force
                     vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_mapping' -FileType txt -Force
-                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_unifiied_flow'  -FileType txt -Force
+                    vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_unified_flow'  -FileType txt -Force
                     vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_settings' -FileType txt -Force
                     vfpctrl /get-port-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_stats'  -FileType txt -Force
                     vfpctrl /get-flow-stats /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_flow_stats' -FileType txt -Force
@@ -2228,7 +2228,7 @@ function Get-SdnVfpPortState {
                     'VM Context Set' { $object.IsVmContextSet = $propertyValue }
 
                     # update the OffLoadStateDetails properties
-                    'NVGRE LSO Offload Enabled' { $object.PortState.LsoV2Supported = $propertyValue}
+                    'NVGRE LSO Offload Enabled' { $object.OffloadState.LsoV2Supported = $propertyValue}
                     'NVGRE RSS Enabled' { $object.PortState.RssSupported = $propertyValue }
                     'NVGRE Transmit Checksum Offload Enabled' { $object.PortState.TransmitChecksumOffloadSupported = $propertyValue }
                     'NVGRE Receive Checksum Offload Enabled' { $object.PortState.ReceiveChecksumOffloadSupported = $propertyValue }
@@ -2418,7 +2418,7 @@ function Get-SdnVfpVmSwitchPort {
                         'Packets Sent' { $object.VmNicStatistics.PacketsSent = $value }
                         'Packets Received' { $object.VmNicStatistics.PacketsReceived = $value }
                         'Interrupts Received' { $object.VmNicStatistics.InterruptsReceived = $value }
-                        'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
+                        'Send Buffer Allocation Count' { $object.VmNicStatistics.SendBufferAllocationCount = $value }
                         'Send Buffer Allocation Size' { $object.VmNicStatistics.SendBufferAllocationSize = $value }
                         'Receive Buffer Allocation Count' { $object.VmNicStatistics.ReceiveBufferAllocationCount = $value }
                         'Receive Buffer Allocation Size' { $object.VmNicStatistics.ReceiveBufferAllocationSize = $value }
@@ -2427,8 +2427,8 @@ function Get-SdnVfpVmSwitchPort {
                         'Pending Routed Packets' { $object.VmNicStatistics.PendingRoutedPackets = $value }
                         'Insufficient Receive Buffers' { $object.VmNicStatistics.InsufficientReceiveBuffers = $value }
                         'Insufficient Send Buffers' { $object.VmNicStatistics.InsufficientSendBuffers = $value }
-                        'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperationsBuffers = $value }
-                        'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceededErrors = $value }
+                        'Insufficient RNDIS Operations Buffers' { $object.VmNicStatistics.InsufficientRndisOperations = $value }
+                        'Quota Exceeded Errors' { $object.VmNicStatistics.QuotaExceeded = $value }
                         'Vsp Paused' { $object.VmNicStatistics.VspPaused = $value }
 
                         # most of the property names, we can just trim and remove the white spaces
