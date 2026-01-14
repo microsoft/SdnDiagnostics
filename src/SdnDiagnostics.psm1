@@ -1405,7 +1405,7 @@ function Show-SdnGatewayUtilization {
                 "`t`tHealth State: {0}" -f $gateway.HealthState | Write-Host
                 "`t`tTunnel Type: {0}" -f $gateway.TunnelType | Write-Host
                 "`t`tVirtual Gateways: {0}" -f $gateway.VirtualGatewayCount | Write-Host
-                "`t`tNetwork Connections: {0}" -f $gateway.NetworkConnectionCount | Write-Host
+                "`t`tNetwork Connections: {0}`n" -f $gateway.NetworkConnectionCount | Write-Host
                 "`t`tTotal Capacity: {0} GB" -f $gateway.TotalCapacityGB | Write-Host
                 "`t`tAvailable Capacity: {0} GB" -f $gateway.AvailableCapacityGB | Write-Host
 
