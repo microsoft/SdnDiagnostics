@@ -1205,3 +1205,264 @@ function Get-SdnLogFile {
         $_ | Write-Error
     }
 }
+
+function Show-SdnGatewayUtilization {
+    <#
+    .SYNOPSIS
+        Displays a report of gateway utilization statistics across the SDN fabric.
+    .PARAMETER NcUri
+        Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
+    .PARAMETER OutputDirectory
+        If specified, will export the report to the defined directory.
+    .PARAMETER NcRestCredential
+        Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+    .PARAMETER NcRestCertificate
+        Specifies the client certificate that is used for a secure web request to Network Controller REST API. Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .EXAMPLE
+        PS> Show-SdnGatewayUtilization -NcUri 'https://contoso-nc01.contoso.com:443' -OutputDirectory 'C:\Temp'
+    .EXAMPLE
+        PS > Show-SdnGatewayUtilization -NcUri 'https://contoso-nc01.contoso.com:443'
+    .EXAMPLE
+        PS> Show-SdnGatewayUtilization -NcUri 'https://contoso-nc01.contoso.com:443' -NcRestCredential (Get-Credential) -OutputDirectory 'C:\Temp'
+    .EXAMPLE
+        PS> Show-SdnGatewayUtilization -NcUri 'https://contoso-nc01.contoso.com:443' -NcRestCertificate $cert -OutputDirectory 'C:\Temp'
+    #>
+
+    [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
+    param (
+        [Parameter (Mandatory = $true)]
+        [ValidateScript({
+            if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
+                throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
+            }
+            return $true
+        })]
+        [Uri]$NcUri,
+
+        [Parameter (Mandatory = $false)]
+        [System.String]$OutputDirectory,
+
+        [Parameter (Mandatory = $false, ParameterSetName = 'RestCredential')]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter (Mandatory = $false, ParameterSetName = 'RestCertificate')]
+        [X509Certificate]$NcRestCertificate
+    )
+
+    $ncRestParams = @{
+        NcUri = $NcUri
+    }
+    if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
+        $ncRestParams.Add('NcRestCertificate', $NcRestCertificate)
+    }
+    else {
+        $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
+    $gatewayPoolArray = @()
+
+    try {
+        $gatewayPools = Get-SdnResource @ncRestParams -Resource GatewayPools
+        $gatewayPools | ForEach-Object {
+            $gatewayPoolObject = [PSCustomObject]@{
+                ResourceId = $_.resourceId
+                TunnelTypes = $_.properties.Type
+                PublicIP = $null # update later
+                RedundantGatewayCount = $_.properties.redundantGatewayCount
+                GatewayCount = $_.properties.gateways.Count
+                CapacityPerGatewayGB = [Math]::Round((Format-KiloBitSize -KiloBits $_.properties.gatewayCapacityKiloBitsPerSecond).GB, 2)
+                VirtualGatewayCount = $_.properties.virtualGateways.Count
+                Gateways = @()
+            }
+
+            # get the public IP address details and add to the object
+            $publicIpAddress = Get-SdnResource @ncRestParams -ResourceRef $_.properties.ipConfiguration.publicIPAddresses.resourceRef
+            if ($publicIpAddress) {
+                $gatewayPoolObject.PublicIP = $publicIpAddress.properties.ipAddress
+            }
+
+            $_.properties.gateways.resourceRef | ForEach-Object {
+                $gatewayResourceRef = $_
+                $gatewayResource = Get-SdnResource @ncRestParams -ResourceRef $gatewayResourceRef
+                $gatewayObject = [PSCustomObject]@{
+                    ResourceId = $gatewayResource.resourceId
+                    ProvisioningState = $gatewayResource.properties.provisioningState
+                    ConfigurationState = $gatewayResource.properties.configurationState.status
+                    TunnelType = $gatewayResource.properties.type
+                    State = $gatewayResource.properties.state
+                    HealthState = $gatewayResource.properties.healthState
+                    TotalCapacityGB = [Math]::Round((Format-KiloBitSize -KiloBits $gatewayResource.properties.totalCapacity).GB, 2)
+                    AvailableCapacityGB = [Math]::Round((Format-KiloBitSize -KiloBits $gatewayResource.properties.availableCapacity).GB, 2)
+                    VirtualGatewayCount = $gatewayResource.properties.virtualGateways.virtualGateway.Count
+                    NetworkConnectionCount = $gatewayResource.properties.virtualGateways.networkConnections.Count
+                    VirtualGateways = @()
+                }
+
+                if ($gatewayresource.properties.virtualGateways.Count -ge 1) {
+                    $gatewayResource.properties.virtualGateways.networkConnections.resourceRef | ForEach-Object {
+                        $networkConnResourceRef = $_
+                        $networkConnResource = Get-SdnResource @ncRestParams -ResourceRef $networkConnResourceRef
+                        $virtualGatewayResourceID = $networkConnResource.resourceRef.Split('/')[2]
+                        $networkConnObject = [PSCustomObject]@{
+                            ResourceId = $networkConnResource.resourceId
+                            VirtualGateway = $virtualGatewayResourceID
+                            ProvisioningState = $networkConnResource.properties.provisioningState
+                            ConfigurationState = $networkConnResource.properties.configurationState.status
+                            TunnelType = $networkConnResource.properties.connectionType
+                            InboundMbps = [Math]::Round((Format-KiloBitSize -KiloBits $networkConnResource.properties.inboundKiloBitsPerSecond).MB, 2)
+                            OutboundMbps = [Math]::Round((Format-KiloBitSize -KiloBits $networkConnResource.properties.outboundKiloBitsPerSecond).MB, 2)
+                            StaticRoutes = 0 # to be updated later
+                            BgpRoutes = 0 # to be updated later
+                            ConnectionState = $networkConnResource.properties.connectionState
+                            VirtualNetworkCount = 0 # to be updated later
+                            IpConfigurationCount = 0 # to be updated later
+                        }
+
+                        # determine the route counts associated with the network connection
+                        $bgpRoutes = $networkConnResource.properties.routes | Where-Object { $_.protocol -ieq 'Bgp' }
+                        $staticRoutes = $networkConnResource.properties.routes | Where-Object { $_.protocol -ieq 'Static' }
+                        if ($bgpRoutes) {
+                            $networkConnObject.BgpRoutes = $bgpRoutes.destinationPrefix.Count
+                        }
+                        if ($staticRoutes) {
+                            $networkConnObject.StaticRoutes = $staticRoutes.destinationPrefix.Count
+                        }
+
+                        # determine the virtual network count associated with the network connection
+                        # first we need to locate the gateway subnet associated with the virtual gateway which is parent object of the network connection
+                        $virtualGatewayResource = Get-SdnResource @ncRestParams -Resource VirtualGateways -ResourceId $virtualGatewayResourceID
+                        if ($virtualGatewayResource) {
+                            $ipConfigCount = 0
+                            $vnetCount = 0
+                            $virtualNetworks = @()
+
+                            $associatedVirtualNetworkId = $virtualGatewayResource.properties.gatewaySubnets.resourceRef.Split('/')[2]
+                            if ($associatedVirtualNetworkId) {
+                                $vnetCount++
+                                $virtualNetworks += $associatedVirtualNetworkId
+                                if ($associatedVirtualNetworkId.properties.virtualNetworkPeerings) {
+                                    $associatedVirtualNetworkId.properties.virtualNetworkPeerings | ForEach-Object {
+                                        # check to see if gateway transit is allowed which indicates that the peered VNet can utilize the gateway
+                                        # https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-ncnbi/42ed11f0-ae94-43f9-9441-f5bcd7c7d8b9
+                                        if ($_.properties.allowGatewayTransit -eq $true) {
+                                            $vnetCount++
+                                            $virtualNetworks += $_.properties.remoteVirtualNetwork.resourceRef.Split('/')[2]
+                                        }
+                                    }
+                                }
+                            }
+
+                            $virtualNetworks | ForEach-Object {
+                                $vNetResource = Get-SdnResource @ncRestParams -Resource VirtualNetworks -ResourceId $_
+                                $ipConfigCount += $vNetResource.properties.subnets.properties.ipConfigurations.Count
+                            }
+
+                            $networkConnObject.IpConfigurationCount = $ipConfigCount
+                            $networkConnObject.VirtualNetworkCount = $vnetCount
+                        }
+
+                        $gatewayObject.VirtualGateways += $networkConnObject
+                    }
+                }
+                $gatewayPoolObject.Gateways += $gatewayObject
+            }
+
+            $gatewayPoolArray += $gatewayPoolObject
+        }
+
+        # Pretty print the gateway utilization information
+        "`n========================================" | Write-Host -ForegroundColor Cyan
+        "`n`tSDN Gateway Utilization Summary`n" | Write-Host -ForegroundColor Cyan
+        "========================================`n" | Write-Host -ForegroundColor Cyan
+
+        foreach ($pool in $gatewayPoolArray | Sort-Object -Property ResourceId) {
+            "Gateway Pool: {0}" -f $pool.ResourceId | Write-Host -ForegroundColor Cyan
+            "`tTunnel Types: {0}" -f ($pool.TunnelTypes -join ', ') | Write-Host
+            "`tPublic IP: {0}" -f $pool.PublicIP | Write-Host
+            "`tRedundant Gateway Count: {0}" -f $pool.RedundantGatewayCount | Write-Host
+            "`tTotal Gateways: {0}" -f $pool.GatewayCount | Write-Host
+            "`tCapacity Per Gateway: {0} GB" -f $pool.CapacityPerGatewayGB | Write-Host
+            "`tVirtual Gateway Count: {0}`n" -f $pool.VirtualGatewayCount | Write-Host
+
+            foreach ($gateway in $pool.Gateways | Sort-Object -Property ResourceId) {
+                "`tGateway: {0}" -f $gateway.ResourceId | Write-Host -ForegroundColor Cyan
+
+                # Color code provisioning state
+                $provStateColor = if ($gateway.ProvisioningState -ne 'Succeeded') { 'Red' } else { 'White' }
+                Write-Host "`t`tProvisioning State: " -NoNewline
+                Write-Host $gateway.ProvisioningState -ForegroundColor $provStateColor
+
+                # Color code configuration state
+                # If State is Redundant, expect Uninitialized; otherwise expect Success
+                $expectedConfigState = if ($gateway.State -eq 'Redundant') { 'Uninitialized' } else { 'Success' }
+                $configStateColor = if ($gateway.ConfigurationState -ne $expectedConfigState) { 'Red' } else { 'White' }
+                Write-Host "`t`tConfiguration State: " -NoNewline
+                Write-Host $gateway.ConfigurationState -ForegroundColor $configStateColor
+
+                "`t`tState: {0}" -f $gateway.State | Write-Host
+                "`t`tHealth State: {0}" -f $gateway.HealthState | Write-Host
+                "`t`tTunnel Type: {0}" -f $gateway.TunnelType | Write-Host
+                "`t`tVirtual Gateways: {0}" -f $gateway.VirtualGatewayCount | Write-Host
+                "`t`tNetwork Connections: {0}" -f $gateway.NetworkConnectionCount | Write-Host
+                "`t`tTotal Capacity: {0} GB" -f $gateway.TotalCapacityGB | Write-Host
+                "`t`tAvailable Capacity: {0} GB" -f $gateway.AvailableCapacityGB | Write-Host
+
+                $usedCapacity = $gateway.TotalCapacityGB - $gateway.AvailableCapacityGB
+                $utilizationPercent = if ($gateway.TotalCapacityGB -gt 0) {
+                    [Math]::Round(($usedCapacity / $gateway.TotalCapacityGB) * 100, 2)
+                } else { 0 }
+
+                if ($utilizationPercent -ne 0) {
+                    # Create visual bar graph for utilization
+                    $barLength = 40
+                    $filledLength = [int][Math]::Round(($utilizationPercent / 100) * $barLength)
+                    $emptyLength = $barLength - $filledLength
+                    $bar = ("█" * $filledLength) + ("░" * $emptyLength)
+
+                    # Determine color based on utilization thresholds
+                    $barColor = if ($utilizationPercent -ge 90) { 'Red' }
+                                elseif ($utilizationPercent -ge 80) { 'Yellow' }
+                                else { 'Green' }
+
+                    ("`t`tUtilization: {0}% ({1} GB used)`n`t`t[{2}] {0}%`n" -f $utilizationPercent, $usedCapacity, $bar) | Write-Host -ForegroundColor $barColor
+                }
+                else {
+                    "`n`n" | Write-Host
+                }
+
+                if ($gateway.VirtualGateways.Count -gt 0) {
+                    "`t`tNetwork Connections:" | Write-Host -ForegroundColor Cyan
+                    $tableOutput = $gateway.VirtualGateways | Sort-Object -Property VirtualGateway | Format-Table -AutoSize -Property @(
+                        @{Label='VirtualGateway'; Expression={$_.VirtualGateway}}
+                        @{Label='ResourceId'; Expression={$_.ResourceId}; Width=40}
+                        @{Label='ProvState'; Expression={$_.ProvisioningState}}
+                        @{Label='ConfigState'; Expression={$_.ConfigurationState}}
+                        @{Label='ConnState'; Expression={$_.ConnectionState}}
+                        @{Label='TunnelType'; Expression={$_.TunnelType}}
+                        @{Label='Inbound(Mbps)'; Expression={$_.InboundMbps}; Alignment='Right'}
+                        @{Label='Outbound(Mbps)'; Expression={$_.OutboundMbps}; Alignment='Right'}
+                        @{Label='StaticRoutes'; Expression={$_.StaticRoutes}; Alignment='Right'}
+                        @{Label='BgpRoutes'; Expression={$_.BgpRoutes}; Alignment='Right'}
+                        @{Label='VirtualNetworks'; Expression={$_.VirtualNetworkCount}; Alignment='Right'}
+                        @{Label='IpConfigurations'; Expression={$_.IpConfigurationCount}; Alignment='Right'}
+                    ) | Out-String
+                    $tableOutput -split "`n" | ForEach-Object { "`t`t`t$_" | Write-Host }
+                    "" | Write-Host
+                }
+            }
+
+            "----------------------------------------`n" | Write-Host -ForegroundColor Cyan
+        }
+    }
+    catch {
+        #$_ | Trace-Exception
+        throw $_.Exception.Message
+    }
+
+    if ($OutputDirectory) {
+        "Exporting gateway utilization report to {0}" -f $OutputDirectory | Trace-Output
+        $gatewayPoolArray | Export-ObjectToFile -FilePath $OutputDirectory -Name 'SdnGatewayUtilization' -FileType json -Depth 5
+    }
+}
