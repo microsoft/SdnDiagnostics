@@ -796,8 +796,7 @@ function Start-EtwTraceSession {
     )
 
     try {
-        $logmanCmd = "logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets"
-        $result = Invoke-Expression -Command $logmanCmd
+        $result = & logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets
 
         # Session create failure error need to be reported to user to be aware, this means we have one trace session missing.
         # Provider add failure might be ignored and exposed via verbose trace/log file only to debug.
@@ -809,8 +808,7 @@ function Start-EtwTraceSession {
         }
 
         foreach ($provider in $TraceProviders) {
-            $logmanCmd = 'logman update trace $TraceName -p "$provider" 0xffffffffffffffff 0xff -ets'
-            $result = Invoke-Expression -Command $logmanCmd
+            $result = & logman Update trace $TraceName -p $provider 0xffffffffffffffff 0xff -ets
             "Added provider {0} with result {1}" -f $provider, "$result" | Trace-Output -Level:Verbose
         }
     }
@@ -959,8 +957,7 @@ function Stop-EtwTraceSession {
     )
 
     try {
-        $logmanCmd = "logman stop $TraceName -ets"
-        $result = Invoke-Expression -Command $logmanCmd
+        $result = & logman stop $TraceName -ets
         if ("$result".Contains("Error")) {
             "Stop session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
         }
