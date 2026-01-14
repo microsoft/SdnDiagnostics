@@ -1913,7 +1913,7 @@ function New-PSRemotingSession {
                     $trustedHosts = Get-Item -Path "WSMan:\localhost\client\TrustedHosts"
                     if ($trustedHosts.Value -notlike "*$objectName*" -and $trustedHosts.Value -ne "*") {
                         "Adding {0} to {1}" -f $objectName, $trustedHosts.PSPath | Trace-Output
-                        Set-Item -Path "WSMan:\localhost\client\TrustedHosts" -Value $objectName -Concatenate
+                        Set-Item -Path "WSMan:\localhost\client\TrustedHosts" -Value $objectName.ToString() -Concatenate -Force
                     }
                 }
                 catch {

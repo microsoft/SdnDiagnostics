@@ -351,8 +351,7 @@ function Get-OvsdbDatabase {
         throw New-Object System.NullReferenceException("No endpoint listening on port 6641. Ensure NCHostAgent service is running.")
     }
 
-    $cmdline = "ovsdb-client.exe dump tcp:127.0.0.1:6641 -f json {0}" -f $Table
-    $databaseResults = Invoke-Expression $cmdline | ConvertFrom-Json
+    $databaseResults = & ovsdb-client.exe dump tcp:127.0.0.1:6641 -f json $Table | ConvertFrom-Json
 
     if($null -eq $databaseResults){
         $msg = "Unable to retrieve OVSDB results`n`t{0}" -f $_
@@ -480,7 +479,7 @@ function Get-ServerConfigState {
         $hnvDiag | ForEach-Object {
             try {
                 $cmd = $_
-                Invoke-Expression -Command $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format List
+                & $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format List
             }
             catch {
                 "Failed to execute {0}" -f $cmd | Trace-Output -Level:Error
@@ -3336,8 +3335,7 @@ function Test-SdnVfpPortTuple {
         # DestinationIP: Destination IP address or direction of the traffic relative to the direction
         # DestinationPort: Destination port or direction of the traffic relative to the direction
         # flags: 1 = TCP SYN, 2 = Monitoring Ping
-        $cmd = "vfpctrl /port $PortName /process-tuples '$protocolId $SourceIP $SourcePort $DestinationIP $DestinationPort $Direction 1'"
-        Invoke-Expression $cmd
+        & vfpctrl /port $PortName /process-tuples "$protocolID $SourceIP $SourcePort $DestinationIP $DestinationPort $Direction 1"
     }
     catch {
         $_ | Trace-Exception
