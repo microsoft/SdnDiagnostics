@@ -1383,7 +1383,7 @@ function Show-SdnGatewayUtilization {
             "`tPublic IP: {0}" -f $pool.PublicIP | Write-Host
             "`tRedundant Gateway Count: {0}" -f $pool.RedundantGatewayCount | Write-Host
             "`tTotal Gateways: {0}" -f $pool.GatewayCount | Write-Host
-            "`tCapacity Per Gateway: {0} GB" -f $pool.CapacityPerGatewayGB | Write-Host
+            "`tCapacity Per Gateway: {0} (Gbps)" -f $pool.CapacityPerGatewayGB | Write-Host
             "`tVirtual Gateway Count: {0}`n" -f $pool.VirtualGatewayCount | Write-Host
 
             foreach ($gateway in $pool.Gateways | Sort-Object -Property ResourceId) {
@@ -1406,8 +1406,8 @@ function Show-SdnGatewayUtilization {
                 "`t`tTunnel Type: {0}" -f $gateway.TunnelType | Write-Host
                 "`t`tVirtual Gateways: {0}" -f $gateway.VirtualGatewayCount | Write-Host
                 "`t`tNetwork Connections: {0}`n" -f $gateway.NetworkConnectionCount | Write-Host
-                "`t`tTotal Capacity: {0} GB" -f $gateway.TotalCapacityGB | Write-Host
-                "`t`tAvailable Capacity: {0} GB" -f $gateway.AvailableCapacityGB | Write-Host
+                "`t`tTotal Capacity: {0} (Gbps)" -f $gateway.TotalCapacityGB | Write-Host
+                "`t`tAvailable Capacity: {0} (Gbps)" -f $gateway.AvailableCapacityGB | Write-Host
 
                 $usedCapacity = $gateway.TotalCapacityGB - $gateway.AvailableCapacityGB
                 $utilizationPercent = if ($gateway.TotalCapacityGB -gt 0) {
@@ -1426,7 +1426,7 @@ function Show-SdnGatewayUtilization {
                                 elseif ($utilizationPercent -ge 80) { 'Yellow' }
                                 else { 'Green' }
 
-                    ("`t`tUtilization: {0}% ({1} GB used)`n`t`t[{2}] {0}%`n" -f $utilizationPercent, $usedCapacity, $bar) | Write-Host -ForegroundColor $barColor
+                    ("`t`tUtilization: {0}% ({1} (Gbps) used)`n`t`t[{2}] {0}%`n" -f $utilizationPercent, $usedCapacity, $bar) | Write-Host -ForegroundColor $barColor
                 }
                 else {
                     "`n`n" | Write-Host
