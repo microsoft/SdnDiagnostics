@@ -1248,7 +1248,12 @@ function Show-SdnGatewayUtilization {
         $NcRestCredential = [System.Management.Automation.PSCredential]::Empty,
 
         [Parameter (Mandatory = $false, ParameterSetName = 'RestCertificate')]
-        [X509Certificate]$NcRestCertificate
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential
     )
 
     $ncRestParams = @{
@@ -1259,6 +1264,34 @@ function Show-SdnGatewayUtilization {
     }
     else {
         $ncRestParams.Add('NcRestCredential', $NcRestCredential)
+    }
+
+
+    $cpuCounterScriptBlock = {
+        try {
+            $counters = Get-Counter -Counter "\Processor(*)\% Processor Time" -SampleInterval 2 -MaxSamples 5 -ErrorAction Stop
+            
+            # Group samples by CPU and calculate average
+            $cpuData = $counters.CounterSamples | 
+                Where-Object { $_.InstanceName -ne '_total' } | 
+                Group-Object -Property InstanceName | 
+                ForEach-Object {
+                    [PSCustomObject]@{
+                        ProcessorId = $_.Name
+                        Utilization = [math]::Round(($_.Group | Measure-Object -Property CookedValue -Average).Average, 2)
+                    }
+                }
+            
+            return [PSCustomObject]@{
+                Timestamp = Get-Date
+                Processors = $cpuData
+                AverageUtilization = [math]::Round(($cpuData | Measure-Object -Property Utilization -Average).Average, 2)
+            }
+        }
+        catch {
+            $_ | Write-Error
+            return $null
+        }
     }
 
     $gatewayPoolArray = @()
@@ -1298,6 +1331,13 @@ function Show-SdnGatewayUtilization {
                     VirtualGatewayCount = $gatewayResource.properties.virtualGateways.virtualGateway.Count
                     NetworkConnectionCount = $gatewayResource.properties.virtualGateways.networkConnections.Count
                     VirtualGateways = @()
+                    CpuMetrics = @()
+                }
+
+                $gatewayFqdn = Get-SdnGateway @ncRestParams -ResourceId $gatewayResource.resourceId -ManagementAddressOnly
+                $cpuMetrics = Invoke-PSRemoteCommand -ComputerName $gatewayFqdn -Credential $Credential -ScriptBlock $cpuCounterScriptBlock -ErrorAction Continue
+                if ($cpuMetrics) {
+                    $gatewayObject.CpuMetrics = $cpuMetrics
                 }
 
                 if ($gatewayresource.properties.virtualGateways.Count -ge 1) {
@@ -1432,6 +1472,33 @@ function Show-SdnGatewayUtilization {
                     "`n`n" | Write-Host
                 }
 
+                # Display CPU metrics if available
+                if ($gateway.CpuMetrics -and $gateway.CpuMetrics.Processors) {
+                    "`t`tCPU Utilization (sampled at {0}):" -f $gateway.CpuMetrics.Timestamp.ToString('yyyy-MM-dd HH:mm:ss') | Write-Host -ForegroundColor Cyan
+                    
+                    foreach ($cpu in $gateway.CpuMetrics.Processors | Sort-Object -Property ProcessorId) {
+                        $cpuBar = '█' * [int]($cpu.Utilization / 2.5)  # Scale to ~40 chars max
+                        $cpuColor = if ($cpu.Utilization -ge 90) { 'Red' }
+                                    elseif ($cpu.Utilization -ge 75) { 'Yellow' }
+                                    else { 'Green' }
+                        
+                        Write-Host "`t`t  CPU $($cpu.ProcessorId): " -NoNewline
+                        Write-Host ("{0,6:N2}% " -f $cpu.Utilization) -NoNewline
+                        Write-Host "[$cpuBar]" -ForegroundColor $cpuColor
+                    }
+                    
+                    # Display average
+                    $avgBar = '█' * [int]($gateway.CpuMetrics.AverageUtilization / 2.5)
+                    $avgColor = if ($gateway.CpuMetrics.AverageUtilization -ge 90) { 'Red' }
+                                elseif ($gateway.CpuMetrics.AverageUtilization -ge 75) { 'Yellow' }
+                                else { 'Green' }
+                    
+                    Write-Host "`t`t  Average: " -NoNewline
+                    Write-Host ("{0,6:N2}% " -f $gateway.CpuMetrics.AverageUtilization) -NoNewline
+                    Write-Host "[$avgBar]" -ForegroundColor $avgColor
+                    "`n" | Write-Host
+                }
+
                 if ($gateway.VirtualGateways.Count -gt 0) {
                     "`t`tNetwork Connections:" | Write-Host -ForegroundColor Cyan
                     $tableOutput = $gateway.VirtualGateways | Sort-Object -Property VirtualGateway | Format-Table -AutoSize -Property @(
@@ -1457,7 +1524,7 @@ function Show-SdnGatewayUtilization {
         }
     }
     catch {
-        #$_ | Trace-Exception
+        $_ | Trace-Exception
         throw $_.Exception.Message
     }
 
