@@ -1093,6 +1093,22 @@ function Format-ByteSize {
     })
 }
 
+function Format-KiloBitSize {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [double]$KiloBits
+    )
+
+    $gb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $KiloBits / 1000000)
+    $mb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $KiloBits / 1000)
+
+    return ([PSCustomObject]@{
+        GB = $gb
+        MB = $mb
+    })
+}
+
 function Format-SdnMacAddress {
     <#
     .SYNOPSIS
