@@ -138,6 +138,7 @@
         'Install-SdnDiagnostics',
         'Invoke-SdnCommand',
         'Invoke-SdnGetNetView',
+        'Invoke-SdnRemediationScript',
         'Invoke-SdnResourceDump',
         'Invoke-SdnServiceFabricCommand',
         'Move-SdnServiceFabricReplica',
