@@ -505,7 +505,7 @@ function New-SdnMuxCertificate {
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
 
         # distribute the certificate to the Network Controller(s) in the fabric to be installed in trusted root store
-        if ($FabricDetails){
+        if ($FabricDetails) {
             "Distributing certificate to the SDN Fabric" | Trace-Output
             Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -LoadBalancerMuxNodeCert -Credential $Credential
         }
