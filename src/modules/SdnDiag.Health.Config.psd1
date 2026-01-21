@@ -39,6 +39,11 @@
 
         # GATEWAY TESTS
 
+        'Test-SdnAdapterPerformanceSetting' = @{
+            Description = "Network Adapter performance settings are not configured as recommended on the SDN node(s)."
+            Impact = "You may not achieve optimal performance for network traffic flowing through the SDN Node(s)."
+            PublicDocUrl = ""
+        }
 
         # LOAD BALANCER MUX TESTS
 

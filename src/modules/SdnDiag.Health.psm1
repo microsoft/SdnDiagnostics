@@ -800,13 +800,14 @@ function Debug-SdnGateway {
 
     try {
         $healthReport.HealthTest += @(
-            Test-SdnNonSelfSignedCertificateInTrustedRootStore
-            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-SdnNonSelfSignedCertificateInTrustedRootStore @PSBoundParameters
+            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task' @PSBoundParameters
+            Test-SdnAdapterPerformanceSetting @PSBoundParameters
         )
 
         foreach ($service in $services) {
             $healthReport.HealthTest += @(
-                Test-SdnServiceState -ServiceName $service
+                Test-SdnServiceState -ServiceName $service @PSBoundParameters
             )
         }
 
@@ -1858,3 +1859,43 @@ function Clear-SdnHealthFault {
     DeleteFaultById -faultUniqueID $Id
     "Please allow 5 minutes for the fault to be cleared" | Trace-Output -Level:Information
 }
+
+###################################
+### GATEWAY HEALTH VALIDATIONS ####
+###################################
+
+function Test-SdnAdapterPerformanceSetting {
+    <#
+        .SYNOPSIS
+            Validates that the network adapters used for gateway traffic have optimal performance settings configured.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    $adaptersToRepair = @()
+    try {
+        $netAdapters = Get-NetAdapter | Where-Object {$_.Name -ieq 'Internal' -or $_.Name -ieq 'External'}
+        foreach ($adapter in $netAdapters) {
+            $forwardingOptimization = Get-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName 'Forwarding Optimization' -ErrorAction Ignore
+            if ($forwardingOptimization.DisplayValue -ine 'Enabled') {
+                $adaptersToRepair += $adapter.Name
+            }
+        }
+
+        if ($adaptersToRepair.Count -gt 0) {
+            $sdnHealthTest.Result = 'WARNING'
+            foreach ($adapter in $adaptersToRepair) {
+                $sdnHealthTest.Remediation += "Use Invoke-SdnRemediationScript -ScriptName 'ConfigureForwardOptimization.ps1' -ArgumentList @{AdapterName='$adapter'; NoRestart=`$false}"
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+} 
