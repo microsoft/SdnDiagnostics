@@ -2941,3 +2941,62 @@ function Get-LoadBalancerMuxTraceMapping {
         Server = $serverNodes
     }
 }
+
+function Invoke-SdnRemediationScript {
+    <#
+    .SYNOPSIS
+        Executes a remediation script from the scripts folder locally.
+    .PARAMETER ScriptName
+        The name of the remediation script to execute (with or without .ps1 extension).
+    .PARAMETER ArgumentList
+        Arguments to pass to the remediation script.
+    .PARAMETER ScriptFolder
+        The folder path containing remediation scripts. If omitted, defaults to the module's scripts folder.
+    .EXAMPLE
+        PS> Invoke-SdnRemediationScript -ScriptName "ConfigureForwardOptimization.ps1" -ArgumentList @{AdapterName='Ethernet'}
+    .EXAMPLE
+        PS> Invoke-SdnRemediationScript -ScriptName "ConfigureForwardOptimization.ps1" -ArgumentList @{AdapterName='Ethernet'; NoRestart=$false}
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.String]$ScriptName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Object]$ArgumentList
+    )
+
+    try {
+        # Ensure .ps1 extension
+        if (-NOT $ScriptName.EndsWith('.ps1')) {
+            $ScriptName = "$ScriptName.ps1"
+        }
+
+        # Determine script folder location
+        $moduleRoot = (Get-Module -Name 'SdnDiagnostics').ModuleBase
+        $ScriptFolder = Join-Path -Path $moduleRoot -ChildPath 'scripts'
+        
+        # Verify script exists
+        $scriptPath = Join-Path -Path $ScriptFolder -ChildPath $ScriptName
+        if (-NOT (Test-Path -Path $scriptPath -PathType Leaf)) {
+            throw "Remediation script not found: $scriptPath"
+        }
+
+        "Executing remediation script: {0}" -f $scriptPath | Trace-Output
+        if ($ArgumentList) {
+            "Passing arguments: {0}" -f ($ArgumentList | Out-String) | Trace-Output
+            $result = & $scriptPath @ArgumentList
+        }
+        else {
+            $result = & $scriptPath
+        }
+
+        "Remediation script execution completed successfully" | Trace-Output
+        return $result
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}

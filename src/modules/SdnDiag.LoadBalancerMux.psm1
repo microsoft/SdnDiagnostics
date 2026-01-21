@@ -126,16 +126,23 @@ function Get-SlbMuxConfigState {
 function Get-SdnMuxCertificate {
     <#
         .SYNOPSIS
-        Returns the certificate used by the SDN Load Balancer Mux.
+            Returns the certificate used by the SDN Load Balancer Mux.
+        .DESCRIPTION
+            Retrieves the certificate from the local machine's certificate store that is used by the SDN Load Balancer Mux.
+            It reads the certificate's common name (CN) from the registry and searches for the corresponding certificate in the 'Cert:\LocalMachine\My' store.
+        .PARAMETER NetworkControllerOid
+            Switch to indicate if the certificate being retrieved uses the Network Controller OID.
     #>
 
     [CmdletBinding()]
-    param ()
+    param (
+        [switch]$NetworkControllerOid
+    )
 
     try {
         $muxCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\SlbMux' -Name 'MuxCert'
         $subjectName = "CN={0}" -f $muxCert
-        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid
+        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid:$NetworkControllerOid
         return $certificate
     }
     catch {

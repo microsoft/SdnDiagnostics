@@ -13,22 +13,37 @@
         }
         'Test-SdnNetworkControllerApiNameResolution' = @{
             Description = "Network Controller URL is not resolvable."
-            Impact = "Calls to Network Controller NB API will fail resulting in policy configuration failures and unable to manage SDN resources."
+            Impact = "Calls to Network Controller API will fail resulting in policy configuration failures and unable to manage SDN resources."
             PublicDocUrl = ""
         }
         'Test-SdnNonSelfSignedCertificateInTrustedRootStore' = @{
             Description = "Non Root Cert exist in Host Trusted Root CA Store"
-            Impact = "Network Controller will have issues communicating Host's TCP 6640 and 443 port with certificate error."
-            PublicDocUrl = ""
+            Impact = "Network Controller will have issues communicating to hosts resulting in policy configuration failures."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/troubleshoot/developer/webapps/iis/site-behavior-performance/http-403-forbidden-access-website#cause-2-non-self-signed-certificates-are-in-trusted-root-certification-authorities-certificate-store"
         }
         'Test-SdnServiceState' = @{
             Description = "Identified service(s) are not running on the SDN infrastructure node(s)."
             Impact = "SDN services and functionality will be impacted without the service running."
             PublicDocUrl = ""
         }
+        'Test-SdnCertificateExpired' = @{
+            Description = "SDN infrastructure node certificate is expired."
+            Impact = "Network Controller may have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
+        }
+        'Test-SdnCertificateMultiple' = @{
+            Description = "Multiple certificates with the same subject name and NetworkController OID exist in the SDN infrastructure node's certificate store."
+            Impact = "Network Controller may have issues communicating and programming policies to SDN infrastructure nodes resulting in impact to workloads and services."
+            PublicDocUrl = "https://learn.microsoft.com/en-us/azure/azure-local/manage/update-sdn-infrastructure-certificates"
+        }
 
         # GATEWAY TESTS
 
+        'Test-SdnAdapterPerformanceSetting' = @{
+            Description = "Network Adapter performance settings are not configured as recommended on the SDN node(s)."
+            Impact = "You may not achieve optimal performance for network traffic flowing through the SDN Node(s)."
+            PublicDocUrl = ""
+        }
 
         # LOAD BALANCER MUX TESTS
 
