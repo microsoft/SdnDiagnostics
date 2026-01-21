@@ -158,6 +158,7 @@
         'Set-SdnResource',
         'Set-SdnServiceFabricClusterConfig',
         'Set-SdnVMNetworkAdapterPortProfile',
+        'Show-SdnGatewayUtilization',
         'Show-SdnVfpPortConfig',
         'Show-SdnVipState',
         'Start-SdnCertificateRotation',
