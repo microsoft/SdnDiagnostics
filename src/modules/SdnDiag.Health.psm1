@@ -302,7 +302,13 @@ function Write-HealthValidationInfo {
     $outputString += "Impact:`t`t$($details.Impact)`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        $outputString += "Remediation:`r`n`t - $($Remediation -join "`r`n`t - ")`r`n"
+        if ($Remediation -ieq [array]) {
+            $outputString += "Remediation:`r`n`t- $($Remediation -join "`r`n`t - ")`r`n"
+        }
+        else {
+            $outputString += "Remediation:`t$Remediation`r`n"
+        }
+
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -677,6 +683,7 @@ function Debug-SdnServer {
     $config = Get-SdnModuleConfiguration -Role 'Server'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = New-SdnRoleHealthReport -Role 'Server'
+    $peerCertName = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'PeerCertificateCName' -ErrorAction Stop
 
     try {
         # execute tests based on the cluster type
@@ -703,6 +710,9 @@ function Debug-SdnServer {
             Test-SdnHostAgentConnectionStateToApiService
             Test-SdnVfpEnabledVMSwitch
             Test-SdnVfpEnabledVMSwitchMultiple
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
+            Test-SdnNetworkControllerApiNameResolution -Endpoint $peerCertName.PeerCertificateCName
         )
 
         foreach ($service in $services) {
@@ -747,6 +757,8 @@ function Debug-SdnLoadBalancerMux {
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-SdnMuxConnectionStateToSlbManager
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
         )
 
         foreach ($service in $services) {
@@ -840,15 +852,18 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
             $sdnHealthTest.Result = 'FAIL'
-
             $rootCerts | ForEach-Object {
-                $sdnHealthTest.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
                 $array += [PSCustomObject]@{
                     Thumbprint = $_.Thumbprint
                     Subject    = $_.Subject
                     Issuer     = $_.Issuer
+                    NotAfter   = $_.NotAfter
+                    NotBefore  = $_.NotBefore
                 }
             }
+
+            $sdnHealthTest.Remediation = "Move any non-self-signed certificated out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store:`r`n{0}." -f ($certDetails -join "`r`n")
         }
 
         $sdnHealthTest.Properties = $array
@@ -942,27 +957,50 @@ function Test-SdnNetworkControllerApiNameResolution {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri
+        [String]$Endpoint
     )
 
     $sdnHealthTest = New-SdnHealthTest
+    $array = @()
 
     try {
         # check to see if the Uri is an IP address or a DNS name
         # if it is a DNS name, we need to ensure that it is resolvable
         # if it is an IP address, we can skip the DNS resolution check
-        $isIpAddress = [System.Net.IPAddress]::TryParse($NcUri.Host, [ref]$null)
+        $isIpAddress = [System.Net.IPAddress]::TryParse($Endpoint, [ref]$null)
         if (-NOT $isIpAddress) {
-            $dnsResult = Resolve-DnsName -Name $NcUri.Host -ErrorAction Ignore
-            if ($null -eq $dnsResult) {
+            $dnsServers = (Get-DnsClientServerAddress).ServerAddresses | Sort-Object -Unique
+            $dnsServers = $dnsServers | Where-Object {
+                $_ -ne '::1' -and                     # Exclude loopback
+                $_ -ne '::' -and                      # Exclude unspecified
+                $_ -notmatch '^fe80:' -and            # Exclude link-local
+                $_ -notmatch '^fec0:' -and            # Exclude deprecated site-local
+                $_ -notmatch '^ff'
+            }
+
+            if ($dnsServers.Count -eq 0) {
                 $sdnHealthTest.Result = 'FAIL'
-                $sdnHealthTest.Remediation += "Ensure that the DNS server(s) are reachable and DNS record exists."
+                $sdnHealthTest.Remediation = "No DNS servers are configured on $env:COMPUTERNAME. Ensure that DNS server(s) are configured and reachable."
+            }
+            else {
+                $dnsFailures = $dnsServers | ForEach-Object {
+                    $dnsServer = $_
+                    try {
+                        $result = Resolve-DnsName -Name $Endpoint -Server $dnsServer -ErrorAction Stop
+                        $array += $result
+                    }
+                    catch {
+                        $_ | Trace-Exception
+                        "`t- Investigate DNS resolution failure against DNS server {0} for name {1}" -f $dnsServer, $Endpoint
+                    }
+                }
+
+                if ($dnsFailures) {
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += $dnsFailures
+                }
+
+                $sdnHealthTest.Properties = $array
             }
         }
     }
@@ -974,6 +1012,84 @@ function Test-SdnNetworkControllerApiNameResolution {
     return $sdnHealthTest
 }
 
+function Test-SdnCertificateExpired {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate
+                }
+            }
+        }
+
+        if ($certificate) {
+            $certificate = $certificate | Where-Object { $_.NotAfter -lt (Get-Date).ToUniversalTime() }
+            if ($certificate -or $certificate.Count -gt 0) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation = "Renew the certificate(s) used for SDN components."
+                $certificate | ForEach-Object {
+                    $sdnHealthTest.Properties += [PSCustomObject]@{
+                        Thumbprint = $_.Thumbprint
+                        Subject    = $_.Subject
+                        NotAfter   = $_.NotAfter
+                        NotBefore  = $_.NotBefore
+                        Issuer     = $_.Issuer
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-SdnCertificateMultiple {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate -NetworkControllerOid
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate -NetworkControllerOid
+                }
+            }
+        }
+
+        if ($null -ne $certificate -and $certificate.Count -gt 1) {
+            # eliminate the most current certificate from the array as we do not want to flag that one
+            $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
+            $certDetails = $certificate | ForEach-Object {
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
+            }
+
+            $sdnHealthTest.Result = 'WARN'
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
 
 ###################################
 #### SERVER HEALTH VALIDATIONS ####
