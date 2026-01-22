@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module .\classes\Common.psm1
+
 New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
@@ -68,15 +70,6 @@ if (Confirm-IsFailoverClusterNC) {
 ##########################
 #### CLASSES & ENUMS #####
 ##########################
-
-class SdnFabricInfrastructure {
-    [System.String[]]$NetworkController
-    [System.String[]]$LoadBalancerMux
-    [System.String[]]$Gateway
-    [System.String]$NcUrl
-    [System.String]$RestApiVersion
-    [System.String[]]$FabricNodes
-}
 
 ##########################
 #### ARG COMPLETERS ######

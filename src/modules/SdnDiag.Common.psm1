@@ -1,7 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
-using module ..\SdnDiagnostics.psm1
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Common.Config.psd1"
