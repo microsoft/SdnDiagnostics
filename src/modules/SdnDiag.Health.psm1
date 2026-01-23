@@ -395,7 +395,7 @@ function Debug-SdnFabricInfrastructure {
 
     $transcriptDirectory = Get-WorkingDirectory
     $transcriptPath = "{0}\SdnFabricHealthReport_{1}.txt" -f $transcriptDirectory, $dateTimeNow
-    Start-Transcript -Path $transcriptPath -Force
+    $null = Start-Transcript -Path $transcriptPath -Force
     "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
@@ -557,9 +557,6 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
-        Stop-Transcript
-        "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
-
         if ($aggregateHealthReport) {
 
             # Display SDN Health Validation Report Header
@@ -642,6 +639,9 @@ function Debug-SdnFabricInfrastructure {
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
         }
     }
+
+    $null = Stop-Transcript
+    "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
 
     if ($script:SdnDiagnostics_Health.Cache) {
         "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
