@@ -293,7 +293,7 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('WARNING', 'FAIL')]
+        [ValidateSet('WARNING', 'FAIL', 'FAILURE', IgnoreCase = $true)]
         [string]$Severity
     )
 
@@ -303,6 +303,10 @@ function Write-HealthValidationInfo {
             $foregroundColor = 'Yellow'
         }
         'FAIL' { 
+            $Severity = 'Failure'
+            $foregroundColor = 'Red'
+        }
+        'FAILURE' { 
             $Severity = 'Failure'
             $foregroundColor = 'Red'
         }
@@ -585,10 +589,10 @@ function Debug-SdnFabricInfrastructure {
             $overallState = 'PASS'
             foreach ($report in $aggregateHealthReport) {
                 if ($report.Result -ieq 'FAIL') {
-                    $overallState = 'FAIL'
+                    $overallState = 'FAILURE'
                     break
                 }
-                elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAIL') {
+                elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAILURE') {
                     $overallState = 'WARNING'
                 }
             }
@@ -597,7 +601,7 @@ function Debug-SdnFabricInfrastructure {
             $stateColor = switch ($overallState) {
                 'PASS' { 'Green' }
                 'WARNING' { 'Yellow' }
-                'FAIL' { 'Red' }
+                'FAILURE' { 'Red' }
             }
 
             # Display summary
