@@ -559,9 +559,6 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
-        Stop-Transcript
-        "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
-
         if ($aggregateHealthReport) {
 
             # Display SDN Health Validation Report Header
