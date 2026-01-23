@@ -390,6 +390,14 @@ function Debug-SdnFabricInfrastructure {
 
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
+    $dateTimeNow = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $dateTimeNowFormatted = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
+
+    $transcriptDirectory = Get-WorkingDirectory
+    $transcriptPath = "{0}\SdnFabricHealthReport_{1}.txt" -f $transcriptDirectory, $dateTimeNow
+    Start-Transcript -Path $transcriptPath -Force
+    "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
+
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
@@ -427,7 +435,7 @@ function Debug-SdnFabricInfrastructure {
 
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
-            "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Verbose
+            "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Information
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
 
             $roleHealthReport = New-SdnFabricHealthReport -Role $object.ToString()
@@ -549,6 +557,9 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
+        Stop-Transcript
+        "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
+
         if ($aggregateHealthReport) {
 
             # Display SDN Health Validation Report Header
@@ -563,9 +574,8 @@ function Debug-SdnFabricInfrastructure {
 
             # Calculate aggregate summary
             $allRoles = ($aggregateHealthReport | Select-Object -ExpandProperty Role) -join ', '
-            $allNodes = ($aggregateHealthReport | ForEach-Object { $_.RoleTest.ComputerName } | Sort-Object -Unique) -join ', '
-            $timestamp = Get-Date -Format "yyyy-MM-dd HH:mm:ss UTC"
-            
+            $allSdnNodes = ($aggregateHealthReport | ForEach-Object { $_.RoleTest.ComputerName } | Sort-Object -Unique) -join ', '
+
             # Determine overall health state (worst case wins: FAIL > WARNING > PASS)
             $overallState = 'PASS'
             foreach ($report in $aggregateHealthReport) {
@@ -587,11 +597,11 @@ function Debug-SdnFabricInfrastructure {
 
             # Display summary
             Write-Host "Report Generated: " -NoNewline -ForegroundColor Gray
-            Write-Host $timestamp -ForegroundColor White
+            Write-Host $dateTimeNowFormatted -ForegroundColor White
             Write-Host "Roles Tested:     " -NoNewline -ForegroundColor Gray
             Write-Host $allRoles -ForegroundColor White
             Write-Host "Nodes Tested:     " -NoNewline -ForegroundColor Gray
-            Write-Host $allNodes -ForegroundColor White
+            Write-Host $allSdnNodes -ForegroundColor White
             Write-Host "Overall State:    " -NoNewline -ForegroundColor Gray
             Write-Host $overallState -ForegroundColor $stateColor
             Write-Host ""
