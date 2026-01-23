@@ -354,6 +354,8 @@ function Debug-SdnFabricInfrastructure {
         Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+    .PARAMETER SkipSummaryDisplay
+        Switch parameter to skip displaying the summary of results to the console.
     .EXAMPLE
         PS> Debug-SdnFabricInfrastructure
     .EXAMPLE
@@ -387,7 +389,11 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
-        [X509Certificate]$NcRestCertificate
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [switch]$SkipSummaryDisplay
     )
 
     $script:SdnDiagnostics_Health.Cache = $null
@@ -559,7 +565,7 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
-        if ($aggregateHealthReport) {
+        if ($aggregateHealthReport -and (-not $SkipSummaryDisplay)) {
 
             # Display SDN Health Validation Report Header
             $reportHeader = @"
