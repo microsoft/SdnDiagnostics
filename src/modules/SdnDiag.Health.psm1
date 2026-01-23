@@ -299,9 +299,11 @@ function Write-HealthValidationInfo {
 
     switch ($Severity) {
         'WARNING' { 
+            $Severity = 'Warning'
             $foregroundColor = 'Yellow'
         }
         'FAIL' { 
+            $Severity = 'Failure'
             $foregroundColor = 'Red'
         }
     }
