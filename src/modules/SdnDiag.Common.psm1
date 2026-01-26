@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Common.Config.psd1"
@@ -90,7 +92,7 @@ function Copy-CertificateToFabric {
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
         [Parameter(Mandatory = $true, ParameterSetName = 'LoadBalancerMuxNode')]
         [Parameter(Mandatory = $true, ParameterSetName = 'ServerNode')]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
         [Switch]$NetworkControllerRestCertificate,
@@ -312,7 +314,7 @@ function Copy-UserProvidedCertificateToFabric {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $true)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [Parameter(Mandatory = $false)]
         [System.Boolean]$RotateNodeCerts = $false,
@@ -795,8 +797,7 @@ function Start-EtwTraceSession {
     )
 
     try {
-        $logmanCmd = "logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets"
-        $result = Invoke-Expression -Command $logmanCmd
+        $result = & logman create trace $TraceName -ow -o $TraceFile -nb 16 16 -bs 1024 -mode Circular -f bincirc -max $MaxTraceSize -ets
 
         # Session create failure error need to be reported to user to be aware, this means we have one trace session missing.
         # Provider add failure might be ignored and exposed via verbose trace/log file only to debug.
@@ -808,8 +809,7 @@ function Start-EtwTraceSession {
         }
 
         foreach ($provider in $TraceProviders) {
-            $logmanCmd = 'logman update trace $TraceName -p "$provider" 0xffffffffffffffff 0xff -ets'
-            $result = Invoke-Expression -Command $logmanCmd
+            $result = & logman Update trace $TraceName -p $provider 0xffffffffffffffff 0xff -ets
             "Added provider {0} with result {1}" -f $provider, "$result" | Trace-Output -Level:Verbose
         }
     }
@@ -958,8 +958,7 @@ function Stop-EtwTraceSession {
     )
 
     try {
-        $logmanCmd = "logman stop $TraceName -ets"
-        $result = Invoke-Expression -Command $logmanCmd
+        $result = & logman stop $TraceName -ets
         if ("$result".Contains("Error")) {
             "Stop session {0} failed with error {1}" -f $TraceName, "$result" | Trace-Output -Level:Warning
         }
@@ -2941,5 +2940,64 @@ function Get-LoadBalancerMuxTraceMapping {
     return [PSCustomObject]@{
         LoadBalancerMux = $loadBalancerMuxNodes
         Server = $serverNodes
+    }
+}
+
+function Invoke-SdnRemediationScript {
+    <#
+    .SYNOPSIS
+        Executes a remediation script from the scripts folder locally.
+    .PARAMETER ScriptName
+        The name of the remediation script to execute (with or without .ps1 extension).
+    .PARAMETER ArgumentList
+        Arguments to pass to the remediation script.
+    .PARAMETER ScriptFolder
+        The folder path containing remediation scripts. If omitted, defaults to the module's scripts folder.
+    .EXAMPLE
+        PS> Invoke-SdnRemediationScript -ScriptName "ConfigureForwardOptimization.ps1" -ArgumentList @{AdapterName='Ethernet'}
+    .EXAMPLE
+        PS> Invoke-SdnRemediationScript -ScriptName "ConfigureForwardOptimization.ps1" -ArgumentList @{AdapterName='Ethernet'; NoRestart=$false}
+    #>
+
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [System.String]$ScriptName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Object]$ArgumentList
+    )
+
+    try {
+        # Ensure .ps1 extension
+        if (-NOT $ScriptName.EndsWith('.ps1')) {
+            $ScriptName = "$ScriptName.ps1"
+        }
+
+        # Determine script folder location
+        $moduleRoot = (Get-Module -Name 'SdnDiagnostics').ModuleBase
+        $ScriptFolder = Join-Path -Path $moduleRoot -ChildPath 'scripts'
+        
+        # Verify script exists
+        $scriptPath = Join-Path -Path $ScriptFolder -ChildPath $ScriptName
+        if (-NOT (Test-Path -Path $scriptPath -PathType Leaf)) {
+            throw "Remediation script not found: $scriptPath"
+        }
+
+        "Executing remediation script: {0}" -f $scriptPath | Trace-Output
+        if ($ArgumentList) {
+            "Passing arguments: {0}" -f ($ArgumentList | Out-String) | Trace-Output
+            $result = & $scriptPath @ArgumentList
+        }
+        else {
+            $result = & $scriptPath
+        }
+
+        "Remediation script execution completed successfully" | Trace-Output
+        return $result
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
     }
 }

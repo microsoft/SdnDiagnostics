@@ -1093,6 +1093,22 @@ function Format-ByteSize {
     })
 }
 
+function Format-KiloBitSize {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [double]$KiloBits
+    )
+
+    $gb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $KiloBits / 1000000)
+    $mb = [string]::Format([System.Globalization.CultureInfo]::InvariantCulture, "{0}", $KiloBits / 1000)
+
+    return ([PSCustomObject]@{
+        GB = $gb
+        MB = $mb
+    })
+}
+
 function Format-SdnMacAddress {
     <#
     .SYNOPSIS
@@ -1897,7 +1913,7 @@ function New-PSRemotingSession {
                     $trustedHosts = Get-Item -Path "WSMan:\localhost\client\TrustedHosts"
                     if ($trustedHosts.Value -notlike "*$objectName*" -and $trustedHosts.Value -ne "*") {
                         "Adding {0} to {1}" -f $objectName, $trustedHosts.PSPath | Trace-Output
-                        Set-Item -Path "WSMan:\localhost\client\TrustedHosts" -Value $objectName -Concatenate
+                        Set-Item -Path "WSMan:\localhost\client\TrustedHosts" -Value $objectName.ToString() -Concatenate -Force
                     }
                 }
                 catch {

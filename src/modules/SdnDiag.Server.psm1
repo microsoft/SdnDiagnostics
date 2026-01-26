@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
@@ -351,8 +353,7 @@ function Get-OvsdbDatabase {
         throw New-Object System.NullReferenceException("No endpoint listening on port 6641. Ensure NCHostAgent service is running.")
     }
 
-    $cmdline = "ovsdb-client.exe dump tcp:127.0.0.1:6641 -f json {0}" -f $Table
-    $databaseResults = Invoke-Expression $cmdline | ConvertFrom-Json
+    $databaseResults = & ovsdb-client.exe dump tcp:127.0.0.1:6641 -f json $Table | ConvertFrom-Json
 
     if($null -eq $databaseResults){
         $msg = "Unable to retrieve OVSDB results`n`t{0}" -f $_
@@ -480,7 +481,7 @@ function Get-ServerConfigState {
         $hnvDiag | ForEach-Object {
             try {
                 $cmd = $_
-                Invoke-Expression -Command $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format List
+                & $cmd | Export-ObjectToFile -FilePath $outDir -Name $cmd -FileType txt -Format List
             }
             catch {
                 "Failed to execute {0}" -f $cmd | Trace-Output -Level:Error
@@ -1430,17 +1431,24 @@ function Get-SdnProviderAddress {
 
 function Get-SdnServerCertificate {
     <#
-        .SYNOPSIS
+    .SYNOPSIS
         Returns the certificate used by the SDN Host Agent.
+    .DESCRIPTION
+        This cmdlet retrieves the certificate used by the SDN Host Agent from the local machine's personal certificate store.
+        It reads the certificate's common name (CName) from the registry and searches for the corresponding certificate in the 'Cert:\LocalMachine\My' store.
+    .PARAMETER NetworkControllerOid
+        Switch indicating to include the Network Controller OID when searching for the certificate.
     #>
 
     [CmdletBinding()]
-    param()
+    param (
+        [switch]$NetworkControllerOid
+    )
 
     try {
         $serverCert = Get-ItemPropertyValue -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'HostAgentCertificateCName'
         $subjectName = "CN={0}" -f $serverCert
-        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid
+        $certificate = Get-SdnCertificate -Subject $subjectName -Path 'Cert:\LocalMachine\My' -NetworkControllerOid:$NetworkControllerOid
         return $certificate
     }
     catch {
@@ -2657,7 +2665,7 @@ function New-SdnServerCertificate {
     .PARAMETER Path
         Specifies the file path location where a .cer file is exported automatically.
     .PARAMETER FabricDetails
-        The SDN Fabric details derived from Get-SdnInfrastructureInfo.
+        The EnvironmentInfo derived from Get-SdnInfrastructureInfo.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user
     .EXAMPLE
@@ -2673,7 +2681,7 @@ function New-SdnServerCertificate {
         [System.String]$Path = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -2698,7 +2706,7 @@ function New-SdnServerCertificate {
         # check if there is a certificate present for Azure Stack Certification Authority for Azure Local systems
         # if so, we will not generate a new certificate as they should be leveraging the certificate from the Azure Stack CA
         if ($Global:SdnDiagnostics.Config.Mode -ieq 'AzureStackHCI') {
-            $azStackHCICertificates = Get-SdnServerCertificate -ErrorAction Ignore
+            $azStackHCICertificates = Get-SdnServerCertificate -NetworkControllerOid -ErrorAction Ignore
             if ($azStackHCICertificates) {
                 $azStackCertAuthorityCerts = $azStackHCICertificates | Where-Object { $_.Issuer -ieq 'CN=AzureStackCertificationAuthority' }
                 if ($azStackCertAuthorityCerts) {
@@ -2727,14 +2735,17 @@ function New-SdnServerCertificate {
         [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -ServerNodeCert -Credential $Credential
 
-        $certObject = [PSCustomObject]@{
+        # distribute the certificate to the Network Controller(s) in the fabric to be installed in trusted root store
+        if ($FabricDetails) {
+            "Distributing certificate to SDN Fabric" | Trace-Output
+            Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -ServerNodeCert -Credential $Credential
+        }
+
+        return [PSCustomObject]@{
             Certificate = $certificate
             FileInfo = $exportedCertificate
         }
-
-        return $certObject
     }
     catch {
         $_ | Trace-Exception
@@ -3057,26 +3068,27 @@ function Start-SdnServerCertificateRotation {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
     }
 
+    "Starting certificate rotation" | Trace-Output
+    "Retrieving current SDN environment details" | Trace-Output
+
+    if ([String]::IsNullOrEmpty($CertPath)) {
+        [System.String]$CertPath = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC)
+
+        if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
+            $null = New-Item -Path $CertPath -ItemType Directory -Force
+        }
+    }
+
+    [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
+    $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
+    $ncRestParams = $restCredParam.Clone()
+    $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+
     try {
-        "Starting certificate rotation" | Trace-Output
-        "Retrieving current SDN environment details" | Trace-Output
-
-        if ([String]::IsNullOrEmpty($CertPath)) {
-            [System.String]$CertPath = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC)
-
-            if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
-                $null = New-Item -Path $CertPath -ItemType Directory -Force
-            }
-        }
-
-        [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
-        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
-            throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
-        }
-
-        $ncRestParams = $restCredParam.Clone()
-        $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
         $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
@@ -3103,7 +3115,7 @@ function Start-SdnServerCertificateRotation {
                         [Parameter(Position = 0)][DateTime]$param1,
                         [Parameter(Position = 1)][PSCredential]$param2,
                         [Parameter(Position = 2)][String]$param3,
-                        [Parameter(Position = 3)][System.Object]$param4
+                        [Parameter(Position = 3)][SdnFabricInfrastructure]$param4
                     )
 
                     New-SdnServerCertificate -NotAfter $param1 -Credential $param2 -Path $param3 -FabricDetails $param4
@@ -3336,8 +3348,7 @@ function Test-SdnVfpPortTuple {
         # DestinationIP: Destination IP address or direction of the traffic relative to the direction
         # DestinationPort: Destination port or direction of the traffic relative to the direction
         # flags: 1 = TCP SYN, 2 = Monitoring Ping
-        $cmd = "vfpctrl /port $PortName /process-tuples '$protocolId $SourceIP $SourcePort $DestinationIP $DestinationPort $Direction 1'"
-        Invoke-Expression $cmd
+        & vfpctrl /port $PortName /process-tuples "$protocolID $SourceIP $SourcePort $DestinationIP $DestinationPort $Direction 1"
     }
     catch {
         $_ | Trace-Exception

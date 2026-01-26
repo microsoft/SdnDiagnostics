@@ -223,7 +223,7 @@ function New-SdnHealthTest {
 
     $object = [PSCustomObject]@{
         Name           = $Name
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
         OccurrenceTime = [System.DateTime]::UtcNow
         Properties     = @()
         Remediation    = @()
@@ -239,9 +239,10 @@ function New-SdnRoleHealthReport {
     )
 
     $object = [PSCustomObject]@{
+
         Role           = $Role
         ComputerName   = $env:COMPUTERNAME
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
         OccurrenceTime = [System.DateTime]::UtcNow
         HealthTest     = @() # array of New-SdnHealthTest objects
     }
@@ -258,7 +259,7 @@ function New-SdnFabricHealthReport {
     $object = [PSCustomObject]@{
         OccurrenceTime = [System.DateTime]::UtcNow
         Role           = $Role
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARN, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
         RoleTest       = @() # array of New-SdnRoleHealthReport objects
     }
 
@@ -289,8 +290,27 @@ function Write-HealthValidationInfo {
         [String]$Name,
 
         [Parameter(Mandatory = $false)]
-        [String[]]$Remediation
+        [String[]]$Remediation,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('WARNING', 'FAIL', 'FAILURE', IgnoreCase = $true)]
+        [string]$Severity
     )
+
+    switch ($Severity) {
+        'WARNING' { 
+            $Severity = 'Warning'
+            $foregroundColor = 'Yellow'
+        }
+        'FAIL' { 
+            $Severity = 'Failure'
+            $foregroundColor = 'Red'
+        }
+        'FAILURE' { 
+            $Severity = 'Failure'
+            $foregroundColor = 'Red'
+        }
+    }
 
     $details = Get-HealthData -Property 'HealthValidations' -Id $Name
 
@@ -300,9 +320,16 @@ function Write-HealthValidationInfo {
     $outputString += "`r`n`r`n"
     $outputString += "Description:`t$($details.Description)`r`n"
     $outputString += "Impact:`t`t$($details.Impact)`r`n"
+    $outputString += "Severity:`t$Severity`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        $outputString += "Remediation:`r`n`t - $($Remediation -join "`r`n`t - ")`r`n"
+        if ($Remediation -is [System.Collections.ICollection] -or $Remediation -is [System.Array]) {
+            $outputString += "Remediation:`r`n`t- $($Remediation -join "`r`n`t- ")`r`n"
+        }
+        else {
+            $outputString += "Remediation:`t$Remediation`r`n"
+        }
+
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -311,8 +338,7 @@ function Write-HealthValidationInfo {
     }
 
     $outputString += "`r`n--------------------------`r`n"
-
-    $outputString | Write-Host -ForegroundColor Yellow
+    $outputString | Write-Host -ForegroundColor $foregroundColor
 }
 
 function Debug-SdnFabricInfrastructure {
@@ -332,6 +358,8 @@ function Debug-SdnFabricInfrastructure {
         Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+    .PARAMETER SkipSummaryDisplay
+        Switch parameter to skip displaying the summary of results to the console.
     .EXAMPLE
         PS> Debug-SdnFabricInfrastructure
     .EXAMPLE
@@ -365,11 +393,23 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
-        [X509Certificate]$NcRestCertificate
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [switch]$SkipSummaryDisplay
     )
 
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
+    $dateTimeNow = Get-Date -Format 'yyyyMMdd-HHmmss'
+    $dateTimeNowFormatted = Get-Date -Format 'yyyy-MM-dd HH:mm:ss UTC'
+
+    $transcriptDirectory = Get-WorkingDirectory
+    $transcriptPath = "{0}\SdnFabricHealthReport_{1}.txt" -f $transcriptDirectory, $dateTimeNow
+    $null = Start-Transcript -Path $transcriptPath -Force
+    "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
+
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
         Confirm-IsNetworkController
     }
@@ -407,7 +447,7 @@ function Debug-SdnFabricInfrastructure {
 
         $Role = $Role | Sort-Object -Unique
         foreach ($object in $Role) {
-            "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Verbose
+            "Processing tests for {0} role" -f $object.ToString() | Trace-Output -Level:Information
             $config = Get-SdnModuleConfiguration -Role $object.ToString()
 
             $roleHealthReport = New-SdnFabricHealthReport -Role $object.ToString()
@@ -510,19 +550,17 @@ function Debug-SdnFabricInfrastructure {
                 }
             }
 
-            # evaluate the results of the tests and determine if any completed with Warning or FAIL
-            # if so, we will want to set the Result of the report to reflect this
-            foreach ($test in $healthReport) {
-                if ($test.Result -ieq 'WARN') {
-                    $roleHealthReport.Result = 'WARN'
+            $roleHealthReport.RoleTest += $healthReport
+            foreach ($test in $roleHealthReport.RoleTest.HealthTest) {
+                if ($test.Result -ieq 'WARNING') {
+                    $roleHealthReport.Result = 'WARNING'
                 }
-                if ($test.Result -ieq 'FAIL') {
+                elseif ($test.Result -ieq 'FAIL') {
                     $roleHealthReport.Result = 'FAIL'
                     break
                 }
             }
 
-            $roleHealthReport.RoleTest += $healthReport
             $aggregateHealthReport += $roleHealthReport
         }
     }
@@ -531,7 +569,51 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
-        if ($aggregateHealthReport) {
+        if ($aggregateHealthReport -and (-not $SkipSummaryDisplay)) {
+
+            # Display SDN Health Validation Report Header
+            $reportHeader = @"
+
+===============================================================================
+                      SDN HEALTH VALIDATION REPORT                          
+===============================================================================
+
+"@
+            Write-Host $reportHeader -ForegroundColor Cyan
+
+            # Calculate aggregate summary
+            $allRoles = ($aggregateHealthReport | Select-Object -ExpandProperty Role) -join ', '
+            $allSdnNodes = ($aggregateHealthReport | ForEach-Object { $_.RoleTest.ComputerName } | Sort-Object -Unique) -join ', '
+
+            # Determine overall health state (worst case wins: FAIL > WARNING > PASS)
+            $overallState = 'PASS'
+            foreach ($report in $aggregateHealthReport) {
+                if ($report.Result -ieq 'FAIL') {
+                    $overallState = 'FAILURE'
+                    break
+                }
+                elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAILURE') {
+                    $overallState = 'WARNING'
+                }
+            }
+
+            # Set color based on overall state
+            $stateColor = switch ($overallState) {
+                'PASS' { 'Green' }
+                'WARNING' { 'Yellow' }
+                'FAILURE' { 'Red' }
+            }
+
+            # Display summary
+            Write-Host "Report Generated: " -NoNewline -ForegroundColor Gray
+            Write-Host $dateTimeNowFormatted -ForegroundColor White
+            Write-Host "Roles Tested:     " -NoNewline -ForegroundColor Gray
+            Write-Host $allRoles -ForegroundColor White
+            Write-Host "Nodes Tested:     " -NoNewline -ForegroundColor Gray
+            Write-Host $allSdnNodes -ForegroundColor White
+            Write-Host "Overall State:    " -NoNewline -ForegroundColor Gray
+            Write-Host $overallState -ForegroundColor $stateColor
+            Write-Host ""
 
             # enumerate all the roles that were tested so we can determine if any completed with Warning or FAIL
             $aggregateHealthReport | ForEach-Object {
@@ -548,17 +630,30 @@ function Debug-SdnFabricInfrastructure {
                                 $remediationList = [System.Collections.ArrayList]::new()
                                 $_.Remediation | ForEach-Object { [void]$remediationList.Add($_) }
 
-                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList
+                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList -Severity $_.Result
                             }
                         }
                     }
                 }
             }
 
+            # Display SDN Health Validation Report Footer
+            $reportFooter = @"
+
+===============================================================================
+                    END OF SDN HEALTH VALIDATION REPORT                     
+===============================================================================
+
+"@
+            Write-Host $reportFooter -ForegroundColor Cyan
+
             # save the aggregate health report to cache so we can use it for further analysis
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
         }
     }
+
+    $null = Stop-Transcript
+    "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
 
     if ($script:SdnDiagnostics_Health.Cache) {
         "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
@@ -647,12 +742,12 @@ function Debug-SdnNetworkController {
             }
         }
 
-        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
-        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # enumerate all the tests performed so we can determine if any completed with WARNING or FAIL
+        # if any of the tests completed with WARNING, we will set the aggregate result to WARNING
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'WARN') {
+            if ($test.Result -eq 'WARNING') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -677,6 +772,7 @@ function Debug-SdnServer {
     $config = Get-SdnModuleConfiguration -Role 'Server'
     [string[]]$services = $config.properties.services.Keys
     $healthReport = New-SdnRoleHealthReport -Role 'Server'
+    $peerCertName = Get-ItemProperty -Path 'HKLM:\SYSTEM\CurrentControlSet\Services\NcHostAgent\Parameters' -Name 'PeerCertificateCName' -ErrorAction Stop
 
     try {
         # execute tests based on the cluster type
@@ -703,6 +799,9 @@ function Debug-SdnServer {
             Test-SdnHostAgentConnectionStateToApiService
             Test-SdnVfpEnabledVMSwitch
             Test-SdnVfpEnabledVMSwitchMultiple
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
+            Test-SdnNetworkControllerApiNameResolution -Endpoint $peerCertName.PeerCertificateCName
         )
 
         foreach ($service in $services) {
@@ -711,12 +810,12 @@ function Debug-SdnServer {
             )
         }
 
-        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
-        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # enumerate all the tests performed so we can determine if any completed with WARNING or FAIL
+        # if any of the tests completed with WARNING, we will set the aggregate result to WARNING
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'WARN') {
+            if ($test.Result -eq 'WARNING') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -747,6 +846,8 @@ function Debug-SdnLoadBalancerMux {
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
             Test-SdnMuxConnectionStateToSlbManager
+            Test-SdnCertificateExpired
+            Test-SdnCertificateMultiple
         )
 
         foreach ($service in $services) {
@@ -755,12 +856,12 @@ function Debug-SdnLoadBalancerMux {
             )
         }
 
-        # enumerate all the tests performed so we can determine if any completed with WARN or FAIL
-        # if any of the tests completed with WARN, we will set the aggregate result to WARN
+        # enumerate all the tests performed so we can determine if any completed with WARNING or FAIL
+        # if any of the tests completed with WARNING, we will set the aggregate result to WARNING
         # if any of the tests completed with FAIL, we will set the aggregate result to FAIL and then break out of the foreach loop
         # we will skip tests with PASS, as that is the default value
         foreach ($test in $healthReport.HealthTest) {
-            if ($test.Result -eq 'WARN') {
+            if ($test.Result -eq 'WARNING') {
                 $healthReport.Result = $test.Result
             }
             elseif ($test.Result -eq 'FAIL') {
@@ -788,13 +889,14 @@ function Debug-SdnGateway {
 
     try {
         $healthReport.HealthTest += @(
-            Test-SdnNonSelfSignedCertificateInTrustedRootStore
-            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-SdnNonSelfSignedCertificateInTrustedRootStore @PSBoundParameters
+            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task' @PSBoundParameters
+            Test-SdnAdapterPerformanceSetting @PSBoundParameters
         )
 
         foreach ($service in $services) {
             $healthReport.HealthTest += @(
-                Test-SdnServiceState -ServiceName $service
+                Test-SdnServiceState -ServiceName $service @PSBoundParameters
             )
         }
 
@@ -840,15 +942,18 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
             $sdnHealthTest.Result = 'FAIL'
-
             $rootCerts | ForEach-Object {
-                $sdnHealthTest.Remediation += "Remove Certificate Thumbprint: $($_.Thumbprint) Subject: $($_.Subject)"
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
                 $array += [PSCustomObject]@{
                     Thumbprint = $_.Thumbprint
                     Subject    = $_.Subject
                     Issuer     = $_.Issuer
+                    NotAfter   = $_.NotAfter
+                    NotBefore  = $_.NotBefore
                 }
             }
+
+            $sdnHealthTest.Remediation = "Move any non-self-signed certificated out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store:`r`n{0}." -f ($certDetails -join "`r`n")
         }
 
         $sdnHealthTest.Properties = $array
@@ -942,27 +1047,50 @@ function Test-SdnNetworkControllerApiNameResolution {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateScript({
-                if ($_.Scheme -ne "http" -and $_.Scheme -ne "https") {
-                    throw New-Object System.FormatException("Parameter is expected to be in http:// or https:// format.")
-                }
-                return $true
-            })]
-        [Uri]$NcUri
+        [String]$Endpoint
     )
 
     $sdnHealthTest = New-SdnHealthTest
+    $array = @()
 
     try {
         # check to see if the Uri is an IP address or a DNS name
         # if it is a DNS name, we need to ensure that it is resolvable
         # if it is an IP address, we can skip the DNS resolution check
-        $isIpAddress = [System.Net.IPAddress]::TryParse($NcUri.Host, [ref]$null)
+        $isIpAddress = [System.Net.IPAddress]::TryParse($Endpoint, [ref]$null)
         if (-NOT $isIpAddress) {
-            $dnsResult = Resolve-DnsName -Name $NcUri.Host -ErrorAction Ignore
-            if ($null -eq $dnsResult) {
+            $dnsServers = (Get-DnsClientServerAddress).ServerAddresses | Sort-Object -Unique
+            $dnsServers = $dnsServers | Where-Object {
+                $_ -ne '::1' -and                     # Exclude loopback
+                $_ -ne '::' -and                      # Exclude unspecified
+                $_ -notmatch '^fe80:' -and            # Exclude link-local
+                $_ -notmatch '^fec0:' -and            # Exclude deprecated site-local
+                $_ -notmatch '^ff'
+            }
+
+            if ($dnsServers.Count -eq 0) {
                 $sdnHealthTest.Result = 'FAIL'
-                $sdnHealthTest.Remediation += "Ensure that the DNS server(s) are reachable and DNS record exists."
+                $sdnHealthTest.Remediation = "No DNS servers are configured on $env:COMPUTERNAME. Ensure that DNS server(s) are configured and reachable."
+            }
+            else {
+                $dnsFailures = $dnsServers | ForEach-Object {
+                    $dnsServer = $_
+                    try {
+                        $result = Resolve-DnsName -Name $Endpoint -Server $dnsServer -ErrorAction Stop
+                        $array += $result
+                    }
+                    catch {
+                        $_ | Trace-Exception
+                        "Investigate DNS resolution failure against DNS server {0} for name {1}" -f $dnsServer, $Endpoint
+                    }
+                }
+
+                if ($dnsFailures) {
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation += $dnsFailures
+                }
+
+                $sdnHealthTest.Properties = $array
             }
         }
     }
@@ -974,6 +1102,84 @@ function Test-SdnNetworkControllerApiNameResolution {
     return $sdnHealthTest
 }
 
+function Test-SdnCertificateExpired {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate
+                }
+            }
+        }
+
+        if ($certificate) {
+            $certificate = $certificate | Where-Object { $_.NotAfter -lt (Get-Date).ToUniversalTime() }
+            if ($certificate -or $certificate.Count -gt 0) {
+                $sdnHealthTest.Result = 'FAIL'
+                $sdnHealthTest.Remediation = "Renew the certificate(s) used for SDN components."
+                $certificate | ForEach-Object {
+                    $sdnHealthTest.Properties += [PSCustomObject]@{
+                        Thumbprint = $_.Thumbprint
+                        Subject    = $_.Subject
+                        NotAfter   = $_.NotAfter
+                        NotBefore  = $_.NotBefore
+                        Issuer     = $_.Issuer
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-SdnCertificateMultiple {
+
+    $role = $Global:SdnDiagnostics.Config.Role
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        foreach ($r in $role) {
+            switch ($r) {
+                'LoadBalancerMux' {
+                    $certificate = Get-SdnMuxCertificate -NetworkControllerOid
+                }
+                'Server' {
+                    $certificate = Get-SdnServerCertificate -NetworkControllerOid
+                }
+            }
+        }
+
+        if ($null -ne $certificate -and $certificate.Count -gt 1) {
+            # eliminate the most current certificate from the array as we do not want to flag that one
+            $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
+            $certDetails = $certificate | ForEach-Object {
+                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
+            }
+
+            $sdnHealthTest.Result = 'WARNING'
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+}
 
 ###################################
 #### SERVER HEALTH VALIDATIONS ####
@@ -1260,7 +1466,7 @@ function Test-SdnHostAgentConnectionStateToApiService {
             if ($tcpConnection.State -ine 'Established') {
                 $serviceState = Get-Service -Name NCHostAgent -ErrorAction Stop
                 if ($serviceState.Status -ine 'Running') {
-                    $sdnHealthTest.Result = 'WARN'
+                    $sdnHealthTest.Result = 'WARNING'
                     $sdnHealthTest.Remediation += "Ensure the NCHostAgent service is running."
                 }
                 else {
@@ -1742,3 +1948,43 @@ function Clear-SdnHealthFault {
     DeleteFaultById -faultUniqueID $Id
     "Please allow 5 minutes for the fault to be cleared" | Trace-Output -Level:Information
 }
+
+###################################
+### GATEWAY HEALTH VALIDATIONS ####
+###################################
+
+function Test-SdnAdapterPerformanceSetting {
+    <#
+        .SYNOPSIS
+            Validates that the network adapters used for gateway traffic have optimal performance settings configured.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    $adaptersToRepair = @()
+    try {
+        $netAdapters = Get-NetAdapter | Where-Object {$_.Name -ieq 'Internal' -or $_.Name -ieq 'External'}
+        foreach ($adapter in $netAdapters) {
+            $forwardingOptimization = Get-NetAdapterAdvancedProperty -Name $adapter.Name -DisplayName 'Forwarding Optimization' -ErrorAction Ignore
+            if ($forwardingOptimization.DisplayValue -ine 'Enabled') {
+                $adaptersToRepair += $adapter.Name
+            }
+        }
+
+        if ($adaptersToRepair.Count -gt 0) {
+            $sdnHealthTest.Result = 'WARNING'
+            foreach ($adapter in $adaptersToRepair) {
+                $sdnHealthTest.Remediation += "Run 'Invoke-SdnRemediationScript -ScriptName 'ConfigureForwardOptimization.ps1' -ArgumentList @{AdapterName='$adapter'; NoRestart=`$false}' on the impacted node to enable Forwarding Optimization."
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'FAIL'
+    }
+
+    return $sdnHealthTest
+} 
