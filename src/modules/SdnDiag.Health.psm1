@@ -293,15 +293,21 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('WARNING', 'FAIL')]
+        [ValidateSet('WARNING', 'FAIL', 'FAILURE', IgnoreCase = $true)]
         [string]$Severity
     )
 
     switch ($Severity) {
         'WARNING' { 
+            $Severity = 'Warning'
             $foregroundColor = 'Yellow'
         }
         'FAIL' { 
+            $Severity = 'Failure'
+            $foregroundColor = 'Red'
+        }
+        'FAILURE' { 
+            $Severity = 'Failure'
             $foregroundColor = 'Red'
         }
     }
@@ -352,6 +358,8 @@ function Debug-SdnFabricInfrastructure {
         Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+    .PARAMETER SkipSummaryDisplay
+        Switch parameter to skip displaying the summary of results to the console.
     .EXAMPLE
         PS> Debug-SdnFabricInfrastructure
     .EXAMPLE
@@ -385,7 +393,11 @@ function Debug-SdnFabricInfrastructure {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
-        [X509Certificate]$NcRestCertificate
+        [X509Certificate]$NcRestCertificate,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'ComputerName')]
+        [switch]$SkipSummaryDisplay
     )
 
     $script:SdnDiagnostics_Health.Cache = $null
@@ -395,7 +407,7 @@ function Debug-SdnFabricInfrastructure {
 
     $transcriptDirectory = Get-WorkingDirectory
     $transcriptPath = "{0}\SdnFabricHealthReport_{1}.txt" -f $transcriptDirectory, $dateTimeNow
-    Start-Transcript -Path $transcriptPath -Force
+    $null = Start-Transcript -Path $transcriptPath -Force
     "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
 
     if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
@@ -557,10 +569,7 @@ function Debug-SdnFabricInfrastructure {
         $_ | Write-Error
     }
     finally {
-        Stop-Transcript
-        "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
-
-        if ($aggregateHealthReport) {
+        if ($aggregateHealthReport -and (-not $SkipSummaryDisplay)) {
 
             # Display SDN Health Validation Report Header
             $reportHeader = @"
@@ -580,10 +589,10 @@ function Debug-SdnFabricInfrastructure {
             $overallState = 'PASS'
             foreach ($report in $aggregateHealthReport) {
                 if ($report.Result -ieq 'FAIL') {
-                    $overallState = 'FAIL'
+                    $overallState = 'FAILURE'
                     break
                 }
-                elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAIL') {
+                elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAILURE') {
                     $overallState = 'WARNING'
                 }
             }
@@ -592,7 +601,7 @@ function Debug-SdnFabricInfrastructure {
             $stateColor = switch ($overallState) {
                 'PASS' { 'Green' }
                 'WARNING' { 'Yellow' }
-                'FAIL' { 'Red' }
+                'FAILURE' { 'Red' }
             }
 
             # Display summary
@@ -642,6 +651,9 @@ function Debug-SdnFabricInfrastructure {
             $script:SdnDiagnostics_Health.Cache = $aggregateHealthReport
         }
     }
+
+    $null = Stop-Transcript
+    "Transcript saved to {0}" -f $transcriptPath | Trace-Output -Level:Information
 
     if ($script:SdnDiagnostics_Health.Cache) {
         "Results for fabric health have been saved to cache for further analysis. Use 'Get-SdnFabricInfrastructureResult' to examine the results." | Trace-Output
