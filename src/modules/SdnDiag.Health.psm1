@@ -1170,7 +1170,7 @@ function Test-SdnCertificateMultiple {
             }
 
             $sdnHealthTest.Result = 'WARNING'
-            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n`t{0}" -f ($certDetails -join "`r`n`t")
         }
     }
     catch {
