@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
@@ -465,7 +467,7 @@ function New-SdnMuxCertificate {
     .PARAMETER Path
         Specifies the file path location where a .cer file is exported automatically.
     .PARAMETER FabricDetails
-        The SDN Fabric details derived from Get-SdnInfrastructureInfo.
+        The EnvironmentInfo derived from Get-SdnInfrastructureInfo.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user
     .EXAMPLE
@@ -481,21 +483,15 @@ function New-SdnMuxCertificate {
         [System.String]$Path = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $config = Get-SdnModuleConfiguration -Role 'LoadBalancerMux'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a LoadBalancerMux, run this on LoadBalancerMux.")
-    }
-
-    # ensure that the module is running as local administrator
-    Confirm-IsAdmin
+    Confirm-IsAdmin # ensure that the module is running as local administrator
+    Confirm-IsLoadBalancerMux # ensure that the module is running on a Load Balancer Mux
 
     try {
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
@@ -515,14 +511,17 @@ function New-SdnMuxCertificate {
         [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -LoadBalancerMuxNodeCert -Credential $Credential
 
-        $certObject = [PSCustomObject]@{
+        # distribute the certificate to the Network Controller(s) in the fabric to be installed in trusted root store
+        if ($FabricDetails) {
+            "Distributing certificate to the SDN Fabric" | Trace-Output
+            Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -LoadBalancerMuxNodeCert -Credential $Credential
+        }
+
+        return [PSCustomObject]@{
             Certificate = $certificate
             FileInfo = $exportedCertificate
         }
-
-        return $certObject
     }
     catch {
         $_ | Trace-Exception
@@ -624,26 +623,27 @@ function Start-SdnMuxCertificateRotation {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
     }
 
+    if ([String]::IsNullOrEmpty($CertPath)) {
+        [System.String]$CertPath = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC)
+
+        if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
+            $null = New-Item -Path $CertPath -ItemType Directory -Force
+        }
+    }
+
+    "Starting certificate rotation" | Trace-Output
+    "Retrieving current SDN environment details" | Trace-Output
+
+    [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
+    $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
+    $ncRestParams = $restCredParam.Clone()
+    $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+
     try {
-        "Starting certificate rotation" | Trace-Output
-        "Retrieving current SDN environment details" | Trace-Output
-
-        if ([String]::IsNullOrEmpty($CertPath)) {
-            [System.String]$CertPath = "$(Get-WorkingDirectory)\MuxCert_{0}" -f (Get-FormattedDateTimeUTC)
-
-            if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
-                $null = New-Item -Path $CertPath -ItemType Directory -Force
-            }
-        }
-
-        [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
-        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
-            throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
-        }
-
-        $ncRestParams = $restCredParam.Clone()
-        $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
         $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
@@ -671,7 +671,7 @@ function Start-SdnMuxCertificateRotation {
                         [Parameter(Position = 0)][DateTime]$param1,
                         [Parameter(Position = 1)][PSCredential]$param2,
                         [Parameter(Position = 2)][String]$param3,
-                        [Parameter(Position = 3)][System.Object]$param4
+                        [Parameter(Position = 3)][SdnFabricInfrastructure]$param4
                     )
 
                     New-SdnMuxCertificate -NotAfter $param1 -Credential $param2 -Path $param3 -FabricDetails $param4

@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
@@ -2663,7 +2665,7 @@ function New-SdnServerCertificate {
     .PARAMETER Path
         Specifies the file path location where a .cer file is exported automatically.
     .PARAMETER FabricDetails
-        The SDN Fabric details derived from Get-SdnInfrastructureInfo.
+        The EnvironmentInfo derived from Get-SdnInfrastructureInfo.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user
     .EXAMPLE
@@ -2679,7 +2681,7 @@ function New-SdnServerCertificate {
         [System.String]$Path = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
@@ -2733,14 +2735,17 @@ function New-SdnServerCertificate {
         [System.String]$cerFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $subjectName.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).cer"
         "Exporting certificate to {0}" -f $cerFilePath | Trace-Output
         $exportedCertificate = Export-Certificate -Cert $certificate -FilePath $cerFilePath -Type CERT
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -ServerNodeCert -Credential $Credential
 
-        $certObject = [PSCustomObject]@{
+        # distribute the certificate to the Network Controller(s) in the fabric to be installed in trusted root store
+        if ($FabricDetails) {
+            "Distributing certificate to SDN Fabric" | Trace-Output
+            Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -FabricDetails $FabricDetails -ServerNodeCert -Credential $Credential
+        }
+
+        return [PSCustomObject]@{
             Certificate = $certificate
             FileInfo = $exportedCertificate
         }
-
-        return $certObject
     }
     catch {
         $_ | Trace-Exception
@@ -3063,26 +3068,27 @@ function Start-SdnServerCertificateRotation {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
     }
 
+    "Starting certificate rotation" | Trace-Output
+    "Retrieving current SDN environment details" | Trace-Output
+
+    if ([String]::IsNullOrEmpty($CertPath)) {
+        [System.String]$CertPath = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC)
+
+        if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
+            $null = New-Item -Path $CertPath -ItemType Directory -Force
+        }
+    }
+
+    [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
+    $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
+    if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
+        throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
+    }
+
+    $ncRestParams = $restCredParam.Clone()
+    $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
+
     try {
-        "Starting certificate rotation" | Trace-Output
-        "Retrieving current SDN environment details" | Trace-Output
-
-        if ([String]::IsNullOrEmpty($CertPath)) {
-            [System.String]$CertPath = "$(Get-WorkingDirectory)\ServerCert_{0}" -f (Get-FormattedDateTimeUTC)
-
-            if (-NOT (Test-Path -Path $CertPath -PathType Container)) {
-                $null = New-Item -Path $CertPath -ItemType Directory -Force
-            }
-        }
-
-        [System.IO.FileSystemInfo]$CertPath = Get-Item -Path $CertPath -ErrorAction Stop
-        $sdnFabricDetails = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam -ErrorAction Stop
-        if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
-            throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
-        }
-
-        $ncRestParams = $restCredParam.Clone()
-        $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
         $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
@@ -3109,7 +3115,7 @@ function Start-SdnServerCertificateRotation {
                         [Parameter(Position = 0)][DateTime]$param1,
                         [Parameter(Position = 1)][PSCredential]$param2,
                         [Parameter(Position = 2)][String]$param3,
-                        [Parameter(Position = 3)][System.Object]$param4
+                        [Parameter(Position = 3)][SdnFabricInfrastructure]$param4
                     )
 
                     New-SdnServerCertificate -NotAfter $param1 -Credential $param2 -Path $param3 -FabricDetails $param4
