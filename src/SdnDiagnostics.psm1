@@ -1255,7 +1255,7 @@ function Show-SdnGatewayUtilization {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $ncRestParams = @{
