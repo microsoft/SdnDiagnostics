@@ -1461,7 +1461,7 @@ function Show-SdnGatewayUtilization {
                     $barLength = 40
                     $filledLength = [int][Math]::Round(($utilizationPercent / 100) * $barLength)
                     $emptyLength = $barLength - $filledLength
-                    $bar = ("█" * $filledLength) + ("░" * $emptyLength)
+                    $bar = ("=" * $filledLength) + ("." * $emptyLength)
 
                     # Determine color based on utilization thresholds
                     $barColor = if ($utilizationPercent -ge 90) { 'Red' }
@@ -1479,7 +1479,7 @@ function Show-SdnGatewayUtilization {
                     "`t`tCPU Utilization (sampled at {0}):" -f $gateway.CpuMetrics.Timestamp.ToString('yyyy-MM-dd HH:mm:ss') | Write-Host -ForegroundColor Cyan
                     
                     foreach ($cpu in $gateway.CpuMetrics.Processors | Sort-Object -Property ProcessorId) {
-                        $cpuBar = '█' * [int]($cpu.Utilization / 2.5)  # Scale to ~40 chars max
+                        $cpuBar = '=' * [int]($cpu.Utilization / 2.5)  # Scale to ~40 chars max
                         $cpuColor = if ($cpu.Utilization -ge 90) { 'Red' }
                                     elseif ($cpu.Utilization -ge 75) { 'Yellow' }
                                     else { 'Green' }
@@ -1490,7 +1490,7 @@ function Show-SdnGatewayUtilization {
                     }
                     
                     # Display average
-                    $avgBar = '█' * [int]($gateway.CpuMetrics.AverageUtilization / 2.5)
+                    $avgBar = '=' * [int]($gateway.CpuMetrics.AverageUtilization / 2.5)
                     $avgColor = if ($gateway.CpuMetrics.AverageUtilization -ge 90) { 'Red' }
                                 elseif ($gateway.CpuMetrics.AverageUtilization -ge 75) { 'Yellow' }
                                 else { 'Green' }
