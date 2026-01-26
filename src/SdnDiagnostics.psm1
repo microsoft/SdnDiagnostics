@@ -819,7 +819,8 @@ function Start-SdnDataCollection {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
-
+        $null = Start-Transcript -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'DataCollection_Transcript.txt') -ErrorAction Stop
+        
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
 
@@ -1143,6 +1144,7 @@ function Start-SdnDataCollection {
         }
     }
 
+    $null = Stop-Transcript -ErrorAction Ignore
     return $dataCollectionObject
 }
 
