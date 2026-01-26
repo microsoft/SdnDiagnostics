@@ -2509,7 +2509,7 @@ function Get-SdnVfpVmSwitchPort {
 function Get-SdnVMNetworkAdapter {
     <#
     .SYNOPSIS
-        Retrieves the virtual machine network adapters that are allocated on a hyper-v host
+        Retrieves the virtual machine network adapters that are allocated on a hyper-v host using CIM for improved performance.
     .PARAMETER All
         Specifies all virtual network adapters in the system, regardless of whether the virtual network adapter is in the management operating system or in a virtual machine.
     .PARAMETER VMName
@@ -2530,6 +2530,8 @@ function Get-SdnVMNetworkAdapter {
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02'
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -VMName 'MyVM' -Name 'NetworkAdapter1'
     #>
 
     [CmdletBinding()]
@@ -2561,23 +2563,131 @@ function Get-SdnVMNetworkAdapter {
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    if ($null -eq (Get-Module -Name Hyper-V)) {
-        Import-Module -Name Hyper-V -Force -ErrorAction Stop
-    }
-
-    $vmNetworkAdaptersParams = $PSBoundParameters
-    [void]$vmNetworkAdaptersParams.Remove('MacAddress')
-    if ($Credential -eq [System.Management.Automation.PSCredential]::Empty) {
-        [void]$vmNetworkAdaptersParams.Remove('Credential')
-    }
-
     try {
-        $adapters = Get-VMNetworkAdapter @vmNetworkAdaptersParams
+        $scriptBlock = {
+            param(
+                [bool]$AllAdapters,
+                [string]$VMNameFilter,
+                [string]$NameFilter,
+                [string]$MacAddressFilter,
+                [bool]$ManagementOSFilter,
+                [string]$SwitchNameFilter
+            )
 
-        if ($MacAddress) {
-            $macAddress = Format-SdnMacAddress -MacAddress $MacAddress
-            $macAddress1 = Format-SdnMacAddress -MacAddress $MacAddress -Dashes
-            $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress -or $_.MacAddress -eq $macAddress1 }
+            $adapters = @()
+            
+            # Query all VMs using CIM
+            $vms = Get-CimInstance -Namespace 'root\virtualization\v2' -ClassName 'Msvm_ComputerSystem' -ErrorAction Stop
+            
+            foreach ($vm in $vms) {
+                # Filter based on VM type
+                # ElementName 0 = Host (Management OS), Caption 'Virtual Machine' = VM
+                $isManagementOS = ($vm.Caption -ieq 'Hosting Computer System')
+                
+                # Apply ManagementOS filter
+                if ($ManagementOSFilter -and -not $isManagementOS) {
+                    continue
+                }
+                if (-not $AllAdapters -and -not $ManagementOSFilter -and $isManagementOS -and -not $VMNameFilter) {
+                    continue
+                }
+                
+                # Apply VMName filter
+                if ($VMNameFilter -and $vm.ElementName -ne $VMNameFilter) {
+                    continue
+                }
+                
+                # Get network adapters for this VM
+                $networkAdapters = $vm | Get-CimAssociatedInstance -ResultClassName 'Msvm_SyntheticEthernetPort' -ErrorAction SilentlyContinue
+                
+                foreach ($adapter in $networkAdapters) {
+                    # Get the adapter settings
+                    $adapterSettings = $adapter | Get-CimAssociatedInstance -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' -ErrorAction SilentlyContinue
+                    
+                    if ($adapterSettings) {
+                        foreach ($setting in $adapterSettings) {
+                            # Apply Name filter
+                            if ($NameFilter -and $setting.ElementName -ne $NameFilter) {
+                                continue
+                            }
+                            
+                            # Apply MacAddress filter (normalize format)
+                            if ($MacAddressFilter) {
+                                $settingMac = $setting.Address -replace '[:\-]', ''
+                                $filterMac = $MacAddressFilter -replace '[:\-]', ''
+                                if ($settingMac -ne $filterMac) {
+                                    continue
+                                }
+                            }
+                            
+                            # Get switch connection if available
+                            $switchName = $null
+                            try {
+                                $portAllocation = $setting | Get-CimAssociatedInstance -ResultClassName 'Msvm_EthernetPortAllocationSettingData' -ErrorAction SilentlyContinue
+                                if ($portAllocation) {
+                                    $switchPort = $portAllocation | Get-CimAssociatedInstance -ResultClassName 'Msvm_EthernetSwitchPort' -ErrorAction SilentlyContinue
+                                    if ($switchPort) {
+                                        $switch = $switchPort | Get-CimAssociatedInstance -ResultClassName 'Msvm_VirtualEthernetSwitch' -ErrorAction SilentlyContinue
+                                        if ($switch) {
+                                            $switchName = $switch.ElementName
+                                        }
+                                    }
+                                }
+                            }
+                            catch {
+                                # Ignore errors getting switch info
+                            }
+                            
+                            # Apply SwitchName filter
+                            if ($SwitchNameFilter -and $switchName -ne $SwitchNameFilter) {
+                                continue
+                            }
+                            
+                            # Create output object similar to Get-VMNetworkAdapter
+                            $adapterObject = [PSCustomObject]@{
+                                Name = $setting.ElementName
+                                VMName = if ($isManagementOS) { $null } else { $vm.ElementName }
+                                IsManagementOs = $isManagementOS
+                                MacAddress = $setting.Address
+                                SwitchName = $switchName
+                                Connected = ($setting.EnabledState -eq 2)
+                                AdapterId = $setting.InstanceID
+                                PoolName = $setting.PoolID
+                                VMId = $vm.Name
+                            }
+                            
+                            $adapters += $adapterObject
+                        }
+                    }
+                }
+            }
+            
+            return $adapters
+        }
+
+        # Prepare parameters for script block
+        $scriptParams = @{
+            AllAdapters = $All.IsPresent
+            VMNameFilter = $VMName
+            NameFilter = $Name
+            MacAddressFilter = $MacAddress
+            ManagementOSFilter = $ManagementOS.IsPresent
+            SwitchNameFilter = $SwitchName
+        }
+
+        # Execute locally or remotely
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $adapters = Invoke-PSRemoteCommand -ComputerName $ComputerName -Credential $Credential -ScriptBlock $scriptBlock -ArgumentList @(
+                $scriptParams.AllAdapters,
+                $scriptParams.VMNameFilter,
+                $scriptParams.NameFilter,
+                $scriptParams.MacAddressFilter,
+                $scriptParams.ManagementOSFilter,
+                $scriptParams.SwitchNameFilter
+            )
+        }
+        else {
+            $adapters = & $scriptBlock @scriptParams
         }
 
         return ($adapters | Sort-Object -Property Name)
