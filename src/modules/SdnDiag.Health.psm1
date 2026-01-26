@@ -400,6 +400,20 @@ function Debug-SdnFabricInfrastructure {
         [switch]$SkipSummaryDisplay
     )
 
+    # if we are running in a remote session, we need to do some extra validation
+    if ($PSSenderInfo) {
+        # if we are running in a remote session and CredSSP is not enabled, then we need to ensure that
+        # the user has supplied -Credential to avoid double-hop authentication issues
+        if (-not (Get-WSManCredSSPState)) {
+            if ($Credential -ieq [System.Management.Automation.PSCredential]::Empty -or $null -ieq $Credential) {
+                throw New-Object System.NotSupportedException("Debug-SdnFabricInfrastructure cannot be run in a remote session without supplying -Credential.")
+            }
+        }
+    }
+    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
+        Confirm-IsNetworkController
+    }
+
     $script:SdnDiagnostics_Health.Cache = $null
     $aggregateHealthReport = @()
     $dateTimeNow = Get-Date -Format 'yyyyMMdd-HHmmss'
@@ -408,11 +422,6 @@ function Debug-SdnFabricInfrastructure {
     $transcriptDirectory = Get-WorkingDirectory
     $transcriptPath = "{0}\SdnFabricHealthReport_{1}.txt" -f $transcriptDirectory, $dateTimeNow
     $null = Start-Transcript -Path $transcriptPath -Force
-    "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
-
-    if (Test-ComputerNameIsLocal -ComputerName $NetworkController) {
-        Confirm-IsNetworkController
-    }
 
     if ($PSBoundParameters.ContainsKey('NcRestCertificate')) {
         $restCredParam = @{ NcRestCertificate = $NcRestCertificate }
@@ -421,6 +430,7 @@ function Debug-SdnFabricInfrastructure {
         $restCredParam = @{ NcRestCredential = $NcRestCredential }
     }
 
+    "Starting SDN Fabric Infrastructure health validation at {0}" -f $dateTimeNowFormatted | Trace-Output -Level:Information
     $environmentInfo = Get-SdnInfrastructureInfo -NetworkController $NetworkController -Credential $Credential @restCredParam
     if ($null -eq $environmentInfo) {
         throw New-Object System.NullReferenceException("Unable to retrieve environment details")
