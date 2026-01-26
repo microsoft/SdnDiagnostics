@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 
 $configurationData = Import-PowerShellDataFile -Path "$PSScriptRoot\SdnDiag.Common.Config.psd1"
@@ -90,7 +92,7 @@ function Copy-CertificateToFabric {
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerNode')]
         [Parameter(Mandatory = $true, ParameterSetName = 'LoadBalancerMuxNode')]
         [Parameter(Mandatory = $true, ParameterSetName = 'ServerNode')]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'NetworkControllerRest')]
         [Switch]$NetworkControllerRestCertificate,
@@ -312,7 +314,7 @@ function Copy-UserProvidedCertificateToFabric {
         [System.Security.SecureString]$CertPassword,
 
         [Parameter(Mandatory = $true)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [Parameter(Mandatory = $false)]
         [System.Boolean]$RotateNodeCerts = $false,

@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module ..\classes\Common.psm1
+
 Import-Module $PSScriptRoot\SdnDiag.Common.psm1
 Import-Module $PSScriptRoot\SdnDiag.Utilities.psm1
 Import-Module $PSScriptRoot\SdnDiag.NetworkController.FC.psm1
@@ -14,15 +16,6 @@ New-Variable -Name 'SdnDiagnostics_NC' -Scope 'Script' -Force -Value @{
 ##########################
 #### CLASSES & ENUMS #####
 ##########################
-
-class SdnFabricInfrastructure {
-    [System.String[]]$NetworkController
-    [System.String[]]$LoadBalancerMux
-    [System.String[]]$Gateway
-    [System.String]$NcUrl
-    [System.String]$RestApiVersion
-    [System.String[]]$FabricNodes
-}
 
 enum SdnApiResource {
     AccessControlLists
@@ -2500,7 +2493,12 @@ function New-SdnNetworkControllerNodeCertificate {
         Specifies the date and time, as a DateTime object, that the certificate expires. To obtain a DateTime object, use the Get-Date cmdlet. The default value for this parameter is one year after the certificate was created.
     .PARAMETER CertPassword
         Specifies the password for the exported PFX file in the form of a secure string.
+    .PARAMETER Path
+        Specifies the directory path to save the exported certificate file.
+    .PARAMETER FabricDetails
+        The EnvironmentInfo derived from Get-SdnInfrastructureInfo.
     .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user
     .EXAMPLE
     #>
 
@@ -2516,33 +2514,20 @@ function New-SdnNetworkControllerNodeCertificate {
         [System.String]$Path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
         $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    $config = Get-SdnModuleConfiguration -Role 'NetworkController'
-    $confirmFeatures = Confirm-RequiredFeaturesInstalled -Name $config.windowsFeature
-    if (-NOT ($confirmFeatures)) {
-        throw New-Object System.NotSupportedException("The current machine is not a NetworkController, run this on NetworkController.")
-    }
-
+    Confirm-IsAdmin # ensure that the module is running as local administrator
+    Confirm-IsNetworkController # ensure that the module is running on Network Controller
     if ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType -ine 'ServiceFabric') {
         throw New-Object System.NotSupportedException("This function is only supported on Service Fabric clusters.")
     }
 
-    # ensure that the module is running as local administrator
-    Confirm-IsAdmin
-
     try {
-        if ($null -eq $FabricDetails) {
-            $FabricDetails = [SdnFabricInfrastructure]@{
-                NetworkController = (Get-SdnNetworkControllerSFNode).Server
-            }
-        }
-
         if (-NOT (Test-Path -Path $Path -PathType Container)) {
             "Creating directory {0}" -f $Path | Trace-Output
             $CertPath = New-Item -Path $Path -ItemType Directory -Force
@@ -2560,15 +2545,18 @@ function New-SdnNetworkControllerNodeCertificate {
         [System.String]$pfxFilePath = "$(Join-Path -Path $CertPath.FullName -ChildPath $nodeCertSubject.ToString().ToLower().Replace('.','_').Replace("=",'_').Trim()).pfx"
         "Exporting pfx certificate to {0}" -f $pfxFilePath | Trace-Output
         $exportedCertificate = Export-PfxCertificate -Cert $certificate -FilePath $pfxFilePath -Password $CertPassword -CryptoAlgorithmOption AES256_SHA256
-        $null = Import-SdnCertificate -FilePath $exportedCertificate.FullName -CertStore 'Cert:\LocalMachine\Root' -CertPassword $CertPassword
 
-        Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
-            -NetworkControllerNodeCert -Credential $Credential
+        # distribute the certificate to the Network Controller(s) in the fabric to be installed in trusted root store
+        if ($FabricDetails) {
+            "Distributing certificate to the SDN Fabric" | Trace-Output
+            Copy-CertificateToFabric -CertFile $exportedCertificate.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails `
+                -NetworkControllerNodeCert -Credential $Credential
+        }
 
-        return ([PSCustomObject]@{
+        return [PSCustomObject]@{
             Certificate = $certificate
             FileInfo = $exportedCertificate
-        })
+        }
     }
     catch {
         $_ | Trace-Exception
@@ -2601,7 +2589,7 @@ function New-SdnNetworkControllerRestCertificate {
         [System.String]$Path = "$(Get-WorkingDirectory)\Cert_{0}" -f (Get-FormattedDateTimeUTC),
 
         [Parameter(Mandatory = $false)]
-        [System.Object]$FabricDetails,
+        [SdnFabricInfrastructure]$FabricDetails,
 
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]

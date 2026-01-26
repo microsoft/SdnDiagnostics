@@ -1,6 +1,8 @@
 # Copyright (c) Microsoft Corporation.
 # Licensed under the MIT License.
 
+using module .\classes\Common.psm1
+
 New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
     Cache = @{}
     EnvironmentInfo = @{
@@ -416,7 +418,7 @@ function Start-SdnCertificateRotation {
                         [Parameter(Position = 1)][SecureString]$param2,
                         [Parameter(Position = 2)][PSCredential]$param3,
                         [Parameter(Position = 3)][String]$param4,
-                        [Parameter(Position = 4)][System.Object]$param5
+                        [Parameter(Position = 4)][SdnFabricInfrastructure]$param5
                     )
 
                     New-SdnNetworkControllerNodeCertificate -NotAfter $param1 -CertPassword $param2 -Credential $param3 -Path $param4 -FabricDetails $param5
