@@ -754,6 +754,17 @@ function Start-SdnDataCollection {
         [bool]$ConvertETW = $true
     )
 
+    # if we are running in a remote session, we need to do some extra validation
+    if ($PSSenderInfo) {
+        # if we are running in a remote session and CredSSP is not enabled, then we need to ensure that
+        # the user has supplied -Credential to avoid double-hop authentication issues
+        if (-not (Get-WSManCredSSPState)) {
+            if ($Credential -ieq [System.Management.Automation.PSCredential]::Empty -or $null -ieq $Credential) {
+                throw New-Object System.NotSupportedException("Start-SdnDataCollection cannot be run in a remote session without supplying -Credential.")
+            }
+        }
+    }
+
     $ErrorActionPreference = 'Continue'
     $dataCollectionNodes = [System.Collections.ArrayList]::new() # need an arrayList so we can remove objects from this list
 
@@ -821,7 +832,8 @@ function Start-SdnDataCollection {
         [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
-
+        $null = Start-Transcript -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'DataCollection_Transcript.txt') -ErrorAction Stop
+        
         # setup the directory location where files will be saved to
         "Starting SDN Data Collection" | Trace-Output
 
@@ -1145,6 +1157,7 @@ function Start-SdnDataCollection {
         }
     }
 
+    $null = Stop-Transcript -ErrorAction Ignore
     return $dataCollectionObject
 }
 
@@ -1255,7 +1268,7 @@ function Show-SdnGatewayUtilization {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
     $ncRestParams = @{
@@ -1461,7 +1474,7 @@ function Show-SdnGatewayUtilization {
                     $barLength = 40
                     $filledLength = [int][Math]::Round(($utilizationPercent / 100) * $barLength)
                     $emptyLength = $barLength - $filledLength
-                    $bar = ("█" * $filledLength) + ("░" * $emptyLength)
+                    $bar = ("=" * $filledLength) + ("." * $emptyLength)
 
                     # Determine color based on utilization thresholds
                     $barColor = if ($utilizationPercent -ge 90) { 'Red' }
@@ -1479,7 +1492,7 @@ function Show-SdnGatewayUtilization {
                     "`t`tCPU Utilization (sampled at {0}):" -f $gateway.CpuMetrics.Timestamp.ToString('yyyy-MM-dd HH:mm:ss') | Write-Host -ForegroundColor Cyan
                     
                     foreach ($cpu in $gateway.CpuMetrics.Processors | Sort-Object -Property ProcessorId) {
-                        $cpuBar = '█' * [int]($cpu.Utilization / 2.5)  # Scale to ~40 chars max
+                        $cpuBar = '=' * [int]($cpu.Utilization / 2.5)  # Scale to ~40 chars max
                         $cpuColor = if ($cpu.Utilization -ge 90) { 'Red' }
                                     elseif ($cpu.Utilization -ge 75) { 'Yellow' }
                                     else { 'Green' }
@@ -1490,7 +1503,7 @@ function Show-SdnGatewayUtilization {
                     }
                     
                     # Display average
-                    $avgBar = '█' * [int]($gateway.CpuMetrics.AverageUtilization / 2.5)
+                    $avgBar = '=' * [int]($gateway.CpuMetrics.AverageUtilization / 2.5)
                     $avgColor = if ($gateway.CpuMetrics.AverageUtilization -ge 90) { 'Red' }
                                 elseif ($gateway.CpuMetrics.AverageUtilization -ge 75) { 'Yellow' }
                                 else { 'Green' }
