@@ -2522,6 +2522,8 @@ function Get-SdnVMNetworkAdapter {
         Specifies the management operating system, i.e. the virtual machine host operating system.
     .PARAMETER SwitchName
         Specifies the name of the virtual switch whose network adapters are to be retrieved. (This parameter is available only for virtual network adapters in the management operating system.)
+    .PARAMETER AsVMObject
+        Returns actual VMNetworkAdapter objects from Hyper-V module instead of PSCustomObjects. Use this when you need to pass the result to other Hyper-V cmdlets like Get-VMSwitchExtensionPortFeature.
     .PARAMETER ComputerName
         Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers. To specify the local computer, type the computer name, localhost, or a dot (.). When the computer is in a different domain than the user, the fully qualified domain name is required
 	.PARAMETER Credential
@@ -2532,6 +2534,8 @@ function Get-SdnVMNetworkAdapter {
         PS> Get-SdnVMNetworkAdapter -ComputerName 'Server01','Server02' -Credential (Get-Credential)
     .EXAMPLE
         PS> Get-SdnVMNetworkAdapter -VMName 'MyVM' -Name 'NetworkAdapter1'
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapter -All -AsVMObject
     #>
 
     [CmdletBinding()]
@@ -2553,6 +2557,9 @@ function Get-SdnVMNetworkAdapter {
 
         [Parameter(Mandatory = $false)]
         [string]$SwitchName,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$AsVMObject,
 
         [Parameter(Mandatory = $false)]
         [System.String[]]$ComputerName,
@@ -2690,6 +2697,37 @@ function Get-SdnVMNetworkAdapter {
             $adapters = & $scriptBlock @scriptParams
         }
 
+        # If AsVMObject is specified, use Get-VMNetworkAdapter to get actual VM objects
+        # This is needed for compatibility with other Hyper-V cmdlets like Get-VMSwitchExtensionPortFeature
+        if ($AsVMObject) {
+            "AsVMObject specified, retrieving actual VMNetworkAdapter objects" | Trace-Output -Level:Verbose
+            
+            if ($null -eq (Get-Module -Name Hyper-V)) {
+                Import-Module -Name Hyper-V -Force -ErrorAction Stop
+            }
+
+            $vmNetworkAdaptersParams = @{}
+            if ($All) { $vmNetworkAdaptersParams['All'] = $true }
+            if ($VMName) { $vmNetworkAdaptersParams['VMName'] = $VMName }
+            if ($Name) { $vmNetworkAdaptersParams['Name'] = $Name }
+            if ($ManagementOS) { $vmNetworkAdaptersParams['ManagementOS'] = $true }
+            if ($SwitchName) { $vmNetworkAdaptersParams['SwitchName'] = $SwitchName }
+            if ($PSBoundParameters.ContainsKey('ComputerName')) { 
+                $vmNetworkAdaptersParams['ComputerName'] = $ComputerName 
+            }
+            if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+                $vmNetworkAdaptersParams['Credential'] = $Credential
+            }
+
+            $adapters = Get-VMNetworkAdapter @vmNetworkAdaptersParams
+
+            if ($MacAddress) {
+                $macAddress = Format-SdnMacAddress -MacAddress $MacAddress
+                $macAddress1 = Format-SdnMacAddress -MacAddress $MacAddress -Dashes
+                $adapters = $adapters | Where-Object { $_.MacAddress -eq $MacAddress -or $_.MacAddress -eq $macAddress1 }
+            }
+        }
+
         return ($adapters | Sort-Object -Property Name)
     }
     catch {
@@ -2734,7 +2772,7 @@ function Get-SdnVMNetworkAdapterPortProfile {
     $array = @()
 
     try {
-        $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters
+        $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters -AsVMObject
         foreach ($adapter in $netAdapters) {
             $object = [VMNetAdapterPortProfile]@{
                 VMName      = $adapter.VMName
