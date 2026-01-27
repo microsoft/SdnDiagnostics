@@ -2272,7 +2272,7 @@ function Get-SdnVfpPortState {
                     "Inner MAC VMQ Enabled" { $object.OffloadState.InnerMacVmqEnabled = $true }
                     
                     default {
-                        # this may just be random lines that do not map to a property, so we will just log it and continue
+                        # this may just be random lines that do not map to a property, so we will just skip them
                         continue
                     }
                 }
