@@ -163,6 +163,7 @@ class VfpPortState {
     [boolean]$PreserveVlan
     [boolean]$IsVmContextSet
     [boolean]$VmqEnabled
+    [boolean]$SriovEnabled
     $OffloadState = [OffLoadStateDetails]::new()
     [boolean]$QosHardwareReservationsEnabled
     [boolean]$QosHardwareCapsEnabled
@@ -2228,25 +2229,8 @@ function Get-SdnVfpPortState {
                     'Blocked' { $object.Blocked = $propertyValue }
                     'BlockedOnRestore' { $object.BlockOnRestore = $propertyValue }
                     'BlockedLayerCreation' { $object.BlockLayerCreation = $propertyValue }
-                    'DTLS Offload Enabled' { $object.DtlsOffloadEnabled = $propertyValue }
-                    'GFT Offload Enabled' { $object.GftOffloadEnabled = $propertyValue }
-                    'QoS Hardware Transmit Cap Offload Enabled' { $object.QosHardwareCapsEnabled = $propertyValue }
-                    'QoS Hardware Transmit Reservation Offload Enabled' { $object.QosHardwareReservationsEnabled = $propertyValue }
                     'Preserving Vlan' { $object.PreserveVlan = $propertyValue }
                     'VM Context Set' { $object.IsVmContextSet = $propertyValue }
-
-                    # update the OffLoadStateDetails properties
-                    'NVGRE LSO Offload Enabled' { $object.OffloadState.LsoV2Supported = $propertyValue}
-                    'NVGRE RSS Enabled' { $object.OffloadState.RssSupported = $propertyValue }
-                    'NVGRE Transmit Checksum Offload Enabled' { $object.OffloadState.TransmitChecksumOffloadSupported = $propertyValue }
-                    'NVGRE Receive Checksum Offload Enabled' { $object.OffloadState.ReceiveChecksumOffloadSupported = $propertyValue }
-                    'NVGRE VMQ Enabled' { $object.OffloadState.VmqSupported = $propertyValue }
-                    'VXLAN LSO Offload Enabled' { $object.OffloadState.LsoV2SupportedVxlan = $propertyValue }
-                    'VXLAN RSS Enabled' { $object.OffloadState.RssSupportedVxlan = $propertyValue }
-                    'VXLAN Transmit Checksum Offload Enabled' { $object.OffloadState.TransmitChecksumOffloadSupportedVxlan = $propertyValue }
-                    'VXLAN Receive Checksum Offload Enabled' { $object.OffloadState.ReceiveChecksumOffloadSupportedVxlan = $propertyValue }
-                    'VXLAN VMQ Enabled' { $object.OffloadState.VmqSupportedVxlan = $propertyValue }
-                    'Inner MAC VMQ Enabled' { $object.OffloadState.InnerMacVmqEnabled = $propertyValue }
 
                     default {
                         $propertyName = $propertyName.Replace(' ','').Trim()
@@ -2262,8 +2246,36 @@ function Get-SdnVfpPortState {
                 }
             }
             else {
-                # if the line does not have key/value pairs, then continue to next line
-                continue
+                # in this scenario, we do not have a key/value pair, so we will need to extract the property differently
+                # in most instances, if we see the property defined in the line, we can assume it is enabled since default is disabled and will not print
+                # with vfpctrl /get-port-state output
+                switch ($line.Trim()) {
+                    # these will map to VfpPortState
+                    "DTLS Offload Enabled" { $object.DtlsOffloadEnabled = $true }
+                    "GFT Offload Enabled" { $object.GftOffloadEnabled = $true }
+                    "VMQ Enabled" { $object.VmqEnabled = $true }
+                    "QoS Hardware Transmit Cap Offload Enabled" { $object.QosHardwareCapsEnabled = $true }
+                    "QoS Hardware Transmit Reservation Offload Enabled" { $object.QosHardwareReservationsEnabled = $true }
+                    "SR-IOV Enabled" { $object.SriovEnabled = $true }
+
+                    # these will map to the OffloadState property within VfpPortState
+                    "NVGRE LSO Offload Enabled" { $object.OffloadState.LsoV2Supported = $true  }
+                    "NVGRE RSS Enabled" { $object.OffloadState.RssSupported = $true  }                    
+                    "NVGRE Transmit Checksum Offload Enabled" { $object.OffloadState.TransmitChecksumOffloadSupported = $true }
+                    "NVGRE Receive Checksum Offload Enabled" { $object.OffloadState.ReceiveChecksumOffloadSupported = $true }
+                    "NVGRE VMQ Enabled" { $object.OffloadState.VmqSupported = $true }
+                    "VXLAN LSO Offload Enabled" { $object.OffloadState.LsoV2SupportedVxlan = $true }
+                    "VXLAN RSS Enabled" { $object.OffloadState.RssSupportedVxlan = $true }
+                    "VXLAN Transmit Checksum Offload Enabled" { $object.OffloadState.TransmitChecksumOffloadSupportedVxlan = $true }
+                    "VXLAN Receive Checksum Offload Enabled" { $object.OffloadState.ReceiveChecksumOffloadSupportedVxlan = $true }
+                    "VXLAN VMQ Enabled" { $object.OffloadState.VmqSupportedVxlan = $true }
+                    "Inner MAC VMQ Enabled" { $object.OffloadState.InnerMacVmqEnabled = $true }
+                    
+                    default {
+                        # this may just be random lines that do not map to a property, so we will just log it and continue
+                        continue
+                    }
+                }
             }
         }
 
