@@ -1179,16 +1179,16 @@ function Test-SdnCertificateMultiple {
             }
         }
 
-        # exclude any Azure Stack certificates from the results as these are managed on their own lifecycle
-        # could be edge scenarios where we have an outdate certificate, but we will take caution regardless to not delete these certificates
-        if ($null -ne $certificate) {
-            $certificate = $certificate | Where-Object { $_.Issuer -ine "CN=AzureStackCertificationAuthority"}
-        }
-
-        # if we still have multiple certificates after filtering, we need to flag this as a warning
-        # we will exclude the most current certificate from the warning as that is the one in use
+        # if we have multiple certificates, we need to determine if any are extraneous
+        # we will presume that the latest certificate is the one we want to keep and if issued by AzureStackCertificationAuthority, we will prioritize that one
         if ($null -ne $certificate -and $certificate.Count -gt 1) {
-            $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            if ($certificate.Issuer -contains 'CN=AzureStackCertificationAuthority') {
+                $latestCert = $certificate | Where-Object { $_.Issuer -eq 'CN=AzureStackCertificationAuthority' } | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            }
+            else {
+                $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            }
+
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
             $certDetails = $certificate | ForEach-Object {
                 "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
