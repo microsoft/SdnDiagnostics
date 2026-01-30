@@ -952,8 +952,11 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
             $sdnHealthTest.Result = 'FAIL'
-            $rootCerts | ForEach-Object {
+            $certDetails = $rootCerts | ForEach-Object {
                 "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
+            }
+
+            $rootCerts | ForEach-Object {
                 $array += [PSCustomObject]@{
                     Thumbprint = $_.Thumbprint
                     Subject    = $_.Subject
@@ -1116,6 +1119,7 @@ function Test-SdnCertificateExpired {
 
     $role = $Global:SdnDiagnostics.Config.Role
     $sdnHealthTest = New-SdnHealthTest
+    $array = @()
 
     try {
         foreach ($r in $role) {
@@ -1134,8 +1138,9 @@ function Test-SdnCertificateExpired {
             if ($certificate -or $certificate.Count -gt 0) {
                 $sdnHealthTest.Result = 'FAIL'
                 $sdnHealthTest.Remediation = "Renew the certificate(s) used for SDN components."
+
                 $certificate | ForEach-Object {
-                    $sdnHealthTest.Properties += [PSCustomObject]@{
+                    $array += [PSCustomObject]@{
                         Thumbprint = $_.Thumbprint
                         Subject    = $_.Subject
                         NotAfter   = $_.NotAfter
@@ -1145,6 +1150,8 @@ function Test-SdnCertificateExpired {
                 }
             }
         }
+
+        $sdnHealthTest.Properties = $array
     }
     catch {
         $_ | Trace-Exception
@@ -1158,6 +1165,7 @@ function Test-SdnCertificateMultiple {
 
     $role = $Global:SdnDiagnostics.Config.Role
     $sdnHealthTest = New-SdnHealthTest
+    $array = @()
 
     try {
         foreach ($r in $role) {
@@ -1171,17 +1179,36 @@ function Test-SdnCertificateMultiple {
             }
         }
 
+        # if we have multiple certificates, we need to determine if any are extraneous
+        # we will presume that the latest certificate is the one we want to keep and if issued by AzureStackCertificationAuthority, we will prioritize that one
         if ($null -ne $certificate -and $certificate.Count -gt 1) {
-            # eliminate the most current certificate from the array as we do not want to flag that one
-            $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            if ($certificate.Issuer -contains 'CN=AzureStackCertificationAuthority') {
+                $latestCert = $certificate | Where-Object { $_.Issuer -eq 'CN=AzureStackCertificationAuthority' } | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            }
+            else {
+                $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+            }
+
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
             $certDetails = $certificate | ForEach-Object {
                 "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
             }
 
+            $certificate | ForEach-Object {
+                $array += [PSCustomObject]@{
+                    Thumbprint = $_.Thumbprint
+                    Subject    = $_.Subject
+                    Issuer     = $_.Issuer
+                    NotAfter   = $_.NotAfter
+                    NotBefore  = $_.NotBefore
+                }
+            }
+
             $sdnHealthTest.Result = 'WARNING'
-            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n`t{0}" -f ($certDetails -join "`r`n`t")
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
         }
+
+        $sdnHealthTest.Properties = $array
     }
     catch {
         $_ | Trace-Exception
