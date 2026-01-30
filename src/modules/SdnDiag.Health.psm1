@@ -1179,8 +1179,15 @@ function Test-SdnCertificateMultiple {
             }
         }
 
+        # exclude any Azure Stack certificates from the results as these are managed on their own lifecycle
+        # could be edge scenarios where we have an outdate certificate, but we will take caution regardless to not delete these certificates
+        if ($null -ne $certificate) {
+            $certificate = $certificate | Where-Object { $_.Issuer -ine "CN=AzureStackCertificationAuthority"}
+        }
+
+        # if we still have multiple certificates after filtering, we need to flag this as a warning
+        # we will exclude the most current certificate from the warning as that is the one in use
         if ($null -ne $certificate -and $certificate.Count -gt 1) {
-            # eliminate the most current certificate from the array as we do not want to flag that one
             $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
             $certDetails = $certificate | ForEach-Object {
