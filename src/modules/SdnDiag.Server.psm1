@@ -2995,6 +2995,8 @@ function Start-SdnServerCertificateRotation {
     .PARAMETER NcRestCertificate
         Specifies the client certificate that is used for a secure web request to Network Controller REST API.
         Enter a variable that contains a certificate or a command or expression that gets the certificate.
+    .PARAMETER ResourceRef
+        The resource reference of the Server node to perform the certificate rotation on, in format of "/servers/{name}". If ommited, the cmdlet will attempt to rotate certificates on all Server nodes within the fabric.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
     .PARAMETER GenerateCertificate
@@ -3017,6 +3019,11 @@ function Start-SdnServerCertificateRotation {
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
         [System.String]$NetworkController,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [System.String]$ResourceRef,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
@@ -3101,11 +3108,22 @@ function Start-SdnServerCertificateRotation {
     $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
 
     try {
-        $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
+        if ($ResourceRef) {
+            $servers = Get-SdnServer @ncRestParams -ResourceRef $ResourceRef -ErrorAction Stop
+        }
+        else {
+            $servers = Get-SdnServer @ncRestParams -ErrorAction Stop
+        }
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and Servers within the SDN fabric are running the current version
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -Credential $Credential -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -Credential $Credential -ErrorAction Stop
+        if ($ResourceRef) {
+            $serverFqdn = Get-SdnServer @ncRestParams -ResourceRef $ResourceRef -ManagementAddressOnly -ErrorAction Stop
+            Install-SdnDiagnostics -ComputerName $serverFqdn -Credential $Credential -ErrorAction Stop
+        }
+        else {
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.Server -Credential $Credential -ErrorAction Stop
+        }
 
         #####################################
         #

@@ -540,6 +540,8 @@ function Start-SdnMuxCertificateRotation {
         Enter a variable that contains a certificate or a command or expression that gets the certificate.
     .PARAMETER NcRestCredential
         Specifies a user account that has permission to perform this action against the Network Controller REST API. The default is the current user.
+    .PARAMETER ResourceRef
+        The resource reference of the Load Balancer Mux node to perform the certificate rotation on, in format of "/loadBalancerMuxes/{name}". If ommited, the cmdlet will attempt to rotate certificates on all Load Balancer Mux nodes within the fabric.
     .PARAMETER CertPath
         Path directory where certificate(s) .pfx files are located for use with certificate rotation.
     .PARAMETER GenerateCertificate
@@ -560,6 +562,11 @@ function Start-SdnMuxCertificateRotation {
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
         [Parameter(Mandatory = $true, ParameterSetName = 'CertConfig')]
         [System.String]$NetworkController,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Pfx')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'GenerateCertificate')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'CertConfig')]
+        [System.String]$ResourceRef,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Pfx')]
         [Parameter(Mandatory = $true, ParameterSetName = 'GenerateCertificate')]
@@ -644,11 +651,22 @@ function Start-SdnMuxCertificateRotation {
     $ncRestParams.Add('NcUri', $sdnFabricDetails.NcUrl)
 
     try {
-        $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ErrorAction Stop
+        if ($ResourceRef) {
+            $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ResourceRef $ResourceRef -ErrorAction Stop
+        }
+        else {
+            $loadBalancerMuxes = Get-SdnLoadBalancerMux @ncRestParams -ErrorAction Stop
+        }
 
         # before we proceed with anything else, we want to make sure that all the Network Controllers and MUXes within the SDN fabric are running the current version
         Install-SdnDiagnostics -ComputerName $sdnFabricDetails.NetworkController -ErrorAction Stop
-        Install-SdnDiagnostics -ComputerName $sdnFabricDetails.LoadBalancerMux -ErrorAction Stop
+        if ($ResourceRef) {
+            $muxFqdn = Get-SdnLoadBalancerMux @ncRestParams -ResourceRef $ResourceRef -ManagementAddressOnly -ErrorAction Stop
+            Install-SdnDiagnostics -ComputerName $muxFqdn -Credential $Credential -ErrorAction Stop
+        }
+        else {
+            Install-SdnDiagnostics -ComputerName $sdnFabricDetails.LoadBalancerMux -ErrorAction Stop
+        }
 
         #####################################
         #
