@@ -48,7 +48,7 @@ public static extern int HciModifyRelationship(
     string entityUniqueKey,
     uint action,
     string parentEntityType,
-    string parenetEntityKey,
+    string parentEntityKey,
     string parentEntityDescription,
     string parentEntityLocation,
     string parentEntityUniqueKey,
