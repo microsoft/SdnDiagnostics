@@ -1,6 +1,6 @@
 # The SdnDiagnostics Module test
 
-The `tests` folder include all the test script use [Pester](https://github.com/pester/Pester). 
+The `tests` folder includes all the test scripts that use [Pester](https://github.com/pester/Pester). 
 
 ## Offline and Online Tests
 
