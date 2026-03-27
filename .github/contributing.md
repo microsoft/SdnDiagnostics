@@ -3,7 +3,7 @@ When contributing to this project, ensure you:
 1. Review existing functions already available and reuse where possible.
 1. Return native .NET objects whenever possible.
 1. Rarely should you return from a function with format-table, format-list, etc.. If they do, they should use the PowerShell verb `Show`.
-1. Environments that this module run on may be in a broken or inconcistent state, so defensive coding techniques should be leveraged.
+1. Environments that this module run on may be in a broken or inconsistent state, so defensive coding techniques should be leveraged.
 1. Use [PowerShell Approved Verbs](https://docs.microsoft.com/en-us/powershell/scripting/developer/cmdlet/approved-verbs-for-windows-powershell-commands) when creating functions.
 1. Provide detailed function synopsis, description, parameters and examples. The build pipeline leverages platyPS to auto-generate documentation for the exported functions and publishes to the project wiki.
 
