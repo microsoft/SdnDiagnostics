@@ -1000,11 +1000,15 @@ function Test-SdnServiceState {
                 Status      = $result.Status
             }
             if ($result.Status -ine 'Running') {
-                $sdnHealthTest.Remediation += "[$ServiceName] Start the service"
-
                 switch ($ServiceName) {
-                    'SlbHostAgent' { $sdnHealthTest.Result = 'WARNING' }
-                    default { $sdnHealthTest.Result = 'FAIL' }
+                    'SlbHostAgent' { 
+                        $sdnHealthTest.Result = 'WARNING' 
+                        $sdnHealthTest.Remediation += "Start the '$ServiceName' service if you are using Load Balancing services"
+                    }
+                    default { 
+                        $sdnHealthTest.Result = 'FAIL' 
+                        $sdnHealthTest.Remediation += "Start the '$ServiceName' service"
+                    }
                 }
             }
         }
