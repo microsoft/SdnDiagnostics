@@ -221,9 +221,13 @@ function New-SdnHealthTest {
         [System.String]$Name = (Get-PSCallStack)[0].Command
     )
 
+    $details = Get-HealthData -Property 'HealthValidations' -Id $Name
+
     $object = [PSCustomObject]@{
         Name           = $Name
         Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        Description    = $details.Description
+        PublicDocs     = $details.PublicDocUrl
         OccurrenceTime = [System.DateTime]::UtcNow
         Properties     = @()
         Remediation    = @()
@@ -242,7 +246,7 @@ function New-SdnRoleHealthReport {
 
         Role           = $Role
         ComputerName   = $env:COMPUTERNAME
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
         OccurrenceTime = [System.DateTime]::UtcNow
         HealthTest     = @() # array of New-SdnHealthTest objects
     }
@@ -259,7 +263,7 @@ function New-SdnFabricHealthReport {
     $object = [PSCustomObject]@{
         OccurrenceTime = [System.DateTime]::UtcNow
         Role           = $Role
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
         RoleTest       = @() # array of New-SdnRoleHealthReport objects
     }
 
@@ -973,7 +977,7 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -995,15 +999,19 @@ function Test-SdnServiceState {
                 ServiceName = $result.Name
                 Status      = $result.Status
             }
-
             if ($result.Status -ine 'Running') {
                 $sdnHealthTest.Remediation += "[$ServiceName] Start the service"
+
+                switch ($ServiceName) {
+                    'SlbHostAgent' { $sdnHealthTest.Result = 'WARNING' }
+                    default { $sdnHealthTest.Result = 'FAIL' }
+                }
             }
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1033,7 +1041,7 @@ function Test-SdnDiagnosticsCleanupTaskEnabled {
             try {
                 $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
                 if ($result.State -ieq 'Disabled') {
-                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Result = 'WARNING'
                     $sdnHealthTest.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask -TaskName $TaskName'."
                 }
             }
@@ -1045,7 +1053,7 @@ function Test-SdnDiagnosticsCleanupTaskEnabled {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1109,7 +1117,7 @@ function Test-SdnNetworkControllerApiNameResolution {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1155,7 +1163,7 @@ function Test-SdnCertificateExpired {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1212,7 +1220,7 @@ function Test-SdnCertificateMultiple {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1289,7 +1297,7 @@ function Test-SdnEncapOverhead {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1329,7 +1337,7 @@ function Test-ServerHostId {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1360,7 +1368,7 @@ function Test-VfpDuplicateMacAddress {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1391,7 +1399,7 @@ function Test-VMNetAdapterDuplicateMacAddress {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1475,7 +1483,7 @@ function Test-SdnProviderNetwork {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1515,7 +1523,7 @@ function Test-SdnHostAgentConnectionStateToApiService {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1544,7 +1552,7 @@ function Test-SdnVfpEnabledVMSwitchMultiple {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1573,7 +1581,7 @@ function Test-SdnVfpEnabledVMSwitch {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1603,7 +1611,7 @@ function Test-SdnServiceFabricApplicationHealth {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1629,7 +1637,7 @@ function Test-SdnServiceFabricClusterHealth {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1660,7 +1668,7 @@ function Test-SdnServiceFabricNodeStatus {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1781,7 +1789,7 @@ function Test-SdnResourceConfigurationState {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1858,7 +1866,7 @@ function Test-SdnResourceProvisioningState {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1889,7 +1897,7 @@ function Test-SdnNetworkControllerNodeRestInterface {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1926,7 +1934,7 @@ function Test-SdnMuxConnectionStateToRouter {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1953,7 +1961,7 @@ function Test-SdnMuxConnectionStateToSlbManager {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -2020,7 +2028,7 @@ function Test-SdnAdapterPerformanceSetting {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
