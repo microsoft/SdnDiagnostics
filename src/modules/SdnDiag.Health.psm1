@@ -225,7 +225,9 @@ function New-SdnHealthTest {
 
     $object = [PSCustomObject]@{
         Name           = $Name
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        FriendlyName   = $details.FriendlyName
+        Impact         = $details.Impact
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
         Description    = $details.Description
         PublicDocs     = $details.PublicDocUrl
         OccurrenceTime = [System.DateTime]::UtcNow
@@ -955,7 +957,7 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
     try {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
-            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Result = 'WARNING'
             $certDetails = $rootCerts | ForEach-Object {
                 "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
             }
