@@ -1260,7 +1260,7 @@ function Test-SdnEncapOverhead {
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthTest = New-SdnHealthTest
-    [string[]] $misconfiguredNics = @()
+    $misconfiguredNics = @()
 
     try {
         # check to see if provider addresses are configured
@@ -1294,7 +1294,12 @@ function Test-SdnEncapOverhead {
                     if ($_.JumboPacketValue -lt $jumboPacketExpectedValue) {
                         $sdnHealthTest.Result = 'FAIL'
                         $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
-                        $misconfiguredNics += $_.NetAdapterInterfaceDescription
+                        $misconfiguredNics += [PSCustomObject]@{
+                            NetAdapter        = $_.NetAdapterInterfaceDescription
+                            EncapOverhead     = $_.EncapOverheadEnabled
+                            EncapOverheadValue = $_.EncapOverheadValue
+                            JumboPacket       = $_.JumboPacketValue
+                        }
                     }
                 }
 
@@ -1302,7 +1307,12 @@ function Test-SdnEncapOverhead {
                 if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
                     $sdnHealthTest.Result = 'FAIL'
                     $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
-                    $misconfiguredNics += $_.NetAdapterInterfaceDescription
+                    $misconfiguredNics += [PSCustomObject]@{
+                        NetAdapter        = $_.NetAdapterInterfaceDescription
+                        EncapOverhead     = $_.EncapOverheadEnabled
+                        EncapOverheadValue = $_.EncapOverheadValue
+                        JumboPacket       = $_.JumboPacketValue
+                    }
                 }
             }
         }
@@ -1346,7 +1356,7 @@ function Test-ServerHostId {
                 $sdnHealthTest.Result = 'FAIL'
                 $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the correct InstanceId from the NC Servers API."
                 $sdnHealthTest.Properties = [PSCustomObject]@{
-                    HostID = $regHostId
+                    HostID = $regHostId.HostId
                 }
             }
         }
@@ -1377,9 +1387,16 @@ function Test-VfpDuplicateMacAddress {
             }
         }
 
-        $sdnHealthTest.Properties = [PSCustomObject]@{
-            DuplicateVfpPorts = $duplicateObjects.Group
-            VfpPorts          = $vfpPorts
+        if ($duplicateObjects) {
+            $sdnHealthTest.Properties = $duplicateObjects.Group | ForEach-Object {
+                [PSCustomObject]@{
+                    PortName   = $_.PortName
+                    MacAddress = $_.MACaddress
+                    PortState  = $_.PortState
+                    NicName    = $_.NicName
+                    VMName     = $_.VMName
+                }
+            }
         }
     }
     catch {
@@ -1408,9 +1425,15 @@ function Test-VMNetAdapterDuplicateMacAddress {
             }
         }
 
-        $sdnHealthTest.Properties = [PSCustomObject]@{
-            DuplicateVMNetworkAdapters = $duplicateObjects.Group
-            VMNetworkAdapters          = $vmNetAdapters
+        if ($duplicateObjects) {
+            $sdnHealthTest.Properties = $duplicateObjects.Group | ForEach-Object {
+                [PSCustomObject]@{
+                    VMName     = $_.VMName
+                    Name       = $_.Name
+                    MacAddress = $_.MacAddress
+                    Status     = $_.Status
+                }
+            }
         }
     }
     catch {
