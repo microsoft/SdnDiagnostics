@@ -221,9 +221,15 @@ function New-SdnHealthTest {
         [System.String]$Name = (Get-PSCallStack)[0].Command
     )
 
+    $details = Get-HealthData -Property 'HealthValidations' -Id $Name
+
     $object = [PSCustomObject]@{
         Name           = $Name
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        FriendlyName   = $details.FriendlyName
+        Impact         = $details.Impact
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
+        Description    = $details.Description
+        PublicDocs     = $details.PublicDocUrl
         OccurrenceTime = [System.DateTime]::UtcNow
         Properties     = @()
         Remediation    = @()
@@ -242,7 +248,7 @@ function New-SdnRoleHealthReport {
 
         Role           = $Role
         ComputerName   = $env:COMPUTERNAME
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
         OccurrenceTime = [System.DateTime]::UtcNow
         HealthTest     = @() # array of New-SdnHealthTest objects
     }
@@ -259,7 +265,7 @@ function New-SdnFabricHealthReport {
     $object = [PSCustomObject]@{
         OccurrenceTime = [System.DateTime]::UtcNow
         Role           = $Role
-        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL
+        Result         = 'PASS' # default to PASS. Allowed values are PASS, WARNING, FAIL, UNKNOWN
         RoleTest       = @() # array of New-SdnRoleHealthReport objects
     }
 
@@ -293,7 +299,10 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('WARNING', 'FAIL', 'FAILURE', IgnoreCase = $true)]
+        [object]$Properties,
+
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('WARNING', 'FAIL', 'FAILURE', 'UNKNOWN', IgnoreCase = $true)]
         [string]$Severity
     )
 
@@ -310,6 +319,10 @@ function Write-HealthValidationInfo {
             $Severity = 'Failure'
             $foregroundColor = 'Red'
         }
+        'UNKNOWN' {
+            $Severity = 'Unknown'
+            $foregroundColor = 'Gray'
+        }
     }
 
     $details = Get-HealthData -Property 'HealthValidations' -Id $Name
@@ -323,13 +336,21 @@ function Write-HealthValidationInfo {
     $outputString += "Severity:`t$Severity`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        if ($Remediation -is [System.Collections.ICollection] -or $Remediation -is [System.Array]) {
-            $outputString += "Remediation:`r`n`t- $($Remediation -join "`r`n`t- ")`r`n"
+        $remediationItems = @($Remediation)
+        if ($remediationItems.Count -eq 1) {
+            $outputString += "Remediation:`t$($remediationItems[0])`r`n"
         }
         else {
-            $outputString += "Remediation:`t$Remediation`r`n"
+            $outputString += "Remediation:`r`n`t- $($remediationItems -join "`r`n`t- ")`r`n"
         }
+    }
 
+    if ($null -ne $Properties -and @($Properties).Count -gt 0) {
+        $outputString += "`r`nProperties:`r`n"
+        foreach ($prop in @($Properties)) {
+            $outputString += "`t$($prop | Format-List | Out-String)".TrimEnd()
+            $outputString += "`r`n"
+        }
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -612,6 +633,7 @@ function Debug-SdnFabricInfrastructure {
                 'PASS' { 'Green' }
                 'WARNING' { 'Yellow' }
                 'FAILURE' { 'Red' }
+                'UNKNOWN' { 'Gray' }
             }
 
             # Display summary
@@ -634,13 +656,13 @@ function Debug-SdnFabricInfrastructure {
                         $_.HealthTest | ForEach-Object {
 
                             # enum only the health tests that failed
-                            if ($_.Result -ine 'PASS') {
+                            if ($_.Result -ine 'PASS' -and $_.Result -ine 'UNKNOWN') {
                                 # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
                                 # otherwise if we pass it directly, it will be treated as a single string
                                 $remediationList = [System.Collections.ArrayList]::new()
                                 $_.Remediation | ForEach-Object { [void]$remediationList.Add($_) }
 
-                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList -Severity $_.Result
+                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList -Properties $_.Properties -Severity $_.Result
                             }
                         }
                     }
@@ -951,10 +973,7 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
     try {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
-            $sdnHealthTest.Result = 'FAIL'
-            $certDetails = $rootCerts | ForEach-Object {
-                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
-            }
+            $sdnHealthTest.Result = 'WARNING'
 
             $rootCerts | ForEach-Object {
                 $array += [PSCustomObject]@{
@@ -966,14 +985,14 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
                 }
             }
 
-            $sdnHealthTest.Remediation = "Move any non-self-signed certificated out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store:`r`n{0}." -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Move any non-self-signed certificates out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store."
         }
 
         $sdnHealthTest.Properties = $array
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -995,15 +1014,23 @@ function Test-SdnServiceState {
                 ServiceName = $result.Name
                 Status      = $result.Status
             }
-
             if ($result.Status -ine 'Running') {
-                $sdnHealthTest.Remediation += "[$ServiceName] Start the service"
+                switch ($ServiceName) {
+                    'SlbHostAgent' { 
+                        $sdnHealthTest.Result = 'WARNING' 
+                        $sdnHealthTest.Remediation += "Start the '$ServiceName' service if you are using Load Balancing services"
+                    }
+                    default { 
+                        $sdnHealthTest.Result = 'FAIL' 
+                        $sdnHealthTest.Remediation += "Start the '$ServiceName' service"
+                    }
+                }
             }
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1033,7 +1060,7 @@ function Test-SdnDiagnosticsCleanupTaskEnabled {
             try {
                 $result = Get-ScheduledTask -TaskName $TaskName -ErrorAction Stop
                 if ($result.State -ieq 'Disabled') {
-                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Result = 'WARNING'
                     $sdnHealthTest.Remediation += "Use 'Repair-SdnDiagnosticsScheduledTask -TaskName $TaskName'."
                 }
             }
@@ -1045,7 +1072,7 @@ function Test-SdnDiagnosticsCleanupTaskEnabled {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1109,7 +1136,7 @@ function Test-SdnNetworkControllerApiNameResolution {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1155,7 +1182,7 @@ function Test-SdnCertificateExpired {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1190,9 +1217,6 @@ function Test-SdnCertificateMultiple {
             }
 
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
-            $certDetails = $certificate | ForEach-Object {
-                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
-            }
 
             $certificate | ForEach-Object {
                 $array += [PSCustomObject]@{
@@ -1205,14 +1229,14 @@ function Test-SdnCertificateMultiple {
             }
 
             $sdnHealthTest.Result = 'WARNING'
-            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed."
         }
 
         $sdnHealthTest.Properties = $array
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1236,7 +1260,7 @@ function Test-SdnEncapOverhead {
     [int]$encapOverheadExpectedValue = 160
     [int]$jumboPacketExpectedValue = 1674 # this is default 1514 MTU + 160 encap overhead
     $sdnHealthTest = New-SdnHealthTest
-    [string[]] $misconfiguredNics = @()
+    $misconfiguredNics = @()
 
     try {
         # check to see if provider addresses are configured
@@ -1270,7 +1294,12 @@ function Test-SdnEncapOverhead {
                     if ($_.JumboPacketValue -lt $jumboPacketExpectedValue) {
                         $sdnHealthTest.Result = 'FAIL'
                         $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
-                        $misconfiguredNics += $_.NetAdapterInterfaceDescription
+                        $misconfiguredNics += [PSCustomObject]@{
+                            NetAdapter        = $_.NetAdapterInterfaceDescription
+                            EncapOverhead     = $_.EncapOverheadEnabled
+                            EncapOverheadValue = $_.EncapOverheadValue
+                            JumboPacket       = $_.JumboPacketValue
+                        }
                     }
                 }
 
@@ -1278,7 +1307,12 @@ function Test-SdnEncapOverhead {
                 if ($_.EncapOverheadEnabled -and $_.EncapOverheadValue -lt $encapOverheadExpectedValue) {
                     $sdnHealthTest.Result = 'FAIL'
                     $sdnHealthTest.Remediation += "[$($_.NetAdapterInterfaceDescription)] Ensure the latest firmware and drivers are installed to support EncapOverhead. Configure JumboPacket to $jumboPacketExpectedValue if EncapOverhead is not supported."
-                    $misconfiguredNics += $_.NetAdapterInterfaceDescription
+                    $misconfiguredNics += [PSCustomObject]@{
+                        NetAdapter        = $_.NetAdapterInterfaceDescription
+                        EncapOverhead     = $_.EncapOverheadEnabled
+                        EncapOverheadValue = $_.EncapOverheadValue
+                        JumboPacket       = $_.JumboPacketValue
+                    }
                 }
             }
         }
@@ -1289,7 +1323,7 @@ function Test-SdnEncapOverhead {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1322,14 +1356,14 @@ function Test-ServerHostId {
                 $sdnHealthTest.Result = 'FAIL'
                 $sdnHealthTest.Remediation += "Update the HostId registry under $regkeyPath to match the correct InstanceId from the NC Servers API."
                 $sdnHealthTest.Properties = [PSCustomObject]@{
-                    HostID = $regHostId
+                    HostID = $regHostId.HostId
                 }
             }
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1353,14 +1387,21 @@ function Test-VfpDuplicateMacAddress {
             }
         }
 
-        $sdnHealthTest.Properties = [PSCustomObject]@{
-            DuplicateVfpPorts = $duplicateObjects.Group
-            VfpPorts          = $vfpPorts
+        if ($duplicateObjects) {
+            $sdnHealthTest.Properties = $duplicateObjects.Group | ForEach-Object {
+                [PSCustomObject]@{
+                    PortName   = $_.PortName
+                    MacAddress = $_.MACaddress
+                    PortState  = $_.PortState
+                    NicName    = $_.NicName
+                    VMName     = $_.VMName
+                }
+            }
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1384,14 +1425,20 @@ function Test-VMNetAdapterDuplicateMacAddress {
             }
         }
 
-        $sdnHealthTest.Properties = [PSCustomObject]@{
-            DuplicateVMNetworkAdapters = $duplicateObjects.Group
-            VMNetworkAdapters          = $vmNetAdapters
+        if ($duplicateObjects) {
+            $sdnHealthTest.Properties = $duplicateObjects.Group | ForEach-Object {
+                [PSCustomObject]@{
+                    VMName     = $_.VMName
+                    Name       = $_.Name
+                    MacAddress = $_.MacAddress
+                    Status     = $_.Status
+                }
+            }
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1410,6 +1457,8 @@ function Test-SdnProviderNetwork {
     Confirm-IsServer
     $sdnHealthTest = New-SdnHealthTest
     $filteredAddressMappings = @()
+    $failureType = @()
+    $failureDetected = $false
 
     try {
         # get the provider addresses on the system
@@ -1438,27 +1487,23 @@ function Test-SdnProviderNetwork {
             $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $filteredAddressMappings
 
             foreach ($destination in $connectivityResults) {
-                $failureDetected = $false
                 $sourceIPAddress = $destination.SourceAddress[0]
                 $destinationIPAddress = $destination.DestinationAddress[0]
                 $jumboPacketResult = $destination | Where-Object { $_.BufferSize -gt 1472 }
                 $standardPacketResult = $destination | Where-Object { $_.BufferSize -le 1472 }
 
                 if ($destination.Status -ine 'Success') {
-                    $remediationMsg = $null
                     $failureDetected = $true
 
                     # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
                     if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure') {
-                        $remediationMsg = "Unable to ping Provider Addresses. Ensure ICMP enabled on $sourceIPAddress and $destinationIPAddress. If issue persists, investigate physical network."
-                        $sdnHealthTest.Remediation += $remediationMsg
+                        $failureType += 'PhysicalNetworkFailure'
                     }
 
                     # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
                     # either on the physical nic or within the physical switches between the provider addresses
                     if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success') {
-                        $remediationMsg = "Ensure the physical network between $sourceIPAddress and $destinationIPAddress are configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660."
-                        $sdnHealthTest.Remediation += $remediationMsg
+                        $failureType += 'JumboPacketFailure'
                     }
                 }
             }
@@ -1466,16 +1511,20 @@ function Test-SdnProviderNetwork {
 
         if ($failureDetected) {
             $sdnHealthTest.Result = 'FAIL'
-        }
-        if ($connectivityResults) {
-            $sdnHealthTest.Properties = [PSCustomObject]@{
-                PingResult = $connectivityResults
+            if ($failureType -contains 'PhysicalNetworkFailure') {
+                $sdnHealthTest.Remediation += "Investigate the Logical Network for connectivity issues. Ensure that ICMP is enabled on both the source and destination addresses."
             }
+            elseif ($failureType -contains 'JumboPacketFailure') {
+                $sdnHealthTest.Remediation += "Investigate the Logical Network for MTU issues. Ensure the Logical Network supports packets with a minimum MTU of 1660. Work with your network team to verify the MTU settings on the switches."
+            }
+
+            # add the failed connectivity results to the properties of the health test
+            $sdnHealthTest.Properties = ($connectivityResults | Where-Object { $_.Status -ne 'Success' })
         }
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1515,7 +1564,7 @@ function Test-SdnHostAgentConnectionStateToApiService {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1544,7 +1593,7 @@ function Test-SdnVfpEnabledVMSwitchMultiple {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1573,7 +1622,7 @@ function Test-SdnVfpEnabledVMSwitch {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1603,7 +1652,7 @@ function Test-SdnServiceFabricApplicationHealth {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1629,7 +1678,7 @@ function Test-SdnServiceFabricClusterHealth {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1660,7 +1709,7 @@ function Test-SdnServiceFabricNodeStatus {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1781,7 +1830,7 @@ function Test-SdnResourceConfigurationState {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1858,7 +1907,7 @@ function Test-SdnResourceProvisioningState {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1889,7 +1938,7 @@ function Test-SdnNetworkControllerNodeRestInterface {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1926,7 +1975,7 @@ function Test-SdnMuxConnectionStateToRouter {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -1953,7 +2002,7 @@ function Test-SdnMuxConnectionStateToSlbManager {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
@@ -2020,7 +2069,7 @@ function Test-SdnAdapterPerformanceSetting {
     }
     catch {
         $_ | Trace-Exception
-        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Result = 'UNKNOWN'
     }
 
     return $sdnHealthTest
