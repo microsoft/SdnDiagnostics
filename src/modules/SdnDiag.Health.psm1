@@ -299,7 +299,7 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation,
 
         [Parameter(Mandatory = $false)]
-        [ValidateSet('WARNING', 'FAIL', 'FAILURE', IgnoreCase = $true)]
+        [ValidateSet('WARNING', 'FAIL', 'FAILURE', 'UNKNOWN', IgnoreCase = $true)]
         [string]$Severity
     )
 
@@ -315,6 +315,10 @@ function Write-HealthValidationInfo {
         'FAILURE' { 
             $Severity = 'Failure'
             $foregroundColor = 'Red'
+        }
+        'UNKNOWN' {
+            $Severity = 'Unknown'
+            $foregroundColor = 'Gray'
         }
     }
 
@@ -618,6 +622,7 @@ function Debug-SdnFabricInfrastructure {
                 'PASS' { 'Green' }
                 'WARNING' { 'Yellow' }
                 'FAILURE' { 'Red' }
+                'UNKNOWN' { 'Gray' }
             }
 
             # Display summary
@@ -640,7 +645,7 @@ function Debug-SdnFabricInfrastructure {
                         $_.HealthTest | ForEach-Object {
 
                             # enum only the health tests that failed
-                            if ($_.Result -ine 'PASS') {
+                            if ($_.Result -ine 'PASS' -and $_.Result -ine 'UNKNOWN') {
                                 # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
                                 # otherwise if we pass it directly, it will be treated as a single string
                                 $remediationList = [System.Collections.ArrayList]::new()
