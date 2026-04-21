@@ -299,6 +299,9 @@ function Write-HealthValidationInfo {
         [String[]]$Remediation,
 
         [Parameter(Mandatory = $false)]
+        [object]$Properties,
+
+        [Parameter(Mandatory = $false)]
         [ValidateSet('WARNING', 'FAIL', 'FAILURE', 'UNKNOWN', IgnoreCase = $true)]
         [string]$Severity
     )
@@ -333,13 +336,21 @@ function Write-HealthValidationInfo {
     $outputString += "Severity:`t$Severity`r`n"
 
     if (-NOT [string]::IsNullOrEmpty($Remediation)) {
-        if ($Remediation -is [System.Collections.ICollection] -or $Remediation -is [System.Array]) {
-            $outputString += "Remediation:`r`n`t- $($Remediation -join "`r`n`t- ")`r`n"
+        $remediationItems = @($Remediation)
+        if ($remediationItems.Count -eq 1) {
+            $outputString += "Remediation:`t$($remediationItems[0])`r`n"
         }
         else {
-            $outputString += "Remediation:`t$Remediation`r`n"
+            $outputString += "Remediation:`r`n`t- $($remediationItems -join "`r`n`t- ")`r`n"
         }
+    }
 
+    if ($null -ne $Properties -and @($Properties).Count -gt 0) {
+        $outputString += "`r`nProperties:`r`n"
+        foreach ($prop in @($Properties)) {
+            $outputString += "`t$($prop | Format-List | Out-String)".TrimEnd()
+            $outputString += "`r`n"
+        }
     }
 
     if (-NOT [string]::IsNullOrEmpty($details.PublicDocUrl)) {
@@ -651,7 +662,7 @@ function Debug-SdnFabricInfrastructure {
                                 $remediationList = [System.Collections.ArrayList]::new()
                                 $_.Remediation | ForEach-Object { [void]$remediationList.Add($_) }
 
-                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList -Severity $_.Result
+                                Write-HealthValidationInfo -ComputerName $c -Name $_.Name -Remediation $remediationList -Properties $_.Properties -Severity $_.Result
                             }
                         }
                     }
@@ -963,9 +974,6 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
         $rootCerts = Get-ChildItem -Path 'Cert:LocalMachine\Root' | Where-Object { $_.Issuer -ne $_.Subject }
         if ($rootCerts -or $rootCerts.Count -gt 0) {
             $sdnHealthTest.Result = 'WARNING'
-            $certDetails = $rootCerts | ForEach-Object {
-                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
-            }
 
             $rootCerts | ForEach-Object {
                 $array += [PSCustomObject]@{
@@ -977,7 +985,7 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
                 }
             }
 
-            $sdnHealthTest.Remediation = "Move any non-self-signed certificated out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store:`r`n{0}." -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Move any non-self-signed certificates out of the Trusted Root Certification Authorities Certificate store and into the Intermediate Certification Authorities Certificate store."
         }
 
         $sdnHealthTest.Properties = $array
@@ -1209,9 +1217,6 @@ function Test-SdnCertificateMultiple {
             }
 
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
-            $certDetails = $certificate | ForEach-Object {
-                "`t- Thumbprint: {0} Subject: {1} Issuer: {2} NotAfter: {3}" -f $_.Thumbprint, $_.Subject, $_.Issuer, $_.NotAfter
-            }
 
             $certificate | ForEach-Object {
                 $array += [PSCustomObject]@{
@@ -1224,7 +1229,7 @@ function Test-SdnCertificateMultiple {
             }
 
             $sdnHealthTest.Result = 'WARNING'
-            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed:`r`n{0}" -f ($certDetails -join "`r`n")
+            $sdnHealthTest.Remediation = "Examine and cleanup the certificates if no longer needed."
         }
 
         $sdnHealthTest.Properties = $array
@@ -1429,6 +1434,7 @@ function Test-SdnProviderNetwork {
     Confirm-IsServer
     $sdnHealthTest = New-SdnHealthTest
     $filteredAddressMappings = @()
+    $failureType = @()
 
     try {
         # get the provider addresses on the system
@@ -1464,20 +1470,17 @@ function Test-SdnProviderNetwork {
                 $standardPacketResult = $destination | Where-Object { $_.BufferSize -le 1472 }
 
                 if ($destination.Status -ine 'Success') {
-                    $remediationMsg = $null
                     $failureDetected = $true
 
                     # if both jumbo and standard icmp tests fails, indicates a failure in the physical network
                     if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Failure') {
-                        $remediationMsg = "Unable to ping Provider Addresses. Ensure ICMP enabled on $sourceIPAddress and $destinationIPAddress. If issue persists, investigate physical network."
-                        $sdnHealthTest.Remediation += $remediationMsg
+                        $failureType += 'PhysicalNetworkFailure'
                     }
 
                     # if standard MTU was success but jumbo MTU was failure, indication that jumbo packets or encap overhead has not been setup and configured
                     # either on the physical nic or within the physical switches between the provider addresses
                     if ($jumboPacketResult.Status -ieq 'Failure' -and $standardPacketResult.Status -ieq 'Success') {
-                        $remediationMsg = "Ensure the physical network between $sourceIPAddress and $destinationIPAddress are configured to support VXLAN or NVGRE encapsulated packets with minimum MTU of 1660."
-                        $sdnHealthTest.Remediation += $remediationMsg
+                        $failureType += 'JumboPacketFailure'
                     }
                 }
             }
@@ -1485,11 +1488,15 @@ function Test-SdnProviderNetwork {
 
         if ($failureDetected) {
             $sdnHealthTest.Result = 'FAIL'
-        }
-        if ($connectivityResults) {
-            $sdnHealthTest.Properties = [PSCustomObject]@{
-                PingResult = $connectivityResults
+            if ($failureType -contains 'PhysicalNetworkFailure') {
+                $sdnHealthTest.Remediation += "Investigate the Logical Network for connectivity issues. Ensure that ICMP is enabled on both the source and destination addresses."
             }
+            elseif ($failureType -contains 'JumboPacketFailure') {
+                $sdnHealthTest.Remediation += "Investigate the Logical Network for MTU issues. Ensure the Logical Network supports packets with a minimum MTU of 1660. Work with your network team to verify the MTU settings on the switches."
+            }
+
+            # add the failed connectivity results to the properties of the health test
+            $sdnHealthTest.Properties = ($connectivityResults | Where-Object { $_.Status -ne 'Success' })
         }
     }
     catch {
