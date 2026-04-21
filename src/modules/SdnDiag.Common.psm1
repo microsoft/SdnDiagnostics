@@ -415,7 +415,7 @@ function Copy-UserProvidedCertificateToFabric {
                 }
 
 
-                # pass the certificate to sub-function to be seeded across the fabric if necassary
+                # pass the certificate to sub-function to be seeded across the fabric if necessary
                 Copy-CertificateToFabric -CertFile $nodeCertConfig.Cert.FileInfo.FullName -CertPassword $CertPassword -FabricDetails $FabricDetails -NetworkControllerNodeCert -Credential $Credential
             }
             else {
@@ -457,7 +457,7 @@ function Export-RegistryKeyConfigDetails {
                 try {
                     $properties = Get-ItemProperty -Path $obj.PSPath -ErrorAction Stop
 
-                    # check to see if we are lookiing at cluster network controller registry key, if so, then redact the AESKey
+                    # check to see if we are looking at cluster network controller registry key, if so, then redact the AESKey
                     if ($obj.PSPath -ilike "*Cluster\NetworkController*") {
                         $properties.'GlobalConfiguration.AESKey' = "removed_for_security_reasons"
                     }
