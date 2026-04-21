@@ -1458,6 +1458,7 @@ function Test-SdnProviderNetwork {
     $sdnHealthTest = New-SdnHealthTest
     $filteredAddressMappings = @()
     $failureType = @()
+    $failureDetected = $false
 
     try {
         # get the provider addresses on the system
@@ -1486,7 +1487,6 @@ function Test-SdnProviderNetwork {
             $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $filteredAddressMappings
 
             foreach ($destination in $connectivityResults) {
-                $failureDetected = $false
                 $sourceIPAddress = $destination.SourceAddress[0]
                 $destinationIPAddress = $destination.DestinationAddress[0]
                 $jumboPacketResult = $destination | Where-Object { $_.BufferSize -gt 1472 }
