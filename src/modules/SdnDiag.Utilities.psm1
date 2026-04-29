@@ -2802,7 +2802,16 @@ function Install-SdnDiagnostics {
                     # use Invoke-Command here, as we do not want to create a cached session for the remote computers
                     # as it will impact scenarios where we need to import the module on the remote computer for remote sessions
                     try {
-                        $remoteModuleVersion = Invoke-Command -ComputerName $computer -Credential $Credential -ScriptBlock $getModuleVersionSB -ArgumentList @($moduleName) -ErrorAction Stop
+                        $invokeParams = @{
+                            ComputerName = $computer
+                            ScriptBlock = $getModuleVersionSB
+                            ArgumentList = @($moduleName)
+                            ErrorAction = 'Stop'
+                        }
+                        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+                            $invokeParams.Add('Credential', $Credential)
+                        }
+                        $remoteModuleVersion = Invoke-Command @invokeParams
                     }
                     catch {
                         # if we are unable to connect to the remote computer, we will skip the operation
