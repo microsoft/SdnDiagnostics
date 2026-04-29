@@ -977,11 +977,12 @@ function Test-SdnNonSelfSignedCertificateInTrustedRootStore {
 
             $rootCerts | ForEach-Object {
                 $array += [PSCustomObject]@{
-                    Thumbprint = $_.Thumbprint
-                    Subject    = $_.Subject
-                    Issuer     = $_.Issuer
-                    NotAfter   = $_.NotAfter
-                    NotBefore  = $_.NotBefore
+                    Thumbprint      = $_.Thumbprint
+                    Subject         = $_.Subject
+                    FriendlyName    = $_.FriendlyName
+                    Issuer          = $_.Issuer
+                    NotAfter        = $_.NotAfter
+                    NotBefore       = $_.NotBefore
                 }
             }
 
@@ -1168,11 +1169,12 @@ function Test-SdnCertificateExpired {
 
                 $certificate | ForEach-Object {
                     $array += [PSCustomObject]@{
-                        Thumbprint = $_.Thumbprint
-                        Subject    = $_.Subject
-                        NotAfter   = $_.NotAfter
-                        NotBefore  = $_.NotBefore
-                        Issuer     = $_.Issuer
+                        Thumbprint      = $_.Thumbprint
+                        Subject         = $_.Subject
+                        FriendlyName    = $_.FriendlyName
+                        Issuer          = $_.Issuer
+                        NotAfter        = $_.NotAfter
+                        NotBefore       = $_.NotBefore
                     }
                 }
             }
@@ -1220,11 +1222,12 @@ function Test-SdnCertificateMultiple {
 
             $certificate | ForEach-Object {
                 $array += [PSCustomObject]@{
-                    Thumbprint = $_.Thumbprint
-                    Subject    = $_.Subject
-                    Issuer     = $_.Issuer
-                    NotAfter   = $_.NotAfter
-                    NotBefore  = $_.NotBefore
+                    Thumbprint      = $_.Thumbprint
+                    Subject         = $_.Subject
+                    FriendlyName    = $_.FriendlyName
+                    Issuer          = $_.Issuer
+                    NotAfter        = $_.NotAfter
+                    NotBefore       = $_.NotBefore
                 }
             }
 
