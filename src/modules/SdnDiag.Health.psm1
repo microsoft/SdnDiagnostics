@@ -1959,6 +1959,7 @@ function Test-SdnServiceFabricPartitionDatabaseSize {
     param ()
 
     $sdnHealthTest = New-SdnHealthTest
+    $array = @()
 
     try {
         $ncAppWorkDir = Invoke-SdnServiceFabricCommand -ScriptBlock { 
@@ -1985,9 +1986,10 @@ function Test-SdnServiceFabricPartitionDatabaseSize {
                 $imosInfo = [PSCustomObject]@{
                     Service = $ncService.ServiceName
                     ImosSize = $formatedByteSize.GB
+                    Path = $imosStorePath
                 }
 
-                $sdnHealthTest.Properties = $imosInfo
+                $array += $imosInfo
 
                 # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
                 # need to perform InvariantCulture to ensure that the decimal separator is a period
@@ -1997,6 +1999,8 @@ function Test-SdnServiceFabricPartitionDatabaseSize {
                 }
             }
         }
+
+        $sdnHealthTest.Properties = $array
     }
     catch {
         $_ | Trace-Exception
