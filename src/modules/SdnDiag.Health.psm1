@@ -764,6 +764,7 @@ function Debug-SdnNetworkController {
                     Test-SdnServiceFabricApplicationHealth
                     Test-SdnServiceFabricClusterHealth
                     Test-SdnServiceFabricNodeStatus
+                    Test-SdnServiceFabricPartitionDatabaseSize
                 )
 
                 foreach ($service in $services_sf) {
@@ -1937,6 +1938,64 @@ function Test-SdnNetworkControllerNodeRestInterface {
         if ($null -eq $netAdapter) {
             $sdnHealthTest.Result = 'FAIL'
             $sdnHealthTest.Remediation += "Ensure that the Network Adapter $($node.RestInterface) exists. Leverage 'Set-NetworkControllerNode to update the -RestInterface if original adapter is not available."
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'UNKNOWN'
+    }
+
+    return $sdnHealthTest
+}
+
+
+function Test-SdnServiceFabricPartitionDatabaseSize {
+    <#
+    .SYNOPSIS
+        Validate the Service Fabric partition size for each of the services running on Network Controller.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        $ncAppWorkDir = Invoke-SdnServiceFabricCommand -ScriptBlock { 
+            Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' 
+        }
+        $ncAppWorkDir = $ncApp.WorkDirectory
+        if($null -eq $ncAppWorkDir){
+            throw New-Object System.NullReferenceException("Unable to retrieve working directory path")
+        }
+
+        $ncServices = Get-SdnServiceFabricService | Where-Object {$_.ServiceKind -eq "Stateful"}
+        foreach ($ncService in $ncServices){
+            $replica = Get-SdnServiceFabricReplica -ServiceName $ncService.ServiceName
+            $imosStorePath = Join-Path -Path $ncAppWorkDir -ChildPath "P_$($replica.PartitionId)\R_$($replica.ReplicaId)\ImosStore"
+            if (Test-Path -Path $imosStorePath) {
+                $imosStoreFile = (Get-Item -Path $imosStorePath)
+            }
+            else {
+                $imosStoreFile = $null
+            }
+
+            if($null -ne $imosStoreFile){
+                $formatedByteSize = Format-ByteSize -Bytes $imosStoreFile.Length
+                $imosInfo = [PSCustomObject]@{
+                    Service = $ncService.ServiceName
+                    ImosSize = $formatedByteSize.GB
+                }
+
+                $sdnHealthTest.Properties = $imosInfo
+
+                # if the imos database file exceeds 4GB, want to indicate failure as it should not grow to be larger than this size
+                # need to perform InvariantCulture to ensure that the decimal separator is a period
+                if([float]::Parse($formatedByteSize.GB, [System.Globalization.NumberStyles]::Float, [System.Globalization.CultureInfo]::InvariantCulture) -gt 4){
+                    $sdnHealthTest.Result = 'FAIL'
+                    $sdnHealthTest.Remediation = "Engage Microsoft CSS for further support"
+                }
+            }
         }
     }
     catch {

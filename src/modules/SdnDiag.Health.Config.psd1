@@ -111,6 +111,12 @@
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. Network Interfaces reporting configurationState failure will not be routable."
             PublicDocUrl = ""
         }
+        'Test-SdnServiceFabricPartitionDatabaseSize' = @{
+            FriendlyName = "SDN Service Fabric Partition Database Size"
+            Description = "Ensure that the Service Fabric partition database size is within acceptable limits."
+            Impact = "Large partition databases can lead to performance issues."
+            PublicDocUrl = ""
+        }
 
         # SERVER TESTS
 
