@@ -1962,7 +1962,7 @@ function Test-SdnServiceFabricPartitionDatabaseSize {
     $array = @()
 
     try {
-        $ncAppWorkDir = Invoke-SdnServiceFabricCommand -ScriptBlock { 
+        $ncApp = Invoke-SdnServiceFabricCommand -ScriptBlock { 
             Get-ServiceFabricDeployedApplication -ApplicationName 'fabric:/NetworkController' 
         }
         $ncAppWorkDir = $ncApp.WorkDirectory
