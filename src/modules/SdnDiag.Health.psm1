@@ -924,6 +924,7 @@ function Debug-SdnGateway {
             Test-SdnNonSelfSignedCertificateInTrustedRootStore @PSBoundParameters
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task' @PSBoundParameters
             Test-SdnAdapterPerformanceSetting @PSBoundParameters
+            Test-SdnGatewayRemoteAccessCimClass @PSBoundParameters
         )
 
         foreach ($service in $services) {
@@ -2076,4 +2077,32 @@ function Test-SdnAdapterPerformanceSetting {
     }
 
     return $sdnHealthTest
-} 
+}
+
+function Test-SdnGatewayRemoteAccessCimClass {
+    <#
+        .SYNOPSIS
+            Validates that the RemoteAccess CIM class is accessible on the Gateway node.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+    try {
+        try {
+            Get-CimClass -Namespace 'root/microsoft/windows/remoteaccess' -ClassName 'PS_RemoteAccess' -ErrorAction Stop | Out-Null
+        }
+        catch {
+            $_ | Trace-Exception
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Ensure the RemoteAccess role and required WMI providers are installed and functional on this Gateway node."
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'UNKNOWN'
+    }
+
+    return $sdnHealthTest
+}
