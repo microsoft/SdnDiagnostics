@@ -2096,7 +2096,7 @@ function Test-SdnGatewayRemoteAccessCimClass {
         catch {
             $_ | Trace-Exception
             $sdnHealthTest.Result = 'FAIL'
-            $sdnHealthTest.Remediation += "Ensure the RemoteAccess role and required WMI providers are installed and functional on this Gateway node."
+            $sdnHealthTest.Remediation += "Ensure the RemoteAccess role is installed. Run 'Install-WindowsFeature -Name RSAT-RemoteAccess-PowerShell' to install missing WMI class"
         }
     }
     catch {
