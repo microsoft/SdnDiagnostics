@@ -2091,7 +2091,7 @@ function Test-SdnGatewayRemoteAccessCimClass {
     $sdnHealthTest = New-SdnHealthTest
     try {
         try {
-            Get-CimClass -Namespace 'root/microsoft/windows/remoteaccess' -ClassName 'PS_RemoteAccess' -ErrorAction Stop | Out-Null
+            $null = Get-CimClass -Namespace 'root/microsoft/windows/remoteaccess' -ClassName 'PS_RemoteAccess' -ErrorAction Stop
         }
         catch {
             $_ | Trace-Exception
