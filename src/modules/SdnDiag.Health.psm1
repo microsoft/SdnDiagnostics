@@ -1123,7 +1123,7 @@ function Test-SdnNetworkControllerApiNameResolution {
                     }
                     catch {
                         $_ | Trace-Exception
-                        "Investigate DNS resolution failure against DNS server {0} for name {1}" -f $dnsServer, $Endpoint
+                        "Failed to resolve {0} from {1}. Exception: {2}" -f $Endpoint, $dnsServer, $_.Exception.Message
                     }
                 }
 
