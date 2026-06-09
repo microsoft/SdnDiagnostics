@@ -2986,6 +2986,8 @@ function Disable-SdnServiceFabricNode {
         Specifies the name of a Service Fabric node. The cmdlet disables the node that you specify.
     .PARAMETER Credential
         Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Force
+        Specifies that the cmdlet should override any restrictions that would prevent the action from completing.
     .EXAMPLE
         PS> Disable-SdnServiceFabricNode -NetworkController 'NC01' -Credential (Get-Credential) -NodeName 'Node01'
     #>
@@ -3001,7 +3003,10 @@ function Disable-SdnServiceFabricNode {
         [Parameter(Mandatory = $false)]
         [System.Management.Automation.PSCredential]
         [System.Management.Automation.Credential()]
-        $Credential = [System.Management.Automation.PSCredential]::Empty
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.SwitchParameter]$Force
     )
 
     $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
@@ -3034,8 +3039,8 @@ function Disable-SdnServiceFabricNode {
     # check to see if the service fabric cluster is healthy before we disable the node
     # if the cluster is not healthy, then we cannot disable the node
     $isClusterHealthy = Confirm-SdnServiceFabricHealthy -NetworkController $NetworkController -Credential $Credential -ErrorAction Stop
-    if (-NOT $isClusterHealthy) {
-        "Service Fabric Cluster is not healthy, cannot disable $($fabricNode.NodeName)" | Trace-Output -Level:Warning
+    if (-NOT $isClusterHealthy -and -NOT $Force) {
+        "Service Fabric Cluster is not healthy, cannot disable $($fabricNode.NodeName). Use -Force to override" | Trace-Output -Level:Warning
         return
     }
 

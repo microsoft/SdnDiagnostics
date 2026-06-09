@@ -924,6 +924,7 @@ function Debug-SdnGateway {
             Test-SdnNonSelfSignedCertificateInTrustedRootStore @PSBoundParameters
             Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task' @PSBoundParameters
             Test-SdnAdapterPerformanceSetting @PSBoundParameters
+            Test-SdnGatewayRemoteAccessCimClass @PSBoundParameters
         )
 
         foreach ($service in $services) {
@@ -1122,7 +1123,7 @@ function Test-SdnNetworkControllerApiNameResolution {
                     }
                     catch {
                         $_ | Trace-Exception
-                        "Investigate DNS resolution failure against DNS server {0} for name {1}" -f $dnsServer, $Endpoint
+                        "Failed to resolve {0} from {1}. Exception: {2}" -f $Endpoint, $dnsServer, $_.Exception.Message
                     }
                 }
 
@@ -2076,4 +2077,32 @@ function Test-SdnAdapterPerformanceSetting {
     }
 
     return $sdnHealthTest
-} 
+}
+
+function Test-SdnGatewayRemoteAccessCimClass {
+    <#
+        .SYNOPSIS
+            Validates that the RemoteAccess CIM class is accessible on the Gateway node.
+    #>
+
+    [CmdletBinding()]
+    param ()
+
+    $sdnHealthTest = New-SdnHealthTest
+    try {
+        try {
+            $null = Get-CimClass -Namespace 'root/microsoft/windows/remoteaccess' -ClassName 'PS_RemoteAccess' -ErrorAction Stop
+        }
+        catch {
+            $_ | Trace-Exception
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Ensure the RemoteAccess role is installed. Run 'Install-WindowsFeature -Name RSAT-RemoteAccess-PowerShell' to install missing WMI class"
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'UNKNOWN'
+    }
+
+    return $sdnHealthTest
+}
