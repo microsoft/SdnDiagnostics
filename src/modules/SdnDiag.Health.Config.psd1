@@ -51,6 +51,12 @@
             Impact = "You may not achieve optimal performance for network traffic flowing through the SDN Node(s)."
             PublicDocUrl = ""
         }
+        'Test-SdnGatewayRemoteAccessCimClass' = @{
+            FriendlyName = "Gateway RemoteAccess CIM Class"
+            Description = "Ensure that the PS_RemoteAccess CIM class is accessible in the root/microsoft/windows/remoteaccess namespace on Gateway node(s)."
+            Impact = "Gateway functionality may be impacted if the RemoteAccess WMI provider is not installed or operational."
+            PublicDocUrl = ""
+        }
 
         # LOAD BALANCER MUX TESTS
 
