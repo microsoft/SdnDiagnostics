@@ -746,7 +746,7 @@ function Debug-SdnNetworkController {
         # execute tests for network controller, regardless of the cluster type
         $healthReport.HealthTest += @(
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
-            Test-SdnRestCertificateIsPresent
+            Test-SdnEncryptionCertificateIsPresent 
         )
 
         # execute tests based on the cluster type
