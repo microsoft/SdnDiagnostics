@@ -746,6 +746,7 @@ function Debug-SdnNetworkController {
         # execute tests for network controller, regardless of the cluster type
         $healthReport.HealthTest += @(
             Test-SdnNonSelfSignedCertificateInTrustedRootStore
+            Test-SdnEncryptionCertificateIsPresent 
         )
 
         # execute tests based on the cluster type
@@ -1938,6 +1939,44 @@ function Test-SdnNetworkControllerNodeRestInterface {
         if ($null -eq $netAdapter) {
             $sdnHealthTest.Result = 'FAIL'
             $sdnHealthTest.Remediation += "Ensure that the Network Adapter $($node.RestInterface) exists. Leverage 'Set-NetworkControllerNode to update the -RestInterface if original adapter is not available."
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $sdnHealthTest.Result = 'UNKNOWN'
+    }
+
+    return $sdnHealthTest
+}
+
+function Test-SdnEncryptionCertificateIsPresent {
+    <#
+        .SYNOPSIS
+            Validates that the encryption certificate is present on the network controller node.
+    #>
+
+    [CmdletBinding()]
+    param()
+
+    Confirm-IsNetworkController
+    $sdnHealthTest = New-SdnHealthTest
+
+    try {
+        switch ($Global:SdnDiagnostics.EnvironmentInfo.ClusterConfigType) {
+            'FailoverCluster' {
+                $ncResult = Get-SdnNetworkController -ErrorAction Stop
+                $certThumbprint = $ncResult.RestCertificateThumbPrint
+            }
+            'ServiceFabric' {
+                $ncClusterSettings = Get-NetworkControllerCluster -ErrorAction Stop
+                $certThumbprint = $ncClusterSettings.CredentialEncryptionCertificate.Thumbprint
+            }
+        }
+
+        $cert = Get-SdnCertificate -Thumbprint $certThumbprint -Path 'Cert:\localmachine\My'
+        if ($null -eq $cert) {
+            $sdnHealthTest.Result = 'FAIL'
+            $sdnHealthTest.Remediation += "Ensure that the encryption certificate $($certThumbprint) for SDN is present in the LocalMachine\My store."
         }
     }
     catch {
