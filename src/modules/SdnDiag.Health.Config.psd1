@@ -117,6 +117,12 @@
             Impact = "Policy configuration failures may be reported by Network Controller when applying policies to the Hyper-v host. Network Interfaces reporting configurationState failure will not be routable."
             PublicDocUrl = ""
         }
+        'Test-SdnEncryptionCertificateIsPresent' = @{
+            FriendlyName = "SDN Encryption Certificate Is Present"
+            Description = "Ensure that the encryption certificate is present on the network controller node."
+            Impact = "The encryption certificate is missing from the LocalMachine\My store. It is used to decrypt the SDN database and may result in failures when accessing SDN resources."
+            PublicDocUrl = ""
+        }
 
         # SERVER TESTS
 
