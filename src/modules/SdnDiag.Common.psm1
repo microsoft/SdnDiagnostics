@@ -2468,6 +2468,10 @@ function Enable-SdnNetworkInterfaceTrace {
         "Getting VFP switch ports across all the servers in the fabric" | Trace-Output
         $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
 
+        # retrieve current list of virtual resources so we can map direct and peered virtual network gateway paths
+        $virtualGateways = Get-SdnResource @ncRestParams -Resource 'virtualGateways'
+        $virtualNetworks = Get-SdnResource @ncRestParams -Resource 'virtualNetworks'
+
         foreach ($interface in $NetworkInterface) {
             # since we only support ipConfigurations within the same virtual network, we will only look at the first ipConfiguration
             $subnetResourceRef = $interface.properties.ipConfigurations[0].properties.subnet.resourceRef
@@ -2499,19 +2503,34 @@ function Enable-SdnNetworkInterfaceTrace {
                 $networkResourceRef = $subnetResourceRef.Substring(0, $subnetResourceRef.LastIndexOf('/subnets'))
                 "Checking to see if there is a virtual gateway associated with {0}" -f $networkResourceRef | Trace-Output
 
-                # retrieve current list of the virtualGateways on the system
-                # we then need to determine if a gateway is associated with the virtual network that the network interface is connected to
-                $virtualGateways = Get-SdnResource @ncRestParams -Resource 'virtualGateways'
-                $virtualGateway = $null
-                foreach ($vgw in $virtualGateways) {
-                    if ($vgw.properties.gatewaySubnets.resourceRef -match $networkResourceRef) {
-                        "Located {0} associated with {1}" -f $vgw.resourceRef, $networkResourceRef | Trace-Output
-                        $virtualGateway = $vgw
-                        break  # exit once found
+                $gatewayNetworkResourceRefs = @($networkResourceRef)
+                $virtualNetwork = $virtualNetworks | Where-Object { $_.resourceRef -ieq $networkResourceRef } | Select-Object -First 1
+                if ($virtualNetwork) {
+                    foreach ($peering in @($virtualNetwork.properties.virtualNetworkPeerings | Where-Object { $null -ne $_ })) {
+                        if ($peering.properties.useRemoteGateways -eq $true -and $peering.properties.remoteVirtualNetwork.resourceRef) {
+                            $remoteNetworkResourceRef = $peering.properties.remoteVirtualNetwork.resourceRef
+                            "Detected peering {0} using remote gateways. Resolving virtual gateway from remote virtual network {1}" -f $peering.resourceRef, $remoteNetworkResourceRef | Trace-Output
+
+                            if ($remoteNetworkResourceRef -notin $gatewayNetworkResourceRefs) {
+                                $gatewayNetworkResourceRefs += $remoteNetworkResourceRef
+                            }
+                        }
                     }
                 }
 
-                if ($virtualGateway) {
+                $virtualGatewaysInPath = @()
+                foreach ($gatewayNetworkResourceRef in $gatewayNetworkResourceRefs) {
+                    foreach ($vgw in $virtualGateways) {
+                        if ($vgw.properties.gatewaySubnets.resourceRef -match [regex]::Escape($gatewayNetworkResourceRef)) {
+                            if ($vgw.resourceRef -notin $virtualGatewaysInPath.resourceRef) {
+                                "Located {0} associated with {1}" -f $vgw.resourceRef, $gatewayNetworkResourceRef | Trace-Output
+                                $virtualGatewaysInPath += $vgw
+                            }
+                        }
+                    }
+                }
+
+                foreach ($virtualGateway in $virtualGatewaysInPath) {
                     # as we can have multiple networkConnections associated to the virtual gateway, and networkConnection
                     # can be placed on single or multiple gateway VMs, we need to enumerate through each networkConnection
                     # to determine which gateway VMs we need to enable tracing on
