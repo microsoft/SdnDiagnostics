@@ -2358,11 +2358,11 @@ function Confirm-IsCertSelfSigned {
 function Enable-SdnNetworkInterfaceTrace {
     <#
     .SYNOPSIS
-        Enables network tracing for a specified network interface within an SDN fabric.
+        Enables network tracing for one or more network interfaces within an SDN fabric.
     .DESCRIPTION
-        Enables network tracing for a specified network interface within an SDN fabric by configuring the necessary trace mappings and initiating trace collection on the relevant infrastructure nodes.
+        Enables network tracing for one or more network interfaces within an SDN fabric by configuring the necessary trace mappings and initiating trace collection on the relevant infrastructure nodes.
     .PARAMETER NetworkInterface
-        Specifies the network interface object to enable tracing for. This object is typically retrieved using the 'Get-SdnResource -Resource NetworkInterface' cmdlet.
+        Specifies one or more network interface objects to enable tracing for. These objects are typically retrieved using the 'Get-SdnResource -Resource NetworkInterface' cmdlet.
     .PARAMETER NcUri
         Specifies the Uniform Resource Identifier (URI) of the network controller that all Representational State Transfer (REST) clients use to connect to that controller.
     .PARAMETER Credential
@@ -2376,20 +2376,33 @@ function Enable-SdnNetworkInterfaceTrace {
         Optional. Specifies a specific path and folder in which to save the files.
     .PARAMETER MaxTraceSize
         Optional. Specifies the maximum size in MB for saved trace files. If unspecified, the default is 1536.
+    .EXAMPLE
+        PS> $networkInterfaces = @()
+        PS> $networkInterfaces += Get-SdnResource -NcUri $NcUri -Resource NetworkInterfaces -ResourceId 'your-resource-id1'
+        PS> $networkInterfaces += Get-SdnResource -NcUri $NcUri -Resource NetworkInterfaces -ResourceId 'your-resource-id2'
+        PS> Enable-SdnNetworkInterfaceTrace -NetworkInterface $networkInterfaces -NcUri $NcUri -Credential (Get-Credential)
+    .EXAMPLE
+        PS> $networkInterfaces = @()
+        PS> $networkInterfaces += Get-SdnResource -NcUri $NcUri -Resource NetworkInterfaces -ResourceId 'your-resource-id1'
+        PS> $networkInterfaces += Get-SdnResource -NcUri $NcUri -Resource NetworkInterfaces -ResourceId 'your-resource-id2'
+        PS> $networkInterfaces | Enable-SdnNetworkInterfaceTrace -NcUri $NcUri -Credential (Get-Credential)
+    .EXAMPLE
+        PS> Get-SdnResource -NcUri $NcUri -Resource NetworkInterfaces -ResourceId 'your-resource-id1' | Enable-SdnNetworkInterfaceTrace -NcUri $NcUri -Credential (Get-Credential)
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'RestCredential')]
     param (
         [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
         [ValidateScript({
-            if (Confirm-ResourceType -Resource $_ -ResourceType 'NetworkInterfaces') {
-                return $true
+            foreach ($resource in @($_)) {
+                if (-not (Confirm-ResourceType -Resource $resource -ResourceType 'NetworkInterfaces')) {
+                    throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkInterfaces'")
+                }
             }
-            else {
-                throw New-Object System.FormatException("Parameter is expected to be of type 'NetworkInterfaces'")
-            }
+
+            return $true
         })]
-        [Object]$NetworkInterface,
+        [Object[]]$NetworkInterface,
 
         [Parameter(Mandatory = $true)]
         [ValidateScript({
@@ -2455,68 +2468,71 @@ function Enable-SdnNetworkInterfaceTrace {
         "Getting VFP switch ports across all the servers in the fabric" | Trace-Output
         $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] = Get-SdnVfpVmSwitchPort -ComputerName $servers -Credential $Credential
 
-        # since we only support ipConfigurations within the same virtual network, we will only look at the first ipConfiguration
-        $subnetResourceRef = $NetworkInterface.properties.ipConfigurations[0].properties.subnet.resourceRef
-        $networkType = $subnetResourceRef.Split('/')[1]
-        "Network Interface {0} is associated with {1}" -f $NetworkInterface.ResourceId, $networkType | Trace-Output
+        foreach ($interface in $NetworkInterface) {
+            # since we only support ipConfigurations within the same virtual network, we will only look at the first ipConfiguration
+            $subnetResourceRef = $interface.properties.ipConfigurations[0].properties.subnet.resourceRef
+            $networkType = $subnetResourceRef.Split('/')[1]
+            "Network Interface {0} is associated with {1}" -f $interface.ResourceId, $networkType | Trace-Output
 
-        # locate the server vfp switch port based on the mac address of the network interface
-        $macAddress = Format-SdnMacAddress -MacAddress $NetworkInterface.properties.privateMacAddress -Dashes
-        $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
-        if ($null -ieq $vfpPort) {
-            throw "Unable to locate vfp switch port for $macAddress"
-        }
+            # locate the server vfp switch port based on the mac address of the network interface
+            $macAddress = Format-SdnMacAddress -MacAddress $interface.properties.privateMacAddress -Dashes
+            $vfpPort = $Script:SdnDiagnostics_Common.Cache['VfpSwitchPorts'] | Where-Object {$_.MacAddress -ieq $macAddress}
+            if ($null -ieq $vfpPort) {
+                throw "Unable to locate vfp switch port for $macAddress"
+            }
 
-        "Located vfp switch port {0} on {1}" -f $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
-        $serverTraceNodes += $vfpPort.PSComputerName
-        Add-SdnDiagTraceMapping `
-            -MacAddress $vfpPort.MacAddress `
-            -InfraHost $vfpPort.PSComputerName `
-            -PortId $vfpPort.PortId `
-            -PortName $vfpPort.Portname `
-            -NicName $vfpPort.NICname `
-            -VmName $vfpPort.VMname `
-            -VmInternalId $vfpPort.VMID `
-            -PrivateIpAddress $ipConfig.properties.privateIPAddress
+            "Located vfp switch port {0} on {1}" -f $vfpPort.PortName, $vfpPort.PSComputerName | Trace-Output
+            $serverTraceNodes += $vfpPort.PSComputerName
+            Add-SdnDiagTraceMapping `
+                -MacAddress $vfpPort.MacAddress `
+                -InfraHost $vfpPort.PSComputerName `
+                -PortId $vfpPort.PortId `
+                -PortName $vfpPort.Portname `
+                -NicName $vfpPort.NICname `
+                -VmName $vfpPort.VMname `
+                -VmInternalId $vfpPort.VMID `
+                -PrivateIpAddress @($interface.properties.ipConfigurations.properties.privateIPAddress)
 
-        # if we are dealing with virtual networks, then we need to determine if there is a virtual gateway associated to the virtual network
-        # we do not expect to find virtual gateways if using LogicalNetworks
-        if ($networkType -ieq 'VirtualNetworks') {
-            $networkResourceRef = $subnetResourceRef.Substring(0, $subnetResourceRef.LastIndexOf('/subnets'))
-            "Checking to see if there is a virtual gateway associated with {0}" -f $networkResourceRef | Trace-Output
+            # if we are dealing with virtual networks, then we need to determine if there is a virtual gateway associated to the virtual network
+            # we do not expect to find virtual gateways if using LogicalNetworks
+            if ($networkType -ieq 'VirtualNetworks') {
+                $networkResourceRef = $subnetResourceRef.Substring(0, $subnetResourceRef.LastIndexOf('/subnets'))
+                "Checking to see if there is a virtual gateway associated with {0}" -f $networkResourceRef | Trace-Output
 
-            # retrieve current list of the virtualGateways on the system
-            # we then need to determine if a gateway is associated with the virtual network that the network interface is connected to
-            $virtualGateways = Get-SdnResource @ncRestParams -Resource 'virtualGateways'
-            foreach ($vgw in $virtualGateways) {
-                if ($vgw.properties.gatewaySubnets.resourceRef -match $networkResourceRef) {
-                    "Located {0} associated with {1}" -f $vgw.resourceRef, $networkResourceRef | Trace-Output
-                    $virtualGateway = $vgw
-                    break  # exit once found
+                # retrieve current list of the virtualGateways on the system
+                # we then need to determine if a gateway is associated with the virtual network that the network interface is connected to
+                $virtualGateways = Get-SdnResource @ncRestParams -Resource 'virtualGateways'
+                $virtualGateway = $null
+                foreach ($vgw in $virtualGateways) {
+                    if ($vgw.properties.gatewaySubnets.resourceRef -match $networkResourceRef) {
+                        "Located {0} associated with {1}" -f $vgw.resourceRef, $networkResourceRef | Trace-Output
+                        $virtualGateway = $vgw
+                        break  # exit once found
+                    }
+                }
+
+                if ($virtualGateway) {
+                    # as we can have multiple networkConnections associated to the virtual gateway, and networkConnection
+                    # can be placed on single or multiple gateway VMs, we need to enumerate through each networkConnection
+                    # to determine which gateway VMs we need to enable tracing on
+                    "{0} has {1} network connections" -f $virtualGateway.resourceRef, $virtualGateway.properties.networkConnections.Count | Trace-Output
+                    foreach ($netConnection in $virtualGateway.properties.networkConnections) {
+                        $data = Get-GatewayTraceMapping -NetworkConnection $netConnection @ncRestParams
+                        $gatewayTraceNodes += $data.Gateway
+                        $loadBalancerMuxTraceNodes += $data.LoadBalancerMux
+                        $serverTraceNodes += $data.Server
+                    }
                 }
             }
 
-            if ($virtualGateway) {
-                # as we can have multiple networkConnections associated to the virtual gateway, and networkConnection
-                # can be placed on single or multiple gateway VMs, we need to enumerate through each networkConnection
-                # to determine which gateway VMs we need to enable tracing on
-                "{0} has {1} network connections" -f $virtualGateway.resourceRef, $virtualGateway.properties.networkConnections.Count | Trace-Output
-                foreach ($netConnection in $virtualGateway.properties.networkConnections) {
-                    $data = Get-GatewayTraceMapping -NetworkConnection $netConnection @ncRestParams
-                    $gatewayTraceNodes += $data.Gateway
-                    $loadBalancerMuxTraceNodes += $data.LoadBalancerMux
-                    $serverTraceNodes += $data.Server
-                }
+            # check to see if there is a public ip address associated with the interface
+            # either directly or as part of a load balancer resource
+            $publicIpAddress = Get-SdnNetworkInterfaceOutboundPublicIPAddress -ResourceId $interface.ResourceId @ncRestParams
+            if ($publicIpAddress) {
+                $data = Get-LoadBalancerMuxTraceMapping @ncRestParams
+                $loadBalancerMuxTraceNodes += $data.LoadBalancerMux
+                $serverTraceNodes += $data.Server
             }
-        }
-
-        # check to see if there is a public ip address associated with the interface
-        # either directly or as part of a load balancer resource
-        $publicIpAddress = Get-SdnNetworkInterfaceOutboundPublicIPAddress -ResourceId $NetworkInterface.ResourceId @ncRestParams
-        if ($publicIpAddress) {
-            $data = Get-LoadBalancerMuxTraceMapping @ncRestParams
-            $loadBalancerMuxTraceNodes += $data.LoadBalancerMux
-            $serverTraceNodes += $data.Server
         }
 
         # consolidate all the nodes that we need to enable tracing on
