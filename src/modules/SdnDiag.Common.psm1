@@ -2503,9 +2503,12 @@ function Enable-SdnNetworkInterfaceTrace {
                 $networkResourceRef = $subnetResourceRef.Substring(0, $subnetResourceRef.LastIndexOf('/subnets'))
                 "Checking to see if there is a virtual gateway associated with {0}" -f $networkResourceRef | Trace-Output
 
+                # always include the local virtual network as a gateway lookup candidate
                 $gatewayNetworkResourceRefs = @($networkResourceRef)
                 $virtualNetwork = $virtualNetworks | Where-Object { $_.resourceRef -ieq $networkResourceRef } | Select-Object -First 1
                 if ($virtualNetwork) {
+                    # if any peering uses a remote gateway, include that remote virtual network
+                    # so the gateway lookup can follow the peering path
                     foreach ($peering in @($virtualNetwork.properties.virtualNetworkPeerings | Where-Object { $null -ne $_ })) {
                         if ($peering.properties.useRemoteGateways -eq $true -and $peering.properties.remoteVirtualNetwork.resourceRef) {
                             $remoteNetworkResourceRef = $peering.properties.remoteVirtualNetwork.resourceRef
@@ -2519,9 +2522,13 @@ function Enable-SdnNetworkInterfaceTrace {
                 }
 
                 $virtualGatewaysInPath = @()
+                # find all virtual gateways associated to each candidate network reference
                 foreach ($gatewayNetworkResourceRef in $gatewayNetworkResourceRefs) {
                     foreach ($vgw in $virtualGateways) {
+                        # gatewaySubnets.resourceRef can include additional path segments,
+                        # so escape and use regex match against the network resource reference
                         if ($vgw.properties.gatewaySubnets.resourceRef -match [regex]::Escape($gatewayNetworkResourceRef)) {
+                            # prevent duplicate processing when multiple references resolve to the same virtual gateway
                             if ($vgw.resourceRef -notin $virtualGatewaysInPath.resourceRef) {
                                 "Located {0} associated with {1}" -f $vgw.resourceRef, $gatewayNetworkResourceRef | Trace-Output
                                 $virtualGatewaysInPath += $vgw
