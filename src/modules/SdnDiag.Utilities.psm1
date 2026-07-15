@@ -232,7 +232,13 @@ function Confirm-IpAddressInCidrRange {
     $network = [System.BitConverter]::ToUInt32($network, 0)
 
     # Calculate the subnet mask from the prefix length
-    $mask = [uint32]::MaxValue -shl (32 - $prefixLength)
+    # Special-case /0: 32-bit shift wraps modulo 32, so handle it explicitly
+    if ($prefixLength -eq 0) {
+        $mask = [uint32]0
+    }
+    else {
+        $mask = [uint32]::MaxValue -shl (32 - $prefixLength)
+    }
 
     # Calculate the network address and broadcast address
     $networkAddress = $network -band $mask
