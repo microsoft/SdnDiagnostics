@@ -181,7 +181,7 @@ If new mock data is needed, add to `tests/offline/data/SdnApiResources/` using `
 ### Test rules
 
 - Pester v5+ syntax only (`Should -Be`, not `Should Be`)
-- One assertion per `It` block
+- One behavior per `It` block — multiple related assertions on the same result are allowed
 - Test both success and failure paths
 - Use `InModuleScope SdnDiagnostics { ... }` for private/internal utility functions
 - Use `InModuleScope SdnDiag.NetworkController { ... }` for NC REST mocks (mock + call together)
