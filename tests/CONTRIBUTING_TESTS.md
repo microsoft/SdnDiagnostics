@@ -101,41 +101,45 @@ Describe 'NetworkController - Get-SdnMyResource' {
 
 **Why this pattern?** `Get-SdnServer` → `Get-SdnResource` → `Invoke-RestMethodWithRetry` all execute within `SdnDiag.NetworkController`'s session state. The mock must be injected into THAT scope. Mocking at the parent module level (`-ModuleName SdnDiagnostics`) does NOT intercept calls between functions within nested modules.
 
-#### Pattern C: Health functions (data structure validation)
+#### Pattern C: Health functions (invoke via InModuleScope with mocked Get-SdnResource)
 
-Health functions (`Test-SdnResourceProvisioningState`, `Test-SdnResourceConfigurationState`) make cross-module
-calls to `Trace-Output` (in `SdnDiag.Utilities`) which uses the `[TraceLevel]` enum. This enum is not resolvable
-from `InModuleScope SdnDiag.Health` due to PowerShell nested module session state isolation. Direct invocation
-of these functions in tests is not possible.
+Health functions (`Test-SdnResourceProvisioningState`, `Test-SdnResourceConfigurationState`) call
+`Get-SdnResource` (imported from `SdnDiag.NetworkController`) and `Trace-Output` (from
+`SdnDiag.Utilities`). Both are available in `SdnDiag.Health`'s session state because Health
+explicitly imports those modules at the top of `SdnDiag.Health.psm1`.
 
-Instead, test the **data structures** and **logic patterns** that health functions operate on:
+Mock `Get-SdnResource` inside `InModuleScope SdnDiag.Health` to intercept calls made by the
+health functions, and then invoke the health functions directly to validate their returned result:
 
 ```powershell
-Describe 'Health - Provisioning State Detection' {
-    It "Detects Failed provisioning state" {
-        $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-        $failed = @($servers | Where-Object { $_.properties.provisioningState -eq 'Failed' })
-        $failed.Count | Should -Be 1
-        $failed[0].resourceId | Should -Be "DVLAB-S1-N04"
+Describe 'Health - Test-SdnResourceProvisioningState' {
+    It "Returns FAIL for a resource with Failed provisioning state" {
+        InModuleScope SdnDiag.Health {
+            Mock Get-SdnResource {
+                return $Global:PesterOfflineTests.SdnApiResourcesByRef['/servers/DVLAB-S1-N04']
+            }
+            $result = Test-SdnResourceProvisioningState -Resource 'Servers' -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'FAIL'
+        }
     }
 
-    It "Would detect duplicates if present" {
-        # Test the logic pattern directly without calling the module function
-        $testData = @(
-            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
-            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
-        )
-        $macs = $testData | ForEach-Object { $_.properties.privateMacAddress }
-        $grouped = @($macs | Group-Object | Where-Object { $_.Count -gt 1 })
-        $grouped.Count | Should -Be 1
+    It "Returns PASS for a resource with Succeeded provisioning state" {
+        InModuleScope SdnDiag.Health {
+            Mock Get-SdnResource {
+                return $Global:PesterOfflineTests.SdnApiResourcesByRef['/servers/DVLAB-S1-N01']
+            }
+            $result = Test-SdnResourceProvisioningState -Resource 'Servers' -ResourceId 'DVLAB-S1-N01' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'PASS'
+        }
     }
 }
 ```
 
-**Why not direct invocation?** `Test-SdnResourceProvisioningState` → `Trace-Output -Level:Verbose` fails because
-`[TraceLevel]` (defined in `SdnDiag.Utilities.psm1`) is not available in Health's scope under `InModuleScope`.
-Mocking `Trace-Output` inside Health's scope does not intercept the call because PowerShell resolves it to
-`SdnDiag.Utilities\Trace-Output` (the actual function in Utilities' session state).
+**Why this pattern works:** `SdnDiag.Health.psm1` imports `SdnDiag.NetworkController.psm1` at module
+load time, so `Get-SdnResource` is available in Health's session state. `Mock Get-SdnResource`
+inside `InModuleScope SdnDiag.Health` replaces it in that scope, intercepting calls from health
+functions. The health function logic (switch statements, result assignment, remediation) then runs
+against the mocked data and returns a real health-test object that tests can assert against.
 
 #### Pattern D: Remote command functions
 

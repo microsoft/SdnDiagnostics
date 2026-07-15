@@ -56,7 +56,7 @@ else {
 }
 
 if ($Tag) {
-    $pesterParams.Tag = $Tag
+    $pesterParams.TagFilter = $Tag
 }
 
 $results = Invoke-Pester @pesterParams -PassThru
