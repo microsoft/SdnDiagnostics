@@ -176,7 +176,7 @@ Describe 'Server - Get-SdnMyRemoteData' {
 - Gateways: `DVLAB-GW01` through `DVLAB-GW03`
 - Muxes: `DVLAB-MUX01`, `DVLAB-MUX02`
 
-If new mock data is needed, add to `tests/offline/data/SdnApiResources/` using `{ "value": [...], "nextLink": "" }` wrapper format.
+If new mock data is needed, add to `tests/offline/data/SdnApiResources/` using `{ "value": [...], "nextLink": "" }` wrapper format for collection resources. Singleton configuration endpoints (e.g., iDNS, load balancer manager) should use the raw object without the `value` wrapper.
 
 ### Test rules
 

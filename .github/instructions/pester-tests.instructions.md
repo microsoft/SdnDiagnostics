@@ -1,3 +1,8 @@
+---
+description: Pester test authoring patterns and conventions for SdnDiagnostics
+applyTo: "tests/**/*.ps1,tests/**/*.md"
+---
+
 # Pester Test Authoring Instructions
 
 Apply when creating, modifying, or expanding Pester tests for SdnDiagnostics.
@@ -153,6 +158,8 @@ JSON files use the NC REST API response wrapper format:
   "nextLink": ""
 }
 ```
+
+**Exception:** Singleton configuration resources (e.g., `iDNSServer_configuration.json`, `loadBalancerManager_config.json`) use the raw object without the `value` wrapper. `RunTests.ps1` handles both formats automatically.
 
 The filename (minus `.json`) becomes the lookup key in `$Global:PesterOfflineTests.SdnApiResources`.
 

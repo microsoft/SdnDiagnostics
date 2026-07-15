@@ -111,9 +111,9 @@ $result = Get-SdnResource @ncRestParams -ResourceRef $resourceRef
 All tests are offline (mock-based) in `tests/offline/`. See `.github/instructions/pester-tests.instructions.md` for the full authoring guide.
 
 **When adding a new function, always add corresponding Pester tests:**
-- Pure utility functions (Format-*, Confirm-*, Convert-*) → Pattern A (no mocking)
-- Functions calling NC REST API → Pattern B (mock `Get-SdnResource`)
-- Functions calling remote commands → Pattern C (mock `Invoke-PSRemoteCommand`)
+- Pure utility functions (Format-*, Confirm-*, Convert-*) → Pattern A (InModuleScope, no mocking)
+- Functions calling NC REST API → Pattern B (mock `Invoke-RestMethodWithRetry` inside `InModuleScope SdnDiag.NetworkController`)
+- Functions calling remote commands → Pattern C (mock `Invoke-PSRemoteCommand` inside the nested module scope)
 
 **Test file convention:** Named after the source module (e.g., `SdnDiag.Utilities.psm1` → `Utilities.Tests.ps1`)
 
