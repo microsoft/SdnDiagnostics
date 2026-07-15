@@ -1,0 +1,20 @@
+{
+  "properties": {
+    "forwarders": [
+      "168.63.129.16"
+    ],
+    "provisioningState": "Succeeded",
+    "connections": [
+      {
+        "managementAddresses": [
+          "10.20.30.50"
+        ],
+        "credential": {
+          "resourceRef": "/credentials/iDnsServer-Credential"
+        },
+        "credentialType": "UsernamePassword"
+      }
+    ],
+    "zone": "dvlab.contoso.local"
+  }
+}

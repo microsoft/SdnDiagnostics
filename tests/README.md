@@ -16,8 +16,10 @@ The tests are categorized into two type of tests **offline** and **online**
 
 ## Run offline tests
 - Install latest Pester by `Install-Module -Name Pester -Force -SkipPublisherCheck`. More info from [Pester Update](https://pester-docs.netlify.app/docs/introduction/installation)
-- The `offline\data` folder include the sample data like `SdnApiResources`. The data is loaded into `$Global:PesterOfflineTest`
+- The `offline\data` folder include the sample data like `SdnApiResources`. The data is loaded into `$Global:PesterOfflineTests`
 - Run offline test at offline folder by `.\RunTests.ps1`
+- Run a specific test file: `.\RunTests.ps1 -TestFile ".\Utilities.Tests.ps1"`
+- Run tests by tag: `.\RunTests.ps1 -Tag "Unit"`
 
 ## Run online tests in your test environment
 
@@ -28,8 +30,9 @@ The tests are categorized into two type of tests **offline** and **online**
 
 ## To create new tests
 
-- If your test function can be mocked with sample data, put it under `offline` folder. Otherwise, this have to be under `online` folder.
-- For offline test, sample data can be consumed from `$Global:PesterOfflineTest` to write your mock.
-- The new test script should be named as `*originalscriptname*.Tests.ps1`. For example, `Diagnostics.Tests.ps1` include the tests function for script `Diagnostics.ps1`
-- The online test scripts are grouped into different wave to maintain test execution order. `wave1` ... `waveAll` . If you don't expect order of test execution, the test script need to be in `waveAll` folder.
+See [CONTRIBUTING_TESTS.md](CONTRIBUTING_TESTS.md) for detailed instructions on adding new tests, including:
+- How to structure test files
+- How to write mocks for different function patterns
+- How to add or modify mock data
+- Naming conventions for the test environment (DVLAB prefix)
   

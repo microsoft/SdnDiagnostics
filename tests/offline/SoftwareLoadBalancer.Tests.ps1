@@ -10,13 +10,13 @@ Describe 'LoadBalancerMux test' {
         }
     }
     It "Get-SdnNetworkInterfaceOutboundPublicIPAddress able to return Public VIP from Outbound NAT Rule" {
-        $publicIpInfo = Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://sdnexpnc" -ResourceId tenantvm2
+        $publicIpInfo = Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://dvlab-nc.dvlab.contoso.local" -ResourceId tenantvm2
         $publicIpInfo.PublicIPAddress | Should -Be "40.40.40.4"
         $publicIpInfo.IPConfigPrivateIPAddress | Should -Be "192.168.33.5"
     }
 
     It "Get-SdnNetworkInterfaceOutboundPublicIPAddress able to return Public VIP on network interface" {
-        $publicIpInfo = Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://sdnexpnc" -ResourceId tenantvm1
+        $publicIpInfo = Get-SdnNetworkInterfaceOutboundPublicIPAddress -NcUri "https://dvlab-nc.dvlab.contoso.local" -ResourceId tenantvm1
         $publicIpInfo.PublicIPAddress | Should -Be "40.40.40.5"
         $publicIpInfo.IPConfigPrivateIPAddress | Should -Be "192.168.33.4"
     }
