@@ -165,11 +165,11 @@ The filename (minus `.json`) becomes the lookup key in `$Global:PesterOfflineTes
 
 ## Test Design Rules
 
-1. **One assertion per `It` block** — makes failures specific and identifiable
+1. **One behavior per `It` block** — test one logical behavior; multiple related assertions on the same result are fine
 2. **Test both success and failure paths** — include resources with Failed state
 3. **Descriptive test names** — describe WHAT is validated ("Returns 4 servers"), not HOW
 4. **Independent Describe blocks** — no cross-block state dependencies
-5. **Use `BeforeAll` for mocks** (not `BeforeEach`) — avoids repeated setup
+5. **Mock + call inside the same `InModuleScope` block** — never separate them; `BeforeAll` mocks do not cross `InModuleScope` boundaries
 6. **Use Pester v5+ syntax** — `Should -Be`, not legacy `Should Be`
 7. **Tag tests** when grouping: `Describe 'My Test' -Tag 'Unit' { ... }`
 

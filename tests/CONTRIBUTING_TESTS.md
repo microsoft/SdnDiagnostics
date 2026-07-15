@@ -211,7 +211,7 @@ cd tests\offline
 
 ## Test Design Guidelines
 
-1. **One assertion per `It` block** — makes failures easy to identify
+1. **One behavior per `It` block** — test one logical behavior; multiple related assertions on the same result are fine (e.g., checking both count and a property)
 2. **Test both happy path and error cases** — include boundary conditions
 3. **Use descriptive test names** — describe what the test validates, not how
 4. **Include a Failed/Unhealthy resource** in mock data — tests should validate detection of problems

@@ -169,12 +169,10 @@ Describe 'Utilities - IP Address Validation' {
             }
         }
 
-        It "Returns true for any IP within /0 (matches all) - known limitation: /0 wraps to /32 due to bit shift" {
-            # NOTE: [uint32]::MaxValue -shl 32 wraps modulo 32, making /0 behave like /32.
-            # This documents current behavior. A fix would special-case prefix length 0.
+        It "Returns true for any IP within /0 (matches all addresses)" {
             InModuleScope SdnDiagnostics {
                 $result = Confirm-IpAddressInCidrRange -IpAddress "192.168.1.1" -Cidr "0.0.0.0/0"
-                $result | Should -BeFalse  # Known limitation: should be $true but /0 wraps
+                $result | Should -BeTrue
             }
         }
     }
