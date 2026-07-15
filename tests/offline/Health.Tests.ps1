@@ -116,7 +116,7 @@ Describe 'Health - MAC Address Duplicate Detection' {
             [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
         )
         $macs = $testData | ForEach-Object { $_.properties.privateMacAddress }
-        $grouped = $macs | Group-Object | Where-Object { $_.Count -gt 1 }
+        $grouped = @($macs | Group-Object | Where-Object { $_.Count -gt 1 })
         $grouped.Count | Should -Be 1
         $grouped[0].Name | Should -Be "001DD8070001"
     }

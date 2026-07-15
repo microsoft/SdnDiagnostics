@@ -34,7 +34,12 @@
                   "resourceRef": "/networkInterfaces/tenantvm2/ipConfigurations/ipconfig1"
                 }
               ],
-              "provisioningState": "Succeeded"
+              "provisioningState": "Succeeded",
+              "outboundNatRules": [
+                {
+                  "resourceRef": "/loadBalancers/lb-outbound-0001/outboundNatRules/outbound-nat-0001"
+                }
+              ]
             },
             "instanceId": "bepool-inst-0001"
           }

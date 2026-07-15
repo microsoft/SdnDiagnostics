@@ -100,25 +100,29 @@ After creating the function, generate its offline Pester tests.
 
 1. **Read the function source** — identify what external calls it makes
 2. **Select pattern:**
-   - **Pattern A (pure unit):** No external calls — test inputs/outputs directly
-   - **Pattern B (NC REST):** Calls `Get-SdnResource` internally — mock it
-   - **Pattern C (remote command):** Calls `Invoke-PSRemoteCommand` — mock it
+   - **Pattern A (pure unit):** No external calls — test inputs/outputs directly. Wrap in `InModuleScope SdnDiagnostics { ... }` for private/internal functions.
+   - **Pattern B (NC REST):** Calls `Invoke-RestMethodWithRetry` internally — mock it inside `InModuleScope SdnDiag.NetworkController`
+   - **Pattern C (remote command):** Calls `Invoke-PSRemoteCommand` — mock it inside `InModuleScope <NestedModuleName>`
 
 ### Create or update the test file
 
 Test file: `tests/offline/<ModuleName>.Tests.ps1` (e.g., `NetworkController.Tests.ps1`)
 
-#### Pattern A — Pure unit test
+#### Pattern A — Pure unit test (private functions)
 
 ```powershell
 Describe 'Utilities - Format-MyFunction' {
     It "Returns expected output for valid input" {
-        $result = Format-MyFunction -Input "test"
-        $result | Should -Be "expected"
+        InModuleScope SdnDiagnostics {
+            $result = Format-MyFunction -Input "test"
+            $result | Should -Be "expected"
+        }
     }
 
     It "Handles edge case" {
-        { Format-MyFunction -Input $null } | Should -Throw
+        InModuleScope SdnDiagnostics {
+            { Format-MyFunction -Input $null } | Should -Throw
+        }
     }
 }
 ```
@@ -127,25 +131,22 @@ Describe 'Utilities - Format-MyFunction' {
 
 ```powershell
 Describe 'NetworkController - Get-SdnMyResource' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Get-SdnResource {
-            if (![string]::IsNullOrEmpty($ResourceRef)) {
-                return $Global:PesterOfflineTests.SdnApiResourcesByRef[$ResourceRef]
-            }
-            else {
-                return $Global:PesterOfflineTests.SdnApiResources[$ResourceType.ToString()]
-            }
-        }
-    }
-
     It "Returns resources" {
-        $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
-        $result | Should -Not -BeNullOrEmpty
-    }
-
-    It "Returns correct count" {
-        $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
-        $result | Should -HaveCount 4
+        InModuleScope SdnDiag.NetworkController {
+            Mock Invoke-RestMethodWithRetry {
+                $path = ([Uri]$Uri).AbsolutePath
+                if ($path -match '/networking/v1/(.+)$') {
+                    $resourceType = ($Matches[1] -split '/')[0]
+                    $refKey = "/$($Matches[1])"
+                    if ($Global:PesterOfflineTests.SdnApiResourcesByRef.ContainsKey($refKey)) {
+                        return $Global:PesterOfflineTests.SdnApiResourcesByRef[$refKey]
+                    }
+                    return [PSCustomObject]@{ value = $Global:PesterOfflineTests.SdnApiResources[$resourceType] }
+                }
+            }
+            $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
+            $result | Should -Not -BeNullOrEmpty
+        }
     }
 }
 ```
@@ -154,15 +155,14 @@ Describe 'NetworkController - Get-SdnMyResource' {
 
 ```powershell
 Describe 'Server - Get-SdnMyRemoteData' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Invoke-PSRemoteCommand {
-            return @{ Status = "OK"; Data = "mocked" }
-        }
-    }
-
     It "Returns remote data" {
-        $result = Get-SdnMyRemoteData -ComputerName "DVLAB-S1-N01"
-        $result.Status | Should -Be "OK"
+        InModuleScope SdnDiag.Server {
+            Mock Invoke-PSRemoteCommand {
+                return @{ Status = "OK"; Data = "mocked" }
+            }
+            $result = Get-SdnMyRemoteData -ComputerName "DVLAB-S1-N01"
+            $result.Status | Should -Be "OK"
+        }
     }
 }
 ```
@@ -183,7 +183,9 @@ If new mock data is needed, add to `tests/offline/data/SdnApiResources/` using `
 - Pester v5+ syntax only (`Should -Be`, not `Should Be`)
 - One assertion per `It` block
 - Test both success and failure paths
-- Use `BeforeAll` for mocks, not `BeforeEach`
+- Use `InModuleScope SdnDiagnostics { ... }` for private/internal utility functions
+- Use `InModuleScope SdnDiag.NetworkController { ... }` for NC REST mocks (mock + call together)
+- Always use `-NcUri` as a named parameter (it is NOT positional)
 - Descriptive names: describe WHAT is validated
 - Independent `Describe` blocks — no cross-block dependencies
 

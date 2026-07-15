@@ -35,53 +35,67 @@ $Global:PesterOfflineTests.SdnApiResources['networkInterfaces']
 $Global:PesterOfflineTests.SdnApiResourcesByRef['/servers/DVLAB-S1-N01']
 ```
 
+## Module Scope and Mocking
+
+SdnDiagnostics uses nested modules (SdnDiag.Utilities, SdnDiag.NetworkController, etc.). Each nested module has its own session state. This means:
+
+- **Private/internal functions** (not exported) must be called inside `InModuleScope SdnDiagnostics { ... }`
+- **Mocks for functions called within nested modules** must use `InModuleScope <NestedModuleName>` to intercept internal calls
+- `Mock -ModuleName SdnDiagnostics` does NOT intercept calls between functions within nested modules
+
 ## Three Mock Patterns
 
-### Pattern A: Pure Unit Test (no mock needed)
+### Pattern A: Pure Unit Test (private utility functions)
 
-Use for functions that transform input without external calls (Format-*, Confirm-*, Convert-*):
+Use for internal functions that transform input without external calls (Format-*, Confirm-*, Convert-*). These are NOT exported, so `InModuleScope` is required:
 
 ```powershell
 Describe 'Format-MyFunction' {
     It "Transforms input correctly" {
-        $result = Format-MyFunction -Input "test"
-        $result | Should -Be "expected"
-    }
-
-    It "Handles null gracefully" {
-        { Format-MyFunction -Input $null } | Should -Throw
-    }
-}
-```
-
-### Pattern B: Mock Get-SdnResource (NC REST functions)
-
-Use for any function that internally queries the Network Controller REST API:
-
-```powershell
-Describe 'Get-SdnMyResource' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Get-SdnResource {
-            if (![string]::IsNullOrEmpty($ResourceRef)) {
-                return $Global:PesterOfflineTests.SdnApiResourcesByRef[$ResourceRef]
-            }
-            else {
-                return $Global:PesterOfflineTests.SdnApiResources[$ResourceType.ToString()]
-            }
+        InModuleScope SdnDiagnostics {
+            $result = Format-MyFunction -Input "test"
+            $result | Should -Be "expected"
         }
     }
 
-    It "Returns resources from NC" {
-        $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
-        $result | Should -Not -BeNullOrEmpty
-    }
-
-    It "Returns correct count" {
-        $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
-        $result | Should -HaveCount 4
+    It "Handles null gracefully" {
+        InModuleScope SdnDiagnostics {
+            { Format-MyFunction -Input $null } | Should -Throw
+        }
     }
 }
 ```
+
+### Pattern B: Mock Invoke-RestMethodWithRetry (NC REST functions)
+
+Use for any function that internally queries the Network Controller REST API. Mock `Invoke-RestMethodWithRetry` inside `InModuleScope SdnDiag.NetworkController` to intercept the HTTP call:
+
+```powershell
+Describe 'Get-SdnMyResource' {
+    It "Returns resources from NC" {
+        InModuleScope SdnDiag.NetworkController {
+            Mock Invoke-RestMethodWithRetry {
+                $path = ([Uri]$Uri).AbsolutePath
+                if ($path -match '/networking/v1/(.+)$') {
+                    $resourceType = ($Matches[1] -split '/')[0]
+                    $refKey = "/$($Matches[1])"
+                    if ($Global:PesterOfflineTests.SdnApiResourcesByRef.ContainsKey($refKey)) {
+                        return $Global:PesterOfflineTests.SdnApiResourcesByRef[$refKey]
+                    }
+                    return [PSCustomObject]@{ value = $Global:PesterOfflineTests.SdnApiResources[$resourceType] }
+                }
+            }
+            $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
+            $result | Should -Not -BeNullOrEmpty
+        }
+    }
+}
+```
+
+**Key points:**
+- The mock must be inside `InModuleScope SdnDiag.NetworkController` (where the functions live)
+- Always use `-NcUri` as a named parameter (it is NOT positional)
+- The mock handles both collection requests (returns `{value: [...]}`) and single-resource lookups (returns the object directly via `SdnApiResourcesByRef`)
 
 ### Pattern C: Mock Remote Commands
 
@@ -89,15 +103,14 @@ Use for functions that execute commands on remote hosts via `Invoke-PSRemoteComm
 
 ```powershell
 Describe 'Get-SdnMyRemoteData' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Invoke-PSRemoteCommand {
-            return @{ Status = "OK"; Data = "mocked-response" }
-        }
-    }
-
     It "Processes remote output" {
-        $result = Get-SdnMyRemoteData -ComputerName "DVLAB-S1-N01"
-        $result.Status | Should -Be "OK"
+        InModuleScope SdnDiag.Server {
+            Mock Invoke-PSRemoteCommand {
+                return @{ Status = "OK"; Data = "mocked-response" }
+            }
+            $result = Get-SdnMyRemoteData -ComputerName "DVLAB-S1-N01"
+            $result.Status | Should -Be "OK"
+        }
     }
 }
 ```
