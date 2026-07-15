@@ -41,6 +41,19 @@ jobs:
           & .\build.ps1
         shell: powershell
 
+      - name: 'Run Offline Pester Tests'
+        run: |
+          Set-Location -Path .\main\tests\offline
+          $pesterParams = @{
+            Path   = '.\*Tests.ps1'
+            Output = 'Detailed'
+          }
+          $results = Invoke-Pester @pesterParams -PassThru
+          if ($results.FailedCount -gt 0) {
+            throw "$($results.FailedCount) Pester test(s) failed."
+          }
+        shell: powershell
+
       - name: 'Publish to Nuget Gallery'
         run: |
           nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.NUGET_AUTH_TOKEN }} -Source https://api.nuget.org/v3/index.json
