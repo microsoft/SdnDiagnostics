@@ -40,72 +40,122 @@ $Global:PesterOfflineTests.SdnApiResources['networkInterfaces'] # Array of NIC o
 $Global:PesterOfflineTests.SdnApiResourcesByRef['/servers/DVLAB-S1-N01']  # Lookup by resourceRef
 ```
 
-**JSON file format:** Each file wraps data in `{ "value": [...], "nextLink": "" }` matching the NC REST API response format.
+**JSON file format:** Each file wraps data in `{ "value": [...], "nextLink": "" }` matching the NC REST API response format. Singleton configuration resources (e.g., iDNS) may use a raw object without the `value` wrapper — `RunTests.ps1` handles both formats.
 
-### Step 3: Write Your Test
+### Step 3: Understand the Module Architecture
 
-#### Pattern A: Pure Unit Tests (no mocking needed)
+SdnDiagnostics uses **nested modules** (`NestedModules` in the manifest). Each nested module has its own session state. This is critical for mocking:
 
-For functions that accept input and return output without external dependencies:
+- **Private/internal functions** (e.g., `Format-*`, `Confirm-*`) are NOT exported — you must use `InModuleScope SdnDiagnostics { ... }` to access them
+- **Functions in nested modules** (e.g., `Get-SdnServer` in `SdnDiag.NetworkController`) execute in their nested module's scope — mocks must be placed in THAT scope
+- **Cross-module calls** (e.g., Health → NetworkController) require mocking the called function in the caller's module scope
+
+### Step 4: Write Your Test
+
+#### Pattern A: Pure Unit Tests (private/internal functions)
+
+For private functions that are not exported (e.g., `Format-MacAddressWithDashes`, `Confirm-IsAdmin`):
 
 ```powershell
-Describe 'Utilities - My New Function' {
+Describe 'Utilities - Format-MyFunction' {
     It "Returns expected output for valid input" {
-        $result = My-Function -Parameter "value"
-        $result | Should -Be "expected"
+        InModuleScope SdnDiagnostics {
+            $result = Format-MyFunction -Input "test"
+            $result | Should -Be "expected"
+        }
     }
 
     It "Throws on invalid input" {
-        { My-Function -Parameter $null } | Should -Throw
-    }
-}
-```
-
-#### Pattern B: Functions that call Get-SdnResource
-
-Most NC-querying functions internally call `Get-SdnResource`. Mock it to return test data:
-
-```powershell
-Describe 'NetworkController - My-NewFunction' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Get-SdnResource {
-            if (![string]::IsNullOrEmpty($ResourceRef)) {
-                return $Global:PesterOfflineTests.SdnApiResourcesByRef[$ResourceRef]
-            }
-            else {
-                return $Global:PesterOfflineTests.SdnApiResources[$ResourceType.ToString()]
-            }
+        InModuleScope SdnDiagnostics {
+            { Format-MyFunction -Input $null } | Should -Throw
         }
     }
-
-    It "Returns expected data" {
-        $result = My-NewFunction -NcUri "https://dvlab-nc.dvlab.contoso.local"
-        $result | Should -Not -BeNullOrEmpty
-    }
 }
 ```
 
-#### Pattern C: Functions that call remote commands
+#### Pattern B: NC REST functions (mock Invoke-RestMethodWithRetry)
 
-For functions using `Invoke-PSRemoteCommand` or `Invoke-Command`:
+For functions in `SdnDiag.NetworkController` that call `Invoke-RestMethodWithRetry`:
 
 ```powershell
-Describe 'Server - My-RemoteFunction' {
-    BeforeAll {
-        Mock -ModuleName SdnDiagnostics Invoke-PSRemoteCommand {
-            # Return what the remote command would return
-            return @{ Status = "OK"; Data = "mocked" }
+Describe 'NetworkController - Get-SdnMyResource' {
+    It "Returns resources" {
+        InModuleScope SdnDiag.NetworkController {
+            Mock Invoke-RestMethodWithRetry {
+                $path = ([Uri]$Uri).AbsolutePath
+                if ($path -match '/networking/v1/(.+)$') {
+                    $resourceType = ($Matches[1] -split '/')[0]
+                    $refKey = "/$($Matches[1])"
+                    if ($Global:PesterOfflineTests.SdnApiResourcesByRef.ContainsKey($refKey)) {
+                        return $Global:PesterOfflineTests.SdnApiResourcesByRef[$refKey]
+                    }
+                    return [PSCustomObject]@{ value = $Global:PesterOfflineTests.SdnApiResources[$resourceType] }
+                }
+            }
+            $result = Get-SdnMyResource -NcUri "https://dvlab-nc.dvlab.contoso.local"
+            $result | Should -Not -BeNullOrEmpty
         }
-    }
-
-    It "Processes remote data correctly" {
-        $result = My-RemoteFunction -ComputerName "DVLAB-S1-N01"
-        $result.Status | Should -Be "OK"
     }
 }
 ```
 
-### Step 4: Add Mock Data (if needed)
+**Why this pattern?** `Get-SdnServer` → `Get-SdnResource` → `Invoke-RestMethodWithRetry` all execute within `SdnDiag.NetworkController`'s session state. The mock must be injected into THAT scope. Mocking at the parent module level (`-ModuleName SdnDiagnostics`) does NOT intercept calls between functions within nested modules.
+
+#### Pattern C: Health functions (data structure validation)
+
+Health functions (`Test-SdnResourceProvisioningState`, `Test-SdnResourceConfigurationState`) make cross-module
+calls to `Trace-Output` (in `SdnDiag.Utilities`) which uses the `[TraceLevel]` enum. This enum is not resolvable
+from `InModuleScope SdnDiag.Health` due to PowerShell nested module session state isolation. Direct invocation
+of these functions in tests is not possible.
+
+Instead, test the **data structures** and **logic patterns** that health functions operate on:
+
+```powershell
+Describe 'Health - Provisioning State Detection' {
+    It "Detects Failed provisioning state" {
+        $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
+        $failed = @($servers | Where-Object { $_.properties.provisioningState -eq 'Failed' })
+        $failed.Count | Should -Be 1
+        $failed[0].resourceId | Should -Be "DVLAB-S1-N04"
+    }
+
+    It "Would detect duplicates if present" {
+        # Test the logic pattern directly without calling the module function
+        $testData = @(
+            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
+            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
+        )
+        $macs = $testData | ForEach-Object { $_.properties.privateMacAddress }
+        $grouped = @($macs | Group-Object | Where-Object { $_.Count -gt 1 })
+        $grouped.Count | Should -Be 1
+    }
+}
+```
+
+**Why not direct invocation?** `Test-SdnResourceProvisioningState` → `Trace-Output -Level:Verbose` fails because
+`[TraceLevel]` (defined in `SdnDiag.Utilities.psm1`) is not available in Health's scope under `InModuleScope`.
+Mocking `Trace-Output` inside Health's scope does not intercept the call because PowerShell resolves it to
+`SdnDiag.Utilities\Trace-Output` (the actual function in Utilities' session state).
+
+#### Pattern D: Remote command functions
+
+For functions using `Invoke-PSRemoteCommand`:
+
+```powershell
+Describe 'Server - Get-SdnMyRemoteData' {
+    It "Returns remote data" {
+        InModuleScope SdnDiag.Server {
+            Mock Invoke-PSRemoteCommand {
+                return @{ Status = "OK"; Data = "mocked" }
+            }
+            $result = Get-SdnMyRemoteData -ComputerName "DVLAB-S1-N01"
+            $result.Status | Should -Be "OK"
+        }
+    }
+}
+```
+
+### Step 5: Add Mock Data (if needed)
 
 If your test needs data not currently in `data/SdnApiResources/`:
 
@@ -144,7 +194,7 @@ If you need a resource type not currently in the data folder:
 
 The file name (minus `.json`) becomes the key in `$Global:PesterOfflineTests.SdnApiResources`.
 
-### Step 5: Run Your Tests
+### Step 6: Run Your Tests
 
 ```powershell
 # Run all offline tests
@@ -153,9 +203,6 @@ cd tests\offline
 
 # Run a specific test file
 .\RunTests.ps1 -TestFile ".\Utilities.Tests.ps1"
-
-# Run tests matching a tag
-.\RunTests.ps1 -Tag "Unit"
 ```
 
 **Prerequisites:**
@@ -169,7 +216,8 @@ cd tests\offline
 3. **Use descriptive test names** — describe what the test validates, not how
 4. **Include a Failed/Unhealthy resource** in mock data — tests should validate detection of problems
 5. **Don't depend on test execution order** — each `Describe` block should be independent
-6. **Use `BeforeAll` for shared mocks** — not `BeforeEach` (avoids repeated setup)
+6. **Mock + call inside the same InModuleScope block** — never separate them
+7. **Use `@(...)` for counts** — when filtering with `Where-Object`, wrap in `@()` before checking `.Count` (single-result gotcha)
 
 ## Mock Data Reference
 

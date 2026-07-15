@@ -59,4 +59,7 @@ if ($Tag) {
     $pesterParams.Tag = $Tag
 }
 
-Invoke-Pester @pesterParams
+$results = Invoke-Pester @pesterParams -PassThru
+if ($results.Result -ne 'Passed') {
+    throw "$($results.FailedCount) Pester test(s) failed. Result: $($results.Result)"
+}

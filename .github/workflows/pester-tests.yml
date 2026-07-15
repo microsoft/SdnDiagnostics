@@ -33,13 +33,5 @@ jobs:
       - name: Run Offline Pester Tests
         run: |
           Set-Location -Path .\tests\offline
-          $pesterParams = @{
-            Path   = '.\*Tests.ps1'
-            Output = 'Detailed'
-          }
-          $results = Invoke-Pester @pesterParams -PassThru
-          if ($results.FailedCount -gt 0) {
-            throw "$($results.FailedCount) Pester test(s) failed."
-          }
-          Write-Host "All $($results.PassedCount) tests passed." -ForegroundColor Green
+          .\RunTests.ps1
         shell: powershell

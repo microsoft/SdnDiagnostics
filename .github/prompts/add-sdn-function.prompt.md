@@ -22,13 +22,13 @@ Place the function in the correct module based on its role:
 
 | Module | Purpose | Location |
 |--------|---------|----------|
-| `SdnDiag.Utilities` | Pure helpers (Format-*, Confirm-*, Convert-*) | `src/modules/SdnDiag.Utilities/` |
-| `SdnDiag.Common` | Shared SDN operations | `src/modules/SdnDiag.Common/` |
-| `SdnDiag.NetworkController` | NC REST API operations | `src/modules/SdnDiag.NetworkController/` |
-| `SdnDiag.Server` | Hyper-V host operations | `src/modules/SdnDiag.Server/` |
-| `SdnDiag.Gateway` | Gateway operations | `src/modules/SdnDiag.Gateway/` |
-| `SdnDiag.LoadBalancerMux` | Mux operations | `src/modules/SdnDiag.LoadBalancerMux/` |
-| `SdnDiag.Health` | Health validation logic | `src/modules/SdnDiag.Health/` |
+| `SdnDiag.Utilities` | Pure helpers (Format-*, Confirm-*, Convert-*) | `src/modules/SdnDiag.Utilities.psm1` |
+| `SdnDiag.Common` | Shared SDN operations | `src/modules/SdnDiag.Common.psm1` |
+| `SdnDiag.NetworkController` | NC REST API operations | `src/modules/SdnDiag.NetworkController.psm1` |
+| `SdnDiag.Server` | Hyper-V host operations | `src/modules/SdnDiag.Server.psm1` |
+| `SdnDiag.Gateway` | Gateway operations | `src/modules/SdnDiag.Gateway.psm1` |
+| `SdnDiag.LoadBalancerMux` | Mux operations | `src/modules/SdnDiag.LoadBalancerMux.psm1` |
+| `SdnDiag.Health` | Health validation logic | `src/modules/SdnDiag.Health.psm1` |
 
 ### Function structure requirements
 

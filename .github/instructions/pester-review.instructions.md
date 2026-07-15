@@ -18,6 +18,7 @@ When reviewing changes to PowerShell source files in `src/`, check that correspo
 ## What to check
 
 - Look for new `function <Verb>-Sdn<Noun>` definitions in the diff
+- **Verify the function is exported:** Check `src/SdnDiagnostics.psd1` `FunctionsToExport` — only exported functions require tests
 - Verify a `Describe '<Module> - <FunctionName>'` block exists in the corresponding test file
 - If no test file exists for the module yet, flag that one should be created
 
