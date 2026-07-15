@@ -7,9 +7,8 @@ This guide explains how to add new Pester tests to the SdnDiagnostics project.
 | Category | Location | When to Use |
 |----------|----------|-------------|
 | **Offline** | `tests/offline/` | Function can be tested with mocked data, no live SDN deployment needed |
-| **Online** | `tests/online/wave1/` or `waveAll/` | Function requires a live SDN deployment |
 
-**Prefer offline tests.** If a function's behavior can be validated through mocking, write an offline test.
+**All tests should be offline.** If a function's behavior can be validated through mocking, write an offline test.
 
 ## Adding a New Offline Test
 
@@ -194,10 +193,3 @@ cd tests\offline
 - **Outbound NAT:** tenantvm2 is in `OutboundNatPool` → resolves to pip-outbound-0001 (40.40.40.4)
 - **Direct VIP:** tenantvm1 has publicIPAddress → resolves to pip-tenant-0001 (40.40.40.5)
 
-## Online Tests
-
-Online tests require a live SDN deployment. See `tests/online/SdnDiagnosticsTestConfig-Sample.psd1` for configuration.
-
-- Place tests in `wave1/` if execution order matters (runs first)
-- Place tests in `waveAll/` if order doesn't matter
-- Use `$Global:PesterOnlineTests.ConfigData` for environment-specific values

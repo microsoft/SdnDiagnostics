@@ -106,6 +106,21 @@ switch ($PSCmdlet.ParameterSetName) {
 $result = Get-SdnResource @ncRestParams -ResourceRef $resourceRef
 ```
 
+## Pester Testing
+
+All tests are offline (mock-based) in `tests/offline/`. See `.github/instructions/pester-tests.instructions.md` for the full authoring guide.
+
+**When adding a new function, always add corresponding Pester tests:**
+- Pure utility functions (Format-*, Confirm-*, Convert-*) → Pattern A (no mocking)
+- Functions calling NC REST API → Pattern B (mock `Get-SdnResource`)
+- Functions calling remote commands → Pattern C (mock `Invoke-PSRemoteCommand`)
+
+**Test file convention:** Named after the source module (e.g., `SdnDiag.Utilities.psm1` → `Utilities.Tests.ps1`)
+
+**Mock data:** Uses `DVLAB` prefix naming. JSON files in `tests/offline/data/SdnApiResources/` auto-load into `$Global:PesterOfflineTests.SdnApiResources`.
+
+**Running:** Build the module first (`.\build.ps1`), then `.\tests\offline\RunTests.ps1`
+
 ## Security Best Practices
 - Never log credentials or secrets
 - Use SecureString for password parameters
