@@ -1492,8 +1492,6 @@ function Test-SdnProviderNetwork {
             $connectivityResults = Test-SdnProviderAddressConnectivity -ProviderAddress $filteredAddressMappings
 
             foreach ($destination in $connectivityResults) {
-                $sourceIPAddress = $destination.SourceAddress[0]
-                $destinationIPAddress = $destination.DestinationAddress[0]
                 $jumboPacketResult = $destination | Where-Object { $_.BufferSize -gt 1472 }
                 $standardPacketResult = $destination | Where-Object { $_.BufferSize -le 1472 }
 
