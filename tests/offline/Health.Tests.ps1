@@ -30,11 +30,12 @@ Describe 'Health - Test-SdnResourceProvisioningState' {
             [PSCustomObject]@{ resourceRef = '/servers/DVLAB-S1-N04'; properties = [PSCustomObject]@{ provisioningState = 'Failed' } }
         }
         InModuleScope SdnDiag.Health {
-            $result = Test-SdnResourceProvisioningState -Resource Servers -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result = Test-SdnResourceProvisioningState -Resource Servers -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local' -ErrorVariable testErrors
             $result.Result | Should -Be 'FAIL'
             $result.Properties.provisioningState | Should -Be 'Failed'
             $result.Remediation | Should -Not -BeNullOrEmpty
             ($result.Remediation -join '') | Should -BeLike '*DVLAB-S1-N04*'
+            $testErrors | Should -BeNullOrEmpty
         }
     }
 
