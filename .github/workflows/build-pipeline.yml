@@ -41,6 +41,12 @@ jobs:
           & .\build.ps1
         shell: powershell
 
+      - name: 'Run Offline Pester Tests'
+        run: |
+          Set-Location -Path .\main\tests\offline
+          .\RunTests.ps1
+        shell: powershell
+
       - name: 'Publish to Nuget Gallery'
         run: |
           nuget.exe push  ".\main\out\packages\SdnDiagnostics.*.nupkg" -ApiKey ${{ secrets.NUGET_AUTH_TOKEN }} -Source https://api.nuget.org/v3/index.json
