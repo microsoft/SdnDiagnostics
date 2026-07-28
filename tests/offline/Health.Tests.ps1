@@ -1,139 +1,214 @@
 # Health.Tests.ps1
 #
-# NOTE: Test-SdnResourceProvisioningState and Test-SdnResourceConfigurationState are internal
-# functions in SdnDiag.Health that make cross-module calls (Trace-Output in SdnDiag.Utilities,
-# Get-SdnResource in SdnDiag.NetworkController). Due to PowerShell nested module session state
-# isolation, [TraceLevel] enum from SdnDiag.Utilities is not resolvable inside InModuleScope
-# SdnDiag.Health, preventing direct invocation. These tests validate the health logic patterns
-# and data structures that the health functions operate on.
+# These tests exercise the production health functions in SdnDiag.Health directly rather than
+# re-implementing their logic against the fixtures.
+#
+# - Test-SdnResourceProvisioningState / Test-SdnResourceConfigurationState call Get-SdnResource
+#   (SdnDiag.NetworkController). We mock the REST layer (Invoke-RestMethodWithRetry) inside
+#   SdnDiag.NetworkController so the real Get-SdnResource and health evaluation logic run against
+#   controlled resource fixtures.
+# - Test-VfpDuplicateMacAddress / Test-VMNetAdapterDuplicateMacAddress are invoked inside
+#   InModuleScope SdnDiag.Health with their server-side data providers (Get-SdnVfpVmSwitchPort /
+#   Get-SdnVMNetworkAdapter) and Confirm-IsServer mocked.
 
-Describe 'Health - Provisioning State Detection' {
-    Context 'Mock data has correct structure for health checks' {
-        It "All servers include provisioningState property" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            foreach ($server in $servers) {
-                $server.properties.provisioningState | Should -Not -BeNullOrEmpty
-            }
+Describe 'Health - Test-SdnResourceProvisioningState' {
+    It "Returns PASS with resource details when provisioningState is Succeeded" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{ resourceRef = '/servers/DVLAB-S1-N01'; properties = [PSCustomObject]@{ provisioningState = 'Succeeded' } }
         }
-
-        It "Detects Failed provisioning state (triggers FAIL in health function)" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $failed = @($servers | Where-Object { $_.properties.provisioningState -eq 'Failed' })
-            $failed.Count | Should -Be 1
-            $failed[0].resourceId | Should -Be "DVLAB-S1-N04"
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceProvisioningState -Resource Servers -ResourceId 'DVLAB-S1-N01' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'PASS'
+            $result.Properties.provisioningState | Should -Be 'Succeeded'
+            $result.Properties.resourceRef | Should -Be '/servers/DVLAB-S1-N01'
+            $result.Remediation | Should -BeNullOrEmpty
         }
+    }
 
-        It "Identifies Succeeded provisioning state (triggers PASS in health function)" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $succeeded = @($servers | Where-Object { $_.properties.provisioningState -eq 'Succeeded' })
-            $succeeded.Count | Should -Be 3
+    It "Returns FAIL with remediation when provisioningState is Failed" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{ resourceRef = '/servers/DVLAB-S1-N04'; properties = [PSCustomObject]@{ provisioningState = 'Failed' } }
         }
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceProvisioningState -Resource Servers -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'FAIL'
+            $result.Properties.provisioningState | Should -Be 'Failed'
+            $result.Remediation | Should -Not -BeNullOrEmpty
+            ($result.Remediation -join '') | Should -BeLike '*DVLAB-S1-N04*'
+        }
+    }
 
-        It "Resources include resourceRef for health result Properties" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            foreach ($server in $servers) {
-                $server.resourceRef | Should -Not -BeNullOrEmpty
-            }
+    It "Returns WARNING with remediation when provisioningState is Updating" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{ resourceRef = '/servers/DVLAB-S1-N02'; properties = [PSCustomObject]@{ provisioningState = 'Updating' } }
+        }
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceProvisioningState -Resource Servers -ResourceId 'DVLAB-S1-N02' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'WARNING'
+            $result.Remediation | Should -Not -BeNullOrEmpty
         }
     }
 }
 
-Describe 'Health - Configuration State Detection' {
-    Context 'Mock data has correct structure for configuration state checks' {
-        It "All servers include configurationState property" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            foreach ($server in $servers) {
-                $server.properties.configurationState | Should -Not -BeNullOrEmpty
+Describe 'Health - Test-SdnResourceConfigurationState' {
+    It "Returns PASS when configurationState status is Success" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{
+                resourceRef = '/servers/DVLAB-S1-N01'
+                properties  = [PSCustomObject]@{
+                    provisioningState  = 'Succeeded'
+                    configurationState = [PSCustomObject]@{
+                        status       = 'Success'
+                        detailedInfo = @([PSCustomObject]@{ code = 'Success'; message = 'ok'; source = 'server' })
+                    }
+                }
             }
         }
-
-        It "Detects Failure configuration state (triggers FAIL in health function)" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $failed = @($servers | Where-Object { $_.properties.configurationState.status -eq 'Failure' })
-            $failed.Count | Should -Be 1
-            $failed[0].resourceId | Should -Be "DVLAB-S1-N04"
-        }
-
-        It "Identifies Success configuration state (triggers PASS in health function)" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $success = @($servers | Where-Object { $_.properties.configurationState.status -eq 'Success' })
-            $success.Count | Should -Be 3
-        }
-
-        It "Configuration state detailedInfo has required fields" {
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $server = $servers | Where-Object { $_.resourceId -eq 'DVLAB-S1-N01' }
-            $server.properties.configurationState.detailedInfo[0].source | Should -Not -BeNullOrEmpty
-            $server.properties.configurationState.detailedInfo[0].message | Should -Not -BeNullOrEmpty
-            $server.properties.configurationState.detailedInfo[0].code | Should -Not -BeNullOrEmpty
-        }
-
-        It "Health function skips config check when provisioningState is not Succeeded" {
-            # Validates the guard clause: if provisioningState != Succeeded, config state is not evaluated
-            $servers = $Global:PesterOfflineTests.SdnApiResources['servers']
-            $failedProv = $servers | Where-Object { $_.properties.provisioningState -ne 'Succeeded' }
-            # DVLAB-S1-N04 has Failed provisioning AND Failure config - health function returns PASS (skips check)
-            $failedProv.properties.configurationState.status | Should -Be 'Failure'
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceConfigurationState -Resource Servers -ResourceId 'DVLAB-S1-N01' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'PASS'
+            $result.Properties.resourceRef | Should -Be '/servers/DVLAB-S1-N01'
+            $result.Remediation | Should -BeNullOrEmpty
         }
     }
 
-    Context 'Mux configuration state' {
-        It "All muxes have Success configuration state" {
-            $muxes = $Global:PesterOfflineTests.SdnApiResources['loadBalancerMuxes']
-            foreach ($mux in $muxes) {
-                $mux.properties.configurationState.status | Should -Be "Success"
+    It "Returns FAIL with remediation when configurationState status is Failure" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{
+                resourceRef = '/servers/DVLAB-S1-N04'
+                properties  = [PSCustomObject]@{
+                    provisioningState  = 'Succeeded'
+                    configurationState = [PSCustomObject]@{
+                        status       = 'Failure'
+                        detailedInfo = @([PSCustomObject]@{ code = 'PolicyConfigurationFailure'; message = 'policy failed'; source = 'server' })
+                    }
+                }
             }
+        }
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceConfigurationState -Resource Servers -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'FAIL'
+            $result.Properties.configurationState.status | Should -Be 'Failure'
+            $result.Remediation | Should -Not -BeNullOrEmpty
         }
     }
 
-    Context 'Network Interface configuration state' {
-        It "Network interfaces have configurationState with Success status" {
-            $nics = $Global:PesterOfflineTests.SdnApiResources['networkInterfaces']
-            foreach ($nic in $nics) {
-                $nic.properties.configurationState | Should -Not -BeNullOrEmpty
-                $nic.properties.configurationState.status | Should -Be "Success"
+    It "Returns WARNING when configurationState status is Warning" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{
+                resourceRef = '/servers/DVLAB-S1-N03'
+                properties  = [PSCustomObject]@{
+                    provisioningState  = 'Succeeded'
+                    configurationState = [PSCustomObject]@{ status = 'Warning'; detailedInfo = @() }
+                }
             }
         }
-
-        It "Network interfaces are assigned to servers" {
-            $nics = $Global:PesterOfflineTests.SdnApiResources['networkInterfaces']
-            $assignedNics = @($nics | Where-Object { $null -ne $_.properties.server })
-            $assignedNics.Count | Should -Be $nics.Count
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceConfigurationState -Resource Servers -ResourceId 'DVLAB-S1-N03' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            $result.Result | Should -Be 'WARNING'
         }
     }
 
-    Context 'Gateway health state' {
-        It "All gateways have Healthy healthState" {
-            $gateways = $Global:PesterOfflineTests.SdnApiResources['gateways']
-            foreach ($gw in $gateways) {
-                $gw.properties.healthState | Should -Be "Healthy"
+    It "Skips configuration check (returns PASS) when provisioningState is not Succeeded" {
+        Mock -ModuleName SdnDiag.NetworkController Invoke-RestMethodWithRetry {
+            [PSCustomObject]@{
+                resourceRef = '/servers/DVLAB-S1-N04'
+                properties  = [PSCustomObject]@{
+                    provisioningState  = 'Failed'
+                    configurationState = [PSCustomObject]@{ status = 'Failure'; detailedInfo = @() }
+                }
             }
         }
-
-        It "Gateway pool has expected gateway count" {
-            $pools = $Global:PesterOfflineTests.SdnApiResources['gatewayPools']
-            $pools[0].properties.gateways.Count | Should -Be 3
+        InModuleScope SdnDiag.Health {
+            $result = Test-SdnResourceConfigurationState -Resource Servers -ResourceId 'DVLAB-S1-N04' -NcUri 'https://dvlab-nc.dvlab.contoso.local'
+            # configuration state is not evaluated when provisioningState is not Succeeded
+            $result.Result | Should -Be 'PASS'
+            $result.Remediation | Should -BeNullOrEmpty
         }
     }
 }
 
-Describe 'Health - MAC Address Duplicate Detection' {
-    It "Detects no duplicates when all MACs are unique" {
-        $nics = $Global:PesterOfflineTests.SdnApiResources['networkInterfaces']
-        $macs = $nics | ForEach-Object { $_.properties.privateMacAddress }
-        $uniqueMacs = $macs | Select-Object -Unique
-        $uniqueMacs.Count | Should -Be $macs.Count
+Describe 'Health - Test-VfpDuplicateMacAddress' {
+    It "Returns FAIL and reports the duplicate MAC when VFP ports share a MAC address" {
+        InModuleScope SdnDiag.Health {
+            Mock Confirm-IsServer {}
+            Mock Get-SdnVfpVmSwitchPort {
+                @(
+                    [PSCustomObject]@{ MacAddress = '00-11-22-33-44-55'; PortName = 'Port1'; PortState = 'Active'; NicName = 'Nic1'; VMName = 'VM1' }
+                    [PSCustomObject]@{ MacAddress = '00-11-22-33-44-55'; PortName = 'Port2'; PortState = 'Active'; NicName = 'Nic2'; VMName = 'VM2' }
+                    [PSCustomObject]@{ MacAddress = 'AA-BB-CC-DD-EE-FF'; PortName = 'Port3'; PortState = 'Active'; NicName = 'Nic3'; VMName = 'VM3' }
+                )
+            }
+            $result = Test-VfpDuplicateMacAddress
+            $result.Result | Should -Be 'FAIL'
+            @($result.Properties).Count | Should -Be 2
+            ($result.Remediation -join '') | Should -BeLike '*00-11-22-33-44-55*'
+        }
     }
 
-    It "Would detect duplicates if present" {
-        $testData = @(
-            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
-            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070002" } }
-            [PSCustomObject]@{ properties = @{ privateMacAddress = "001DD8070001" } }
-        )
-        $macs = $testData | ForEach-Object { $_.properties.privateMacAddress }
-        $grouped = @($macs | Group-Object | Where-Object { $_.Count -gt 1 })
-        $grouped.Count | Should -Be 1
-        $grouped[0].Name | Should -Be "001DD8070001"
+    It "Returns PASS when all VFP MAC addresses are unique" {
+        InModuleScope SdnDiag.Health {
+            Mock Confirm-IsServer {}
+            Mock Get-SdnVfpVmSwitchPort {
+                @(
+                    [PSCustomObject]@{ MacAddress = '00-11-22-33-44-55'; PortName = 'Port1'; PortState = 'Active'; NicName = 'Nic1'; VMName = 'VM1' }
+                    [PSCustomObject]@{ MacAddress = 'AA-BB-CC-DD-EE-FF'; PortName = 'Port2'; PortState = 'Active'; NicName = 'Nic2'; VMName = 'VM2' }
+                )
+            }
+            $result = Test-VfpDuplicateMacAddress
+            $result.Result | Should -Be 'PASS'
+            $result.Remediation | Should -BeNullOrEmpty
+        }
+    }
+
+    It "Excludes null and zero MAC addresses from duplicate detection" {
+        InModuleScope SdnDiag.Health {
+            Mock Confirm-IsServer {}
+            Mock Get-SdnVfpVmSwitchPort {
+                @(
+                    [PSCustomObject]@{ MacAddress = '00-00-00-00-00-00'; PortName = 'Port1'; PortState = 'Active'; NicName = 'Nic1'; VMName = 'VM1' }
+                    [PSCustomObject]@{ MacAddress = '00-00-00-00-00-00'; PortName = 'Port2'; PortState = 'Active'; NicName = 'Nic2'; VMName = 'VM2' }
+                    [PSCustomObject]@{ MacAddress = $null; PortName = 'Port3'; PortState = 'Active'; NicName = 'Nic3'; VMName = 'VM3' }
+                    [PSCustomObject]@{ MacAddress = $null; PortName = 'Port4'; PortState = 'Active'; NicName = 'Nic4'; VMName = 'VM4' }
+                    [PSCustomObject]@{ MacAddress = 'AA-BB-CC-DD-EE-FF'; PortName = 'Port5'; PortState = 'Active'; NicName = 'Nic5'; VMName = 'VM5' }
+                )
+            }
+            $result = Test-VfpDuplicateMacAddress
+            $result.Result | Should -Be 'PASS'
+        }
+    }
+}
+
+Describe 'Health - Test-VMNetAdapterDuplicateMacAddress' {
+    It "Returns FAIL and reports the duplicate MAC when VM network adapters share a MAC address" {
+        InModuleScope SdnDiag.Health {
+            Mock Confirm-IsServer {}
+            Mock Get-SdnVMNetworkAdapter {
+                @(
+                    [PSCustomObject]@{ MacAddress = '001122334455'; VMName = 'VM1'; Name = 'NetAdapter1'; Status = 'Ok' }
+                    [PSCustomObject]@{ MacAddress = '001122334455'; VMName = 'VM2'; Name = 'NetAdapter2'; Status = 'Ok' }
+                    [PSCustomObject]@{ MacAddress = 'AABBCCDDEEFF'; VMName = 'VM3'; Name = 'NetAdapter3'; Status = 'Ok' }
+                )
+            }
+            $result = Test-VMNetAdapterDuplicateMacAddress
+            $result.Result | Should -Be 'FAIL'
+            @($result.Properties).Count | Should -Be 2
+            ($result.Remediation -join '') | Should -BeLike '*001122334455*'
+        }
+    }
+
+    It "Returns PASS when all VM network adapter MAC addresses are unique" {
+        InModuleScope SdnDiag.Health {
+            Mock Confirm-IsServer {}
+            Mock Get-SdnVMNetworkAdapter {
+                @(
+                    [PSCustomObject]@{ MacAddress = '001122334455'; VMName = 'VM1'; Name = 'NetAdapter1'; Status = 'Ok' }
+                    [PSCustomObject]@{ MacAddress = 'AABBCCDDEEFF'; VMName = 'VM2'; Name = 'NetAdapter2'; Status = 'Ok' }
+                )
+            }
+            $result = Test-VMNetAdapterDuplicateMacAddress
+            $result.Result | Should -Be 'PASS'
+            $result.Remediation | Should -BeNullOrEmpty
+        }
     }
 }
