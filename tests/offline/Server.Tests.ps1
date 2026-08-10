@@ -2,6 +2,37 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
 
     BeforeAll {
         # the Hyper-V PowerShell module is not guaranteed to be present on the machine running the offline tests,
+        # so we define stand-in enums that mirror Microsoft.HyperV.PowerShell.VMNetworkAdapterVlanMode and
+        # Microsoft.HyperV.PowerShell.VMNetworkAdapterPrivateVlanMode. these are added to the AppDomain so that
+        # they resolve from within the SdnDiag.Server module scope where the tests execute.
+        if (-NOT ('SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode' -as [type])) {
+            Add-Type -TypeDefinition @'
+namespace SdnDiagnostics.PesterOffline {
+    public enum VMNetworkAdapterVlanMode { Untagged = 0, Access = 1, Trunk = 2, Private = 3 }
+    public enum VMNetworkAdapterPrivateVlanMode { Isolated = 1, Community = 2, Promiscuous = 3 }
+}
+'@
+        }
+
+        # objects returned from a remote session are serialized and rehydrated by PSRemoting, which causes enum
+        # properties such as OperationMode and PrivateVlanMode to be deserialized as their underlying integer
+        # value rather than the enum itself. this helper round trips a mock object through the same serializer
+        # that Invoke-Command uses, so that the remote host tests exercise the exact shape the function receives.
+        function global:ConvertTo-PesterRemoteObject {
+            [CmdletBinding()]
+            param (
+                [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+                $InputObject
+            )
+
+            process {
+                return [System.Management.Automation.PSSerializer]::Deserialize(
+                    [System.Management.Automation.PSSerializer]::Serialize($InputObject, 1)
+                )
+            }
+        }
+
+        # the Hyper-V PowerShell module is not guaranteed to be present on the machine running the offline tests,
         # so we define test-only stubs for the Hyper-V cmdlets used by the local host code path. these are defined
         # in the global scope so that the mocks Pester injects into the SdnDiag.Server module scope take precedence.
         function global:Get-VMNetworkAdapterVlan {
@@ -52,6 +83,7 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
     AfterAll {
         Remove-Item -Path 'function:\global:Get-VMNetworkAdapterVlan' -Force -ErrorAction SilentlyContinue
         Remove-Item -Path 'function:\global:Set-VMNetworkAdapterVlan' -Force -ErrorAction SilentlyContinue
+        Remove-Item -Path 'function:\global:ConvertTo-PesterRemoteObject' -Force -ErrorAction SilentlyContinue
     }
 
     Context 'Remote Hyper-V host' {
@@ -74,10 +106,10 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
-                    return [PSCustomObject]@{
-                        OperationMode = 'Access'
+                    return ([PSCustomObject]@{
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
                         AccessVlanId  = 101
-                    }
+                    } | ConvertTo-PesterRemoteObject)
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -107,11 +139,89 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                    return ([PSCustomObject]@{
+                        OperationMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Trunk
+                        NativeVlanId            = 0
+                        AllowedVlanIdList       = @(1..100)
+                        AllowedVlanIdListString = '1-100'
+                    } | ConvertTo-PesterRemoteObject)
+                }
+
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
+
+                Repair-SdnVMNetworkAdapterPortProfile -VMName $testData.VMName -MacAddress $testData.MacAddress `
+                    -NcUri $testData.NcUri -HyperVHost $testData.HyperVHost -WarningAction SilentlyContinue
+
+                Should -Invoke -CommandName Invoke-SdnCommand -Exactly -Times 1 -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' }
+            }
+        }
+
+        It "Removes the VLAN configuration when the VM network adapter is configured in private VLAN promiscuous mode" {
+            InModuleScope SdnDiag.Server {
+                $testData = $Global:PesterOfflineTests.RepairPortProfile
+
+                Mock Get-SdnResource -RemoveParameterType 'Resource' -MockWith { return $Global:PesterOfflineTests.RepairPortProfile.NetworkInterface }
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Set-SdnVMNetworkAdapterPortProfile { }
+
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterPortProfile' } -MockWith {
                     return [PSCustomObject]@{
-                        OperationMode     = 'Trunk'
-                        NativeVlanId      = 0
-                        AllowedVlanIdList = '1-100'
+                        VMName      = $Global:PesterOfflineTests.RepairPortProfile.VMName
+                        MacAddress  = $Global:PesterOfflineTests.RepairPortProfile.MacAddress
+                        ProfileId   = "{$($Global:PesterOfflineTests.RepairPortProfile.InstanceId)}"
+                        ProfileData = 1
                     }
+                }
+
+                # when PrivateVlanMode is Promiscuous, SecondaryVlanId is not populated and the configured VLANs
+                # are exposed via SecondaryVlanIdList / SecondaryVlanIdListString instead.
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                    return ([PSCustomObject]@{
+                        OperationMode             = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Private
+                        PrivateVlanMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterPrivateVlanMode]::Promiscuous
+                        PrimaryVlanId             = 10
+                        SecondaryVlanId           = 0
+                        SecondaryVlanIdList       = @(11, 12)
+                        SecondaryVlanIdListString = '11-12'
+                    } | ConvertTo-PesterRemoteObject)
+                }
+
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
+
+                Repair-SdnVMNetworkAdapterPortProfile -VMName $testData.VMName -MacAddress $testData.MacAddress `
+                    -NcUri $testData.NcUri -HyperVHost $testData.HyperVHost -WarningAction SilentlyContinue
+
+                Should -Invoke -CommandName Invoke-SdnCommand -Exactly -Times 1 -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' }
+            }
+        }
+
+        It "Removes the VLAN configuration when the VM network adapter is configured in private VLAN isolated mode" {
+            InModuleScope SdnDiag.Server {
+                $testData = $Global:PesterOfflineTests.RepairPortProfile
+
+                Mock Get-SdnResource -RemoveParameterType 'Resource' -MockWith { return $Global:PesterOfflineTests.RepairPortProfile.NetworkInterface }
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Set-SdnVMNetworkAdapterPortProfile { }
+
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterPortProfile' } -MockWith {
+                    return [PSCustomObject]@{
+                        VMName      = $Global:PesterOfflineTests.RepairPortProfile.VMName
+                        MacAddress  = $Global:PesterOfflineTests.RepairPortProfile.MacAddress
+                        ProfileId   = "{$($Global:PesterOfflineTests.RepairPortProfile.InstanceId)}"
+                        ProfileData = 1
+                    }
+                }
+
+                # when PrivateVlanMode is Isolated, SecondaryVlanId is populated and SecondaryVlanIdList is null.
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                    return ([PSCustomObject]@{
+                        OperationMode             = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Private
+                        PrivateVlanMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterPrivateVlanMode]::Isolated
+                        PrimaryVlanId             = 10
+                        SecondaryVlanId           = 11
+                        SecondaryVlanIdList       = $null
+                        SecondaryVlanIdListString = $null
+                    } | ConvertTo-PesterRemoteObject)
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -141,10 +251,10 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
-                    return [PSCustomObject]@{
-                        OperationMode = 'Untagged'
+                    return ([PSCustomObject]@{
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
                         AccessVlanId  = 0
-                    }
+                    } | ConvertTo-PesterRemoteObject)
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -175,10 +285,10 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
-                    return [PSCustomObject]@{
-                        OperationMode = 'Untagged'
+                    return ([PSCustomObject]@{
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
                         AccessVlanId  = 0
-                    }
+                    } | ConvertTo-PesterRemoteObject)
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -209,10 +319,10 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
-                    return [PSCustomObject]@{
-                        OperationMode = 'Access'
+                    return ([PSCustomObject]@{
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
                         AccessVlanId  = 200
-                    }
+                    } | ConvertTo-PesterRemoteObject)
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -254,9 +364,11 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
                     }
                 }
 
+                # the local host code path receives the live object from Get-VMNetworkAdapterVlan, so the enum
+                # is returned as-is rather than being deserialized as its underlying integer value.
                 Mock Get-VMNetworkAdapterVlan {
                     return [PSCustomObject]@{
-                        OperationMode = 'Access'
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
                         AccessVlanId  = 101
                     }
                 }
@@ -299,7 +411,7 @@ Describe 'Server - Repair-SdnVMNetworkAdapterPortProfile' {
 
                 Mock Get-VMNetworkAdapterVlan {
                     return [PSCustomObject]@{
-                        OperationMode = 'Untagged'
+                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
                         AccessVlanId  = 0
                     }
                 }

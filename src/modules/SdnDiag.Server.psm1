@@ -3611,24 +3611,52 @@ function Repair-SdnVMNetworkAdapterPortProfile {
 
         # VLAN configured directly on the VM network adapter conflicts with the isolation settings that VFP
         # programs once the port profile has been applied, so any VLAN configuration must be removed.
-        # Get-VMNetworkAdapterVlan always returns an object for an adapter, so we determine whether a VLAN is
-        # actually configured based on the OperationMode being something other than Untagged.
+        # Get-VMNetworkAdapterVlan always returns a Microsoft.HyperV.PowerShell.VMNetworkAdapterVlanSetting object
+        # for an adapter, so we determine whether a VLAN is actually configured based on the OperationMode being
+        # something other than Untagged.
         foreach ($vlanConfiguration in $currentVlanConfiguration) {
             if ($null -eq $vlanConfiguration) {
                 continue
             }
 
-            if ($vlanConfiguration.OperationMode -ine 'Untagged') {
-                $vlanDetails = switch ($vlanConfiguration.OperationMode) {
-                    'Access' { "AccessVlanId [{0}]" -f $vlanConfiguration.AccessVlanId }
-                    'Trunk' { "NativeVlanId [{0}] AllowedVlanIdList [{1}]" -f $vlanConfiguration.NativeVlanId, ($vlanConfiguration.AllowedVlanIdList -join ',') }
-                    default { "PrimaryVlanId [{0}] SecondaryVlanId [{1}]" -f $vlanConfiguration.PrimaryVlanId, $vlanConfiguration.SecondaryVlanId }
-                }
-
-                "Detected VLAN OperationMode [{0}] {1} on VM {2} with MAC Address {3}, which conflicts with the isolation settings leveraged by VFP." `
-                    -f $vlanConfiguration.OperationMode, $vlanDetails, $VMName, $formattedMacAddress | Trace-Output -Level:Warning
-                $vlanRepairRequired = $true
+            # OperationMode and PrivateVlanMode are enums locally, however they are deserialized as their underlying
+            # integer value when returned from a remote session, so cast to string to ensure we compare against the
+            # enum name consistently regardless of whether the Hyper-V host is local or remote.
+            $operationMode = [string]$vlanConfiguration.OperationMode
+            if ([string]::IsNullOrEmpty($operationMode) -or $operationMode -ieq 'Untagged') {
+                continue
             }
+
+            # only a subset of the properties are populated on the object, based on the OperationMode that has
+            # been configured, so we only report on the properties that are relevant for the current mode.
+            $vlanDetails = switch ($operationMode) {
+                'Access' {
+                    "AccessVlanId [{0}]" -f $vlanConfiguration.AccessVlanId
+                }
+                'Trunk' {
+                    "NativeVlanId [{0}] AllowedVlanIdList [{1}]" -f $vlanConfiguration.NativeVlanId, $vlanConfiguration.AllowedVlanIdListString
+                }
+                'Private' {
+                    # SecondaryVlanId is only populated when PrivateVlanMode is Isolated or Community, whereas
+                    # SecondaryVlanIdList is only populated when PrivateVlanMode is Promiscuous.
+                    $privateVlanMode = [string]$vlanConfiguration.PrivateVlanMode
+                    $secondaryVlanDetails = if ($privateVlanMode -ieq 'Promiscuous') {
+                        "SecondaryVlanIdList [{0}]" -f $vlanConfiguration.SecondaryVlanIdListString
+                    }
+                    else {
+                        "SecondaryVlanId [{0}]" -f $vlanConfiguration.SecondaryVlanId
+                    }
+
+                    "PrivateVlanMode [{0}] PrimaryVlanId [{1}] {2}" -f $privateVlanMode, $vlanConfiguration.PrimaryVlanId, $secondaryVlanDetails
+                }
+                default {
+                    '(no additional details available)'
+                }
+            }
+
+            "Detected VLAN OperationMode [{0}] {1} on VM {2} with MAC Address {3}, which conflicts with the isolation settings leveraged by VFP." `
+                -f $operationMode, $vlanDetails, $VMName, $formattedMacAddress | Trace-Output -Level:Warning
+            $vlanRepairRequired = $true
         }
 
         # remove the VLAN configuration before applying the port profile, to ensure the conflicting
