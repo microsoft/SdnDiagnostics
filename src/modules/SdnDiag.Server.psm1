@@ -3452,6 +3452,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         Repairs the port profile applied to the virtual machine network interfaces.
     .DESCRIPTION
         This cmdlet repairs the port profile applied to the virtual machine network interfaces by retrieving the network interface from Network Controller and applying the port profile to the VM network adapter.
+        Any VLAN configuration detected on the VM network adapter is also removed, as it conflicts with the isolation settings that VFP programs once the port profile has been applied.
     .PARAMETER VMName
         Specifies the name of the virtual machine.
     .PARAMETER MacAddress
@@ -3509,6 +3510,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
     }
 
     $repairRequired = $false
+    $vlanRepairRequired = $false
     $ncRestParams = @{
         NcUri    = $NcUri
         Resource = 'NetworkInterfaces'
@@ -3565,9 +3567,12 @@ function Repair-SdnVMNetworkAdapterPortProfile {
         $repairPortProfileParams.ProfileId = $networkInterface.InstanceId
 
         # check to see if the Hyper-V host is local or remote host
-        if (Test-ComputerNameIsLocal -ComputerName $HyperVHost) {
+        $isLocalHost = Test-ComputerNameIsLocal -ComputerName $HyperVHost
+        if ($isLocalHost) {
             $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -ErrorAction Stop
             $currentPortProfileSettings = $vmNetworkAdapters | Where-Object {$_.MacAddress -eq $formattedMacAddress}
+
+            $currentVlanConfiguration = Get-SdnVMNetworkAdapter -VMName $VMName -MacAddress $formattedMacAddress -ErrorAction Stop | Get-VMNetworkAdapterVlan -ErrorAction Stop
         }
         else {
             $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
@@ -3578,6 +3583,12 @@ function Repair-SdnVMNetworkAdapterPortProfile {
 
                 $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName
                 return ($vmNetworkAdapters | Where-Object {$_.MacAddress -eq $macAddress})
+            } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
+
+            $currentVlanConfiguration = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
+                param($vmName, $macAddress)
+
+                return (Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress | Get-VMNetworkAdapterVlan)
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
         }
         if ($null -ieq $currentPortProfileSettings) {
@@ -3598,11 +3609,50 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $repairRequired = $true
         }
 
+        # VLAN configured directly on the VM network adapter conflicts with the isolation settings that VFP
+        # programs once the port profile has been applied, so any VLAN configuration must be removed.
+        # Get-VMNetworkAdapterVlan always returns an object for an adapter, so we determine whether a VLAN is
+        # actually configured based on the OperationMode being something other than Untagged.
+        foreach ($vlanConfiguration in $currentVlanConfiguration) {
+            if ($null -eq $vlanConfiguration) {
+                continue
+            }
+
+            if ($vlanConfiguration.OperationMode -ine 'Untagged') {
+                $vlanDetails = switch ($vlanConfiguration.OperationMode) {
+                    'Access' { "AccessVlanId [{0}]" -f $vlanConfiguration.AccessVlanId }
+                    'Trunk' { "NativeVlanId [{0}] AllowedVlanIdList [{1}]" -f $vlanConfiguration.NativeVlanId, ($vlanConfiguration.AllowedVlanIdList -join ',') }
+                    default { "PrimaryVlanId [{0}] SecondaryVlanId [{1}]" -f $vlanConfiguration.PrimaryVlanId, $vlanConfiguration.SecondaryVlanId }
+                }
+
+                "Detected VLAN OperationMode [{0}] {1} on VM {2} with MAC Address {3}, which conflicts with the isolation settings leveraged by VFP." `
+                    -f $vlanConfiguration.OperationMode, $vlanDetails, $VMName, $formattedMacAddress | Trace-Output -Level:Warning
+                $vlanRepairRequired = $true
+            }
+        }
+
+        # remove the VLAN configuration before applying the port profile, to ensure the conflicting
+        # configuration is cleared prior to VFP programming the isolation settings
+        if ($vlanRepairRequired) {
+            "Removing VLAN configuration from VM $VMName with MAC Address $formattedMacAddress." | Trace-Output
+            if ($isLocalHost) {
+                Get-SdnVMNetworkAdapter -VMName $VMName -MacAddress $formattedMacAddress -ErrorAction Stop | Set-VMNetworkAdapterVlan -Untagged -ErrorAction Stop
+            }
+            else {
+                Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
+                    param($vmName, $macAddress)
+
+                    Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress | Set-VMNetworkAdapterVlan -Untagged
+                } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
+            }
+        }
+
         if ($repairRequired) {
             "Repairing Port Profile for VM $VMName with MAC Address $formattedMacAddress." | Trace-Output
             Set-SdnVMNetworkAdapterPortProfile @repairPortProfileParams
         }
-        else {
+
+        if (-NOT $repairRequired -and -NOT $vlanRepairRequired) {
             "Port Profile for VM $VMName with MAC Address $formattedMacAddress is already in the correct state." | Trace-Output -Level:Information
         }
     }
