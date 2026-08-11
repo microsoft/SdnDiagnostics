@@ -3581,14 +3581,14 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $currentPortProfileSettings = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                 param($vmName, $macAddress)
 
-                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName
+                $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $vmName -ErrorAction Stop
                 return ($vmNetworkAdapters | Where-Object {$_.MacAddress -eq $macAddress})
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
 
             $currentVlanConfiguration = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                 param($vmName, $macAddress)
 
-                return (Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress | Get-VMNetworkAdapterVlan)
+                return (Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress -ErrorAction Stop | Get-VMNetworkAdapterVlan -ErrorAction Stop)
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
         }
         if ($null -ieq $currentPortProfileSettings) {
@@ -3670,7 +3670,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
                 Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                     param($vmName, $macAddress)
 
-                    Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress | Set-VMNetworkAdapterVlan -Untagged
+                    Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress -ErrorAction Stop | Set-VMNetworkAdapterVlan -Untagged -ErrorAction Stop
                 } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
             }
         }
