@@ -2,34 +2,26 @@
 
 The `tests` folder include all the test script use [Pester](https://github.com/pester/Pester). 
 
-## Offline and Online Tests
+## Offline Tests
 
-The tests are categorized into two type of tests **offline** and **online**
-
-- **offline** test can be run without real SDN deployment through mock based on sample data collected from SDN deployment. 
-- **online** test need to run against SDN deployment
+All tests are **offline** — they run without a real SDN deployment by mocking external calls with sample data.
 
 ## Folder Structure 
-- `offline\RunTests.ps1` is the start script to run all offline tests under offline test folder. 
-- `online\RunTests.ps1` is the start script to run all online tests under online folder. 
-- `wave1`... `waveAll` include all test scripts grouped into different wave. Tests will be executed in order of wave.
+- `offline\RunTests.ps1` is the start script to run all offline tests under the offline test folder. 
+- `offline\data\` contains mock JSON data loaded into `$Global:PesterOfflineTests`
 
 ## Run offline tests
 - Install latest Pester by `Install-Module -Name Pester -Force -SkipPublisherCheck`. More info from [Pester Update](https://pester-docs.netlify.app/docs/introduction/installation)
-- The `offline\data` folder include the sample data like `SdnApiResources`. The data is loaded into `$Global:PesterOfflineTest`
+- Build the module first: run `.\build.ps1` from the repo root to populate `out/build/`
+- The `offline\data` folder include the sample data like `SdnApiResources`. The data is loaded into `$Global:PesterOfflineTests`
 - Run offline test at offline folder by `.\RunTests.ps1`
-
-## Run online tests in your test environment
-
-- Generate the configuration based on `SdnDiagnosticsTestConfig-Sample.psd1`. Do not commit change to include your test environment specific settings. 
-- Copy the `tests` folder to the test environment and run
-  
-  `.\RunTests.ps1 -ConfigurationFile SdnDiagnosticsTestConfig-Sample.psd1`
+- Run a specific test file: `.\RunTests.ps1 -TestFile ".\Utilities.Tests.ps1"`
 
 ## To create new tests
 
-- If your test function can be mocked with sample data, put it under `offline` folder. Otherwise, this have to be under `online` folder.
-- For offline test, sample data can be consumed from `$Global:PesterOfflineTest` to write your mock.
-- The new test script should be named as `*originalscriptname*.Tests.ps1`. For example, `Diagnostics.Tests.ps1` include the tests function for script `Diagnostics.ps1`
-- The online test scripts are grouped into different wave to maintain test execution order. `wave1` ... `waveAll` . If you don't expect order of test execution, the test script need to be in `waveAll` folder.
+See [CONTRIBUTING_TESTS.md](CONTRIBUTING_TESTS.md) for detailed instructions on adding new tests, including:
+- How to structure test files
+- How to write mocks for different function patterns
+- How to add or modify mock data
+- Naming conventions for the test environment (DVLAB prefix)
   

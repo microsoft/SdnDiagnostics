@@ -1,0 +1,37 @@
+name: Pester Tests
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Offline Pester Tests
+    runs-on: windows-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build Module
+        run: |
+          & .\build.ps1
+        shell: powershell
+
+      - name: Run Offline Pester Tests
+        run: |
+          Set-Location -Path .\tests\offline
+          .\RunTests.ps1
+        shell: powershell
