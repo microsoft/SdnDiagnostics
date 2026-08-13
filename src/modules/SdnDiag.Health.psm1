@@ -1880,7 +1880,7 @@ function Test-SdnResourceProvisioningState {
         switch ($sdnResource.properties.provisioningState) {
             'Failed' {
                 $sdnHealthTest.Result = 'FAIL'
-                $msg | Trace-Output -Level:Error
+                "[$($sdnResource.resourceRef)] is reporting provisioningState: $($sdnResource.properties.provisioningState)" | Trace-Output -Level:Error
 
                 $sdnHealthTest.Remediation += "[$($sdnResource.resourceRef)] Examine the Network Controller logs to determine why provisioning is $($sdnResource.properties.provisioningState)."
             }
