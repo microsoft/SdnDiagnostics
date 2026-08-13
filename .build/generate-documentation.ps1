@@ -2,11 +2,15 @@
     .SYNOPSIS
         Builds the markdown documentation for the module.
     .DESCRIPTION
-        Builds the markdown documentation for the module using the PlatyPS PowerShell module. Generates one
-        markdown page per exported function plus a _Sidebar.md for navigation. When -WikiPath is specified,
-        the generated documentation is also synchronized into the provided wiki checkout: exported function
-        pages are copied/overwritten, and function pages for functions that no longer exist are removed. Any
-        other hand-authored wiki pages (e.g. Home.md) are left untouched.
+        Builds the markdown documentation for the module using the PlatyPS PowerShell module, generating one
+        markdown page per exported function. When -WikiPath is specified, the generated documentation is also
+        synchronized into the provided wiki checkout, matching the SdnDiagnostics.wiki repository structure:
+          - Function pages are copied/overwritten into a `functions\` subfolder of the wiki.
+          - Function pages for functions that no longer exist are removed from `functions\`.
+          - The `## Functions` section of `_SideBar.md` is regenerated with a link to every exported function.
+            Any hand-authored content above the `## Functions` heading (e.g. Home, How To Guides,
+            Troubleshooting, Learning sections) is preserved as-is.
+        Other hand-authored wiki pages (e.g. Home.md) are never touched.
     .PARAMETER WikiPath
         Path to a local checkout of the project's GitHub wiki repository (e.g. a checkout of
         microsoft/SdnDiagnostics.wiki). When specified, generated documentation is synchronized into this path.
@@ -34,7 +38,6 @@ else {
 
 $modulePath = "$PSScriptRoot\..\src\SdnDiagnostics.psd1"
 $docPath = "$PSScriptRoot\..\.documentation\functions"
-$sideBarPath = "$PSScriptRoot\..\.documentation\_Sidebar.md"
 
 if(-NOT (Test-Path -Path $docPath -PathType Container)) {
     $null = New-Item -Path $docPath -ItemType Directory -Force
@@ -62,19 +65,6 @@ foreach($function in $exportedFunctions){
     }
 }
 
-# generate a sidebar so the wiki has consistent navigation to each function page
-"Generating wiki sidebar" | Write-Host
-$sideBarContent = [System.Collections.Generic.List[string]]::new()
-$sideBarContent.Add('# SdnDiagnostics')
-$sideBarContent.Add('')
-$sideBarContent.Add('[Home](Home)')
-$sideBarContent.Add('')
-$sideBarContent.Add('## Functions')
-foreach($function in $exportedFunctions){
-    $sideBarContent.Add("- [$($function.Name)]($($function.Name))")
-}
-$sideBarContent | Set-Content -Path $sideBarPath -Force
-
 if($WikiPath){
     if(-NOT (Test-Path -Path $WikiPath -PathType Container)){
         throw "WikiPath '$WikiPath' does not exist or is not a directory."
@@ -82,19 +72,67 @@ if($WikiPath){
 
     "Synchronizing generated documentation into wiki path '{0}'" -f $WikiPath | Write-Host
 
+    # mirrors the SdnDiagnostics.wiki repository structure, where function pages live under a
+    # `functions\` subfolder alongside other hand-authored top-level wiki pages
+    $wikiFunctionsPath = Join-Path -Path $WikiPath -ChildPath "functions"
+    if(-NOT (Test-Path -Path $wikiFunctionsPath -PathType Container)) {
+        $null = New-Item -Path $wikiFunctionsPath -ItemType Directory -Force
+    }
+
     # approved verbs are used to identify previously-generated function pages so that hand-authored
-    # wiki pages (e.g. Home.md) are never touched or removed by this sync
+    # wiki pages are never touched or removed by this sync
     $approvedVerbs = (Get-Verb).Verb
     $verbPattern = "^($($approvedVerbs -join '|'))-"
 
     $exportedFunctionNames = $exportedFunctions.Name
-    $existingWikiFunctionDocs = Get-ChildItem -Path "$WikiPath\*" -Include *.md | Where-Object { $_.BaseName -match $verbPattern }
+    $existingWikiFunctionDocs = Get-ChildItem -Path "$wikiFunctionsPath\*" -Include *.md | Where-Object { $_.BaseName -match $verbPattern }
     $staleWikiFunctionDocs = $existingWikiFunctionDocs | Where-Object { $_.BaseName -inotin $exportedFunctionNames }
     if($staleWikiFunctionDocs){
         "Removing {0} stale function page(s) from wiki" -f $staleWikiFunctionDocs.Count | Write-Host
         $staleWikiFunctionDocs | Remove-Item -Force
     }
 
-    Get-ChildItem -Path "$docPath\*" -Include *.md | Copy-Item -Destination $WikiPath -Force
-    Copy-Item -Path $sideBarPath -Destination $WikiPath -Force
+    Get-ChildItem -Path "$docPath\*" -Include *.md | Copy-Item -Destination $wikiFunctionsPath -Force
+
+    # regenerate only the "## Functions" section of _SideBar.md, preserving any hand-authored
+    # content (Home, How To Guides, Troubleshooting Guides, Learning, etc.) above that heading
+    "Updating wiki sidebar" | Write-Host
+    $sideBarWikiPath = Join-Path -Path $WikiPath -ChildPath "_SideBar.md"
+    $functionsHeadingPattern = '^#+\s*Functions\s*$'
+
+    $prefixLines = [System.Collections.Generic.List[string]]::new()
+    if(Test-Path -Path $sideBarWikiPath -PathType Leaf) {
+        $existingSideBarLines = @(Get-Content -Path $sideBarWikiPath)
+        $headingIndex = -1
+        for($i = 0; $i -lt $existingSideBarLines.Count; $i++){
+            if($existingSideBarLines[$i] -match $functionsHeadingPattern){
+                $headingIndex = $i
+                break
+            }
+        }
+
+        if($headingIndex -ge 0){
+            if($headingIndex -gt 0){
+                $prefixLines.AddRange([string[]]$existingSideBarLines[0..($headingIndex - 1)])
+            }
+        }
+        else {
+            $prefixLines.AddRange([string[]]$existingSideBarLines)
+        }
+    }
+    else {
+        "No existing _SideBar.md found at wiki root; creating a new one" | Write-Host -ForegroundColor:Yellow
+    }
+
+    $newSideBarContent = [System.Collections.Generic.List[string]]::new()
+    $newSideBarContent.AddRange($prefixLines)
+    if($newSideBarContent.Count -gt 0 -and $newSideBarContent[$newSideBarContent.Count - 1] -ne ''){
+        $newSideBarContent.Add('')
+    }
+    $newSideBarContent.Add('## Functions')
+    foreach($function in $exportedFunctions){
+        $newSideBarContent.Add("- [$($function.Name)]($($function.Name))")
+    }
+
+    $newSideBarContent | Set-Content -Path $sideBarWikiPath -Force
 }
