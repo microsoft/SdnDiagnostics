@@ -489,9 +489,9 @@ function Get-ServerConfigState {
             }
         }
 
-        # Gather Hyper-V network details
-        "Gathering Hyper-V VM and VMNetworkAdapter configuration details" | Trace-Output -Level:Verbose
-        $virtualMachines = Get-VM
+        # Gather Hyper-V network details using CIM for faster enumeration on hosts with large VM counts
+        "Gathering Hyper-V VM and VMNetworkAdapter configuration details via CIM" | Trace-Output -Level:Verbose
+        $virtualMachines = Get-SdnVMCim
         if ($virtualMachines) {
             $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType txt -Format List -Force
             $virtualMachines | Export-ObjectToFile -FilePath $outDir -Name 'Get-VM' -FileType json
@@ -499,26 +499,17 @@ function Get-ServerConfigState {
             $vmRootDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VM") -ItemType Directory -Force
             foreach ($vm in $virtualMachines) {
                 $vmAdapters = $vm.NetworkAdapters
-                if ($null -eq $vmAdapters) {
+                if ($null -eq $vmAdapters -or $vmAdapters.Count -eq 0) {
                     continue
                 }
 
                 $vmNameFormatted = $vm.Name.ToString().Replace(" ", "_").Trim()
                 $vmDir = New-Item -Path (Join-Path -Path $vmRootDir.FullName -ChildPath $vmNameFormatted) -ItemType Directory -Force
 
-                # enumerate the VMNetworkAdapters and gather details within the VM properties itself to speed up data processing
-                # calling each function such as Get-VMNetworkAdapter or Get-VMNetworkAdapterVlan will enumerate the VMNetworkAdapters again and slow down the process
                 foreach ($adapter in $vmAdapters) {
                     try {
                         $prefix = (Format-SdnMacAddress -MacAddress $adapter.MacAddress)
-
-                        $adapterModified = $adapter | Remove-PropertiesFromObject -PropertiesToRemove 'AclList','ExtendedAclList','IsolationSetting','RoutingDomainList','VlanSetting','CimSession'
-                        $adapterModified | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
-                        $adapter.AclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
-                        $adapter.ExtendedAclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
-                        $adapter.IsolationSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
-                        $adapter.RoutingDomainList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_RoutingDomainList' -FileType txt -Format List
-                        $adapter.VlanSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_VlanSetting' -FileType txt -Format List
+                        $adapter | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_NetworkAdapter' -FileType txt -Format List
                     }
                     catch {
                         "Failed to enumerate VMNetworkAdapter for {0}" -f $adapter.Name | Trace-Output -Level:Warning
@@ -527,16 +518,13 @@ function Get-ServerConfigState {
             }
         }
 
-        # enumerate the data for all adapters
-        Get-VMNetworkAdapter -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_All' -FileType txt -Format List
+        # enumerate all VM network adapters using CIM
+        Get-SdnVMNetworkAdapterCim | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_All' -FileType txt -Format List
         Get-SdnVMNetworkAdapterPortProfile -All | Export-ObjectToFile -FilePath $outDir -Name 'Get-SdnVMNetworkAdapterPortProfile_All' -FileType txt -Format List
 
         # collect the management OS network adapter details
         # we do not need this information for general vmnetworkadapters as they are already collected above
-        Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format List
-        Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterTeamMapping_ManagementOS' -FileType txt -Format List
-        Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN _ManagementOS' -FileType txt -Format List
-        Get-VMNetworkAdapterRoutingDomainMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterRoutingDomainMapping_ManagementOS' -FileType txt -Format List
+        Get-SdnVMNetworkAdapterCim -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_ManagementOS' -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
@@ -2600,16 +2588,522 @@ function Get-SdnVMNetworkAdapter {
     }
 }
 
+
+function Get-SdnVMSwitchCim {
+    <#
+    .SYNOPSIS
+        Retrieves the virtual switches using CIM/WMI for significantly faster performance compared to Get-VMSwitch.
+    .DESCRIPTION
+        Uses direct CIM queries against the root/virtualization/v2 namespace to retrieve virtual switch information.
+        This approach is substantially faster than Get-VMSwitch on hosts with large numbers of VMs.
+    .PARAMETER Name
+        Specifies the name of the virtual switch to retrieve. If not specified, all virtual switches are returned.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER CimSession
+        An existing CIM session to use for the query. When provided, ComputerName and Credential are ignored.
+    .EXAMPLE
+        PS> Get-SdnVMSwitchCim
+    .EXAMPLE
+        PS> Get-SdnVMSwitchCim -Name 'ConvergedSwitch'
+    .EXAMPLE
+        PS> Get-SdnVMSwitchCim -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$Name,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [Microsoft.Management.Infrastructure.CimSession]$CimSession
+    )
+
+    $cimNamespace = 'root/virtualization/v2'
+    $cimParams = @{
+        Namespace   = $cimNamespace
+        ErrorAction = 'Stop'
+    }
+
+    if ($CimSession) {
+        $cimParams.Add('CimSession', $CimSession)
+    }
+    elseif ($ComputerName) {
+        $sessionParams = @{
+            ComputerName = $ComputerName
+        }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+
+        $CimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $CimSession)
+    }
+
+    try {
+        $filter = $null
+        if ($Name) {
+            $filter = "ElementName = '$Name'"
+        }
+
+        $switchParams = @{}
+        $switchParams += $cimParams
+        if ($filter) {
+            $switchParams.Add('Filter', $filter)
+        }
+
+        $switches = Get-CimInstance @switchParams -ClassName 'Msvm_VirtualEthernetSwitch'
+        $results = [System.Collections.ArrayList]::new()
+
+        foreach ($sw in $switches) {
+            $switchObject = [PSCustomObject]@{
+                Name                = $sw.ElementName
+                SwitchId            = $sw.Name
+                SwitchType          = $sw.IOVPreferred
+                Notes               = $sw.Notes
+                BandwidthPercentage = $sw.MaxIOVOffloads
+                InstallDate         = $sw.InstallDate
+            }
+
+            [void]$results.Add($switchObject)
+        }
+
+        return ($results | Sort-Object -Property Name)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Get-SdnVMNetworkAdapterCim {
+    <#
+    .SYNOPSIS
+        Retrieves the virtual machine network adapters using CIM/WMI for significantly faster performance compared to Get-VMNetworkAdapter.
+    .DESCRIPTION
+        Uses direct CIM queries against the root/virtualization/v2 namespace to retrieve virtual machine network adapter information.
+        This approach is substantially faster than Get-VMNetworkAdapter on hosts with large numbers of VMs.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose network adapters are to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to be retrieved.
+    .PARAMETER All
+        Switch to indicate to get all virtual machine network interfaces including both VM and Management OS adapters.
+    .PARAMETER ManagementOS
+        Specifies the management operating system, i.e. the virtual machine host operating system.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterCim
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterCim -VMName 'VM01'
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterCim -All
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterCim -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimNamespace = 'root/virtualization/v2'
+    $cimParams = @{
+        Namespace   = $cimNamespace
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{
+            ComputerName = $ComputerName
+        }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        # Build a lookup of switch names by their CIM GUID using the dedicated switch function
+        $switchCimParams = @{}
+        if ($cimParams.ContainsKey('CimSession')) {
+            $switchCimParams.Add('CimSession', $cimParams['CimSession'])
+        }
+        $switches = Get-SdnVMSwitchCim @switchCimParams
+        $switchLookup = @{}
+        foreach ($sw in $switches) {
+            $switchLookup[$sw.SwitchId] = $sw.Name
+        }
+
+        # Get port allocations to map adapters to switches
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+
+        # Build a lookup: adapter InstanceID -> switch name
+        $adapterSwitchLookup = @{}
+        foreach ($port in $portAllocations) {
+            if ($port.Parent -and $port.HostResource) {
+                # Parent contains the adapter path, HostResource contains the switch path
+                # Extract the adapter InstanceID from Parent path
+                $parentId = $null
+                if ($port.Parent -match 'Msvm_.*?\.InstanceID="(.+?)"') {
+                    $parentId = $Matches[1] -replace '\\\\', '\'
+                }
+
+                # Extract the switch GUID from HostResource
+                $switchName = $null
+                foreach ($hostRes in $port.HostResource) {
+                    if ($hostRes -match 'Msvm_VirtualEthernetSwitch\.CreationClassName="Msvm_VirtualEthernetSwitch",Name="(.+?)"') {
+                        $switchGuid = $Matches[1]
+                        if ($switchLookup.ContainsKey($switchGuid)) {
+                            $switchName = $switchLookup[$switchGuid]
+                        }
+                    }
+                }
+
+                if ($parentId -and $switchName) {
+                    $adapterSwitchLookup[$parentId] = $switchName
+                }
+            }
+        }
+
+        if ($ManagementOS -or $All) {
+            # Management OS adapters are associated with the host computer system
+            $adapters = Get-CimInstance @cimParams -ClassName 'Msvm_InternalEthernetPort'
+            foreach ($adapter in $adapters) {
+                # Resolve switch name for management OS adapters via port allocations
+                $resolvedSwitch = $null
+                foreach ($port in $portAllocations) {
+                    if ($port.Parent -and $port.Parent -match $adapter.DeviceID) {
+                        foreach ($hostRes in $port.HostResource) {
+                            if ($hostRes -match 'Name="(.+?)"') {
+                                $switchGuid = $Matches[1]
+                                if ($switchLookup.ContainsKey($switchGuid)) {
+                                    $resolvedSwitch = $switchLookup[$switchGuid]
+                                }
+                            }
+                        }
+                        break
+                    }
+                }
+
+                $adapterObject = [PSCustomObject]@{
+                    Name         = $adapter.Name
+                    MacAddress   = $adapter.PermanentAddress
+                    SwitchName   = $resolvedSwitch
+                    VMName       = $null
+                    IsManagement = $true
+                    DeviceId     = $adapter.DeviceID
+                    Status       = $adapter.StatusDescriptions
+                }
+
+                [void]$results.Add($adapterObject)
+            }
+        }
+
+        if (-not $ManagementOS -or $All) {
+            # Build the WQL filter for synthetic network adapters (VM NICs)
+            $filter = $null
+            if ($VMName) {
+                # Get the VM's CIM object to find its associated adapters
+                $vmFilter = "ElementName = '$VMName' AND Caption = 'Virtual Machine'"
+                $vmCim = Get-CimInstance @cimParams -ClassName 'Msvm_ComputerSystem' -Filter $vmFilter
+                if ($null -eq $vmCim) {
+                    "Unable to locate virtual machine with name '$VMName'" | Trace-Output -Level:Warning
+                    return
+                }
+            }
+
+            # Get all synthetic Ethernet ports (VM network adapters)
+            $adapters = Get-CimInstance @cimParams -ClassName 'Msvm_SyntheticEthernetPortSettingData'
+
+            # If filtering by VM, get the settings path for that VM
+            if ($VMName -and $vmCim) {
+                $vmSettingData = Get-CimAssociatedInstance -InputObject $vmCim -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+                    Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
+                if ($vmSettingData) {
+                    $vmPath = $vmSettingData.CimSystemProperties.CimInstance
+                    $adapters = Get-CimAssociatedInstance -InputObject $vmSettingData -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
+                }
+            }
+
+            # Also get emulated adapters (legacy network adapters) if no VM filter is specified
+            $emulatedAdapters = @()
+            if (-not $VMName) {
+                $emulatedAdapters = Get-CimInstance @cimParams -ClassName 'Msvm_EmulatedEthernetPortSettingData'
+            }
+
+            # Build a lookup of VM names by their settings path
+            $vmLookup = @{}
+            $allVmSystems = Get-CimInstance @cimParams -ClassName 'Msvm_ComputerSystem' -Filter "Caption = 'Virtual Machine'"
+            foreach ($vm in $allVmSystems) {
+                $vmSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+                    Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
+                if ($vmSettings) {
+                    $vmLookup[$vmSettings.InstanceID] = $vm.ElementName
+                }
+            }
+
+            # Process synthetic adapters
+            foreach ($adapter in $adapters) {
+                $vmNameResolved = $null
+                $parentPath = $adapter.InstanceID
+                if ($parentPath) {
+                    # InstanceID format: Microsoft:<VMGUID>\<GUID> - extract the VM GUID portion
+                    $vmGuid = ($parentPath -split '\\')[0]
+                    foreach ($key in $vmLookup.Keys) {
+                        if ($key -like "*$vmGuid*") {
+                            $vmNameResolved = $vmLookup[$key]
+                            break
+                        }
+                    }
+                }
+
+                $adapterMac = $adapter.Address
+                if ($MacAddress) {
+                    $formattedMac = Format-SdnMacAddress -MacAddress $MacAddress
+                    $adapterMacFormatted = if ($adapterMac) { Format-SdnMacAddress -MacAddress $adapterMac } else { $null }
+                    if ($adapterMacFormatted -ne $formattedMac) {
+                        continue
+                    }
+                }
+
+                # Resolve switch name from port allocation lookup
+                $resolvedSwitch = $adapterSwitchLookup[$adapter.InstanceID]
+
+                $adapterObject = [PSCustomObject]@{
+                    Name             = $adapter.ElementName
+                    MacAddress       = $adapterMac
+                    SwitchName       = $resolvedSwitch
+                    VMName           = $vmNameResolved
+                    IsManagement     = $false
+                    InstanceID       = $adapter.InstanceID
+                    VirtualSystemIdentifiers = $adapter.VirtualSystemIdentifiers
+                    StaticMacAddress = $adapter.StaticMacAddress
+                }
+
+                [void]$results.Add($adapterObject)
+            }
+
+            # Process emulated (legacy) adapters
+            foreach ($adapter in $emulatedAdapters) {
+                $vmNameResolved = $null
+                $parentPath = $adapter.InstanceID
+                if ($parentPath) {
+                    $vmGuid = ($parentPath -split '\\')[0]
+                    foreach ($key in $vmLookup.Keys) {
+                        if ($key -like "*$vmGuid*") {
+                            $vmNameResolved = $vmLookup[$key]
+                            break
+                        }
+                    }
+                }
+
+                $adapterMac = $adapter.Address
+                if ($MacAddress) {
+                    $formattedMac = Format-SdnMacAddress -MacAddress $MacAddress
+                    $adapterMacFormatted = if ($adapterMac) { Format-SdnMacAddress -MacAddress $adapterMac } else { $null }
+                    if ($adapterMacFormatted -ne $formattedMac) {
+                        continue
+                    }
+                }
+
+                # Resolve switch name from port allocation lookup
+                $resolvedSwitch = $adapterSwitchLookup[$adapter.InstanceID]
+
+                $adapterObject = [PSCustomObject]@{
+                    Name             = $adapter.ElementName
+                    MacAddress       = $adapterMac
+                    SwitchName       = $resolvedSwitch
+                    VMName           = $vmNameResolved
+                    IsManagement     = $false
+                    InstanceID       = $adapter.InstanceID
+                    VirtualSystemIdentifiers = $adapter.VirtualSystemIdentifiers
+                    StaticMacAddress = $adapter.StaticMacAddress
+                }
+
+                [void]$results.Add($adapterObject)
+            }
+        }
+
+        return ($results | Sort-Object -Property Name)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Get-SdnVMCim {
+    <#
+    .SYNOPSIS
+        Retrieves the virtual machines using CIM/WMI for significantly faster performance compared to Get-VM.
+    .DESCRIPTION
+        Uses direct CIM queries against the root/virtualization/v2 namespace to retrieve virtual machine information.
+        This approach is substantially faster than Get-VM on hosts with large numbers of VMs.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine to retrieve. If not specified, all virtual machines are returned.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMCim
+    .EXAMPLE
+        PS> Get-SdnVMCim -VMName 'VM01'
+    .EXAMPLE
+        PS> Get-SdnVMCim -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimNamespace = 'root/virtualization/v2'
+    $cimParams = @{
+        Namespace   = $cimNamespace
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{
+            ComputerName = $ComputerName
+        }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $filter = "Caption = 'Virtual Machine'"
+        if ($VMName) {
+            $filter += " AND ElementName = '$VMName'"
+        }
+
+        $vmSystems = Get-CimInstance @cimParams -ClassName 'Msvm_ComputerSystem' -Filter $filter
+        $results = [System.Collections.ArrayList]::new()
+
+        foreach ($vm in $vmSystems) {
+            # Map EnabledState to friendly status
+            $state = switch ($vm.EnabledState) {
+                2       { 'Running' }
+                3       { 'Off' }
+                6       { 'Saved' }
+                9       { 'Paused' }
+                32768   { 'Starting' }
+                32769   { 'Saving' }
+                32770   { 'Stopping' }
+                32771   { 'Pausing' }
+                32773   { 'Resuming' }
+                32776   { 'FastSaved' }
+                32777   { 'FastSaving' }
+                default { 'Unknown' }
+            }
+
+            # Get the associated settings to retrieve additional VM details
+            $vmSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+                Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
+
+            # Get network adapters associated with this VM
+            $networkAdapters = @()
+            if ($vmSettings) {
+                $networkAdapters = Get-CimAssociatedInstance -InputObject $vmSettings -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
+            }
+
+            $vmObject = [PSCustomObject]@{
+                Name             = $vm.ElementName
+                VMId             = $vm.Name
+                State            = $state
+                EnabledState     = $vm.EnabledState
+                HealthState      = $vm.HealthState
+                OnTimeInMilliseconds = $vm.OnTimeInMilliseconds
+                InstallDate      = $vm.InstallDate
+                NetworkAdapters  = @(foreach ($adapter in $networkAdapters) {
+                    [PSCustomObject]@{
+                        Name             = $adapter.ElementName
+                        MacAddress       = $adapter.Address
+                        StaticMacAddress = $adapter.StaticMacAddress
+                        InstanceID       = $adapter.InstanceID
+                        VirtualSystemIdentifiers = $adapter.VirtualSystemIdentifiers
+                    }
+                })
+            }
+
+            [void]$results.Add($vmObject)
+        }
+
+        return ($results | Sort-Object -Property Name)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function Get-SdnVMNetworkAdapterPortProfile {
     <#
     .SYNOPSIS
         Retrieves the port profile applied to the virtual machine network interfaces.
+    .DESCRIPTION
+        Uses CIM queries against root/virtualization/v2 for faster enumeration of port profiles
+        compared to Get-VMSwitchExtensionPortFeature on hosts with many VMs.
     .PARAMETER VMName
         Specifies the name of the virtual machine to be retrieved.
     .PARAMETER All
         Switch to indicate to get all the virtual machines network interfaces on the hypervisor host.
     .PARAMETER ManagementOS
         When true, displays Port Profiles of Host VNics. Otherwise displays Port Profiles of Vm VNics.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
     .EXAMPLE
         Get-SdnVMNetworkAdapterPortProfile -VMName 'VM01'
     .EXAMPLE
@@ -2629,38 +3123,122 @@ function Get-SdnVMNetworkAdapterPortProfile {
         [Switch]$All,
 
         [Parameter(Mandatory = $true, ParameterSetName = 'Management')]
-        [switch]$ManagementOS
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
     )
 
-    [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
-    $array = @()
+    $cimNamespace = 'root/virtualization/v2'
+    $cimParams = @{
+        Namespace   = $cimNamespace
+        ErrorAction = 'Stop'
+    }
 
-    try {
-        $netAdapters = Get-SdnVMNetworkAdapter @PSBoundParameters
-        foreach ($adapter in $netAdapters) {
-            $object = [VMNetAdapterPortProfile]@{
-                VMName      = $adapter.VMName
-                Name        = $adapter.Name
-                MacAddress  = $adapter.MacAddress
-            }
-
-            $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $adapter
-            if ($currentProfile) {
-                $object.ProfileId   = $currentProfile.SettingData.ProfileId
-                $object.ProfileData = $currentProfile.SettingData.ProfileData
-            }
-
-            # we will typically see multiple port data values for each adapter, however the deviceid should be the same across all of the objects
-            # defensive coding in place for situation where vm is not in proper state and this portdata is null
-            $portData = (Get-VMSwitchExtensionPortData -VMNetworkAdapter $adapter)
-            if ($portData) {
-                $object.PortName = $portData[0].data.deviceid
-            }
-
-            $array += $object
+    if ($ComputerName) {
+        $sessionParams = @{
+            ComputerName = $ComputerName
+        }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
         }
 
-        return ($array | Sort-Object -Property Name)
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        # Get all ethernet port allocation setting data (represents each port connected to a switch)
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+
+        # Get port security settings which contain the profile data
+        $securitySettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortSecuritySettingData'
+
+        # Build lookup of security settings by port path
+        $securityLookup = @{}
+        foreach ($security in $securitySettings) {
+            $portPath = $security.InstanceID -replace '/security$', ''
+            $securityLookup[$portPath] = $security
+        }
+
+        # Get the VM network adapters using CIM, passing through connectivity params
+        $adapterParams = @{}
+        if ($VMName) { $adapterParams.Add('VMName', $VMName) }
+        if ($All) { $adapterParams.Add('All', $true) }
+        if ($ManagementOS) { $adapterParams.Add('ManagementOS', $true) }
+        if ($ComputerName) { $adapterParams.Add('ComputerName', $ComputerName) }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $adapterParams.Add('Credential', $Credential)
+        }
+
+        $netAdapters = Get-SdnVMNetworkAdapterCim @adapterParams
+
+        if ($Name) {
+            $netAdapters = $netAdapters | Where-Object { $_.Name -eq $Name }
+        }
+
+        foreach ($adapter in $netAdapters) {
+            $object = [VMNetAdapterPortProfile]@{
+                VMName     = $adapter.VMName
+                Name       = $adapter.Name
+                MacAddress = $adapter.MacAddress
+            }
+
+            # Find the port allocation for this adapter to get port security settings
+            $adapterMac = if ($adapter.MacAddress) { Format-SdnMacAddress -MacAddress $adapter.MacAddress } else { $null }
+
+            # Match port allocation by MAC address
+            $matchedPort = $null
+            foreach ($port in $portAllocations) {
+                if ($port.Address -and $adapterMac) {
+                    $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                    if ($portMac -eq $adapterMac) {
+                        $matchedPort = $port
+                        break
+                    }
+                }
+            }
+
+            if ($matchedPort) {
+                # Look up security settings for this port
+                $portInstancePath = $matchedPort.InstanceID
+                $security = $securityLookup[$portInstancePath]
+                if ($null -eq $security) {
+                    # Try matching by partial path
+                    foreach ($key in $securityLookup.Keys) {
+                        if ($portInstancePath -and $key -like "*$($matchedPort.InstanceID)*") {
+                            $security = $securityLookup[$key]
+                            break
+                        }
+                    }
+                }
+
+                if ($security) {
+                    if ($security.PortProfileId) {
+                        $object.ProfileId = $security.PortProfileId
+                    }
+                    if ($null -ne $security.PortProfileData) {
+                        $object.ProfileData = $security.PortProfileData
+                    }
+                }
+
+                # Get the port name from the allocation
+                if ($matchedPort.InstanceID) {
+                    $object.PortName = $matchedPort.InstanceID
+                }
+            }
+
+            [void]$results.Add($object)
+        }
+
+        return ($results | Sort-Object -Property Name)
     }
     catch {
         $_ | Trace-Exception
@@ -2769,6 +3347,9 @@ function Set-SdnVMNetworkAdapterPortProfile {
     <#
     .SYNOPSIS
         Configures the port profile applied to the virtual machine network interfaces.
+    .DESCRIPTION
+        Uses CIM methods against root/virtualization/v2 to set port profile settings
+        for faster performance compared to Get-VMSwitchExtensionPortFeature/Set-VMSwitchExtensionPortFeature.
     .PARAMETER VMName
         Specifies the name of the virtual machine.
     .PARAMETER MacAddress
@@ -2839,50 +3420,99 @@ function Set-SdnVMNetworkAdapterPortProfile {
             [switch]$HostVmNic
         )
 
-        if ($null -eq (Get-Module -Name Hyper-V)) {
-            Import-Module -Name Hyper-V -Force -ErrorAction Stop
+        $cimNamespace = 'root/virtualization/v2'
+        $cimParams = @{
+            Namespace   = $cimNamespace
+            ErrorAction = 'Stop'
         }
 
-        [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
-        [System.Guid]$vendorId  = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
-        $vmAdapterParams = @{
-            VMName = $VMName
-            MacAddress = $MacAddress
-        }
+        [System.Guid]$vendorId = "1FA41B39-B444-4E43-B35A-E1F7985FD548"
+        $formattedMac = Format-SdnMacAddress -MacAddress $MacAddress
+
+        # Locate the VM network adapter via CIM
+        $adapterParams = @{ VMName = $VMName; MacAddress = $MacAddress }
         if ($HostVmNic) {
-            $vmAdapterParams.Add('ManagementOS', $true)
+            $adapterParams = @{ ManagementOS = $true }
         }
 
-        $vmNic = Get-SdnVmNetworkAdapter @vmAdapterParams
+        $vmNic = Get-SdnVMNetworkAdapterCim @adapterParams
+        if ($HostVmNic -and $vmNic) {
+            $vmNic = $vmNic | Where-Object { (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedMac }
+        }
+
         if ($null -eq $vmNic) {
             throw New-Object System.ArgumentException("Unable to locate VM $VMName with MacAddress $MacAddress")
         }
 
-        $portProfileDefaultSetting = Get-VMSystemSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -ErrorAction Stop
-        $portProfileDefaultSetting.SettingData.ProfileId = $ProfileId.ToString("B")
-        $portProfileDefaultSetting.SettingData.NetCfgInstanceId = "{56785678-a0e5-4a26-bc9b-c0cba27311a3}"
-        $portProfileDefaultSetting.SettingData.CdnLabelString = "TestCdn"
-        $portProfileDefaultSetting.SettingData.CdnLabelId = 1111
-        $portProfileDefaultSetting.SettingData.ProfileName = "Testprofile"
-        $portProfileDefaultSetting.SettingData.VendorId = $vendorId.ToString("B")
-        $portProfileDefaultSetting.SettingData.VendorName = "NetworkController"
-        $portProfileDefaultSetting.SettingData.ProfileData = $ProfileData
+        # Find the port allocation for this adapter
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+        $matchedPort = $null
+        foreach ($port in $portAllocations) {
+            if ($port.Address) {
+                $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                if ($portMac -eq $formattedMac) {
+                    $matchedPort = $port
+                    break
+                }
+            }
+        }
 
-        $currentProfile = Get-VMSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -VMNetworkAdapter $vmNic
-        if ($null -eq $currentProfile) {
-            Add-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature  $portProfileDefaultSetting -VMNetworkAdapter $vmNic
+        if ($null -eq $matchedPort) {
+            throw New-Object System.ArgumentException("Unable to locate port allocation for adapter with MacAddress $MacAddress")
+        }
+
+        # Find existing security settings for this port
+        $securitySettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortSecuritySettingData'
+        $existingSecurity = $null
+        $portInstancePath = $matchedPort.InstanceID
+        foreach ($security in $securitySettings) {
+            $securityPortPath = $security.InstanceID -replace '/security$', ''
+            if ($securityPortPath -eq $portInstancePath) {
+                $existingSecurity = $security
+                break
+            }
+        }
+
+        if ($existingSecurity) {
+            "Current Settings: ProfileId [{0}] ProfileData [{1}]" -f $existingSecurity.PortProfileId, $existingSecurity.PortProfileData | Trace-Output
+
+            # Update existing security settings via CIM
+            $existingSecurity.PortProfileId = $ProfileId.ToString("B")
+            $existingSecurity.PortProfileData = $ProfileData
+            $existingSecurity.PortProfileVendorId = $vendorId.ToString("B")
+            Set-CimInstance -InputObject $existingSecurity -ErrorAction Stop
         }
         else {
-            "Current Settings: ProfileId [{0}] ProfileData [{1}]" -f $currentProfile.SettingData.ProfileId, $currentProfile.SettingData.ProfileData | Trace-Output
+            # Create new security settings via the virtual switch management service
+            $vsms = Get-CimInstance @cimParams -ClassName 'Msvm_VirtualEthernetSwitchManagementService'
+            $securitySettingData = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortSecuritySettingData' | Select-Object -First 0
 
-            $currentProfile.SettingData.ProfileId = $ProfileId.ToString("B")
-            $currentProfile.SettingData.ProfileData = $ProfileData
-            $currentProfile.SettingData.VendorId = $vendorId.ToString("B")
+            # Use the switch management service to add port feature settings
+            # Fall back to Hyper-V cmdlet for creating new port profiles as CIM creation requires complex WMI method invocation
+            if ($null -eq (Get-Module -Name Hyper-V)) {
+                Import-Module -Name Hyper-V -Force -ErrorAction Stop
+            }
 
-            Set-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature $currentProfile -VMNetworkAdapter $vmNic
+            [System.Guid]$portProfileFeatureId = "9940cd46-8b06-43bb-b9d5-93d50381fd56"
+            $portProfileDefaultSetting = Get-VMSystemSwitchExtensionPortFeature -FeatureId $portProfileFeatureId -ErrorAction Stop
+            $portProfileDefaultSetting.SettingData.ProfileId = $ProfileId.ToString("B")
+            $portProfileDefaultSetting.SettingData.NetCfgInstanceId = "{56785678-a0e5-4a26-bc9b-c0cba27311a3}"
+            $portProfileDefaultSetting.SettingData.CdnLabelString = "TestCdn"
+            $portProfileDefaultSetting.SettingData.CdnLabelId = 1111
+            $portProfileDefaultSetting.SettingData.ProfileName = "Testprofile"
+            $portProfileDefaultSetting.SettingData.VendorId = $vendorId.ToString("B")
+            $portProfileDefaultSetting.SettingData.VendorName = "NetworkController"
+            $portProfileDefaultSetting.SettingData.ProfileData = $ProfileData
+
+            # Need the full VMNetworkAdapter object for Add-VMSwitchExtensionPortFeature
+            $fullVmNic = Get-VMNetworkAdapter -VMName $VMName | Where-Object { (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedMac }
+            if ($HostVmNic) {
+                $fullVmNic = Get-VMNetworkAdapter -ManagementOS | Where-Object { (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedMac }
+            }
+            Add-VMSwitchExtensionPortFeature -VMSwitchExtensionFeature $portProfileDefaultSetting -VMNetworkAdapter $fullVmNic
         }
 
-        "Successfully created/added Port Profile for VM [{0})], Adapter [{1}], PortProfileId [{2}], ProfileData [{3}]" -f $vmNic.VMName, $vmNic.Name, $ProfileId.ToString(), $ProfileData | Trace-Output
+        "Successfully created/added Port Profile for VM [{0})], MacAddress [{1}], PortProfileId [{2}], ProfileData [{3}]" -f $VMName, $MacAddress, $ProfileId.ToString(), $ProfileData | Trace-Output
     }
 
     $splat = @{
