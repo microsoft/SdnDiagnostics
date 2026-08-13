@@ -547,11 +547,12 @@ function Get-ServerConfigState {
         # we do not need this information for general vmnetworkadapters as they are already collected above
         Get-SdnVMNetworkAdapterCim -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapter_ManagementOS' -FileType txt -Format List
 
-        # collect management OS adapter settings that require Hyper-V cmdlets (not available via CIM)
-        Get-VMNetworkAdapterIsolation -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format List
+        # collect management OS adapter port settings using CIM
+        Get-SdnVMNetworkAdapterIsolationCim -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterIsolation_ManagementOS' -FileType txt -Format List
+        Get-SdnVMNetworkAdapterVlanCim -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN_ManagementOS' -FileType txt -Format List
+        Get-SdnVMNetworkAdapterRoutingDomainCim -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterRoutingDomainMapping_ManagementOS' -FileType txt -Format List
+        # TeamMapping has no CIM equivalent, use Hyper-V cmdlet
         Get-VMNetworkAdapterTeamMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterTeamMapping_ManagementOS' -FileType txt -Format List
-        Get-VMNetworkAdapterVLAN -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterVLAN_ManagementOS' -FileType txt -Format List
-        Get-VMNetworkAdapterRoutingDomainMapping -ManagementOS | Export-ObjectToFile -FilePath $outDir -Name 'Get-VMNetworkAdapterRoutingDomainMapping_ManagementOS' -FileType txt -Format List
     }
     catch {
         $_ | Trace-Exception
@@ -3173,6 +3174,555 @@ function Get-SdnVMCim {
     }
 }
 
+function Get-SdnVMNetworkAdapterExtendedAclCim {
+    <#
+    .SYNOPSIS
+        Retrieves extended ACL settings for virtual machine network adapters using CIM.
+    .DESCRIPTION
+        Uses direct CIM queries against root/virtualization/v2 to retrieve Msvm_EthernetSwitchPortExtendedAclSettingData,
+        providing significantly faster performance compared to Get-VMNetworkAdapterExtendedAcl.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose extended ACL settings are to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to filter results.
+    .PARAMETER All
+        Switch to indicate to get all virtual machine network adapter extended ACL settings.
+    .PARAMETER ManagementOS
+        Specifies the management operating system adapters.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterExtendedAclCim -ManagementOS
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterExtendedAclCim -VMName 'VM01'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimParams = @{
+        Namespace   = 'root/virtualization/v2'
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{ ComputerName = $ComputerName }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        # Bulk-query port allocations and extended ACL settings
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+        $aclSettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortExtendedAclSettingData'
+
+        # Build lookup: port InstanceID -> list of ACL settings
+        $aclByPort = @{}
+        foreach ($acl in $aclSettings) {
+            $portPath = $acl.InstanceID -replace '/[^/]+$', ''
+            if (-not $aclByPort.ContainsKey($portPath)) {
+                $aclByPort[$portPath] = [System.Collections.ArrayList]::new()
+            }
+            [void]$aclByPort[$portPath].Add($acl)
+        }
+
+        # Build MAC -> port InstanceID lookup from port allocations
+        $macToPort = @{}
+        foreach ($port in $portAllocations) {
+            if ($port.Address) {
+                $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                $macToPort[$portMac] = $port.InstanceID
+            }
+        }
+
+        # Get adapters using CIM
+        $adapterParams = @{}
+        if ($VMName) { $adapterParams.Add('VMName', $VMName) }
+        if ($All) { $adapterParams.Add('All', $true) }
+        if ($ManagementOS) { $adapterParams.Add('ManagementOS', $true) }
+        if ($ComputerName) { $adapterParams.Add('ComputerName', $ComputerName) }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $adapterParams.Add('Credential', $Credential)
+        }
+
+        $netAdapters = Get-SdnVMNetworkAdapterCim @adapterParams
+        if ($MacAddress) {
+            $formattedFilter = Format-SdnMacAddress -MacAddress $MacAddress
+            $netAdapters = $netAdapters | Where-Object {
+                $_.MacAddress -and (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedFilter
+            }
+        }
+
+        foreach ($adapter in $netAdapters) {
+            $adapterMac = if ($adapter.MacAddress) { Format-SdnMacAddress -MacAddress $adapter.MacAddress } else { $null }
+            $portId = if ($adapterMac) { $macToPort[$adapterMac] } else { $null }
+            $acls = if ($portId -and $aclByPort.ContainsKey($portId)) { $aclByPort[$portId] } else { @() }
+
+            foreach ($acl in $acls) {
+                $aclObject = [PSCustomObject]@{
+                    VMName          = $adapter.VMName
+                    AdapterName     = $adapter.Name
+                    MacAddress      = $adapter.MacAddress
+                    IsManagementOS  = $adapter.IsManagement
+                    Direction       = $acl.Direction
+                    Action          = $acl.Action
+                    LocalAddress    = $acl.LocalAddress
+                    RemoteAddress   = $acl.RemoteAddress
+                    LocalPort       = $acl.LocalPort
+                    RemotePort      = $acl.RemotePort
+                    Protocol        = $acl.Protocol
+                    Weight          = $acl.Weight
+                    Stateful        = $acl.IsStateful
+                    IdleSessionTimeout = $acl.IdleSessionTimeout
+                    IsolationID     = $acl.IsolationID
+                }
+                [void]$results.Add($aclObject)
+            }
+        }
+
+        return $results
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Get-SdnVMNetworkAdapterIsolationCim {
+    <#
+    .SYNOPSIS
+        Retrieves isolation settings for virtual machine network adapters using CIM.
+    .DESCRIPTION
+        Uses direct CIM queries against root/virtualization/v2 to retrieve Msvm_EthernetSwitchPortIsolationSettingData,
+        providing significantly faster performance compared to Get-VMNetworkAdapterIsolation.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose isolation settings are to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to filter results.
+    .PARAMETER All
+        Switch to indicate to get all virtual machine network adapter isolation settings.
+    .PARAMETER ManagementOS
+        Specifies the management operating system adapters.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterIsolationCim -ManagementOS
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterIsolationCim -All
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimParams = @{
+        Namespace   = 'root/virtualization/v2'
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{ ComputerName = $ComputerName }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+        $isolationSettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortIsolationSettingData'
+
+        # Build lookup: port InstanceID -> isolation setting
+        $isolationByPort = @{}
+        foreach ($iso in $isolationSettings) {
+            $portPath = $iso.InstanceID -replace '/[^/]+$', ''
+            $isolationByPort[$portPath] = $iso
+        }
+
+        # Build MAC -> port InstanceID lookup
+        $macToPort = @{}
+        foreach ($port in $portAllocations) {
+            if ($port.Address) {
+                $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                $macToPort[$portMac] = $port.InstanceID
+            }
+        }
+
+        # Get adapters
+        $adapterParams = @{}
+        if ($VMName) { $adapterParams.Add('VMName', $VMName) }
+        if ($All) { $adapterParams.Add('All', $true) }
+        if ($ManagementOS) { $adapterParams.Add('ManagementOS', $true) }
+        if ($ComputerName) { $adapterParams.Add('ComputerName', $ComputerName) }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $adapterParams.Add('Credential', $Credential)
+        }
+
+        $netAdapters = Get-SdnVMNetworkAdapterCim @adapterParams
+        if ($MacAddress) {
+            $formattedFilter = Format-SdnMacAddress -MacAddress $MacAddress
+            $netAdapters = $netAdapters | Where-Object {
+                $_.MacAddress -and (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedFilter
+            }
+        }
+
+        foreach ($adapter in $netAdapters) {
+            $adapterMac = if ($adapter.MacAddress) { Format-SdnMacAddress -MacAddress $adapter.MacAddress } else { $null }
+            $portId = if ($adapterMac) { $macToPort[$adapterMac] } else { $null }
+            $iso = if ($portId -and $isolationByPort.ContainsKey($portId)) { $isolationByPort[$portId] } else { $null }
+
+            $isoObject = [PSCustomObject]@{
+                VMName               = $adapter.VMName
+                AdapterName          = $adapter.Name
+                MacAddress           = $adapter.MacAddress
+                IsManagementOS       = $adapter.IsManagement
+                IsolationMode        = if ($iso) { $iso.IsolationMode } else { $null }
+                DefaultIsolationId   = if ($iso) { $iso.DefaultIsolationId } else { $null }
+                AllowUntaggedTraffic = if ($iso) { $iso.AllowUntaggedTraffic } else { $null }
+                MultiTenantStack     = if ($iso) { $iso.EnableMultiTenantStack } else { $null }
+            }
+
+            [void]$results.Add($isoObject)
+        }
+
+        return ($results | Sort-Object -Property AdapterName)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Get-SdnVMNetworkAdapterRoutingDomainCim {
+    <#
+    .SYNOPSIS
+        Retrieves routing domain mapping settings for virtual machine network adapters using CIM.
+    .DESCRIPTION
+        Uses direct CIM queries against root/virtualization/v2 to retrieve Msvm_EthernetSwitchPortRoutingDomainSettingData,
+        providing significantly faster performance compared to Get-VMNetworkAdapterRoutingDomainMapping.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose routing domain settings are to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to filter results.
+    .PARAMETER All
+        Switch to indicate to get all virtual machine network adapter routing domain settings.
+    .PARAMETER ManagementOS
+        Specifies the management operating system adapters.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterRoutingDomainCim -ManagementOS
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterRoutingDomainCim -All
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimParams = @{
+        Namespace   = 'root/virtualization/v2'
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{ ComputerName = $ComputerName }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+        $routingSettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortRoutingDomainSettingData'
+
+        # Build lookup: port InstanceID -> list of routing domain settings
+        $routingByPort = @{}
+        foreach ($rd in $routingSettings) {
+            $portPath = $rd.InstanceID -replace '/[^/]+$', ''
+            if (-not $routingByPort.ContainsKey($portPath)) {
+                $routingByPort[$portPath] = [System.Collections.ArrayList]::new()
+            }
+            [void]$routingByPort[$portPath].Add($rd)
+        }
+
+        # Build MAC -> port InstanceID lookup
+        $macToPort = @{}
+        foreach ($port in $portAllocations) {
+            if ($port.Address) {
+                $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                $macToPort[$portMac] = $port.InstanceID
+            }
+        }
+
+        # Get adapters
+        $adapterParams = @{}
+        if ($VMName) { $adapterParams.Add('VMName', $VMName) }
+        if ($All) { $adapterParams.Add('All', $true) }
+        if ($ManagementOS) { $adapterParams.Add('ManagementOS', $true) }
+        if ($ComputerName) { $adapterParams.Add('ComputerName', $ComputerName) }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $adapterParams.Add('Credential', $Credential)
+        }
+
+        $netAdapters = Get-SdnVMNetworkAdapterCim @adapterParams
+        if ($MacAddress) {
+            $formattedFilter = Format-SdnMacAddress -MacAddress $MacAddress
+            $netAdapters = $netAdapters | Where-Object {
+                $_.MacAddress -and (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedFilter
+            }
+        }
+
+        foreach ($adapter in $netAdapters) {
+            $adapterMac = if ($adapter.MacAddress) { Format-SdnMacAddress -MacAddress $adapter.MacAddress } else { $null }
+            $portId = if ($adapterMac) { $macToPort[$adapterMac] } else { $null }
+            $rdList = if ($portId -and $routingByPort.ContainsKey($portId)) { $routingByPort[$portId] } else { @() }
+
+            foreach ($rd in $rdList) {
+                $rdObject = [PSCustomObject]@{
+                    VMName              = $adapter.VMName
+                    AdapterName         = $adapter.Name
+                    MacAddress          = $adapter.MacAddress
+                    IsManagementOS      = $adapter.IsManagement
+                    RoutingDomainGuid   = $rd.RoutingDomainGuid
+                    RoutingDomainName   = $rd.RoutingDomainName
+                    IsolationIdList     = $rd.IsolationIdList
+                    IsolationIdNameList = $rd.IsolationIdNameList
+                }
+                [void]$results.Add($rdObject)
+            }
+        }
+
+        return $results
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
+function Get-SdnVMNetworkAdapterVlanCim {
+    <#
+    .SYNOPSIS
+        Retrieves VLAN settings for virtual machine network adapters using CIM.
+    .DESCRIPTION
+        Uses direct CIM queries against root/virtualization/v2 to retrieve Msvm_EthernetSwitchPortVlanSettingData,
+        providing significantly faster performance compared to Get-VMNetworkAdapterVlan.
+    .PARAMETER VMName
+        Specifies the name of the virtual machine whose VLAN settings are to be retrieved.
+    .PARAMETER MacAddress
+        Specifies the MAC address of the network adapter to filter results.
+    .PARAMETER All
+        Switch to indicate to get all virtual machine network adapter VLAN settings.
+    .PARAMETER ManagementOS
+        Specifies the management operating system adapters.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterVlanCim -ManagementOS
+    .EXAMPLE
+        PS> Get-SdnVMNetworkAdapterVlanCim -VMName 'VM01'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [string]$VMName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$MacAddress,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$All,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ManagementOS,
+
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty
+    )
+
+    $cimParams = @{
+        Namespace   = 'root/virtualization/v2'
+        ErrorAction = 'Stop'
+    }
+
+    if ($ComputerName) {
+        $sessionParams = @{ ComputerName = $ComputerName }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $sessionParams.Add('Credential', $Credential)
+        }
+        $cimSession = New-SdnCimSession @sessionParams
+        $cimParams.Add('CimSession', $cimSession)
+    }
+
+    try {
+        $results = [System.Collections.ArrayList]::new()
+
+        $portAllocations = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetPortAllocationSettingData'
+        $vlanSettings = Get-CimInstance @cimParams -ClassName 'Msvm_EthernetSwitchPortVlanSettingData'
+
+        # Build lookup: port InstanceID -> VLAN setting
+        $vlanByPort = @{}
+        foreach ($vlan in $vlanSettings) {
+            $portPath = $vlan.InstanceID -replace '/[^/]+$', ''
+            $vlanByPort[$portPath] = $vlan
+        }
+
+        # Build MAC -> port InstanceID lookup
+        $macToPort = @{}
+        foreach ($port in $portAllocations) {
+            if ($port.Address) {
+                $portMac = Format-SdnMacAddress -MacAddress $port.Address
+                $macToPort[$portMac] = $port.InstanceID
+            }
+        }
+
+        # Get adapters
+        $adapterParams = @{}
+        if ($VMName) { $adapterParams.Add('VMName', $VMName) }
+        if ($All) { $adapterParams.Add('All', $true) }
+        if ($ManagementOS) { $adapterParams.Add('ManagementOS', $true) }
+        if ($ComputerName) { $adapterParams.Add('ComputerName', $ComputerName) }
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+            $adapterParams.Add('Credential', $Credential)
+        }
+
+        $netAdapters = Get-SdnVMNetworkAdapterCim @adapterParams
+        if ($MacAddress) {
+            $formattedFilter = Format-SdnMacAddress -MacAddress $MacAddress
+            $netAdapters = $netAdapters | Where-Object {
+                $_.MacAddress -and (Format-SdnMacAddress -MacAddress $_.MacAddress) -eq $formattedFilter
+            }
+        }
+
+        foreach ($adapter in $netAdapters) {
+            $adapterMac = if ($adapter.MacAddress) { Format-SdnMacAddress -MacAddress $adapter.MacAddress } else { $null }
+            $portId = if ($adapterMac) { $macToPort[$adapterMac] } else { $null }
+            $vlan = if ($portId -and $vlanByPort.ContainsKey($portId)) { $vlanByPort[$portId] } else { $null }
+
+            # Map OperationMode integer to string
+            $operationMode = if ($vlan) {
+                switch ($vlan.OperationMode) {
+                    1 { 'Access' }
+                    2 { 'Trunk' }
+                    3 { 'Private' }
+                    default { 'Untagged' }
+                }
+            }
+            else { 'Untagged' }
+
+            $vlanObject = [PSCustomObject]@{
+                VMName              = $adapter.VMName
+                AdapterName         = $adapter.Name
+                MacAddress          = $adapter.MacAddress
+                IsManagementOS      = $adapter.IsManagement
+                OperationMode       = $operationMode
+                AccessVlanId        = if ($vlan) { $vlan.AccessVlanId } else { 0 }
+                NativeVlanId        = if ($vlan) { $vlan.NativeVlanId } else { 0 }
+                PrimaryVlanId       = if ($vlan) { $vlan.PrimaryVlanId } else { 0 }
+                SecondaryVlanId     = if ($vlan) { $vlan.SecondaryVlanId } else { 0 }
+                SecondaryVlanIdList = if ($vlan) { $vlan.SecondaryVlanIdList } else { $null }
+                PrivateVlanMode     = if ($vlan) { $vlan.PvlanMode } else { $null }
+                PruneVlanIdArray    = if ($vlan) { $vlan.PruneEnabledVlanIdArray } else { $null }
+                TrunkVlanIdArray    = if ($vlan) { $vlan.TrunkVlanIdArray } else { $null }
+                AllowedVlanIdListString = if ($vlan -and $vlan.TrunkVlanIdArray) { ($vlan.TrunkVlanIdArray -join ',') } else { $null }
+            }
+
+            [void]$results.Add($vlanObject)
+        }
+
+        return ($results | Sort-Object -Property AdapterName)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function Get-SdnVMNetworkAdapterPortProfile {
     <#
     .SYNOPSIS
@@ -4284,7 +4834,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $vmNetworkAdapters = Get-SdnVMNetworkAdapterPortProfile -VMName $VMName -ErrorAction Stop
             $currentPortProfileSettings = $vmNetworkAdapters | Where-Object {$_.MacAddress -eq $formattedMacAddress}
 
-            $currentVlanConfiguration = Get-SdnVMNetworkAdapter -VMName $VMName -MacAddress $formattedMacAddress -ErrorAction Stop | Get-VMNetworkAdapterVlan -ErrorAction Stop
+            $currentVlanConfiguration = Get-SdnVMNetworkAdapterVlanCim -VMName $VMName -MacAddress $formattedMacAddress -ErrorAction Stop
         }
         else {
             $repairPortProfileParams.Add('HyperVHost', $HyperVHost)
@@ -4300,7 +4850,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
             $currentVlanConfiguration = Invoke-SdnCommand -ComputerName $HyperVHost -Credential $Credential -ScriptBlock {
                 param($vmName, $macAddress)
 
-                return (Get-SdnVMNetworkAdapter -VMName $vmName -MacAddress $macAddress -ErrorAction Stop | Get-VMNetworkAdapterVlan -ErrorAction Stop)
+                return (Get-SdnVMNetworkAdapterVlanCim -VMName $vmName -MacAddress $macAddress -ErrorAction Stop)
             } -ArgumentList @($VMName, $formattedMacAddress) -ErrorAction Stop
         }
         if ($null -ieq $currentPortProfileSettings) {
@@ -4353,7 +4903,7 @@ function Repair-SdnVMNetworkAdapterPortProfile {
                     # SecondaryVlanIdList is only populated when PrivateVlanMode is Promiscuous.
                     $privateVlanMode = [string]$vlanConfiguration.PrivateVlanMode
                     $secondaryVlanDetails = if ($privateVlanMode -ieq 'Promiscuous') {
-                        "SecondaryVlanIdList [{0}]" -f $vlanConfiguration.SecondaryVlanIdListString
+                        "SecondaryVlanIdList [{0}]" -f ($vlanConfiguration.SecondaryVlanIdList -join ',')
                     }
                     else {
                         "SecondaryVlanId [{0}]" -f $vlanConfiguration.SecondaryVlanId

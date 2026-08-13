@@ -105,11 +105,11 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
+                        OperationMode = 'Access'
                         AccessVlanId  = 101
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -138,13 +138,13 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Trunk
+                        OperationMode           = 'Trunk'
                         NativeVlanId            = 0
                         AllowedVlanIdList       = @(1..100)
                         AllowedVlanIdListString = '1-100'
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -175,15 +175,15 @@ namespace SdnDiagnostics.PesterOffline {
 
                 # when PrivateVlanMode is Promiscuous, SecondaryVlanId is not populated and the configured VLANs
                 # are exposed via SecondaryVlanIdList / SecondaryVlanIdListString instead.
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode             = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Private
-                        PrivateVlanMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterPrivateVlanMode]::Promiscuous
+                        OperationMode             = 'Private'
+                        PrivateVlanMode           = 'Promiscuous'
                         PrimaryVlanId             = 10
                         SecondaryVlanId           = 0
                         SecondaryVlanIdList       = @(11, 12)
                         SecondaryVlanIdListString = '11-12'
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -213,15 +213,15 @@ namespace SdnDiagnostics.PesterOffline {
                 }
 
                 # when PrivateVlanMode is Isolated, SecondaryVlanId is populated and SecondaryVlanIdList is null.
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode             = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Private
-                        PrivateVlanMode           = [SdnDiagnostics.PesterOffline.VMNetworkAdapterPrivateVlanMode]::Isolated
+                        OperationMode             = 'Private'
+                        PrivateVlanMode           = 'Isolated'
                         PrimaryVlanId             = 10
                         SecondaryVlanId           = 11
                         SecondaryVlanIdList       = $null
                         SecondaryVlanIdListString = $null
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -250,11 +250,11 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
+                        OperationMode = 'Untagged'
                         AccessVlanId  = 0
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -284,11 +284,11 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
+                        OperationMode = 'Untagged'
                         AccessVlanId  = 0
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -318,11 +318,11 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-VMNetworkAdapterVlan' } -MockWith {
+                Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Get-SdnVMNetworkAdapterVlanCim' } -MockWith {
                     return ([PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
+                        OperationMode = 'Access'
                         AccessVlanId  = 200
-                    } | ConvertTo-PesterRemoteObject)
+                    })
                 }
 
                 Mock Invoke-SdnCommand -ParameterFilter { $ScriptBlock.ToString() -match 'Set-VMNetworkAdapterVlan' } -MockWith { }
@@ -366,9 +366,9 @@ namespace SdnDiagnostics.PesterOffline {
 
                 # the local host code path receives the live object from Get-VMNetworkAdapterVlan, so the enum
                 # is returned as-is rather than being deserialized as its underlying integer value.
-                Mock Get-VMNetworkAdapterVlan {
+                Mock Get-SdnVMNetworkAdapterVlanCim {
                     return [PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Access
+                        OperationMode = 'Access'
                         AccessVlanId  = 101
                     }
                 }
@@ -409,9 +409,9 @@ namespace SdnDiagnostics.PesterOffline {
                     }
                 }
 
-                Mock Get-VMNetworkAdapterVlan {
+                Mock Get-SdnVMNetworkAdapterVlanCim {
                     return [PSCustomObject]@{
-                        OperationMode = [SdnDiagnostics.PesterOffline.VMNetworkAdapterVlanMode]::Untagged
+                        OperationMode = 'Untagged'
                         AccessVlanId  = 0
                     }
                 }
@@ -761,6 +761,192 @@ Describe 'Server - Get-SdnVMNetworkAdapterPortProfile (CIM)' {
             Get-SdnVMNetworkAdapterPortProfile -All
 
             Should -Invoke -CommandName Get-SdnVMNetworkAdapterCim -ParameterFilter { $All -eq $true }
+        }
+    }
+}
+
+Describe 'Server - Get-SdnVMNetworkAdapterVlanCim' {
+
+    It "Returns VLAN settings with OperationMode as string" {
+        InModuleScope SdnDiag.Server {
+            Mock Get-CimInstance {
+                switch ($ClassName) {
+                    'Msvm_EthernetPortAllocationSettingData' {
+                        return @([PSCustomObject]@{
+                            Address    = '001DD8070001'
+                            InstanceID = 'port001'
+                        })
+                    }
+                    'Msvm_EthernetSwitchPortVlanSettingData' {
+                        return @([PSCustomObject]@{
+                            InstanceID              = 'port001/vlan'
+                            OperationMode           = 1
+                            AccessVlanId            = 100
+                            NativeVlanId            = 0
+                            PrimaryVlanId           = 0
+                            SecondaryVlanId         = 0
+                            SecondaryVlanIdList     = $null
+                            PvlanMode               = $null
+                            PruneEnabledVlanIdArray = $null
+                            TrunkVlanIdArray        = $null
+                        })
+                    }
+                    default { return @() }
+                }
+            }
+            Mock Get-SdnVMNetworkAdapterCim {
+                return @([PSCustomObject]@{
+                    Name = 'Network Adapter'; MacAddress = '001DD8070001'; VMName = 'DVLAB-VM01'; IsManagement = $false
+                })
+            }
+            Mock New-SdnCimSession { }
+            Mock Format-SdnMacAddress { return $MacAddress.ToUpper() -replace '-','' }
+
+            $result = Get-SdnVMNetworkAdapterVlanCim -VMName 'DVLAB-VM01'
+            $result | Should -Not -BeNullOrEmpty
+            $result[0].OperationMode | Should -Be 'Access'
+            $result[0].AccessVlanId | Should -Be 100
+            $result[0].VMName | Should -Be 'DVLAB-VM01'
+        }
+    }
+
+    It "Returns Untagged when no VLAN setting exists for adapter" {
+        InModuleScope SdnDiag.Server {
+            Mock Get-CimInstance { return @() }
+            Mock Get-SdnVMNetworkAdapterCim {
+                return @([PSCustomObject]@{
+                    Name = 'Network Adapter'; MacAddress = '001DD8070001'; VMName = 'DVLAB-VM01'; IsManagement = $false
+                })
+            }
+            Mock New-SdnCimSession { }
+            Mock Format-SdnMacAddress { return $MacAddress.ToUpper() -replace '-','' }
+
+            $result = Get-SdnVMNetworkAdapterVlanCim -All
+            $result | Should -Not -BeNullOrEmpty
+            $result[0].OperationMode | Should -Be 'Untagged'
+        }
+    }
+}
+
+Describe 'Server - Get-SdnVMNetworkAdapterIsolationCim' {
+
+    It "Returns isolation settings for adapters" {
+        InModuleScope SdnDiag.Server {
+            Mock Get-CimInstance {
+                switch ($ClassName) {
+                    'Msvm_EthernetPortAllocationSettingData' {
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                    }
+                    'Msvm_EthernetSwitchPortIsolationSettingData' {
+                        return @([PSCustomObject]@{
+                            InstanceID             = 'port001/isolation'
+                            IsolationMode          = 1
+                            DefaultIsolationId     = 4096
+                            AllowUntaggedTraffic   = $true
+                            EnableMultiTenantStack = $false
+                        })
+                    }
+                    default { return @() }
+                }
+            }
+            Mock Get-SdnVMNetworkAdapterCim {
+                return @([PSCustomObject]@{
+                    Name = 'Network Adapter'; MacAddress = '001DD8070001'; VMName = 'DVLAB-VM01'; IsManagement = $false
+                })
+            }
+            Mock New-SdnCimSession { }
+            Mock Format-SdnMacAddress { return $MacAddress.ToUpper() -replace '-','' }
+
+            $result = Get-SdnVMNetworkAdapterIsolationCim -All
+            $result | Should -Not -BeNullOrEmpty
+            $result[0].IsolationMode | Should -Be 1
+            $result[0].DefaultIsolationId | Should -Be 4096
+        }
+    }
+}
+
+Describe 'Server - Get-SdnVMNetworkAdapterExtendedAclCim' {
+
+    It "Returns extended ACL entries per adapter" {
+        InModuleScope SdnDiag.Server {
+            Mock Get-CimInstance {
+                switch ($ClassName) {
+                    'Msvm_EthernetPortAllocationSettingData' {
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                    }
+                    'Msvm_EthernetSwitchPortExtendedAclSettingData' {
+                        return @(
+                            [PSCustomObject]@{
+                                InstanceID         = 'port001/acl1'
+                                Direction          = 1
+                                Action             = 1
+                                LocalAddress       = '*'
+                                RemoteAddress      = '10.0.0.0/8'
+                                LocalPort          = '*'
+                                RemotePort         = '443'
+                                Protocol           = 'TCP'
+                                Weight             = 100
+                                IsStateful         = $true
+                                IdleSessionTimeout = 0
+                                IsolationID        = 0
+                            }
+                        )
+                    }
+                    default { return @() }
+                }
+            }
+            Mock Get-SdnVMNetworkAdapterCim {
+                return @([PSCustomObject]@{
+                    Name = 'Network Adapter'; MacAddress = '001DD8070001'; VMName = 'DVLAB-VM01'; IsManagement = $false
+                })
+            }
+            Mock New-SdnCimSession { }
+            Mock Format-SdnMacAddress { return $MacAddress.ToUpper() -replace '-','' }
+
+            $result = Get-SdnVMNetworkAdapterExtendedAclCim -All
+            $result | Should -Not -BeNullOrEmpty
+            $result[0].Direction | Should -Be 1
+            $result[0].RemoteAddress | Should -Be '10.0.0.0/8'
+            $result[0].Protocol | Should -Be 'TCP'
+        }
+    }
+}
+
+Describe 'Server - Get-SdnVMNetworkAdapterRoutingDomainCim' {
+
+    It "Returns routing domain entries per adapter" {
+        InModuleScope SdnDiag.Server {
+            Mock Get-CimInstance {
+                switch ($ClassName) {
+                    'Msvm_EthernetPortAllocationSettingData' {
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                    }
+                    'Msvm_EthernetSwitchPortRoutingDomainSettingData' {
+                        return @(
+                            [PSCustomObject]@{
+                                InstanceID          = 'port001/rd1'
+                                RoutingDomainGuid   = '{11111111-2222-3333-4444-555555555555}'
+                                RoutingDomainName   = 'VNET-001'
+                                IsolationIdList     = @(4096, 4097)
+                                IsolationIdNameList = @('Subnet-1', 'Subnet-2')
+                            }
+                        )
+                    }
+                    default { return @() }
+                }
+            }
+            Mock Get-SdnVMNetworkAdapterCim {
+                return @([PSCustomObject]@{
+                    Name = 'Network Adapter'; MacAddress = '001DD8070001'; VMName = 'DVLAB-VM01'; IsManagement = $false
+                })
+            }
+            Mock New-SdnCimSession { }
+            Mock Format-SdnMacAddress { return $MacAddress.ToUpper() -replace '-','' }
+
+            $result = Get-SdnVMNetworkAdapterRoutingDomainCim -All
+            $result | Should -Not -BeNullOrEmpty
+            $result[0].RoutingDomainName | Should -Be 'VNET-001'
+            $result[0].IsolationIdList | Should -Contain 4096
         }
     }
 }
