@@ -537,12 +537,11 @@ Describe 'Server - Get-SdnVMNetworkAdapterCim' {
                     'Msvm_SyntheticEthernetPortSettingData'  { return @($Global:PesterOfflineTests.CimMockData.SyntheticAdapter) }
                     'Msvm_EmulatedEthernetPortSettingData'   { return @() }
                     'Msvm_ComputerSystem'                    { return @($Global:PesterOfflineTests.CimMockData.VmSystem) }
+                    'Msvm_VirtualSystemSettingData'          { return @($Global:PesterOfflineTests.CimMockData.VmSettingData) }
                     default { return @() }
                 }
             }
-            Mock Get-SdnCimAssociatedInstance {
-                return $Global:PesterOfflineTests.CimMockData.VmSettingData
-            }
+            Mock Get-SdnCimAssociatedInstance { return $null }
             Mock New-SdnCimSession { }
 
             $result = Get-SdnVMNetworkAdapterCim
@@ -591,11 +590,12 @@ Describe 'Server - Get-SdnVMNetworkAdapterCim' {
                     'Msvm_SyntheticEthernetPortSettingData'  { return @($Global:PesterOfflineTests.CimMockData.SyntheticAdapter) }
                     'Msvm_EmulatedEthernetPortSettingData'   { return @() }
                     'Msvm_ComputerSystem'                    { return @($Global:PesterOfflineTests.CimMockData.VmSystem) }
+                    'Msvm_VirtualSystemSettingData'          { return @($Global:PesterOfflineTests.CimMockData.VmSettingData) }
                     default { return @() }
                 }
             }
             Mock Get-SdnCimAssociatedInstance {
-                return $Global:PesterOfflineTests.CimMockData.VmSettingData
+                return $null
             }
             Mock New-SdnCimSession { }
 
@@ -614,6 +614,7 @@ Describe 'Server - Get-SdnVMNetworkAdapterCim' {
                     'Msvm_EthernetPortAllocationSettingData' { return @() }
                     'Msvm_ComputerSystem' { return @($Global:PesterOfflineTests.CimMockData.VmSystem) }
                     'Msvm_EmulatedEthernetPortSettingData'   { return @() }
+                    'Msvm_VirtualSystemSettingData'          { return @($Global:PesterOfflineTests.CimMockData.VmSettingData) }
                     default { return @() }
                 }
             }
@@ -717,13 +718,13 @@ Describe 'Server - Get-SdnVMNetworkAdapterPortProfile (CIM)' {
                             }
                         )
                     }
-                    'Msvm_EthernetSwitchPortSecuritySettingData' {
+                    'Msvm_EthernetSwitchPortProfileSettingData' {
                         return @(
                             [PSCustomObject]@{
-                                InstanceID          = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888\port001/security'
-                                PortProfileId       = '{11111111-2222-3333-4444-555555555555}'
-                                PortProfileData     = 1
-                                PortProfileVendorId = '{1FA41B39-B444-4E43-B35A-E1F7985FD548}'
+                                InstanceID  = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888\port001/profile'
+                                ProfileId   = '{11111111-2222-3333-4444-555555555555}'
+                                ProfileData = 1
+                                VendorId    = '{1FA41B39-B444-4E43-B35A-E1F7985FD548}'
                             }
                         )
                     }

@@ -1898,6 +1898,7 @@ function New-SdnCimSession {
             catch {
                 "Unable to create CIM session to {0}. Error: {1}" -f $objectName, $_.Exception.Message | Trace-Output -Level:Error
                 $_ | Trace-Exception
+                $_ | Write-Error
             }
         }
     }
