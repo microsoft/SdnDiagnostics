@@ -640,7 +640,12 @@ function Copy-FileFromRemoteComputerSMB {
 
     end {
         if ($psDriveName) {
-            Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
+            try {
+                Remove-PSDrive -Name $psDriveName -Force -ErrorAction Stop
+            }
+            catch {
+                "Unable to remove temporary PSDrive {0}. {1}" -f $psDriveName, $_.Exception.Message | Trace-Output -Level:Warning
+            }
         }
     }
 }
@@ -885,7 +890,12 @@ function Copy-FileToRemoteComputerSMB {
 
     end {
         if ($psDriveName) {
-            Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
+            try {
+                Remove-PSDrive -Name $psDriveName -Force -ErrorAction Stop
+            }
+            catch {
+                "Unable to remove temporary PSDrive {0}. {1}" -f $psDriveName, $_.Exception.Message | Trace-Output -Level:Warning
+            }
         }
     }
 }
