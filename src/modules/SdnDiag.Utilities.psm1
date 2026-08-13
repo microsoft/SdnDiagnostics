@@ -605,6 +605,7 @@ function Copy-FileFromRemoteComputerSMB {
             $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
             $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
             $psDriveName = $tempDriveName
+            "Mounted temporary PSDrive {0} to {1}" -f $psDriveName, $uncRoot | Trace-Output -Level:Information
         }
     }
 
@@ -859,6 +860,7 @@ function Copy-FileToRemoteComputerSMB {
             $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
             $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
             $psDriveName = $tempDriveName
+            "Mounted temporary PSDrive {0} to {1}" -f $psDriveName, $uncRoot | Trace-Output -Level:Information
         }
 
         [System.IO.FileInfo]$remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
