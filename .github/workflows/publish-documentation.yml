@@ -13,6 +13,13 @@ on:
   # Allows you to run this workflow manually from the Actions tab
   workflow_dispatch:
 
+# Serialize runs so concurrent pushes to main can't race on the wiki checkout/push. Runs are queued
+# (not cancelled) so every triggering commit still gets published, each one regenerating docs from
+# its own checkout after the previous run's push has completed.
+concurrency:
+  group: publish-documentation-wiki
+  cancel-in-progress: false
+
 permissions:
   contents: read
 
@@ -59,7 +66,25 @@ jobs:
           if ($changes) {
             $shortSha = "${env:GITHUB_SHA}".Substring(0, 7)
             git commit -m "docs: sync function documentation from main@$shortSha"
-            git push
+
+            # the concurrency group above serializes runs of this workflow, but the wiki can also be
+            # edited out-of-band (e.g. manually). Retry a couple of times with a rebase in that case
+            # rather than failing the run outright.
+            $pushed = $false
+            for ($attempt = 1; $attempt -le 3 -and -not $pushed; $attempt++) {
+              git push
+              if ($LASTEXITCODE -eq 0) {
+                $pushed = $true
+              }
+              elseif ($attempt -lt 3) {
+                "Push failed (attempt $attempt), pulling and retrying" | Write-Host -ForegroundColor Yellow
+                git pull --rebase
+              }
+            }
+
+            if (-not $pushed) {
+              throw "Failed to push documentation changes to the wiki after multiple attempts"
+            }
           }
           else {
             "No documentation changes to publish" | Write-Host
