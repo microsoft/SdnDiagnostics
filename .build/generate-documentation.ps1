@@ -100,16 +100,34 @@ if($WikiPath){
         if($staleFunctionNames){
             $staleWikiFunctionDocs = Get-ChildItem -Path "$wikiFunctionsPath\*" -Include *.md | Where-Object { $_.BaseName -iin $staleFunctionNames }
             if($staleWikiFunctionDocs){
-                "Removing {0} stale function page(s) from wiki" -f $staleWikiFunctionDocs.Count | Write-Host
+                "Removing {0} stale function page(s) from wiki:" -f $staleWikiFunctionDocs.Count | Write-Host
+                $staleWikiFunctionDocs | ForEach-Object { "  - {0}" -f $_.Name | Write-Host }
                 $staleWikiFunctionDocs | Remove-Item -Force
             }
         }
+
+        # functions present in the exported set but not in the previous manifest are newly-added pages
+        $newFunctionNames = $exportedFunctionNames | Where-Object { $_ -inotin $previouslyGeneratedNames }
     }
     else {
         "No generated-page manifest found; skipping stale page removal for this run" | Write-Host -ForegroundColor:Yellow
+        # first run: every generated page is "new" from the wiki's perspective
+        $newFunctionNames = $exportedFunctionNames
     }
 
     Get-ChildItem -Path "$docPath\*" -Include *.md | Copy-Item -Destination $wikiFunctionsPath -Force
+
+    # summarize exactly which articles were published to the wiki on this run so it is visible in
+    # the pipeline log without needing to inspect the wiki repository's commit diff afterwards
+    "Publishing {0} function article(s) to wiki path 'functions\':" -f $exportedFunctionNames.Count | Write-Host
+    foreach($name in $exportedFunctionNames){
+        if($name -iin $newFunctionNames){
+            "  - {0} (new)" -f $name | Write-Host -ForegroundColor:Green
+        }
+        else {
+            "  - {0}" -f $name | Write-Host
+        }
+    }
 
     # record which function pages this script generated so a future run can safely identify stale
     # pages without guessing based on naming convention alone
