@@ -2589,6 +2589,40 @@ function Get-SdnVMNetworkAdapter {
 }
 
 
+function Get-SdnCimAssociatedInstance {
+    <#
+    .SYNOPSIS
+        Thin wrapper around Get-CimAssociatedInstance that accepts untyped InputObject for testability.
+    .DESCRIPTION
+        Get-CimAssociatedInstance requires a [CimInstance] typed InputObject parameter, which prevents
+        Pester mocks from intercepting calls when PSCustomObjects are passed during unit tests. This
+        wrapper accepts any object type, making it mockable while preserving all functionality.
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        $InputObject,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ResultClassName,
+
+        [Parameter(Mandatory = $false)]
+        [string]$Namespace,
+
+        [Parameter(Mandatory = $false)]
+        [string]$ErrorAction
+    )
+
+    $params = @{
+        InputObject = $InputObject
+    }
+    if ($ResultClassName) { $params['ResultClassName'] = $ResultClassName }
+    if ($Namespace) { $params['Namespace'] = $Namespace }
+
+    return (Get-CimAssociatedInstance @params)
+}
+
 function Get-SdnVMSwitchCim {
     <#
     .SYNOPSIS
@@ -2853,11 +2887,11 @@ function Get-SdnVMNetworkAdapterCim {
 
             # If filtering by VM, get the settings path for that VM
             if ($VMName -and $vmCim) {
-                $vmSettingData = Get-CimAssociatedInstance -InputObject $vmCim -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+                $vmSettingData = Get-SdnCimAssociatedInstance -InputObject $vmCim -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
                     Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
                 if ($vmSettingData) {
                     $vmPath = $vmSettingData.CimSystemProperties.CimInstance
-                    $adapters = Get-CimAssociatedInstance -InputObject $vmSettingData -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
+                    $adapters = Get-SdnCimAssociatedInstance -InputObject $vmSettingData -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
                 }
             }
 
@@ -2871,7 +2905,7 @@ function Get-SdnVMNetworkAdapterCim {
             $vmLookup = @{}
             $allVmSystems = Get-CimInstance @cimParams -ClassName 'Msvm_ComputerSystem' -Filter "Caption = 'Virtual Machine'"
             foreach ($vm in $allVmSystems) {
-                $vmSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+                $vmSettings = Get-SdnCimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
                     Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
                 if ($vmSettings) {
                     $vmLookup[$vmSettings.InstanceID] = $vm.ElementName
@@ -3048,13 +3082,13 @@ function Get-SdnVMCim {
             }
 
             # Get the associated settings to retrieve additional VM details
-            $vmSettings = Get-CimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
+            $vmSettings = Get-SdnCimAssociatedInstance -InputObject $vm -ResultClassName 'Msvm_VirtualSystemSettingData' @cimParams |
                 Where-Object { $_.VirtualSystemType -eq 'Microsoft:Hyper-V:System:Realized' }
 
             # Get network adapters associated with this VM
             $networkAdapters = @()
             if ($vmSettings) {
-                $networkAdapters = Get-CimAssociatedInstance -InputObject $vmSettings -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
+                $networkAdapters = Get-SdnCimAssociatedInstance -InputObject $vmSettings -ResultClassName 'Msvm_SyntheticEthernetPortSettingData' @cimParams
             }
 
             $vmObject = [PSCustomObject]@{

@@ -1936,7 +1936,7 @@ function Remove-SdnCimSession {
         foreach ($session in $sessions) {
             "Removing CIM session {0} for {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Verbose
             try {
-                $session | Remove-CimSession -ErrorAction Stop
+                Remove-CimSession -Id $session.Id -ErrorAction Stop
             }
             catch {
                 "Unable to remove CIM session {0} for {1}. Error: {2}" -f $session.Name, $session.ComputerName, $_.Exception.Message | Trace-Output -Level:Warning
