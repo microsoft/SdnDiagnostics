@@ -600,9 +600,11 @@ function Copy-FileFromRemoteComputerSMB {
         # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
         [System.String]$psDriveName = $null
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $psDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
-            $uncRoot = "\\{0}\c$" -f $ComputerName
-            $null = New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $driveRoot = [System.IO.Path]::GetPathRoot($Path[0]).Replace(':','$')
+            $uncRoot = "\\{0}\{1}" -f $ComputerName, $driveRoot
+            $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $psDriveName = $tempDriveName
         }
     }
 
@@ -847,9 +849,11 @@ function Copy-FileToRemoteComputerSMB {
         # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
         [System.String]$psDriveName = $null
         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $psDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
-            $uncRoot = "\\{0}\c$" -f $ComputerName
-            $null = New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $driveRoot = [System.IO.Path]::GetPathRoot($Destination.FullName).Replace(':','$')
+            $uncRoot = "\\{0}\{1}" -f $ComputerName, $driveRoot
+            $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $psDriveName = $tempDriveName
         }
 
         [System.IO.FileInfo]$remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
