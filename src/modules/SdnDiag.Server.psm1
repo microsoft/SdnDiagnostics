@@ -516,22 +516,28 @@ function Get-ServerConfigState {
                     }
                 }
 
-                # collect per-VM adapter diagnostic details using Hyper-V cmdlets
+                # collect per-VM adapter diagnostic details using CIM
                 try {
-                    $hvAdapters = Get-VMNetworkAdapter -VMName $vm.Name -ErrorAction SilentlyContinue
-                    foreach ($hvAdapter in $hvAdapters) {
-                        $prefix = (Format-SdnMacAddress -MacAddress $hvAdapter.MacAddress)
-                        $hvAdapter.AclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter' |
-                            Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_AclList' -FileType txt -Format List
-                        $hvAdapter.ExtendedAclList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' |
-                            Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
-                        $hvAdapter.IsolationSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' |
-                            Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
-                        $hvAdapter.RoutingDomainList | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' |
-                            Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_RoutingDomainList' -FileType txt -Format List
-                        $hvAdapter.VlanSetting | Remove-PropertiesFromObject -PropertiesToRemove 'ParentAdapter','CimSession' |
-                            Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_VlanSetting' -FileType txt -Format List
-                    }
+                    Get-SdnVMNetworkAdapterExtendedAclCim -VMName $vm.Name |
+                        Group-Object -Property MacAddress | ForEach-Object {
+                            $prefix = $_.Name
+                            $_.Group | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_ExtendedAclList' -FileType txt -Format List
+                        }
+                    Get-SdnVMNetworkAdapterIsolationCim -VMName $vm.Name |
+                        ForEach-Object {
+                            $prefix = (Format-SdnMacAddress -MacAddress $_.MacAddress)
+                            $_ | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_IsolationSetting' -FileType txt -Format List
+                        }
+                    Get-SdnVMNetworkAdapterRoutingDomainCim -VMName $vm.Name |
+                        Group-Object -Property MacAddress | ForEach-Object {
+                            $prefix = $_.Name
+                            $_.Group | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_RoutingDomainList' -FileType txt -Format List
+                        }
+                    Get-SdnVMNetworkAdapterVlanCim -VMName $vm.Name |
+                        ForEach-Object {
+                            $prefix = (Format-SdnMacAddress -MacAddress $_.MacAddress)
+                            $_ | Export-ObjectToFile -FilePath $vmDir.FullName -Prefix $prefix -Name 'Get-VM_VlanSetting' -FileType txt -Format List
+                        }
                 }
                 catch {
                     "Failed to enumerate detailed VMNetworkAdapter settings for VM {0}" -f $vm.Name | Trace-Output -Level:Warning
