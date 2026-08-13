@@ -515,7 +515,7 @@ function Copy-FileFromRemoteComputer {
             else {
                 # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
+                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
                 }
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
@@ -585,9 +585,6 @@ function Copy-FileFromRemoteComputerSMB {
             'Force'         = $Force.IsPresent
             'Recurse'       = $Recurse.IsPresent
         }
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $params.Add('Credential', $Credential)
-        }
 
         # set this to suppress the information status bar from being displayed
         $Global:ProgressPreference = 'SilentlyContinue'
@@ -598,6 +595,14 @@ function Copy-FileFromRemoteComputerSMB {
         if (-NOT ($testNetConnection)) {
             $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
             throw New-Object System.Exception($msg)
+        }
+
+        # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
+        [System.String]$psDriveName = $null
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $psDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $uncRoot = "\\{0}\c$" -f $ComputerName
+            $null = New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
         }
     }
 
@@ -628,6 +633,12 @@ function Copy-FileFromRemoteComputerSMB {
                     throw $_
                 }
             }
+        }
+    }
+
+    end {
+        if ($psDriveName) {
+            Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
         }
     }
 }
@@ -749,7 +760,7 @@ function Copy-FileToRemoteComputer {
             else {
                 # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
+                    Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
                 }
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
@@ -822,9 +833,6 @@ function Copy-FileToRemoteComputerSMB {
             'Force'         = $Force.IsPresent
             'Recurse'       = $Recurse.IsPresent
         }
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $params.Add('Credential', $Credential)
-        }
 
         # set this to suppress the information status bar from being displayed
         $Global:ProgressPreference = 'SilentlyContinue'
@@ -834,6 +842,14 @@ function Copy-FileToRemoteComputerSMB {
         if (-NOT ($testNetConnection)) {
             $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
             throw New-Object System.Exception($msg)
+        }
+
+        # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
+        [System.String]$psDriveName = $null
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $psDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $uncRoot = "\\{0}\c$" -f $ComputerName
+            $null = New-PSDrive -Name $psDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
         }
 
         [System.IO.FileInfo]$remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
@@ -860,6 +876,12 @@ function Copy-FileToRemoteComputerSMB {
 
                 throw $_
             }
+        }
+    }
+
+    end {
+        if ($psDriveName) {
+            Remove-PSDrive -Name $psDriveName -Force -ErrorAction SilentlyContinue
         }
     }
 }
