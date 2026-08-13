@@ -495,7 +495,13 @@ function Copy-FileFromRemoteComputer {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
     try {
@@ -520,8 +526,25 @@ function Copy-FileFromRemoteComputer {
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
 
+                    $winRmParams = @{
+                        Path        = $Path
+                        ComputerName = $object
+                        Destination  = $Destination
+                        Force        = $Force.IsPresent
+                        Recurse      = $Recurse.IsPresent
+                        Credential   = $Credential
+                    }
+
+                    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+                        $winRmParams.Add('UseSSL', $UseSSL)
+                    }
+
+                    if ($PSBoundParameters.ContainsKey('Port')) {
+                        $winRmParams.Add('Port', $Port)
+                    }
+
                     try {
-                        Copy-FileFromRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -Credential $Credential
+                        Copy-FileFromRemoteComputerWinRM @winRmParams
                     }
                     catch {
                         # Catch the copy failed exception to not stop the copy for other computers which might success
@@ -673,10 +696,29 @@ function Copy-FileFromRemoteComputerWinRM {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
-    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    $sessionParams = @{
+        ComputerName = $ComputerName
+        Credential   = $Credential
+    }
+
+    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+        $sessionParams.Add('UseSSL', $UseSSL)
+    }
+
+    if ($PSBoundParameters.ContainsKey('Port')) {
+        $sessionParams.Add('Port', $Port)
+    }
+
+    $session = New-PSRemotingSession @sessionParams
     if ($session) {
         foreach ($subPath in $Path) {
             "Copying {0} to {1} using WinRM Session {2}" -f $subPath, $Destination.FullName, $session.Name | Trace-Output
@@ -729,7 +771,13 @@ function Copy-FileToRemoteComputer {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
     try {
@@ -754,8 +802,25 @@ function Copy-FileToRemoteComputer {
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
 
+                    $winRmParams = @{
+                        Path         = $Path
+                        ComputerName = $object
+                        Destination  = $Destination
+                        Credential   = $Credential
+                        Force        = $Force.IsPresent
+                        Recurse      = $Recurse.IsPresent
+                    }
+
+                    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+                        $winRmParams.Add('UseSSL', $UseSSL)
+                    }
+
+                    if ($PSBoundParameters.ContainsKey('Port')) {
+                        $winRmParams.Add('Port', $Port)
+                    }
+
                     try {
-                        Copy-FileToRemoteComputerWinRM -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent)
+                        Copy-FileToRemoteComputerWinRM @winRmParams
                     }
                     catch {
                         # Catch the copy failed exception to not stop the copy for other computers which might success
@@ -904,10 +969,29 @@ function Copy-FileToRemoteComputerWinRM {
         [Switch]$Recurse,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
-    $session = New-PSRemotingSession -ComputerName $ComputerName -Credential $Credential
+    $sessionParams = @{
+        ComputerName = $ComputerName
+        Credential   = $Credential
+    }
+
+    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+        $sessionParams.Add('UseSSL', $UseSSL)
+    }
+
+    if ($PSBoundParameters.ContainsKey('Port')) {
+        $sessionParams.Add('Port', $Port)
+    }
+
+    $session = New-PSRemotingSession @sessionParams
     if ($session) {
         # copy the files to the destination using WinRM
         foreach ($subPath in $Path) {
@@ -1558,7 +1642,13 @@ function Invoke-PSRemoteCommand {
         [System.String]$Activity,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
-        [int]$ExecutionTimeout = 900
+        [int]$ExecutionTimeout = 900,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
     $params = @{
@@ -1572,6 +1662,14 @@ function Invoke-PSRemoteCommand {
 
     if ($PSBoundParameters.ContainsKey('ImportModuleOnRemoteSession')) {
         $psSessionParams.Add('ImportModuleOnRemoteSession', $ImportModuleOnRemoteSession)
+    }
+
+    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+        $psSessionParams.Add('UseSSL', $UseSSL)
+    }
+
+    if ($PSBoundParameters.ContainsKey('Port')) {
+        $psSessionParams.Add('Port', $Port)
     }
 
     $session = New-PSRemotingSession @psSessionParams
@@ -1847,12 +1945,33 @@ function New-PSRemotingSession {
         [System.String]$ModuleName = $Global:SdnDiagnostics.Config.ModuleName,
 
         [Parameter(Mandatory = $false)]
-        [Switch]$Force
+        [Switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
     begin {
         [bool]$disableSeeding = $Global:SdnDiagnostics.Config.DisableModuleSeeding
         [bool]$importModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession
+
+        # if UseSSL was not explicitly provided, fall back to global config
+        if (-NOT $PSBoundParameters.ContainsKey('UseSSL')) {
+            $UseSSL = [bool]$Global:SdnDiagnostics.Config.UseSSL
+        }
+
+        # set the default port based on whether SSL is being used, then check global config override
+        if (-NOT $PSBoundParameters.ContainsKey('Port')) {
+            if ($Global:SdnDiagnostics.Config.Port -gt 0) {
+                $Port = $Global:SdnDiagnostics.Config.Port
+            }
+            else {
+                $Port = if ($UseSSL) { 5986 } else { 5985 }
+            }
+        }
 
         $importRemoteModule = {
             param([string]$arg0, $arg1, $arg2)
@@ -1910,8 +2029,9 @@ function New-PSRemotingSession {
 
             # determine if an IP address was passed for the destination
             # if using IP address it needs to be added to the trusted hosts
+            # when UseSSL is enabled, TrustedHosts management is not required as the server identity is validated via certificate
             $isIpAddress = ($objectName -as [IPAddress]) -as [Bool]
-            if ($isIpAddress) {
+            if ($isIpAddress -and -NOT $UseSSL) {
                 try {
                     Confirm-IsAdmin
 
@@ -1929,9 +2049,38 @@ function New-PSRemotingSession {
             }
 
             try {
+                $newPSSessionParams = @{
+                    Name          = "SdnDiag-$(Get-Random)"
+                    ComputerName  = $objectName
+                    Port          = $Port
+                    ErrorAction   = 'Stop'
+                }
+
+                # Build session options only with parameters supported by the current platform
+                # WinRM-specific parameters (Culture, UICulture, IdleTimeout) are only available on Windows
+                $psSessionOptionCmd = Get-Command New-PSSessionOption -ErrorAction SilentlyContinue
+                if ($psSessionOptionCmd) {
+                    $sessionOptionParams = @{}
+                    if ($psSessionOptionCmd.Parameters.ContainsKey('IdleTimeout')) {
+                        $sessionOptionParams['IdleTimeout'] = 86400000
+                    }
+                    if ($psSessionOptionCmd.Parameters.ContainsKey('Culture')) {
+                        $sessionOptionParams['Culture'] = 'en-US'
+                        $sessionOptionParams['UICulture'] = 'en-US'
+                    }
+                    if ($sessionOptionParams.Count -gt 0) {
+                        $newPSSessionParams.Add('SessionOption', (New-PSSessionOption @sessionOptionParams))
+                    }
+                }
+
+                if ($UseSSL) {
+                    $newPSSessionParams.Add('UseSSL', $true)
+                    "PSRemotingSession will use SSL on port {0}" -f $Port | Trace-Output -Level:Verbose
+                }
+
                 if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
                     "PSRemotingSession use user-defined credential" | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $objectName -Credential $Credential -SessionOption (New-PSSessionOption -Culture en-US -UICulture en-US -IdleTimeout 86400000) -ErrorAction Stop
+                    $newPSSessionParams.Add('Credential', $Credential)
                 }
                 else {
                     # if the credential is not defined, we want to check if we
@@ -1941,13 +2090,14 @@ function New-PSRemotingSession {
 
                     # if we need to create a new remote session, need to check to ensure that if using an IP Address that credentials are specified
                     # which is a requirement from a WinRM perspective. Will throw a warning and skip session creation for this computer.
-                    if ($isIpAddress -and $Credential -eq [System.Management.Automation.PSCredential]::Empty) {
+                    if ($isIpAddress -and -NOT $UseSSL -and $Credential -eq [System.Management.Automation.PSCredential]::Empty) {
                         throw New-Object System.NotSupportedException("Unable to create PSSession to $objectName. The Credential parameter is required when using an IP Address.")
                     }
 
                     "PSRemotingSession use default credential" | Trace-Output -Level:Verbose
-                    $session = New-PSSession -Name "SdnDiag-$(Get-Random)" -ComputerName $objectName -SessionOption (New-PSSessionOption -Culture 'en-US' -UICulture 'en-US' -IdleTimeout 86400000) -ErrorAction Stop
                 }
+
+                $session = New-PSSession @newPSSessionParams
 
                 "Created powershell session {0} to {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
                 if ($ImportModuleOnRemoteSession) {
