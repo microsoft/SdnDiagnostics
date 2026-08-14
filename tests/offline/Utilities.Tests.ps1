@@ -177,3 +177,125 @@ Describe 'Utilities - IP Address Validation' {
         }
     }
 }
+
+Describe 'Utilities - CIM Session Management' {
+
+    Context 'New-SdnCimSession' {
+        It "Creates a new CIM session when none exists" {
+            InModuleScope SdnDiag.Utilities {
+                $mockSession = [PSCustomObject]@{
+                    Name         = 'SdnDiag-Cim-12345'
+                    ComputerName = 'DVLAB-S1-N01'
+                }
+                Mock Get-CimSession { return @() }
+                Mock New-CimSession { return $mockSession }
+
+                $result = New-SdnCimSession -ComputerName 'DVLAB-S1-N01'
+                $result | Should -Not -BeNullOrEmpty
+                $result.ComputerName | Should -Be 'DVLAB-S1-N01'
+
+                Should -Invoke -CommandName New-CimSession -Exactly -Times 1
+            }
+        }
+
+        It "Reuses an existing SdnDiag CIM session" {
+            InModuleScope SdnDiag.Utilities {
+                $existingSession = [PSCustomObject]@{
+                    Name         = 'SdnDiag-Cim-99999'
+                    ComputerName = 'DVLAB-S1-N01'
+                }
+                $existingSession | Add-Member -MemberType ScriptMethod -Name TestConnection -Value { return $true }
+                Mock Get-CimSession { return @($existingSession) }
+                Mock New-CimSession { }
+
+                $result = New-SdnCimSession -ComputerName 'DVLAB-S1-N01'
+                $result | Should -Not -BeNullOrEmpty
+                $result.Name | Should -Be 'SdnDiag-Cim-99999'
+
+                Should -Invoke -CommandName New-CimSession -Exactly -Times 0
+            }
+        }
+
+        It "Creates a new session when -Force is specified" {
+            InModuleScope SdnDiag.Utilities {
+                $existingSession = [PSCustomObject]@{
+                    Name         = 'SdnDiag-Cim-99999'
+                    ComputerName = 'DVLAB-S1-N01'
+                }
+                $existingSession | Add-Member -MemberType ScriptMethod -Name TestConnection -Value { return $true }
+
+                $newSession = [PSCustomObject]@{
+                    Name         = 'SdnDiag-Cim-11111'
+                    ComputerName = 'DVLAB-S1-N01'
+                }
+                Mock Get-CimSession { return @($existingSession) }
+                Mock New-CimSession { return $newSession }
+
+                $result = New-SdnCimSession -ComputerName 'DVLAB-S1-N01' -Force
+                $result | Should -Not -BeNullOrEmpty
+
+                Should -Invoke -CommandName New-CimSession -Exactly -Times 1
+            }
+        }
+
+        It "Handles multiple computer names" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Get-CimSession { return @() }
+                Mock New-CimSession -MockWith {
+                    return [PSCustomObject]@{
+                        Name         = "SdnDiag-Cim-$(Get-Random)"
+                        ComputerName = $ComputerName
+                    }
+                }
+
+                $result = New-SdnCimSession -ComputerName @('DVLAB-S1-N01', 'DVLAB-S1-N02')
+                $result | Should -HaveCount 2
+
+                Should -Invoke -CommandName New-CimSession -Exactly -Times 2
+            }
+        }
+    }
+
+    Context 'Remove-SdnCimSession' {
+        It "Removes all SdnDiag CIM sessions when no ComputerName is specified" {
+            InModuleScope SdnDiag.Utilities {
+                $sessions = @(
+                    [PSCustomObject]@{ Id = 111; Name = 'SdnDiag-Cim-111'; ComputerName = 'DVLAB-S1-N01' },
+                    [PSCustomObject]@{ Id = 222; Name = 'SdnDiag-Cim-222'; ComputerName = 'DVLAB-S1-N02' }
+                )
+                Mock Get-CimSession { return $sessions }
+                Mock Remove-CimSession { }
+
+                Remove-SdnCimSession
+
+                Should -Invoke -CommandName Remove-CimSession -Exactly -Times 2
+            }
+        }
+
+        It "Removes only sessions for specified ComputerName" {
+            InModuleScope SdnDiag.Utilities {
+                $sessions = @(
+                    [PSCustomObject]@{ Id = 111; Name = 'SdnDiag-Cim-111'; ComputerName = 'DVLAB-S1-N01' },
+                    [PSCustomObject]@{ Id = 222; Name = 'SdnDiag-Cim-222'; ComputerName = 'DVLAB-S1-N02' }
+                )
+                Mock Get-CimSession { return $sessions }
+                Mock Remove-CimSession { }
+
+                Remove-SdnCimSession -ComputerName 'DVLAB-S1-N01'
+
+                Should -Invoke -CommandName Remove-CimSession -Exactly -Times 1
+            }
+        }
+
+        It "Does nothing when no SdnDiag sessions exist" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Get-CimSession { return @() }
+                Mock Remove-CimSession { }
+
+                Remove-SdnCimSession
+
+                Should -Invoke -CommandName Remove-CimSession -Exactly -Times 0
+            }
+        }
+    }
+}

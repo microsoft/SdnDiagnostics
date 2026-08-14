@@ -1829,6 +1829,127 @@ function Invoke-WebRequestWithRetry {
     return $result
 }
 
+function New-SdnCimSession {
+    <#
+    .SYNOPSIS
+        Creates or retrieves an existing CIM session for the specified computer(s).
+    .DESCRIPTION
+        Manages CIM sessions similarly to how New-PSRemotingSession manages PSSessions.
+        Sessions are named with an 'SdnDiag-Cim-' prefix and reused when already open,
+        avoiding repeated connection overhead on hosts with many CIM queries.
+    .PARAMETER ComputerName
+        Type the NetBIOS name, an IP address, or a fully qualified domain name of one or more remote computers.
+    .PARAMETER Credential
+        Specifies a user account that has permission to perform this action. The default is the current user.
+    .PARAMETER Force
+        Forces creation of a new session even if one already exists for the target computer.
+    .EXAMPLE
+        PS> New-SdnCimSession -ComputerName 'Server01'
+    .EXAMPLE
+        PS> New-SdnCimSession -ComputerName 'Server01','Server02' -Credential (Get-Credential)
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [System.String[]]$ComputerName,
+
+        [Parameter(Mandatory = $false)]
+        [System.Management.Automation.PSCredential]
+        [System.Management.Automation.Credential()]
+        $Credential = [System.Management.Automation.PSCredential]::Empty,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$Force
+    )
+
+    begin {
+        $cimSessions = @()
+        $currentActiveSessions = Get-CimSession | Where-Object { $_.Name -like 'SdnDiag-Cim-*' -and $_.TestConnection() }
+    }
+    process {
+        $ComputerName | ForEach-Object {
+            $objectName = $PSItem
+
+            # check to see if session is already opened and available
+            if ($currentActiveSessions.ComputerName -contains $objectName -and !$Force) {
+                $session = ($currentActiveSessions | Where-Object { $_.ComputerName -eq $objectName })[0]
+                "Located existing CIM session {0} for {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
+                $cimSessions += $session
+                return # stop processing this computer
+            }
+
+            try {
+                $sessionParams = @{
+                    ComputerName = $objectName
+                    Name         = "SdnDiag-Cim-$(Get-Random)"
+                    ErrorAction  = 'Stop'
+                }
+
+                if ($Credential -ne [System.Management.Automation.PSCredential]::Empty) {
+                    "CimSession use user-defined credential" | Trace-Output -Level:Verbose
+                    $sessionParams.Add('Credential', $Credential)
+                }
+
+                "Creating CIM session to {0}" -f $objectName | Trace-Output -Level:Verbose
+                $session = New-CimSession @sessionParams
+                $cimSessions += $session
+            }
+            catch {
+                "Unable to create CIM session to {0}. Error: {1}" -f $objectName, $_.Exception.Message | Trace-Output -Level:Error
+                $_ | Trace-Exception
+                $_ | Write-Error
+            }
+        }
+    }
+    end {
+        return $cimSessions
+    }
+}
+
+function Remove-SdnCimSession {
+    <#
+    .SYNOPSIS
+        Gracefully removes any existing SdnDiag CIM sessions.
+    .PARAMETER ComputerName
+        The computer name(s) that should have any existing CIM sessions removed.
+        If not specified, all SdnDiag CIM sessions are removed.
+    .EXAMPLE
+        PS> Remove-SdnCimSession
+    .EXAMPLE
+        PS> Remove-SdnCimSession -ComputerName 'Server01','Server02'
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [System.String[]]$ComputerName
+    )
+
+    try {
+        if ($PSBoundParameters.ContainsKey('ComputerName')) {
+            $sessions = Get-CimSession | Where-Object { $_.Name -like 'SdnDiag-Cim-*' -and $_.ComputerName -iin $ComputerName }
+        }
+        else {
+            $sessions = Get-CimSession | Where-Object { $_.Name -like 'SdnDiag-Cim-*' }
+        }
+
+        foreach ($session in $sessions) {
+            "Removing CIM session {0} for {1}" -f $session.Name, $session.ComputerName | Trace-Output -Level:Verbose
+            try {
+                Remove-CimSession -Id $session.Id -ErrorAction Stop
+            }
+            catch {
+                "Unable to remove CIM session {0} for {1}. Error: {2}" -f $session.Name, $session.ComputerName, $_.Exception.Message | Trace-Output -Level:Warning
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error
+    }
+}
+
 function New-PSRemotingSession {
     [CmdletBinding()]
     param (
