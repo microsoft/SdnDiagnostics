@@ -714,14 +714,15 @@ Describe 'Server - Get-SdnVMNetworkAdapterPortProfile (CIM)' {
                         return @(
                             [PSCustomObject]@{
                                 Address    = '001DD8070001'
-                                InstanceID = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888\port001'
+                                InstanceID = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888'
+                                ElementName = 'port001'
                             }
                         )
                     }
                     'Msvm_EthernetSwitchPortProfileSettingData' {
                         return @(
                             [PSCustomObject]@{
-                                InstanceID  = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888\port001/profile'
+                                InstanceID  = 'Microsoft:AAAAAAAA-1111-2222-3333-444444444444\BBBBBBBB-5555-6666-7777-888888888888\C\PPPP0001-0000-0000-0000-000000000001'
                                 ProfileId   = '{11111111-2222-3333-4444-555555555555}'
                                 ProfileData = 1
                                 VendorId    = '{1FA41B39-B444-4E43-B35A-E1F7985FD548}'
@@ -774,12 +775,12 @@ Describe 'Server - Get-SdnVMNetworkAdapterVlanCim' {
                     'Msvm_EthernetPortAllocationSettingData' {
                         return @([PSCustomObject]@{
                             Address    = '001DD8070001'
-                            InstanceID = 'port001'
+                            InstanceID = 'Microsoft:VMGUID\PortGUID'
                         })
                     }
                     'Msvm_EthernetSwitchPortVlanSettingData' {
                         return @([PSCustomObject]@{
-                            InstanceID              = 'port001/vlan'
+                            InstanceID              = 'Microsoft:VMGUID\PortGUID\C\VlanGUID'
                             OperationMode           = 1
                             AccessVlanId            = 100
                             NativeVlanId            = 0
@@ -835,11 +836,11 @@ Describe 'Server - Get-SdnVMNetworkAdapterIsolationCim' {
             Mock Get-CimInstance {
                 switch ($ClassName) {
                     'Msvm_EthernetPortAllocationSettingData' {
-                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'Microsoft:VMGUID\PortGUID' })
                     }
                     'Msvm_EthernetSwitchPortIsolationSettingData' {
                         return @([PSCustomObject]@{
-                            InstanceID             = 'port001/isolation'
+                            InstanceID             = 'Microsoft:VMGUID\PortGUID\C\IsoGUID'
                             IsolationMode          = 1
                             DefaultIsolationId     = 4096
                             AllowUntaggedTraffic   = $true
@@ -872,12 +873,12 @@ Describe 'Server - Get-SdnVMNetworkAdapterExtendedAclCim' {
             Mock Get-CimInstance {
                 switch ($ClassName) {
                     'Msvm_EthernetPortAllocationSettingData' {
-                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'Microsoft:VMGUID\PortGUID' })
                     }
                     'Msvm_EthernetSwitchPortExtendedAclSettingData' {
                         return @(
                             [PSCustomObject]@{
-                                InstanceID         = 'port001/acl1'
+                                InstanceID         = 'Microsoft:VMGUID\PortGUID\C\AclGUID'
                                 Direction          = 1
                                 Action             = 1
                                 LocalAddress       = '*'
@@ -919,12 +920,12 @@ Describe 'Server - Get-SdnVMNetworkAdapterRoutingDomainCim' {
             Mock Get-CimInstance {
                 switch ($ClassName) {
                     'Msvm_EthernetPortAllocationSettingData' {
-                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'port001' })
+                        return @([PSCustomObject]@{ Address = '001DD8070001'; InstanceID = 'Microsoft:VMGUID\PortGUID' })
                     }
                     'Msvm_EthernetSwitchPortRoutingDomainSettingData' {
                         return @(
                             [PSCustomObject]@{
-                                InstanceID          = 'port001/rd1'
+                                InstanceID          = 'Microsoft:VMGUID\PortGUID\C\RdGUID'
                                 RoutingDomainGuid   = '{11111111-2222-3333-4444-555555555555}'
                                 RoutingDomainName   = 'VNET-001'
                                 IsolationIdList     = @(4096, 4097)
