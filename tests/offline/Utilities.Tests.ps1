@@ -177,3 +177,136 @@ Describe 'Utilities - IP Address Validation' {
         }
     }
 }
+
+
+Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
+    Context 'Port defaults' {
+        It "Uses port 5985 by default (HTTP)" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession { return @() }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-Test'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 1
+                    }
+                }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01'
+
+                Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                    $Port -eq 5985 -and (-not $UseSSL)
+                }
+            }
+        }
+
+        It "Uses port 5986 when -UseSSL is specified" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession { return @() }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-Test'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 1
+                    }
+                }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01' -UseSSL
+
+                Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                    $Port -eq 5986 -and $UseSSL -eq $true
+                }
+            }
+        }
+
+        It "Uses custom port when -Port is specified with -UseSSL" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession { return @() }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-Test'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 1
+                    }
+                }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01' -UseSSL -Port 5988
+
+                Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                    $Port -eq 5988 -and $UseSSL -eq $true
+                }
+            }
+        }
+    }
+
+    Context 'Global config UseSSL and Port' {
+        It "Reads UseSSL from global config when not explicitly passed" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession { return @() }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-Test'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 1
+                    }
+                }
+
+                $Global:SdnDiagnostics.Config.UseSSL = $true
+                $Global:SdnDiagnostics.Config.Port = 0
+                try {
+                    New-PSRemotingSession -ComputerName 'DVLAB-S1-N01'
+
+                    Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                        $Port -eq 5986 -and $UseSSL -eq $true
+                    }
+                }
+                finally {
+                    $Global:SdnDiagnostics.Config.UseSSL = $false
+                    $Global:SdnDiagnostics.Config.Port = 0
+                }
+            }
+        }
+
+        It "Reads Port from global config when not explicitly passed" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession { return @() }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-Test'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 1
+                    }
+                }
+
+                $Global:SdnDiagnostics.Config.UseSSL = $true
+                $Global:SdnDiagnostics.Config.Port = 5987
+                try {
+                    New-PSRemotingSession -ComputerName 'DVLAB-S1-N01'
+
+                    Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                        $Port -eq 5987 -and $UseSSL -eq $true
+                    }
+                }
+                finally {
+                    $Global:SdnDiagnostics.Config.UseSSL = $false
+                    $Global:SdnDiagnostics.Config.Port = 0
+                }
+            }
+        }
+    }
+}

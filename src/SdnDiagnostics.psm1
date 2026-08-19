@@ -38,6 +38,14 @@ New-Variable -Name 'SdnDiagnostics' -Scope 'Global' -Force -Value @{
         # defines the current role(s) determined for the current node
         # supported values are 'Common', 'Gateway', 'NetworkController', 'Server', 'LoadBalancerMux'
         Role = @()
+
+        # when set to $true, PSRemoting sessions will use WinRM over HTTPS (port 5986 by default)
+        # configure this when CIS hardening or other security policies disable WinRM over HTTP
+        UseSSL = $false
+
+        # overrides the default WinRM port used when creating PSRemoting sessions
+        # if not set, defaults to 5985 (HTTP) or 5986 (HTTPS) based on UseSSL
+        Port = 0
     }
 }
 
@@ -751,7 +759,15 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
-        [bool]$ConvertETW = $true
+        [bool]$ConvertETW = $true,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [System.Int32]$Port
     )
 
     # if we are running in a remote session, we need to do some extra validation
@@ -763,6 +779,16 @@ function Start-SdnDataCollection {
                 throw New-Object System.NotSupportedException("Start-SdnDataCollection cannot be run in a remote session without supplying -Credential.")
             }
         }
+    }
+
+    # if UseSSL or Port were explicitly provided, update the global config so that all downstream
+    # PSRemoting session creation functions pick up the correct transport settings
+    if ($PSBoundParameters.ContainsKey('UseSSL')) {
+        $Global:SdnDiagnostics.Config.UseSSL = $UseSSL.IsPresent
+    }
+
+    if ($PSBoundParameters.ContainsKey('Port')) {
+        $Global:SdnDiagnostics.Config.Port = $Port
     }
 
     $ErrorActionPreference = 'Continue'
@@ -927,18 +953,31 @@ function Start-SdnDataCollection {
 
         $Global:ProgressPreference = 'SilentlyContinue'
         $nodesToRemove = [System.Collections.ArrayList]::new()
-        $tncScriptBlock = {
-            $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
-            if (-NOT ($tncResult)) {
-                [void]$nodesToRemove.Add($_)
-            }
+        if ($Global:SdnDiagnostics.Config.Port -gt 0) {
+            $tncPort = $Global:SdnDiagnostics.Config.Port
+        }
+        elseif ($Global:SdnDiagnostics.Config.UseSSL) {
+            $tncPort = 5986
+        }
+        else {
+            $tncPort = 5985
         }
 
         if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel $tncScriptBlock
+            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel {
+                $tncResult = Test-NetConnection -ComputerName $_.Name -Port $using:tncPort -InformationLevel Quiet
+                if (-NOT ($tncResult)) {
+                    [void]($using:nodesToRemove).Add($_)
+                }
+            }
         }
         else {
-            $dataCollectionNodes | ForEach-Object $tncScriptBlock
+            $dataCollectionNodes | ForEach-Object {
+                $tncResult = Test-NetConnection -ComputerName $_.Name -Port $tncPort -InformationLevel Quiet
+                if (-NOT ($tncResult)) {
+                    [void]$nodesToRemove.Add($_)
+                }
+            }
         }
 
         if ($nodesToRemove.Count -gt 0) {
