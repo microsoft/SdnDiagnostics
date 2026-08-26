@@ -76,6 +76,80 @@
         "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
       },
       "etag": "W/\"lb-etag-0001\""
+    },
+    {
+      "resourceId": "lb-outbound-0002",
+      "properties": {
+        "frontendIPConfigurations": [
+          {
+            "etag": "W/\"lb-etag-0002\"",
+            "resourceRef": "/loadBalancers/lb-outbound-0002/frontendIPConfigurations/feip-0002",
+            "resourceId": "feip-0002",
+            "properties": {
+              "subnet": {
+                "resourceRef": "/logicalNetworks/PublicVIP/subnets/PublicVIP-subnet-0001"
+              },
+              "provisioningState": "Succeeded",
+              "privateIPAllocationMethod": "Static",
+              "privateIPAddress": "40.40.40.6"
+            },
+            "instanceId": "feip-inst-0002"
+          }
+        ],
+        "probes": [],
+        "backendAddressPools": [
+          {
+            "etag": "W/\"lb-etag-0002\"",
+            "resourceRef": "/loadBalancers/lb-outbound-0002/backendAddressPools/OutboundNatPool",
+            "resourceId": "OutboundNatPool",
+            "properties": {
+              "backendIPConfigurations": [
+                {
+                  "resourceRef": "/networkInterfaces/tenantvm3/ipConfigurations/ipconfig1"
+                }
+              ],
+              "provisioningState": "Succeeded",
+              "outboundNatRules": [
+                {
+                  "resourceRef": "/loadBalancers/lb-outbound-0002/outboundNatRules/outbound-nat-0002"
+                }
+              ]
+            },
+            "instanceId": "bepool-inst-0002"
+          }
+        ],
+        "outboundNatRules": [
+          {
+            "etag": "W/\"lb-etag-0002\"",
+            "resourceRef": "/loadBalancers/lb-outbound-0002/outboundNatRules/outbound-nat-0002",
+            "resourceId": "outbound-nat-0002",
+            "properties": {
+              "protocol": "All",
+              "frontendIPConfigurations": [
+                {
+                  "resourceRef": "/loadBalancers/lb-outbound-0002/frontendIPConfigurations/feip-0002"
+                }
+              ],
+              "provisioningState": "Succeeded",
+              "backendAddressPool": {
+                "resourceRef": "/loadBalancers/lb-outbound-0002/backendAddressPools/OutboundNatPool"
+              }
+            },
+            "instanceId": "outnat-inst-0002"
+          }
+        ],
+        "provisioningState": "Succeeded",
+        "loadBalancingRules": []
+      },
+      "instanceId": "lb-inst-0002-aaaa-bbbb-cccccccccccc",
+      "resourceRef": "/loadBalancers/lb-outbound-0002",
+      "resourceMetadata": {
+        "client": "Network Resource Provider",
+        "resourceName": "lb-outbound-0002",
+        "groupId": "TestWorkload-RG",
+        "tenantId": "aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee"
+      },
+      "etag": "W/\"lb-etag-0002\""
     }
   ],
   "nextLink": ""
