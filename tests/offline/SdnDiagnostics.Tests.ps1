@@ -134,7 +134,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
                     -UseSSL `
                     -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5986 }
+                Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5986 }
             }
         }
 
@@ -148,7 +148,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
                     -Port 5988 `
                     -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5988 }
+                Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5988 }
             }
         }
 
@@ -161,7 +161,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
                     -ComputerName 'DVLAB-S1-N01' `
                     -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5985 }
+                Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5985 }
             }
         }
 
@@ -175,7 +175,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
                     -UseSSL -Port 9999 `
                     -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 9999 }
+                Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 9999 }
             }
         }
     }
