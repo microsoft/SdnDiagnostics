@@ -2475,6 +2475,21 @@ function Invoke-SdnServiceFabricCommand {
     if (-NOT (Test-ComputerNameIsLocal -ComputerName $NetworkController)) {
         $params.Add('ComputerName', $NetworkController)
         $params.Add('Credential', $Credential)
+
+        # resolve the transport settings from the global config so this remote call honors
+        # the same UseSSL/Port settings used by the rest of the data collection
+        $useSSL = [bool]$Global:SdnDiagnostics.Config.UseSSL
+        if ($Global:SdnDiagnostics.Config.Port -gt 0) {
+            $port = $Global:SdnDiagnostics.Config.Port
+        }
+        else {
+            $port = if ($useSSL) { 5986 } else { 5985 }
+        }
+
+        $params.Add('Port', $port)
+        if ($useSSL) {
+            $params.Add('UseSSL', $true)
+        }
     }
     else {
         Confirm-IsNetworkController
