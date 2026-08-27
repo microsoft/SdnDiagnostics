@@ -434,7 +434,7 @@ Describe 'Invoke-PSRemoteCommand forwards UseSSL and Port' -Tag 'Unit' {
     It "Does not pass UseSSL or Port when not specified" {
         InModuleScope SdnDiag.Utilities {
             Mock Trace-Output {}
-$script:sessionBoundParameters = $null
+            $script:sessionBoundParameters = $null
             Mock New-PSRemotingSession {
                 $script:sessionBoundParameters = $PesterBoundParameters
                 return $null
@@ -470,7 +470,7 @@ Describe 'Copy-FileFromRemoteComputerWinRM forwards UseSSL and Port' -Tag 'Unit'
             { Copy-FileFromRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' } | Should -Throw
 
             Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+                -not $PesterBoundParameters.ContainsKey('UseSSL') -and -not $PesterBoundParameters.ContainsKey('Port')
             }
         }
     }
@@ -498,7 +498,7 @@ Describe 'Copy-FileToRemoteComputerWinRM forwards UseSSL and Port' -Tag 'Unit' {
             { Copy-FileToRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' } | Should -Throw
 
             Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+                -not $PesterBoundParameters.ContainsKey('UseSSL') -and -not $PesterBoundParameters.ContainsKey('Port')
             }
         }
     }
@@ -616,7 +616,7 @@ Describe 'Invoke-SdnCommand forwards UseSSL and Port' -Tag 'Unit' {
             Invoke-SdnCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname }
 
             Should -Invoke Invoke-PSRemoteCommand -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+                -not $PesterBoundParameters.ContainsKey('UseSSL') -and -not $PesterBoundParameters.ContainsKey('Port')
             }
         }
     }
@@ -644,7 +644,7 @@ Describe 'Copy-SdnFileFromComputer forwards UseSSL and Port' -Tag 'Unit' {
             Copy-SdnFileFromComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp'
 
             Should -Invoke Copy-FileFromRemoteComputer -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+                -not $PesterBoundParameters.ContainsKey('UseSSL') -and -not $PesterBoundParameters.ContainsKey('Port')
             }
         }
     }
@@ -672,7 +672,7 @@ Describe 'Copy-SdnFileToComputer forwards UseSSL and Port' -Tag 'Unit' {
             Copy-SdnFileToComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp'
 
             Should -Invoke Copy-FileToRemoteComputer -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+                -not $PesterBoundParameters.ContainsKey('UseSSL') -and -not $PesterBoundParameters.ContainsKey('Port')
             }
         }
     }
