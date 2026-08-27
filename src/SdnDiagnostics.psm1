@@ -771,6 +771,7 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
+        [ValidateRange(1, 65535)]
         [System.Int32]$Port
     )
 
