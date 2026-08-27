@@ -2008,8 +2008,14 @@ function New-PSRemotingSession {
             $objectName = $PSItem
 
             # check to see if session is already opened
-            if ($currentActiveSessions.ComputerName -contains $objectName -and !$Force) {
-                $session = ($currentActiveSessions | Where-Object { $_.ComputerName -eq $objectName })[0]
+            # match on ComputerName, Port, and UseSSL to avoid reusing a cached session with different connection settings
+            $matchingSession = $currentActiveSessions | Where-Object {
+                $_.ComputerName -eq $objectName -and
+                $_.Runspace.ConnectionInfo.Port -eq $Port -and
+                [bool]$_.Runspace.ConnectionInfo.UseSSL -eq $UseSSL
+            } | Select-Object -First 1
+            if ($matchingSession -and !$Force) {
+                $session = $matchingSession
                 "Located existing powershell session {0} for {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
 
                 # if we have to import the module on the remote session, we need to check if the module is already imported
