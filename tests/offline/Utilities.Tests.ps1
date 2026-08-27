@@ -309,6 +309,112 @@ Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
             }
         }
     }
+
+    Context 'Session cache reuse' {
+        It "Does not reuse a cached HTTP/5985 session when -UseSSL -Port 5986 is requested" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession {
+                    return @(
+                        [PSCustomObject]@{
+                            Name         = 'SdnDiag-Cached'
+                            ComputerName = 'DVLAB-S1-N01'
+                            State        = 'Opened'
+                            Availability = 'Available'
+                            Id           = 1
+                            Runspace     = [PSCustomObject]@{
+                                ConnectionInfo = [PSCustomObject]@{
+                                    Port   = 5985
+                                    UseSSL = $false
+                                }
+                            }
+                        }
+                    )
+                }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-New'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 2
+                    }
+                }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01' -UseSSL -Port 5986
+
+                Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                    $Port -eq 5986 -and $UseSSL -eq $true
+                }
+            }
+        }
+
+        It "Does not reuse a cached HTTP/5985 session when a custom -Port is requested" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession {
+                    return @(
+                        [PSCustomObject]@{
+                            Name         = 'SdnDiag-Cached'
+                            ComputerName = 'DVLAB-S1-N01'
+                            State        = 'Opened'
+                            Availability = 'Available'
+                            Id           = 1
+                            Runspace     = [PSCustomObject]@{
+                                ConnectionInfo = [PSCustomObject]@{
+                                    Port   = 5985
+                                    UseSSL = $false
+                                }
+                            }
+                        }
+                    )
+                }
+                Mock New-PSSession {
+                    return [PSCustomObject]@{
+                        Name         = 'SdnDiag-New'
+                        ComputerName = $ComputerName
+                        State        = 'Opened'
+                        Availability = 'Available'
+                        Id           = 2
+                    }
+                }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01' -Port 5987
+
+                Should -Invoke New-PSSession -Times 1 -ParameterFilter {
+                    $Port -eq 5987 -and (-not $UseSSL)
+                }
+            }
+        }
+
+        It "Reuses a cached session when ComputerName, Port, and UseSSL all match" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Get-PSSession {
+                    return @(
+                        [PSCustomObject]@{
+                            Name         = 'SdnDiag-Cached'
+                            ComputerName = 'DVLAB-S1-N01'
+                            State        = 'Opened'
+                            Availability = 'Available'
+                            Id           = 1
+                            Runspace     = [PSCustomObject]@{
+                                ConnectionInfo = [PSCustomObject]@{
+                                    Port   = 5986
+                                    UseSSL = $true
+                                }
+                            }
+                        }
+                    )
+                }
+                Mock New-PSSession { throw "New-PSSession should not be invoked when a matching cached session exists" }
+
+                New-PSRemotingSession -ComputerName 'DVLAB-S1-N01' -UseSSL -Port 5986
+
+                Should -Invoke New-PSSession -Times 0
+            }
+        }
+    }
 }
 
 Describe 'Invoke-PSRemoteCommand forwards UseSSL and Port' -Tag 'Unit' {
