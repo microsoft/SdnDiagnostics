@@ -2953,6 +2953,7 @@ function Install-SdnDiagnostics {
         [Switch]$UseSSL,
 
         [Parameter(Mandatory = $false)]
+        [ValidateRange(1, 65535)]
         [System.Int32]$Port
     )
 
