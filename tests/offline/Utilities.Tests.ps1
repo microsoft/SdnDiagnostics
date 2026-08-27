@@ -328,13 +328,16 @@ Describe 'Invoke-PSRemoteCommand forwards UseSSL and Port' -Tag 'Unit' {
     It "Does not pass UseSSL or Port when not specified" {
         InModuleScope SdnDiag.Utilities {
             Mock Trace-Output {}
-            Mock New-PSRemotingSession { return $null }
+$script:sessionBoundParameters = $null
+            Mock New-PSRemotingSession {
+                $script:sessionBoundParameters = $PesterBoundParameters
+                return $null
+            }
 
             Invoke-PSRemoteCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname }
 
-            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
-                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
-            }
+            $script:sessionBoundParameters.ContainsKey('UseSSL') | Should -BeFalse
+            $script:sessionBoundParameters.ContainsKey('Port') | Should -BeFalse
         }
     }
 }
