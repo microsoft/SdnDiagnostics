@@ -88,116 +88,94 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
     }
 
     Context 'Preflight port selection resolves correct WinRM port' {
-        It "Selects port 5986 when UseSSL is configured" {
+        BeforeEach {
             InModuleScope SdnDiagnostics {
-                $origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
-                $origPort = $Global:SdnDiagnostics.Config.Port
+                $script:origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
+                $script:origPort = $Global:SdnDiagnostics.Config.Port
 
-                try {
-                    $Global:SdnDiagnostics.Config.UseSSL = $true
-                    $Global:SdnDiagnostics.Config.Port = 0
-
-                    # Replicate the port resolution logic from Start-SdnDataCollection
-                    if ($Global:SdnDiagnostics.Config.Port -gt 0) {
-                        $tncPort = $Global:SdnDiagnostics.Config.Port
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Start-Transcript { return $null }
+                Mock Trace-Output {}
+                Mock Initialize-DataCollection { return $true }
+                Mock Get-FormattedDateTimeUTC { return '20260101T000000Z' }
+                Mock Get-WorkingDirectory { return '/tmp/SdnDiagTests' }
+                Mock Stop-Transcript {}
+                Mock Export-ObjectToFile {}
+                Mock Get-SdnInfrastructureInfo {
+                    return @{
+                        Server = @('DVLAB-S1-N01')
                     }
-                    elseif ($Global:SdnDiagnostics.Config.UseSSL) {
-                        $tncPort = 5986
-                    }
-                    else {
-                        $tncPort = 5985
-                    }
-
-                    $tncPort | Should -Be 5986
                 }
-                finally {
-                    $Global:SdnDiagnostics.Config.UseSSL = $origUseSSL
-                    $Global:SdnDiagnostics.Config.Port = $origPort
+                Mock Get-SdnRole { return 'Server' }
+                Mock Get-ComputerNameFQDNandNetBIOS {
+                    return [PSCustomObject]@{ ComputerNameNetBIOS = 'DVLAB-S1-N01' }
                 }
+                # Mock Test-NetConnection to return $true so preflight passes;
+                # the test asserts it was called with the correct Port argument.
+                Mock Test-NetConnection { return $true }
+                # Stop execution after preflight by failing Install-SdnDiagnostics
+                Mock Install-SdnDiagnostics { throw 'stop-after-preflight' }
+            }
+        }
+        AfterEach {
+            InModuleScope SdnDiagnostics {
+                $Global:SdnDiagnostics.Config.UseSSL = $script:origUseSSL
+                $Global:SdnDiagnostics.Config.Port = $script:origPort
             }
         }
 
-        It "Selects custom port when Port is configured" {
+        It "Probes port 5986 when -UseSSL is specified" {
             InModuleScope SdnDiagnostics {
-                $origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
-                $origPort = $Global:SdnDiagnostics.Config.Port
+                $Global:SdnDiagnostics.Config.UseSSL = $false
+                $Global:SdnDiagnostics.Config.Port = 0
 
-                try {
-                    $Global:SdnDiagnostics.Config.UseSSL = $true
-                    $Global:SdnDiagnostics.Config.Port = 5988
+                Start-SdnDataCollection -NetworkController 'DVLAB-NC01' `
+                    -ComputerName 'DVLAB-S1-N01' `
+                    -UseSSL `
+                    -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                    if ($Global:SdnDiagnostics.Config.Port -gt 0) {
-                        $tncPort = $Global:SdnDiagnostics.Config.Port
-                    }
-                    elseif ($Global:SdnDiagnostics.Config.UseSSL) {
-                        $tncPort = 5986
-                    }
-                    else {
-                        $tncPort = 5985
-                    }
-
-                    $tncPort | Should -Be 5988
-                }
-                finally {
-                    $Global:SdnDiagnostics.Config.UseSSL = $origUseSSL
-                    $Global:SdnDiagnostics.Config.Port = $origPort
-                }
+                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5986 }
             }
         }
 
-        It "Selects port 5985 by default (no SSL, no custom port)" {
+        It "Probes custom port when -Port is specified" {
             InModuleScope SdnDiagnostics {
-                $origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
-                $origPort = $Global:SdnDiagnostics.Config.Port
+                $Global:SdnDiagnostics.Config.UseSSL = $false
+                $Global:SdnDiagnostics.Config.Port = 0
 
-                try {
-                    $Global:SdnDiagnostics.Config.UseSSL = $false
-                    $Global:SdnDiagnostics.Config.Port = 0
+                Start-SdnDataCollection -NetworkController 'DVLAB-NC01' `
+                    -ComputerName 'DVLAB-S1-N01' `
+                    -Port 5988 `
+                    -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                    if ($Global:SdnDiagnostics.Config.Port -gt 0) {
-                        $tncPort = $Global:SdnDiagnostics.Config.Port
-                    }
-                    elseif ($Global:SdnDiagnostics.Config.UseSSL) {
-                        $tncPort = 5986
-                    }
-                    else {
-                        $tncPort = 5985
-                    }
+                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5988 }
+            }
+        }
 
-                    $tncPort | Should -Be 5985
-                }
-                finally {
-                    $Global:SdnDiagnostics.Config.UseSSL = $origUseSSL
-                    $Global:SdnDiagnostics.Config.Port = $origPort
-                }
+        It "Probes port 5985 by default (no SSL, no custom port)" {
+            InModuleScope SdnDiagnostics {
+                $Global:SdnDiagnostics.Config.UseSSL = $false
+                $Global:SdnDiagnostics.Config.Port = 0
+
+                Start-SdnDataCollection -NetworkController 'DVLAB-NC01' `
+                    -ComputerName 'DVLAB-S1-N01' `
+                    -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
+
+                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 5985 }
             }
         }
 
         It "Custom port takes precedence over UseSSL default" {
             InModuleScope SdnDiagnostics {
-                $origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
-                $origPort = $Global:SdnDiagnostics.Config.Port
+                $Global:SdnDiagnostics.Config.UseSSL = $false
+                $Global:SdnDiagnostics.Config.Port = 0
 
-                try {
-                    $Global:SdnDiagnostics.Config.UseSSL = $false
-                    $Global:SdnDiagnostics.Config.Port = 9999
+                Start-SdnDataCollection -NetworkController 'DVLAB-NC01' `
+                    -ComputerName 'DVLAB-S1-N01' `
+                    -UseSSL -Port 9999 `
+                    -OutputDirectory '/tmp/SdnDiagTests' -ErrorAction SilentlyContinue
 
-                    if ($Global:SdnDiagnostics.Config.Port -gt 0) {
-                        $tncPort = $Global:SdnDiagnostics.Config.Port
-                    }
-                    elseif ($Global:SdnDiagnostics.Config.UseSSL) {
-                        $tncPort = 5986
-                    }
-                    else {
-                        $tncPort = 5985
-                    }
-
-                    $tncPort | Should -Be 9999
-                }
-                finally {
-                    $Global:SdnDiagnostics.Config.UseSSL = $origUseSSL
-                    $Global:SdnDiagnostics.Config.Port = $origPort
-                }
+                Assert-MockCalled Test-NetConnection -ParameterFilter { $Port -eq 9999 }
             }
         }
     }
