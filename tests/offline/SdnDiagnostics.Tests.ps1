@@ -7,7 +7,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Mock Test-ComputerNameIsLocal { return $false }
                 Mock Start-Transcript { return $null }
-                Mock Trace-Output {}
+                Mock Trace-Output -RemoveParameterType 'Level' -MockWith {}
                 Mock Initialize-DataCollection { return $false }
                 Mock Get-FormattedDateTimeUTC { return '20260101T000000Z' }
                 Mock Get-WorkingDirectory { return '/tmp/SdnDiagTests' }
@@ -36,7 +36,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Mock Test-ComputerNameIsLocal { return $false }
                 Mock Start-Transcript { return $null }
-                Mock Trace-Output {}
+                Mock Trace-Output -RemoveParameterType 'Level' -MockWith {}
                 Mock Initialize-DataCollection { return $false }
                 Mock Get-FormattedDateTimeUTC { return '20260101T000000Z' }
                 Mock Get-WorkingDirectory { return '/tmp/SdnDiagTests' }
@@ -65,7 +65,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Mock Test-ComputerNameIsLocal { return $false }
                 Mock Start-Transcript { return $null }
-                Mock Trace-Output {}
+                Mock Trace-Output -RemoveParameterType 'Level' -MockWith {}
                 Mock Initialize-DataCollection { return $false }
                 Mock Get-FormattedDateTimeUTC { return '20260101T000000Z' }
                 Mock Get-WorkingDirectory { return '/tmp/SdnDiagTests' }
@@ -95,7 +95,7 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Mock Test-ComputerNameIsLocal { return $false }
                 Mock Start-Transcript { return $null }
-                Mock Trace-Output {}
+                Mock Trace-Output -RemoveParameterType 'Level' -MockWith {}
                 Mock Initialize-DataCollection { return $true }
                 Mock Get-FormattedDateTimeUTC { return '20260101T000000Z' }
                 Mock Get-WorkingDirectory { return '/tmp/SdnDiagTests' }
