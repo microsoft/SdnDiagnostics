@@ -310,3 +310,87 @@ Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
         }
     }
 }
+
+Describe 'Invoke-PSRemoteCommand forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to New-PSRemotingSession" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            Invoke-PSRemoteCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname } -UseSSL -Port 5988
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            Invoke-PSRemoteCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname }
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
+
+Describe 'Copy-FileFromRemoteComputerWinRM forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to New-PSRemotingSession" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            { Copy-FileFromRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' -UseSSL -Port 5988 } | Should -Throw
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            { Copy-FileFromRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' } | Should -Throw
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
+
+Describe 'Copy-FileToRemoteComputerWinRM forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to New-PSRemotingSession" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            { Copy-FileToRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' -UseSSL -Port 5988 } | Should -Throw
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock New-PSRemotingSession { return $null }
+
+            { Copy-FileToRemoteComputerWinRM -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' } | Should -Throw
+
+            Should -Invoke New-PSRemotingSession -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
