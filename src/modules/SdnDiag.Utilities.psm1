@@ -2050,7 +2050,7 @@ function New-PSRemotingSession {
             $matchingSession = $currentActiveSessions | Where-Object {
                 $_.ComputerName -eq $objectName -and
                 $_.Runspace.ConnectionInfo.Port -eq $Port -and
-                [bool]$_.Runspace.ConnectionInfo.UseSSL -eq $UseSSL
+                ($_.Runspace.ConnectionInfo.Scheme -ieq 'https') -eq $UseSSL
             } | Select-Object -First 1
             if ($matchingSession -and !$Force) {
                 $session = $matchingSession

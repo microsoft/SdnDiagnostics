@@ -325,7 +325,7 @@ Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
                             Runspace     = [PSCustomObject]@{
                                 ConnectionInfo = [PSCustomObject]@{
                                     Port   = 5985
-                                    UseSSL = $false
+                                    Scheme = 'http'
                                 }
                             }
                         }
@@ -363,7 +363,7 @@ Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
                             Runspace     = [PSCustomObject]@{
                                 ConnectionInfo = [PSCustomObject]@{
                                     Port   = 5985
-                                    UseSSL = $false
+                                    Scheme = 'http'
                                 }
                             }
                         }
@@ -401,7 +401,7 @@ Describe 'New-PSRemotingSession - WinRM over HTTPS' -Tag 'Unit' {
                             Runspace     = [PSCustomObject]@{
                                 ConnectionInfo = [PSCustomObject]@{
                                     Port   = 5986
-                                    UseSSL = $true
+                                    Scheme = 'https'
                                 }
                             }
                         }
