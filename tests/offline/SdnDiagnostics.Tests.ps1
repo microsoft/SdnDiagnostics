@@ -88,8 +88,8 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
     }
 
     Context 'Preflight port selection resolves correct WinRM port' {
-        BeforeEach {
-            InModuleScope SdnDiagnostics {
+        InModuleScope SdnDiagnostics {
+            BeforeEach {
                 $script:origUseSSL = $Global:SdnDiagnostics.Config.UseSSL
                 $script:origPort = $Global:SdnDiagnostics.Config.Port
 
@@ -116,16 +116,12 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
                 # Stop execution after preflight by failing Install-SdnDiagnostics
                 Mock Install-SdnDiagnostics { throw 'stop-after-preflight' }
             }
-        }
-        AfterEach {
-            InModuleScope SdnDiagnostics {
+            AfterEach {
                 $Global:SdnDiagnostics.Config.UseSSL = $script:origUseSSL
                 $Global:SdnDiagnostics.Config.Port = $script:origPort
             }
-        }
 
-        It "Probes port 5986 when -UseSSL is specified" {
-            InModuleScope SdnDiagnostics {
+            It "Probes port 5986 when -UseSSL is specified" {
                 $Global:SdnDiagnostics.Config.UseSSL = $false
                 $Global:SdnDiagnostics.Config.Port = 0
 
@@ -136,10 +132,8 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5986 }
             }
-        }
 
-        It "Probes custom port when -Port is specified" {
-            InModuleScope SdnDiagnostics {
+            It "Probes custom port when -Port is specified" {
                 $Global:SdnDiagnostics.Config.UseSSL = $false
                 $Global:SdnDiagnostics.Config.Port = 0
 
@@ -150,10 +144,8 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5988 }
             }
-        }
 
-        It "Probes port 5985 by default (no SSL, no custom port)" {
-            InModuleScope SdnDiagnostics {
+            It "Probes port 5985 by default (no SSL, no custom port)" {
                 $Global:SdnDiagnostics.Config.UseSSL = $false
                 $Global:SdnDiagnostics.Config.Port = 0
 
@@ -163,10 +155,8 @@ Describe 'Start-SdnDataCollection - UseSSL and Port configuration' -Tag 'Unit' {
 
                 Should -Invoke Test-NetConnection -ParameterFilter { $Port -eq 5985 }
             }
-        }
 
-        It "Custom port takes precedence over UseSSL default" {
-            InModuleScope SdnDiagnostics {
+            It "Custom port takes precedence over UseSSL default" {
                 $Global:SdnDiagnostics.Config.UseSSL = $false
                 $Global:SdnDiagnostics.Config.Port = 0
 
