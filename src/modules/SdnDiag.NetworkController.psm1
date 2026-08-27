@@ -234,7 +234,10 @@ function Get-PublicIpReference {
         # with the ipconfiguration and return back to calling function
         if ($IpConfiguration.properties.publicIPAddress) {
             "Located {0} associated with {1}" -f $IpConfiguration.properties.publicIPAddress.resourceRef, $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
-            return ($IpConfiguration.properties.publicIPAddress.resourceRef)
+            return [PSCustomObject]@{
+                ResourceRef = $IpConfiguration.properties.publicIPAddress.resourceRef
+                IPAddress   = $null
+            }
         }
         else {
             "Unable to locate an instance-level public IP address associated with {0}" -f $IpConfiguration.resourceRef | Trace-Output -Level:Verbose
@@ -269,8 +272,26 @@ function Get-PublicIpReference {
                 $natRule = $loadBalancers.properties.outboundNatRules | Where-Object { $_.resourceRef -eq $obRuleRef }
                 $frontendConfig = $loadBalancers.properties.frontendIPConfigurations | Where-Object { $_.resourceRef -eq $natRule.properties.frontendIPConfigurations[0].resourceRef }
 
-                "Located {0} associated with {0}" -f $frontendConfig.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
-                return ($frontendConfig.properties.publicIPAddress.resourceRef)
+                "Located {0} associated with {1}" -f $frontendConfig.resourceRef, $natRule.resourceRef | Trace-Output -Level:Verbose
+
+                # the public IP can be referenced via a publicIPAddress resource or by a static privateIPAddress
+                # from the public VIP logical network; check both and return the appropriate value
+                if ($frontendConfig.properties.publicIPAddress) {
+                    return [PSCustomObject]@{
+                        ResourceRef = $frontendConfig.properties.publicIPAddress.resourceRef
+                        IPAddress   = $null
+                    }
+                }
+                elseif (![string]::IsNullOrEmpty($frontendConfig.properties.privateIPAddress)) {
+                    "Located static privateIPAddress {0} on frontend {1}" -f $frontendConfig.properties.privateIPAddress, $frontendConfig.resourceRef | Trace-Output -Level:Verbose
+                    return [PSCustomObject]@{
+                        ResourceRef = $null
+                        IPAddress   = $frontendConfig.properties.privateIPAddress
+                    }
+                }
+                else {
+                    "Unable to locate publicIPAddress or privateIPAddress on frontend {0}" -f $frontendConfig.resourceRef | Trace-Output -Level:Verbose
+                }
             }
             else {
                 "Unable to locate outboundNatRules associated with {0}" -f $IpConfiguration.properties.loadBalancerBackendAddressPools.resourceRef | Trace-Output -Level:Verbose
@@ -1832,14 +1853,28 @@ function Get-SdnNetworkInterfaceOutboundPublicIPAddress {
         foreach ($ipConfig in $networkInterface.properties.ipConfigurations) {
             $publicIpRef = Get-PublicIpReference @ncRestParams -IpConfiguration $ipConfig
             if ($publicIpRef) {
-                $publicIpAddress = Get-SdnResource @ncRestParams -ResourceRef $publicIpRef
-                if ($publicIpAddress) {
+                if ($publicIpRef.ResourceRef) {
+                    # public IP is referenced via a publicIPAddress resource; look it up to get the IP address
+                    $publicIpAddress = Get-SdnResource @ncRestParams -ResourceRef $publicIpRef.ResourceRef
+                    if ($publicIpAddress) {
+                        [void]$arrayList.Add(
+                            [PSCustomObject]@{
+                                IPConfigResourceRef      = $ipConfig.resourceRef
+                                IPConfigPrivateIPAddress = $ipConfig.properties.privateIPAddress
+                                PublicIPResourceRef      = $publicIpAddress.resourceRef
+                                PublicIPAddress          = $publicIpAddress.properties.ipAddress
+                            }
+                        )
+                    }
+                }
+                elseif ($publicIpRef.IPAddress) {
+                    # public IP is a static privateIPAddress on the LB frontend from the public VIP logical network
                     [void]$arrayList.Add(
                         [PSCustomObject]@{
                             IPConfigResourceRef      = $ipConfig.resourceRef
                             IPConfigPrivateIPAddress = $ipConfig.properties.privateIPAddress
-                            PublicIPResourceRef      = $publicIpAddress.resourceRef
-                            PublicIPAddress          = $publicIpAddress.properties.ipAddress
+                            PublicIPResourceRef      = $null
+                            PublicIPAddress          = $publicIpRef.IPAddress
                         }
                     )
                 }
