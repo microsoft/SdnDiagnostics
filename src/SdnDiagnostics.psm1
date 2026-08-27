@@ -685,6 +685,10 @@ function Start-SdnDataCollection {
         Used in conjuction with the Role parameter to limit how many nodes per role operations are performed against. If ommitted, defaults to 16.
     .PARAMETER ConvertETW
         Optional parameter that allows you to specify if .etl trace should be converted. By default, set to $true
+    .PARAMETER UseSSL
+        Optional parameter that allows you to specify if WinRM over HTTPS should be used for remote connections. If specified, updates the global configuration for the remainder of the session. If omitted, defaults to the current global configuration ($false, unless previously configured).
+    .PARAMETER Port
+        Optional parameter that allows you to specify the WinRM port to use for remote connections. If specified, updates the global configuration for the remainder of the session. If omitted, defaults to the current global configuration, which is 5985 (HTTP) or 5986 (HTTPS) based on UseSSL, unless previously configured.
     .EXAMPLE
         PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,NetworkController,Server,LoadBalancerMux
     .EXAMPLE
