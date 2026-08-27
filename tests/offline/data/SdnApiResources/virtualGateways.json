@@ -13,6 +13,56 @@
       "resourceRef": "/VirtualGateways/vgw-tenant-0001",
       "etag": "W/\"vgw-etag-0001\"",
       "instanceId": "vgw-inst-0001-aaaa-bbbb-cccccccccccc"
+    },
+    {
+      "resourceId": "vgw-tenant-0002",
+      "properties": {
+        "gatewaySubnets": [],
+        "gatewayPool": {
+          "resourceRef": "/GatewayPools/default"
+        },
+        "provisioningState": "Succeeded",
+        "networkConnections": [
+          {
+            "resourceId": "nc-tenant-0002-ipsec",
+            "properties": {
+              "connectionType": "IPSec",
+              "connectionState": "Connected",
+              "connectionStatus": "Enabled",
+              "outboundKiloBitsPerSecond": 200000,
+              "inboundKiloBitsPerSecond": 200000,
+              "destinationIpAddress": "40.40.40.10",
+              "routes": [
+                {
+                  "destinationPrefix": "172.16.10.0/24",
+                  "nextHop": "172.16.10.1",
+                  "metric": 10,
+                  "protocol": "Static"
+                },
+                {
+                  "destinationPrefix": "172.16.20.0/24",
+                  "nextHop": "172.16.20.1",
+                  "metric": 10,
+                  "protocol": "BGP"
+                },
+                {
+                  "destinationPrefix": "172.16.30.0/24",
+                  "nextHop": "172.16.30.1",
+                  "metric": 10,
+                  "protocol": "bgp"
+                }
+              ],
+              "provisioningState": "Succeeded"
+            },
+            "resourceRef": "/VirtualGateways/vgw-tenant-0002/networkConnections/nc-tenant-0002-ipsec",
+            "etag": "W/\"nc-etag-0002\"",
+            "instanceId": "nc-inst-0002-aaaa-bbbb-cccccccccccc"
+          }
+        ]
+      },
+      "resourceRef": "/VirtualGateways/vgw-tenant-0002",
+      "etag": "W/\"vgw-etag-0002\"",
+      "instanceId": "vgw-inst-0002-aaaa-bbbb-cccccccccccc"
     }
   ],
   "nextLink": ""

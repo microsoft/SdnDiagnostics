@@ -177,3 +177,68 @@ Describe 'Utilities - IP Address Validation' {
         }
     }
 }
+
+Describe 'Utilities - Object Helpers' {
+    Context 'Copy-ObjectWithPropertyOverride' {
+        It "Replaces the value of the specified property" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original'; value = 1 }
+                $result = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'name' = 'updated' }
+                $result.name | Should -Be 'updated'
+            }
+        }
+
+        It "Leaves the properties that were not overridden unchanged" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original'; value = 1 }
+                $result = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'name' = 'updated' }
+                $result.value | Should -Be 1
+            }
+        }
+
+        It "Matches property names without regard to casing" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ Name = 'original' }
+                $result = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'NAME' = 'updated' }
+                $result.Name | Should -Be 'updated'
+            }
+        }
+
+        It "Does not modify the object supplied by the caller" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original' }
+                $null = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'name' = 'updated' }
+                $source.name | Should -Be 'original'
+            }
+        }
+
+        It "Ignores override entries for properties that do not exist on the object" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original' }
+                $result = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'missing' = 'value' }
+                $result.PSObject.Properties.Name | Should -Be 'name'
+                $result.name | Should -Be 'original'
+            }
+        }
+
+        It "Applies an override that sets the property value to null" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original'; value = 1 }
+                $result = Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride @{ 'name' = $null }
+                $result.PSObject.Properties.Name | Should -Contain 'name'
+                $result.name | Should -BeNullOrEmpty
+                $result.value | Should -Be 1
+            }
+        }
+
+        It "Throws when more than one override key matches the same property" {
+            InModuleScope SdnDiagnostics {
+                $source = [PSCustomObject]@{ name = 'original' }
+                $override = [System.Collections.Hashtable]::new()
+                $override.Add('name', 'first')
+                $override.Add('NAME', 'second')
+                { Copy-ObjectWithPropertyOverride -Object $source -PropertyOverride $override } | Should -Throw
+            }
+        }
+    }
+}
