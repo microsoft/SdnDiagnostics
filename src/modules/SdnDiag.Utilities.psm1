@@ -2950,9 +2950,9 @@ function Install-SdnDiagnostics {
     .PARAMETER Force
         Forces a cleanup and re-install of the module on the remote computer.
     .PARAMETER UseSSL
-        Use SSL when creating the remote connection used to probe the remote computer's installed module version. If not specified, falls back to the global configuration.
+        Use SSL when creating the remote connections used to probe the remote computer's installed module version and to copy the module to the remote computer. If not specified, falls back to the global configuration.
     .PARAMETER Port
-        Specifies the port to use when creating the remote connection used to probe the remote computer's installed module version. If not specified, falls back to the global configuration.
+        Specifies the port to use when creating the remote connections used to probe the remote computer's installed module version and to copy the module to the remote computer. If not specified, falls back to the global configuration.
     #>
 
     [CmdletBinding()]
