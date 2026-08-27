@@ -3057,7 +3057,7 @@ function Install-SdnDiagnostics {
                 }
 
                 "SdnDiagnostics {0} will be installed to {1}" -f $localModule.Version.ToString(), $computer | Trace-Output
-                Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $computer -Destination $destinationPathDir -Credential $Credential -Recurse -Force
+                Copy-FileToRemoteComputer -Path $localModule.ModuleBase -ComputerName $computer -Destination $destinationPathDir -Credential $Credential -Recurse -Force -UseSSL:$UseSSL -Port $Port
 
                 # ensure that we destroy the current pssessions for the computer to prevent any caching issues
                 # we will want to remove any existing PSSessions for the remote computers
