@@ -503,3 +503,93 @@ Describe 'Copy-FileToRemoteComputerWinRM forwards UseSSL and Port' -Tag 'Unit' {
         }
     }
 }
+
+Describe 'Install-SdnDiagnostics forwards UseSSL and Port' -Tag 'Unit' {
+    Context 'Version probe (Invoke-Command)' {
+        It "Passes explicit UseSSL and Port to Invoke-Command" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Get-Module { [PSCustomObject]@{ Version = [Version]'1.2.3'; ModuleBase = 'C:\Module' } }
+                Mock Invoke-Command { return '1.2.3' }
+                Mock Copy-FileToRemoteComputer {}
+                Mock Remove-PSRemotingSession {}
+
+                Install-SdnDiagnostics -ComputerName 'DVLAB-S1-N01' -Path '/tmp/SdnDiagnostics' -UseSSL -Port 5988
+
+                Should -Invoke Invoke-Command -Times 1 -ParameterFilter {
+                    $UseSSL -eq $true -and $Port -eq 5988
+                }
+            }
+        }
+
+        It "Falls back to global config UseSSL and Port when not explicitly passed" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Get-Module { [PSCustomObject]@{ Version = [Version]'1.2.3'; ModuleBase = 'C:\Module' } }
+                Mock Invoke-Command { return '1.2.3' }
+                Mock Copy-FileToRemoteComputer {}
+                Mock Remove-PSRemotingSession {}
+
+                $Global:SdnDiagnostics.Config.UseSSL = $true
+                $Global:SdnDiagnostics.Config.Port = 5987
+
+                try {
+                    Install-SdnDiagnostics -ComputerName 'DVLAB-S1-N01' -Path '/tmp/SdnDiagnostics'
+
+                    Should -Invoke Invoke-Command -Times 1 -ParameterFilter {
+                        $UseSSL -eq $true -and $Port -eq 5987
+                    }
+                }
+                finally {
+                    $Global:SdnDiagnostics.Config.UseSSL = $false
+                    $Global:SdnDiagnostics.Config.Port = 0
+                }
+            }
+        }
+    }
+
+    Context 'WinRM copy fallback (Copy-FileToRemoteComputer)' {
+        It "Passes explicit UseSSL and Port to Copy-FileToRemoteComputer" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Get-Module { [PSCustomObject]@{ Version = [Version]'1.2.3'; ModuleBase = 'C:\Module' } }
+                Mock Copy-FileToRemoteComputer {}
+                Mock Remove-PSRemotingSession {}
+
+                Install-SdnDiagnostics -ComputerName 'DVLAB-S1-N01' -Path '/tmp/SdnDiagnostics' -Force -UseSSL -Port 5988
+
+                Should -Invoke Copy-FileToRemoteComputer -Times 1 -ParameterFilter {
+                    $UseSSL -eq $true -and $Port -eq 5988
+                }
+            }
+        }
+
+        It "Falls back to global config UseSSL and Port when not explicitly passed" {
+            InModuleScope SdnDiag.Utilities {
+                Mock Trace-Output {}
+                Mock Test-ComputerNameIsLocal { return $false }
+                Mock Get-Module { [PSCustomObject]@{ Version = [Version]'1.2.3'; ModuleBase = 'C:\Module' } }
+                Mock Copy-FileToRemoteComputer {}
+                Mock Remove-PSRemotingSession {}
+
+                $Global:SdnDiagnostics.Config.UseSSL = $true
+                $Global:SdnDiagnostics.Config.Port = 5987
+
+                try {
+                    Install-SdnDiagnostics -ComputerName 'DVLAB-S1-N01' -Path '/tmp/SdnDiagnostics' -Force
+
+                    Should -Invoke Copy-FileToRemoteComputer -Times 1 -ParameterFilter {
+                        $UseSSL -eq $true -and $Port -eq 5987
+                    }
+                }
+                finally {
+                    $Global:SdnDiagnostics.Config.UseSSL = $false
+                    $Global:SdnDiagnostics.Config.Port = 0
+                }
+            }
+        }
+    }
+}
