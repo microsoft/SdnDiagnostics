@@ -593,3 +593,87 @@ Describe 'Install-SdnDiagnostics forwards UseSSL and Port' -Tag 'Unit' {
         }
     }
 }
+
+Describe 'Invoke-SdnCommand forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to Invoke-PSRemoteCommand" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Invoke-PSRemoteCommand {}
+
+            Invoke-SdnCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname } -UseSSL -Port 5988
+
+            Should -Invoke Invoke-PSRemoteCommand -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Invoke-PSRemoteCommand {}
+
+            Invoke-SdnCommand -ComputerName 'DVLAB-S1-N01' -ScriptBlock { hostname }
+
+            Should -Invoke Invoke-PSRemoteCommand -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
+
+Describe 'Copy-SdnFileFromComputer forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to Copy-FileFromRemoteComputer" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Copy-FileFromRemoteComputer {}
+
+            Copy-SdnFileFromComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' -UseSSL -Port 5988
+
+            Should -Invoke Copy-FileFromRemoteComputer -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Copy-FileFromRemoteComputer {}
+
+            Copy-SdnFileFromComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp'
+
+            Should -Invoke Copy-FileFromRemoteComputer -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
+
+Describe 'Copy-SdnFileToComputer forwards UseSSL and Port' -Tag 'Unit' {
+    It "Passes UseSSL and Port to Copy-FileToRemoteComputer" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Copy-FileToRemoteComputer {}
+
+            Copy-SdnFileToComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp' -UseSSL -Port 5988
+
+            Should -Invoke Copy-FileToRemoteComputer -Times 1 -ParameterFilter {
+                $UseSSL -eq $true -and $Port -eq 5988
+            }
+        }
+    }
+
+    It "Does not pass UseSSL or Port when not specified" {
+        InModuleScope SdnDiag.Utilities {
+            Mock Trace-Output {}
+            Mock Copy-FileToRemoteComputer {}
+
+            Copy-SdnFileToComputer -Path 'C:\test.txt' -ComputerName 'DVLAB-S1-N01' -Destination '/tmp'
+
+            Should -Invoke Copy-FileToRemoteComputer -Times 1 -ParameterFilter {
+                -not $PSBoundParameters.ContainsKey('UseSSL') -and -not $PSBoundParameters.ContainsKey('Port')
+            }
+        }
+    }
+}
