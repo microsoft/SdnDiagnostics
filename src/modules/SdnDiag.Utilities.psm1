@@ -2889,6 +2889,10 @@ function Install-SdnDiagnostics {
         Specifies the path to the module where it should be installed. If not specified, the default path will be used.
     .PARAMETER Force
         Forces a cleanup and re-install of the module on the remote computer.
+    .PARAMETER UseSSL
+        Use SSL when creating the remote connection used to probe the remote computer's installed module version. If not specified, falls back to the global configuration.
+    .PARAMETER Port
+        Specifies the port to use when creating the remote connection used to probe the remote computer's installed module version. If not specified, falls back to the global configuration.
     #>
 
     [CmdletBinding()]
@@ -2905,11 +2909,31 @@ function Install-SdnDiagnostics {
         [System.String]$Path = $Script:SdnDiagnostics_Utilities.Config.DefaultModuleDirectory,
 
         [Parameter(Mandatory = $false)]
-        [switch]$Force
+        [switch]$Force,
+
+        [Parameter(Mandatory = $false)]
+        [Switch]$UseSSL,
+
+        [Parameter(Mandatory = $false)]
+        [System.Int32]$Port
     )
 
     begin {
         $moduleName = $Global:SdnDiagnostics.Config.ModuleName
+
+        # if UseSSL or Port were not explicitly provided, fall back to global config so the version probe
+        # uses the same connection settings as the rest of the remoting operations for this run
+        if (-NOT $PSBoundParameters.ContainsKey('UseSSL')) {
+            $UseSSL = [bool]$Global:SdnDiagnostics.Config.UseSSL
+        }
+        if (-NOT $PSBoundParameters.ContainsKey('Port')) {
+            if ($Global:SdnDiagnostics.Config.Port -gt 0) {
+                $Port = $Global:SdnDiagnostics.Config.Port
+            }
+            else {
+                $Port = if ($UseSSL) { 5986 } else { 5985 }
+            }
+        }
 
         # if we have multiple modules installed on the current workstation,
         # abort the operation because side by side modules can cause some interop issues to the remote nodes
@@ -2969,6 +2993,8 @@ function Install-SdnDiagnostics {
                             ScriptBlock = $getModuleVersionSB
                             ArgumentList = @($moduleName)
                             ErrorAction = 'Stop'
+                            UseSSL = $UseSSL
+                            Port = $Port
                         }
                         if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
                             $invokeParams.Add('Credential', $Credential)
