@@ -964,12 +964,12 @@ function Start-SdnDataCollection {
         }
 
         if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel {
+            $nodesToRemove = @($dataCollectionNodes | ForEach-Object -ThrottleLimit 10 -Parallel {
                 $tncResult = Test-NetConnection -ComputerName $_.Name -Port $using:tncPort -InformationLevel Quiet
                 if (-NOT ($tncResult)) {
-                    [void]($using:nodesToRemove).Add($_)
+                    $_
                 }
-            }
+            })
         }
         else {
             $dataCollectionNodes | ForEach-Object {
