@@ -3124,6 +3124,50 @@ function Remove-PropertiesFromObject {
     }
 }
 
+function Copy-ObjectWithPropertyOverride {
+    <#
+    .SYNOPSIS
+        Creates a shallow copy of an object, replacing the value of the specified properties.
+    .DESCRIPTION
+        Used to avoid mutating an object supplied by the caller when only a subset of the properties need to be changed.
+        Property names are matched case-insensitively and the original property order is preserved.
+    .PARAMETER Object
+        The object to copy.
+    .PARAMETER PropertyOverride
+        A hashtable of property names and the values that should replace the value on the copied object. Property names
+        that do not exist on the object are ignored. An exception is raised when more than one key matches the same property.
+    .EXAMPLE
+        $object = Copy-ObjectWithPropertyOverride -Object $object -PropertyOverride @{ 'properties' = $modifiedProperties }
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        $Object,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Hashtable]$PropertyOverride
+    )
+
+    process {
+        $customObject = [PSCustomObject]@{}
+        foreach ($property in $Object.PSObject.Properties) {
+            $matchingKeys = @($PropertyOverride.Keys | Where-Object { $_ -ieq $property.Name })
+            if ($matchingKeys.Count -gt 1) {
+                throw New-Object System.ArgumentException("PropertyOverride contains multiple keys that match the property '$($property.Name)'.")
+            }
+
+            if ($matchingKeys.Count -eq 1) {
+                $customObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $PropertyOverride[$matchingKeys[0]]
+            }
+            else {
+                $customObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+            }
+        }
+
+        return $customObject
+    }
+}
+
 function Test-ComputerIsAccessible {
     <#
     .SYNOPSIS

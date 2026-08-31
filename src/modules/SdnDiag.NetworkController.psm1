@@ -669,6 +669,127 @@ function Invoke-SdnNetworkControllerStateDump {
     return $false
 }
 
+function Remove-BgpLearnedRoute {
+    <#
+    .SYNOPSIS
+        Returns a copy of the supplied resource with any BGP learned routes removed from the routes array.
+    .DESCRIPTION
+        The routes array of a networkConnections resource contains both the statically configured routes and the routes that have
+        been dynamically learned from the remote peer via BGP. The routes.protocol property is read-only and indicates how the route
+        was added. If a BGP learned route is included within the body of a PUT operation, Network Controller persists the route as a
+        static route, which then prevents the route from being withdrawn when the peer stops advertising it.
+
+        This function inspects the routes array of the resource, as well as the routes array of any networkConnections nested under
+        the resource, and removes any route where the protocol is reported as BGP. The object supplied by the caller is not modified.
+    .PARAMETER Object
+        The virtualGateways or networkConnections object to remove the BGP learned routes from.
+    .EXAMPLE
+        PS> $object = Get-SdnResource -NcUri $ncUri -ResourceRef '/virtualGateways/contoso-vgw01/networkConnections/contoso-nc01'
+        PS> $object = Remove-BgpLearnedRoute -Object $object
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        [AllowNull()]
+        [System.Object]$Object
+    )
+
+    process {
+        if ($null -eq $Object) {
+            return $Object
+        }
+
+        $propertiesMember = $Object.PSObject.Properties['properties']
+        if ($null -eq $propertiesMember -or $null -eq $propertiesMember.Value) {
+            return $Object
+        }
+
+        $properties = $propertiesMember.Value
+        $updatedProperties = @{}
+
+        # remove any BGP learned routes that are declared directly on this resource
+        $routesMember = $properties.PSObject.Properties['routes']
+        if ($null -ne $routesMember) {
+            $staticRoutes = Select-StaticRoute -Route $routesMember.Value
+            if ($null -ne $staticRoutes) {
+                $updatedProperties['routes'] = $staticRoutes
+            }
+        }
+
+        # networkConnections are child resources of a virtualGateway and are returned inline when operating against the
+        # parent resource, so the routes array of each child connection needs to be processed as well
+        $connectionsMember = $properties.PSObject.Properties['networkConnections']
+        if ($null -ne $connectionsMember -and $null -ne $connectionsMember.Value) {
+            $updatedConnections = @()
+            $connectionUpdated = $false
+            foreach ($connection in @($connectionsMember.Value)) {
+                $updatedConnection = Remove-BgpLearnedRoute -Object $connection
+                if (-NOT [System.Object]::ReferenceEquals($updatedConnection, $connection)) {
+                    $connectionUpdated = $true
+                }
+
+                $updatedConnections += $updatedConnection
+            }
+
+            if ($connectionUpdated) {
+                $updatedProperties['networkConnections'] = $updatedConnections
+            }
+        }
+
+        # if nothing was removed, return the original object so the payload is left untouched
+        if ($updatedProperties.Count -eq 0) {
+            return $Object
+        }
+
+        $modifiedProperties = Copy-ObjectWithPropertyOverride -Object $properties -PropertyOverride $updatedProperties
+        return (Copy-ObjectWithPropertyOverride -Object $Object -PropertyOverride @{ 'properties' = $modifiedProperties })
+    }
+}
+
+function Select-StaticRoute {
+    <#
+    .SYNOPSIS
+        Removes any route that was learned via BGP from a routes array.
+    .DESCRIPTION
+        Returns $null when the array does not contain any BGP learned routes, which allows the caller to detect that no changes
+        are required and leave the original object untouched.
+    .PARAMETER Route
+        The routes array to filter.
+    #>
+
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $false)]
+        [AllowNull()]
+        [System.Object]$Route
+    )
+
+    if ($null -eq $Route) {
+        return $null
+    }
+
+    $staticRoutes = @()
+    $bgpRouteCount = 0
+    foreach ($entry in @($Route)) {
+        if ($null -ne $entry -and $null -ne $entry.PSObject.Properties['protocol'] -and "$($entry.protocol)".Trim() -ieq 'bgp') {
+            $bgpRouteCount++
+            continue
+        }
+
+        $staticRoutes += $entry
+    }
+
+    if ($bgpRouteCount -eq 0) {
+        return $null
+    }
+
+    "Removed {0} BGP learned route(s) from the routes array" -f $bgpRouteCount | Trace-Output -Level:Verbose
+
+    # use the comma operator so an array is always returned, even when every route was learned via BGP
+    return ,$staticRoutes
+}
+
 function Test-NetworkControllerIsHealthy {
     try {
         $null = Get-NetworkController -ErrorAction 'Stop'
@@ -2837,7 +2958,17 @@ function Set-SdnResource {
                 }
             }
             default {
-                $modifiedObject = Remove-PropertiesFromObject -Object $Object -PropertiesToRemove @('ConfigurationState','ProvisioningState')
+                $objectToUpdate = $Object
+
+                # the routes array of a networkConnections resource contains both the statically configured routes and the routes
+                # that have been dynamically learned from the remote peer via BGP. routes.protocol is a read-only property, so if a
+                # BGP learned route is included within the PUT operation, network controller persists it as a static route.
+                # networkConnections are also returned inline when operating against the parent virtualGateways resource
+                if ($uri -imatch '/(virtualGateways|networkConnections)/') {
+                    $objectToUpdate = Remove-BgpLearnedRoute -Object $objectToUpdate
+                }
+
+                $modifiedObject = Remove-PropertiesFromObject -Object $objectToUpdate -PropertiesToRemove @('ConfigurationState','ProvisioningState')
                 $jsonBody = $modifiedObject | ConvertTo-Json -Depth 100
 
                 $putRestParams = $restParams.Clone()
