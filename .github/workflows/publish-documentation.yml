@@ -1,0 +1,92 @@
+name: Publish Documentation
+
+# Controls when the workflow will run
+on:
+  # Triggers the workflow on push events but only for the main branch, and only when
+  # exported function source may have changed.
+  push:
+    branches:
+      - main
+    paths:
+      - 'src/**'
+
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+# Serialize runs so concurrent pushes to main can't race on the wiki checkout/push. Runs are queued
+# (not cancelled) so every triggering commit still gets published, each one regenerating docs from
+# its own checkout after the previous run's push has completed.
+concurrency:
+  group: publish-documentation-wiki
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  publish-documentation:
+    # The type of runner that the job will run on
+    runs-on: windows-latest
+
+    permissions:
+      # required to push the generated documentation to the wiki
+      contents: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: 'Checkout SdnDiagnostics'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          path: main
+
+      - name: 'Checkout SdnDiagnostics Wiki'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: ${{ github.repository }}.wiki
+          path: wiki
+
+      - name: 'Generate and Sync Function Documentation'
+        run: |
+          $wikiPath = (Resolve-Path -Path .\wiki).Path
+          & .\main\.build\generate-documentation.ps1 -WikiPath $wikiPath
+        shell: powershell
+
+      - name: 'Publish to Wiki'
+        run: |
+          Set-Location -Path .\wiki
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add -A
+
+          $changes = git status --porcelain
+          if ($changes) {
+            $shortSha = "${env:GITHUB_SHA}".Substring(0, 7)
+            git commit -m "docs: sync function documentation from main@$shortSha"
+
+            # the concurrency group above serializes runs of this workflow, but the wiki can also be
+            # edited out-of-band (e.g. manually). Retry a couple of times with a rebase in that case
+            # rather than failing the run outright.
+            $pushed = $false
+            for ($attempt = 1; $attempt -le 3 -and -not $pushed; $attempt++) {
+              git push
+              if ($LASTEXITCODE -eq 0) {
+                $pushed = $true
+              }
+              elseif ($attempt -lt 3) {
+                "Push failed (attempt $attempt), pulling and retrying" | Write-Host -ForegroundColor Yellow
+                git pull --rebase
+              }
+            }
+
+            if (-not $pushed) {
+              throw "Failed to push documentation changes to the wiki after multiple attempts"
+            }
+          }
+          else {
+            "No documentation changes to publish" | Write-Host
+          }
+        shell: powershell

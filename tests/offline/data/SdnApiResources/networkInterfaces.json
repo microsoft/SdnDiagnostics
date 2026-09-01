@@ -123,6 +123,59 @@
       "properties": {
         "configurationState": {
           "lastUpdatedTime": "2024-03-15T10:00:00.0000000-05:00",
+          "id": "nic-inst-0005-aaaa-bbbb-cccccccccccc",
+          "status": "Success"
+        },
+        "privateMacAddress": "001DD8070003",
+        "isPrimary": true,
+        "isHostVirtualNetworkInterface": false,
+        "portSettings": {
+          "provisioningState": "Succeeded",
+          "stormLimit": 0,
+          "vmqWeight": 100,
+          "iovWeight": 0,
+          "arpGuardEnabled": "Disabled",
+          "portFlowLimit": 0,
+          "macSpoofingEnabled": "Disabled",
+          "dhcpGuardEnabled": "Disabled"
+        },
+        "ipConfigurations": [
+          {
+            "properties": {
+              "privateIPAllocationMethod": "Static",
+              "subnet": {
+                "resourceRef": "/virtualNetworks/vnet-0001/subnets/subnet-0001"
+              },
+              "loadBalancerInboundNatRules": [],
+              "loadBalancerBackendAddressPools": [
+                {
+                  "resourceRef": "/loadBalancers/lb-outbound-0002/backendAddressPools/OutboundNatPool"
+                }
+              ],
+              "provisioningState": "Succeeded",
+              "privateIPAddress": "192.168.33.6"
+            },
+            "resourceRef": "/networkInterfaces/tenantvm3/ipConfigurations/ipconfig1",
+            "resourceId": "ipconfig1",
+            "etag": "W/\"nic-etag-0005\"",
+            "instanceId": "ipconf-inst-0005"
+          }
+        ],
+        "server": {
+          "resourceRef": "/servers/DVLAB-S1-N02"
+        },
+        "provisioningState": "Succeeded",
+        "privateMacAllocationMethod": "Dynamic"
+      },
+      "instanceId": "nic-inst-0005-aaaa-bbbb-cccccccccccc",
+      "resourceId": "tenantvm3",
+      "resourceRef": "/networkInterfaces/tenantvm3",
+      "etag": "W/\"nic-etag-0005\""
+    },
+    {
+      "properties": {
+        "configurationState": {
+          "lastUpdatedTime": "2024-03-15T10:00:00.0000000-05:00",
           "id": "nic-inst-0003-aaaa-bbbb-cccccccccccc",
           "status": "Success"
         },

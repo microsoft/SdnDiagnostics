@@ -515,7 +515,7 @@ function Copy-FileFromRemoteComputer {
             else {
                 # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
+                    Copy-FileFromRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
                 }
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
@@ -585,9 +585,6 @@ function Copy-FileFromRemoteComputerSMB {
             'Force'         = $Force.IsPresent
             'Recurse'       = $Recurse.IsPresent
         }
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $params.Add('Credential', $Credential)
-        }
 
         # set this to suppress the information status bar from being displayed
         $Global:ProgressPreference = 'SilentlyContinue'
@@ -598,6 +595,17 @@ function Copy-FileFromRemoteComputerSMB {
         if (-NOT ($testNetConnection)) {
             $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
             throw New-Object System.Exception($msg)
+        }
+
+        # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
+        [System.String]$psDriveName = $null
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $driveRoot = [System.IO.Path]::GetPathRoot($Path[0]).Replace(':','$')
+            $uncRoot = "\\{0}\{1}" -f $ComputerName, $driveRoot
+            $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $psDriveName = $tempDriveName
+            "Mounted temporary PSDrive {0} to {1}" -f $psDriveName, $uncRoot | Trace-Output -Level:Information
         }
     }
 
@@ -627,6 +635,17 @@ function Copy-FileFromRemoteComputerSMB {
 
                     throw $_
                 }
+            }
+        }
+    }
+
+    end {
+        if ($psDriveName) {
+            try {
+                Remove-PSDrive -Name $psDriveName -Force -ErrorAction Stop
+            }
+            catch {
+                "Unable to remove temporary PSDrive {0}. {1}" -f $psDriveName, $_.Exception.Message | Trace-Output -Level:Warning
             }
         }
     }
@@ -749,7 +768,7 @@ function Copy-FileToRemoteComputer {
             else {
                 # try SMB Copy first and fallback to WinRM
                 try {
-                    Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
+                    Copy-FileToRemoteComputerSMB -Path $Path -ComputerName $object -Destination $Destination -Credential $Credential -Force:($Force.IsPresent) -Recurse:($Recurse.IsPresent) -ErrorAction Stop
                 }
                 catch {
                     "{0}. Attempting to copy files using WinRM" -f $_ | Trace-Output -Level:Warning
@@ -822,9 +841,6 @@ function Copy-FileToRemoteComputerSMB {
             'Force'         = $Force.IsPresent
             'Recurse'       = $Recurse.IsPresent
         }
-        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
-            $params.Add('Credential', $Credential)
-        }
 
         # set this to suppress the information status bar from being displayed
         $Global:ProgressPreference = 'SilentlyContinue'
@@ -834,6 +850,17 @@ function Copy-FileToRemoteComputerSMB {
         if (-NOT ($testNetConnection)) {
             $msg = "Unable to establish TCP connection to {0}:445" -f $ComputerName
             throw New-Object System.Exception($msg)
+        }
+
+        # if credential is provided, create a PSDrive to the remote computer to authenticate the SMB session
+        [System.String]$psDriveName = $null
+        if ($Credential -ne [System.Management.Automation.PSCredential]::Empty -and $null -ne $Credential) {
+            $driveRoot = [System.IO.Path]::GetPathRoot($Destination.FullName).Replace(':','$')
+            $uncRoot = "\\{0}\{1}" -f $ComputerName, $driveRoot
+            $tempDriveName = "osPsDrive_{0}" -f [guid]::NewGuid().ToString()
+            $null = New-PSDrive -Name $tempDriveName -PSProvider FileSystem -Root $uncRoot -Credential $Credential -ErrorAction Stop
+            $psDriveName = $tempDriveName
+            "Mounted temporary PSDrive {0} to {1}" -f $psDriveName, $uncRoot | Trace-Output -Level:Information
         }
 
         [System.IO.FileInfo]$remotePath = Convert-FileSystemPathToUNC -ComputerName $ComputerName -Path $Destination.FullName
@@ -859,6 +886,17 @@ function Copy-FileToRemoteComputerSMB {
                 }
 
                 throw $_
+            }
+        }
+    }
+
+    end {
+        if ($psDriveName) {
+            try {
+                Remove-PSDrive -Name $psDriveName -Force -ErrorAction Stop
+            }
+            catch {
+                "Unable to remove temporary PSDrive {0}. {1}" -f $psDriveName, $_.Exception.Message | Trace-Output -Level:Warning
             }
         }
     }
@@ -3083,6 +3121,50 @@ function Remove-PropertiesFromObject {
     }
     end {
         return $array
+    }
+}
+
+function Copy-ObjectWithPropertyOverride {
+    <#
+    .SYNOPSIS
+        Creates a shallow copy of an object, replacing the value of the specified properties.
+    .DESCRIPTION
+        Used to avoid mutating an object supplied by the caller when only a subset of the properties need to be changed.
+        Property names are matched case-insensitively and the original property order is preserved.
+    .PARAMETER Object
+        The object to copy.
+    .PARAMETER PropertyOverride
+        A hashtable of property names and the values that should replace the value on the copied object. Property names
+        that do not exist on the object are ignored. An exception is raised when more than one key matches the same property.
+    .EXAMPLE
+        $object = Copy-ObjectWithPropertyOverride -Object $object -PropertyOverride @{ 'properties' = $modifiedProperties }
+    #>
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true, ValueFromPipeline = $true)]
+        $Object,
+
+        [Parameter(Mandatory = $true)]
+        [System.Collections.Hashtable]$PropertyOverride
+    )
+
+    process {
+        $customObject = [PSCustomObject]@{}
+        foreach ($property in $Object.PSObject.Properties) {
+            $matchingKeys = @($PropertyOverride.Keys | Where-Object { $_ -ieq $property.Name })
+            if ($matchingKeys.Count -gt 1) {
+                throw New-Object System.ArgumentException("PropertyOverride contains multiple keys that match the property '$($property.Name)'.")
+            }
+
+            if ($matchingKeys.Count -eq 1) {
+                $customObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $PropertyOverride[$matchingKeys[0]]
+            }
+            else {
+                $customObject | Add-Member -MemberType NoteProperty -Name $property.Name -Value $property.Value
+            }
+        }
+
+        return $customObject
     }
 }
 
