@@ -129,6 +129,95 @@ Describe 'Health - Test-SdnResourceConfigurationState' {
     }
 }
 
+Describe 'Health - Test-SdnCertificateMultiple' {
+    It "Keeps the most recently issued certificate instead of the certificate that expires last" {
+        InModuleScope SdnDiag.Health {
+            $originalRole = $Global:SdnDiagnostics.Config.Role
+            $Global:SdnDiagnostics.Config.Role = 'Server'
+
+            try {
+                Mock Get-SdnServerCertificate {
+                    @(
+                        [PSCustomObject]@{
+                            Thumbprint  = 'OLDER-ISSUED'
+                            Subject     = 'CN=DVLAB-SDN'
+                            FriendlyName = 'Older issued'
+                            Issuer      = 'CN=DVLAB-CA'
+                            NotBefore   = [datetime]'2025-01-01'
+                            NotAfter    = [datetime]'2028-01-01'
+                        }
+                        [PSCustomObject]@{
+                            Thumbprint  = 'NEWER-ISSUED'
+                            Subject     = 'CN=DVLAB-SDN'
+                            FriendlyName = 'Newer issued'
+                            Issuer      = 'CN=DVLAB-CA'
+                            NotBefore   = [datetime]'2026-01-01'
+                            NotAfter    = [datetime]'2027-01-01'
+                        }
+                    )
+                }
+
+                $result = Test-SdnCertificateMultiple
+
+                $result.Result | Should -Be 'WARNING'
+                @($result.Properties).Count | Should -Be 1
+                $result.Properties.Thumbprint | Should -Be 'OLDER-ISSUED'
+            }
+            finally {
+                $Global:SdnDiagnostics.Config.Role = $originalRole
+            }
+        }
+    }
+
+    It "Keeps the most recently issued Azure Stack certificate when that issuer is present" {
+        InModuleScope SdnDiag.Health {
+            $originalRole = $Global:SdnDiagnostics.Config.Role
+            $Global:SdnDiagnostics.Config.Role = 'Server'
+
+            try {
+                Mock Get-SdnServerCertificate {
+                    @(
+                        [PSCustomObject]@{
+                            Thumbprint  = 'OLDER-AZURE-STACK'
+                            Subject     = 'CN=DVLAB-SDN'
+                            FriendlyName = 'Older Azure Stack'
+                            Issuer      = 'CN=AzureStackCertificationAuthority'
+                            NotBefore   = [datetime]'2025-01-01'
+                            NotAfter    = [datetime]'2028-01-01'
+                        }
+                        [PSCustomObject]@{
+                            Thumbprint  = 'NEWER-AZURE-STACK'
+                            Subject     = 'CN=DVLAB-SDN'
+                            FriendlyName = 'Newer Azure Stack'
+                            Issuer      = 'CN=AzureStackCertificationAuthority'
+                            NotBefore   = [datetime]'2026-01-01'
+                            NotAfter    = [datetime]'2027-01-01'
+                        }
+                        [PSCustomObject]@{
+                            Thumbprint  = 'NEWEST-OTHER-ISSUER'
+                            Subject     = 'CN=DVLAB-SDN'
+                            FriendlyName = 'Newest other issuer'
+                            Issuer      = 'CN=DVLAB-CA'
+                            NotBefore   = [datetime]'2026-06-01'
+                            NotAfter    = [datetime]'2029-01-01'
+                        }
+                    )
+                }
+
+                $result = Test-SdnCertificateMultiple
+
+                $result.Result | Should -Be 'WARNING'
+                @($result.Properties.Thumbprint) | Should -Contain 'OLDER-AZURE-STACK'
+                @($result.Properties.Thumbprint) | Should -Contain 'NEWEST-OTHER-ISSUER'
+                @($result.Properties.Thumbprint) | Should -Not -Contain 'NEWER-AZURE-STACK'
+            }
+            finally {
+                $Global:SdnDiagnostics.Config.Role = $originalRole
+            }
+        }
+    }
+}
+
 Describe 'Health - Test-VfpDuplicateMacAddress' {
     It "Returns FAIL and reports the duplicate MAC when VFP ports share a MAC address" {
         InModuleScope SdnDiag.Health {

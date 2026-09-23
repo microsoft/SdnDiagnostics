@@ -1211,13 +1211,13 @@ function Test-SdnCertificateMultiple {
         }
 
         # if we have multiple certificates, we need to determine if any are extraneous
-        # we will presume that the latest certificate is the one we want to keep and if issued by AzureStackCertificationAuthority, we will prioritize that one
+        # we will presume that the most recently issued certificate is the one we want to keep and if issued by AzureStackCertificationAuthority, we will prioritize that one
         if ($null -ne $certificate -and $certificate.Count -gt 1) {
             if ($certificate.Issuer -contains 'CN=AzureStackCertificationAuthority') {
-                $latestCert = $certificate | Where-Object { $_.Issuer -eq 'CN=AzureStackCertificationAuthority' } | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+                $latestCert = $certificate | Where-Object { $_.Issuer -eq 'CN=AzureStackCertificationAuthority' } | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
             }
             else {
-                $latestCert = $certificate | Sort-Object -Property NotAfter -Descending | Select-Object -First 1
+                $latestCert = $certificate | Sort-Object -Property NotBefore -Descending | Select-Object -First 1
             }
 
             $certificate = $certificate | Where-Object { $_.Thumbprint -ne $latestCert.Thumbprint }
