@@ -406,6 +406,7 @@ function Get-ServerConfigState {
                     $outputDir = New-Item -Path (Join-Path -Path $outDir -ChildPath "VFP\$($vm.ElementName)") -ItemType Directory -Force
                     vfpctrl /list-nat-range /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_nat_range' -FileType txt -Force
                     vfpctrl /list-rule /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_rule' -FileType txt -Force
+                    vfpctrl /get-rule-counter /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_rule_counter' -FileType txt -Force
                     vfpctrl /list-mapping /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_mapping' -FileType txt -Force
                     vfpctrl /list-unified-flow /port $port.Name | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_list_unified_flow'  -FileType txt -Force
                     vfpctrl /get-port-flow-settings /port $($port.Name) | Export-ObjectToFile -FilePath $outputDir.FullName -Prefix $port.Name -Name 'vfpctrl_get_port_flow_settings' -FileType txt -Force
@@ -3810,4 +3811,3 @@ function Get-SdnVfpPortFlowStat {
         $_ | Write-Error
     }
 }
-
