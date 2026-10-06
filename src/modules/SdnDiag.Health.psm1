@@ -590,6 +590,9 @@ function Debug-SdnFabricInfrastructure {
                     $roleHealthReport.Result = 'FAIL'
                     break
                 }
+                elseif ($test.Result -ieq 'UNKNOWN' -and $roleHealthReport.Result -eq 'PASS') {
+                    $roleHealthReport.Result = 'UNKNOWN'
+                }
             }
 
             $aggregateHealthReport += $roleHealthReport
@@ -616,7 +619,7 @@ function Debug-SdnFabricInfrastructure {
             $allRoles = ($aggregateHealthReport | Select-Object -ExpandProperty Role) -join ', '
             $allSdnNodes = ($aggregateHealthReport | ForEach-Object { $_.RoleTest.ComputerName } | Sort-Object -Unique) -join ', '
 
-            # Determine overall health state (worst case wins: FAIL > WARNING > PASS)
+            # Determine overall health state (worst case wins: FAIL > WARNING > UNKNOWN > PASS)
             $overallState = 'PASS'
             foreach ($report in $aggregateHealthReport) {
                 if ($report.Result -ieq 'FAIL') {
@@ -625,6 +628,9 @@ function Debug-SdnFabricInfrastructure {
                 }
                 elseif ($report.Result -ieq 'WARNING' -and $overallState -ne 'FAILURE') {
                     $overallState = 'WARNING'
+                }
+                elseif ($report.Result -ieq 'UNKNOWN' -and $overallState -eq 'PASS') {
+                    $overallState = 'UNKNOWN'
                 }
             }
 
@@ -656,7 +662,7 @@ function Debug-SdnFabricInfrastructure {
                         $_.HealthTest | ForEach-Object {
 
                             # enum only the health tests that failed
-                            if ($_.Result -ine 'PASS' -and $_.Result -ine 'UNKNOWN') {
+                            if ($_.Result -ine 'PASS') {
                                 # add the remediation steps to an array list so we can pass it to the Write-HealthValidationInfo function
                                 # otherwise if we pass it directly, it will be treated as a single string
                                 $remediationList = [System.Collections.ArrayList]::new()
@@ -912,8 +918,32 @@ function Debug-SdnLoadBalancerMux {
 }
 
 function Debug-SdnGateway {
+    <#
+    .SYNOPSIS
+        Runs health validations for the local SDN Gateway.
+    .DESCRIPTION
+        Gateway peer-neighbor sampling is passive and uses the local routing and networking providers.
+    .PARAMETER PeerNeighborSampleCount
+        Number of bounded neighbor observations to collect for each selected path.
+    .PARAMETER PeerNeighborSampleIntervalSeconds
+        Delay between neighbor observations.
+    .PARAMETER PeerNeighborSettlingPeriodSeconds
+        Delay before the first observation.
+    .EXAMPLE
+        PS> Debug-SdnGateway -PeerNeighborSampleCount 3 -PeerNeighborSampleIntervalSeconds 2
+    #>
+
     [CmdletBinding()]
-    param ()
+    param (
+        [ValidateRange(2, 5)]
+        [int]$PeerNeighborSampleCount = 3,
+
+        [ValidateRange(0, 10)]
+        [int]$PeerNeighborSampleIntervalSeconds = 2,
+
+        [ValidateRange(0, 10)]
+        [int]$PeerNeighborSettlingPeriodSeconds = 2
+    )
 
     Confirm-IsRasGateway
     $config = Get-SdnModuleConfiguration -Role 'Gateway'
@@ -922,15 +952,18 @@ function Debug-SdnGateway {
 
     try {
         $healthReport.HealthTest += @(
-            Test-SdnNonSelfSignedCertificateInTrustedRootStore @PSBoundParameters
-            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task' @PSBoundParameters
-            Test-SdnAdapterPerformanceSetting @PSBoundParameters
-            Test-SdnGatewayRemoteAccessCimClass @PSBoundParameters
+            Test-SdnNonSelfSignedCertificateInTrustedRootStore
+            Test-SdnDiagnosticsCleanupTaskEnabled -TaskName 'SDN Diagnostics Task'
+            Test-SdnAdapterPerformanceSetting
+            Test-SdnGatewayRemoteAccessCimClass
+            Test-SdnGatewayPeerNextHopArp -SampleCount $PeerNeighborSampleCount `
+                -SampleIntervalSeconds $PeerNeighborSampleIntervalSeconds `
+                -SettlingPeriodSeconds $PeerNeighborSettlingPeriodSeconds
         )
 
         foreach ($service in $services) {
             $healthReport.HealthTest += @(
-                Test-SdnServiceState -ServiceName $service @PSBoundParameters
+                Test-SdnServiceState -ServiceName $service
             )
         }
 
@@ -946,6 +979,9 @@ function Debug-SdnGateway {
                 $healthReport.Result = $test.Result
                 break
             }
+            elseif ($test.Result -eq 'UNKNOWN' -and $healthReport.Result -eq 'PASS') {
+                $healthReport.Result = 'UNKNOWN'
+            }
         }
     }
     catch {
@@ -954,6 +990,694 @@ function Debug-SdnGateway {
     }
 
     return ( $healthReport )
+}
+
+function Test-SdnGatewayIPv4PrefixMatch {
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$IPAddress,
+
+        [Parameter(Mandatory = $true)]
+        [string]$DestinationPrefix
+    )
+
+    if ($DestinationPrefix -notmatch '^(.+)/([0-9]{1,2})$') {
+        return $false
+    }
+
+    try {
+        $address = [System.Net.IPAddress]::Parse($IPAddress)
+        $network = [System.Net.IPAddress]::Parse($Matches[1])
+        $prefixLength = [int]$Matches[2]
+    }
+    catch {
+        return $false
+    }
+
+    if ($address.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork -or
+        $network.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork -or
+        $prefixLength -lt 0 -or $prefixLength -gt 32) {
+        return $false
+    }
+
+    $addressBytes = $address.GetAddressBytes()
+    $networkBytes = $network.GetAddressBytes()
+    for ($index = 0; $index -lt 4; $index++) {
+        $bitsRemaining = $prefixLength - ($index * 8)
+        if ($bitsRemaining -le 0) {
+            break
+        }
+
+        $mask = if ($bitsRemaining -ge 8) { 255 } else { [int](256 - [math]::Pow(2, 8 - $bitsRemaining)) }
+        if (($addressBytes[$index] -band $mask) -ne ($networkBytes[$index] -band $mask)) {
+            return $false
+        }
+    }
+
+    return $true
+}
+
+function Select-SdnGatewayIPv4Route {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [string]$PeerIPAddress,
+
+        [Parameter(Mandatory = $true)]
+        [int]$CompartmentId,
+
+        [Parameter(Mandatory = $true)]
+        [object[]]$Routes,
+
+        [Parameter(Mandatory = $true)]
+        [object[]]$IPInterfaces
+    )
+
+    try {
+        $peerAddress = [System.Net.IPAddress]::Parse($PeerIPAddress)
+        if ($peerAddress.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+            throw 'The peer address is not IPv4.'
+        }
+    }
+    catch {
+        return [PSCustomObject]@{
+            Status = 'Unknown'
+            ReasonCode = 'InvalidPeerAddress'
+            SelectedRoute = $null
+            SelectedInterface = $null
+            CandidatePaths = @()
+        }
+    }
+
+    $matchingPaths = @()
+    foreach ($route in $Routes) {
+        if ($null -ne $route.CompartmentId -and [int]$route.CompartmentId -ne $CompartmentId) {
+            continue
+        }
+
+        $prefixLength = -1
+        if ($route.DestinationPrefix -match '/([0-9]{1,2})$') {
+            $prefixLength = [int]$Matches[1]
+        }
+        if ($prefixLength -lt 0 -or $prefixLength -gt 32 -or
+            -not (Test-SdnGatewayIPv4PrefixMatch -IPAddress $PeerIPAddress -DestinationPrefix $route.DestinationPrefix)) {
+            continue
+        }
+
+        $interfaces = @(
+            $IPInterfaces | Where-Object {
+                [int]$_.InterfaceIndex -eq [int]$route.InterfaceIndex -and
+                ($null -eq $_.CompartmentId -or [int]$_.CompartmentId -eq $CompartmentId) -and
+                ($_.AddressFamily -eq 'IPv4' -or $null -eq $_.AddressFamily)
+            }
+        )
+        foreach ($ipInterface in $interfaces) {
+            $connectionState = [string]$ipInterface.ConnectionState
+            $routeState = [string]$route.State
+            $eligible = $connectionState -notin @('Disconnected', 'Down') -and $routeState -notin @('Dead', 'Invalid', 'Unreachable')
+            $interfaceMetric = 0
+            if ($null -ne $ipInterface.InterfaceMetric) {
+                $interfaceMetric = [int]$ipInterface.InterfaceMetric
+            }
+            $routeMetric = 0
+            if ($null -ne $route.RouteMetric) {
+                $routeMetric = [int]$route.RouteMetric
+            }
+
+            $matchingPaths += [PSCustomObject]@{
+                Route = $route
+                Interface = $ipInterface
+                DestinationPrefix = [string]$route.DestinationPrefix
+                NextHop = [string]$route.NextHop
+                InterfaceIndex = [int]$route.InterfaceIndex
+                RouteMetric = $routeMetric
+                InterfaceMetric = $interfaceMetric
+                EffectiveMetric = $routeMetric + $interfaceMetric
+                PrefixLength = $prefixLength
+                Eligible = $eligible
+                ConnectionState = $connectionState
+                RouteState = $routeState
+            }
+        }
+    }
+
+    if ($matchingPaths.Count -eq 0) {
+        return [PSCustomObject]@{
+            Status = 'RouteMissing'
+            ReasonCode = 'RouteMissing'
+            SelectedRoute = $null
+            SelectedInterface = $null
+            CandidatePaths = @()
+        }
+    }
+
+    $longestPrefix = ($matchingPaths | Measure-Object -Property PrefixLength -Maximum).Maximum
+    $bestPrefixPaths = @($matchingPaths | Where-Object { $_.PrefixLength -eq $longestPrefix })
+    $eligiblePaths = @($bestPrefixPaths | Where-Object { $_.Eligible })
+    if ($eligiblePaths.Count -eq 0) {
+        return [PSCustomObject]@{
+            Status = 'Unknown'
+            ReasonCode = 'NoUsableRoute'
+            SelectedRoute = $null
+            SelectedInterface = $null
+            CandidatePaths = $bestPrefixPaths
+        }
+    }
+
+    $bestMetric = ($eligiblePaths | Measure-Object -Property EffectiveMetric -Minimum).Minimum
+    $bestPaths = @($eligiblePaths | Where-Object { $_.EffectiveMetric -eq $bestMetric })
+    $distinctPaths = @($bestPaths | Group-Object {
+            '{0}|{1}|{2}' -f $_.InterfaceIndex, $_.NextHop, $_.DestinationPrefix
+        } | ForEach-Object { $_.Group[0] })
+    if ($distinctPaths.Count -ne 1) {
+        return [PSCustomObject]@{
+            Status = 'Ambiguous'
+            ReasonCode = 'EqualPreferenceRoutes'
+            SelectedRoute = $null
+            SelectedInterface = $null
+            CandidatePaths = $distinctPaths
+        }
+    }
+
+    return [PSCustomObject]@{
+        Status = 'Selected'
+        ReasonCode = 'Selected'
+        SelectedRoute = $distinctPaths[0].Route
+        SelectedInterface = $distinctPaths[0].Interface
+        CandidatePaths = $bestPaths
+    }
+}
+
+function Test-SdnGatewayPeerNextHopArp {
+    [CmdletBinding()]
+    param (
+        [ValidateRange(1, 5)]
+        [int]$SampleCount = 3,
+
+        [ValidateRange(0, 10)]
+        [int]$SampleIntervalSeconds = 2,
+
+        [ValidateRange(0, 10)]
+        [int]$SettlingPeriodSeconds = 2
+    )
+
+    $sdnHealthTest = New-SdnHealthTest
+    $peerResults = @()
+    $collectionErrors = @()
+    $domainInventory = @()
+    $compartments = @()
+    $peers = @()
+    $domainEnumerationComplete = $true
+    $peerEnumerationComplete = $true
+
+    foreach ($provider in @('Get-RemoteAccessRoutingDomain', 'Get-GatewayRoutingDomain')) {
+        if ($provider -eq 'Get-GatewayRoutingDomain' -and
+            -not (Get-Command -Name $provider -ErrorAction SilentlyContinue)) {
+            continue
+        }
+
+        try {
+            if ($provider -eq 'Get-RemoteAccessRoutingDomain') {
+                $domains = @(Get-RemoteAccessRoutingDomain -ErrorAction Stop)
+            }
+            else {
+                $domains = @(Get-GatewayRoutingDomain -ErrorAction Stop)
+            }
+            foreach ($domain in $domains) {
+                if ($null -eq $domain.RoutingDomain) {
+                    continue
+                }
+
+                $domainInventory += [PSCustomObject]@{
+                    RoutingDomain = [string]$domain.RoutingDomain
+                    RoutingDomainID = [string]$domain.RoutingDomainID
+                    Status = [string]$domain.Status
+                    DomainProvider = $provider
+                }
+            }
+        }
+        catch {
+            $_ | Trace-Exception
+            $_ | Write-Error -ErrorAction Continue
+            $collectionErrors += [PSCustomObject]@{
+                Step = $provider
+                Error = $_.Exception.Message
+            }
+            if ($provider -eq 'Get-RemoteAccessRoutingDomain') {
+                $domainEnumerationComplete = $false
+            }
+        }
+    }
+
+    $domainInventory = @(
+        $domainInventory | Group-Object {
+            $domainGuid = [guid]::Empty
+            $domainId = if ([guid]::TryParse($_.RoutingDomainID, [ref]$domainGuid)) { $domainGuid.ToString() } else { $_.RoutingDomainID }
+            '{0}|{1}' -f $_.RoutingDomain.ToLowerInvariant(), $domainId
+        } | ForEach-Object {
+            $domain = $_.Group[0]
+            $domain.DomainProvider = (@($_.Group.DomainProvider | Sort-Object -Unique) -join ',')
+            $domain
+        }
+    )
+
+    try {
+        $compartments = @(Get-NetCompartment -ErrorAction Stop)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error -ErrorAction Continue
+        $collectionErrors += [PSCustomObject]@{
+            Step = 'Get-NetCompartment'
+            Error = $_.Exception.Message
+        }
+    }
+
+    try {
+        $bgpCommand = Get-Command -Name Get-BgpPeer -ErrorAction Stop
+        $allDomainsQuerySucceeded = $false
+        if ($bgpCommand.Parameters.ContainsKey('AllRoutingDomains')) {
+            try {
+                $peers = @(Get-BgpPeer -AllRoutingDomains -ErrorAction Stop)
+                $allDomainsQuerySucceeded = $true
+            }
+            catch {
+                if ($domainInventory.Count -eq 0) {
+                    $_ | Trace-Exception
+                    $_ | Write-Error -ErrorAction Continue
+                    $peerEnumerationComplete = $false
+                    $collectionErrors += [PSCustomObject]@{
+                        Step = 'Get-BgpPeer'
+                        Error = $_.Exception.Message
+                    }
+                }
+            }
+        }
+
+        if (-not $allDomainsQuerySucceeded) {
+            if ($domainInventory.Count -eq 0) {
+                $peerEnumerationComplete = $false
+            }
+            foreach ($domain in $domainInventory) {
+                try {
+                    $peers += @(Get-BgpPeer -RoutingDomain $domain.RoutingDomain -ErrorAction Stop)
+                }
+                catch {
+                    $_ | Trace-Exception
+                    $_ | Write-Error -ErrorAction Continue
+                    $peerEnumerationComplete = $false
+                    $collectionErrors += [PSCustomObject]@{
+                        Step = 'Get-BgpPeer'
+                        RoutingDomain = $domain.RoutingDomain
+                        Error = $_.Exception.Message
+                    }
+                }
+            }
+        }
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error -ErrorAction Continue
+        $peerEnumerationComplete = $false
+        $collectionErrors += [PSCustomObject]@{
+            Step = 'Get-BgpPeer'
+            Error = $_.Exception.Message
+        }
+    }
+
+    if ($peers.Count -eq 0) {
+        if ($domainEnumerationComplete -and $peerEnumerationComplete -and $collectionErrors.Count -eq 0) {
+            $sdnHealthTest.Result = 'UNKNOWN'
+            $sdnHealthTest.Properties = @(
+                [PSCustomObject]@{
+                    ComputerName = $env:COMPUTERNAME
+                    Result = 'UNKNOWN'
+                    ReasonCode = 'NotApplicable'
+                    Coverage = 'No locally configured BGP peers were found.'
+                    CollectionErrors = @()
+                }
+            )
+        }
+        else {
+            $sdnHealthTest.Result = 'UNKNOWN'
+            $sdnHealthTest.Properties = @(
+                [PSCustomObject]@{
+                    ComputerName = $env:COMPUTERNAME
+                    Result = 'UNKNOWN'
+                    ReasonCode = 'PeerDiscoveryIncomplete'
+                    Coverage = 'BGP peer discovery did not complete; no-peer coverage cannot be confirmed.'
+                    CollectionErrors = $collectionErrors
+                }
+            )
+        }
+        return $sdnHealthTest
+    }
+
+    $neighborSamples = @{}
+    foreach ($peer in $peers) {
+        $record = [ordered]@{
+            ComputerName = $env:COMPUTERNAME
+            RoutingDomain = [string]$peer.RoutingDomain
+            RoutingDomainID = $null
+            DomainProvider = $null
+            CompartmentId = $null
+            CompartmentGuid = $null
+            DomainMappingStatus = 'Unknown'
+            PeerName = [string]$peer.PeerName
+            PeerIPAddress = [string]$peer.PeerIPAddress
+            BgpLocalIPAddress = [string]$peer.LocalIPAddress
+            BgpLocalInterfaceIndex = $null
+            BgpLocalInterfaceAlias = $null
+            PeerConnectivityStatus = [string]$peer.ConnectivityStatus
+            DestinationPrefix = $null
+            RouteNextHop = $null
+            RouteMetric = $null
+            InterfaceMetric = $null
+            RouteSelectionStatus = 'Unknown'
+            CandidatePaths = @()
+            InterfaceIndex = $null
+            InterfaceAlias = $null
+            InterfaceConnectionState = $null
+            NeighborTargetIPAddress = $null
+            NeighborTargetKind = $null
+            NeighborState = $null
+            LinkLayerAddress = $null
+            EgressSourceAddresses = @()
+            SampleHistoryUtc = @()
+            Result = 'UNKNOWN'
+            ReasonCode = 'Unknown'
+            Finding = $null
+            Confidence = 'Local gateway state only; this test does not identify a switch, physical port, or packet-drop location.'
+            CollectionErrors = @()
+        }
+
+        try {
+            $parsedPeer = [System.Net.IPAddress]::Parse($peer.PeerIPAddress)
+            if ($parsedPeer.AddressFamily -ne [System.Net.Sockets.AddressFamily]::InterNetwork) {
+                $record.Result = 'NotApplicable'
+                $record.ReasonCode = 'IPv6OutsideScope'
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            $matchingDomains = @(
+                $domainInventory | Where-Object {
+                    $_.RoutingDomain -ieq [string]$peer.RoutingDomain
+                }
+            )
+            if ($matchingDomains.Count -ne 1) {
+                $record.ReasonCode = 'RoutingDomainUnknownOrAmbiguous'
+                $record.CollectionErrors += "The peer did not map to exactly one local routing domain."
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            $domain = $matchingDomains[0]
+            $record.RoutingDomainID = $domain.RoutingDomainID
+            $record.DomainProvider = $domain.DomainProvider
+            $guid = [guid]::Empty
+            if (-not [guid]::TryParse($domain.RoutingDomainID, [ref]$guid)) {
+                $record.ReasonCode = 'RoutingDomainCompartmentIdUnavailable'
+                $record.CollectionErrors += 'The local routing-domain identifier is not a GUID.'
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            $matchingCompartments = @(
+                $compartments | Where-Object {
+                    $compartmentGuid = [guid]::Empty
+                    [guid]::TryParse([string]$_.CompartmentGuid, [ref]$compartmentGuid) -and
+                    $compartmentGuid -eq $guid
+                }
+            )
+            if ($matchingCompartments.Count -ne 1) {
+                $record.ReasonCode = 'CompartmentMappingUnknownOrAmbiguous'
+                $record.CollectionErrors += 'The routing domain did not map to exactly one local network compartment.'
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            $compartment = $matchingCompartments[0]
+            $record.CompartmentId = [int]$compartment.CompartmentId
+            $record.CompartmentGuid = [string]$compartment.CompartmentGuid
+            $record.DomainMappingStatus = 'MappedByGuid'
+
+            $sourceAddresses = @(
+                Get-NetIPAddress -IPAddress $peer.LocalIPAddress -IncludeAllCompartments -ErrorAction Stop
+            )
+            $sourceInterfaces = @()
+            foreach ($sourceAddress in $sourceAddresses) {
+                $sourceInterfaces += @(
+                    Get-NetIPInterface -AssociatedIPAddress $sourceAddress -IncludeAllCompartments -ErrorAction Stop |
+                        Where-Object { [int]$_.CompartmentId -eq [int]$compartment.CompartmentId }
+                )
+            }
+            $sourceInterfaces = @($sourceInterfaces | Sort-Object InterfaceIndex -Unique)
+            if ($sourceInterfaces.Count -ne 1) {
+                $record.ReasonCode = 'BgpSourceCompartmentUnknownOrAmbiguous'
+                $record.CollectionErrors += 'The BGP source address did not map to exactly one interface in the routing-domain compartment.'
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+            $record.BgpLocalInterfaceIndex = [int]$sourceInterfaces[0].InterfaceIndex
+            $record.BgpLocalInterfaceAlias = [string]$sourceInterfaces[0].InterfaceAlias
+
+            if ($domain.Status -match 'Stopped|Disabled|Passive' -or $peer.OperationMode -match 'Passive') {
+                $record.Result = 'NotApplicable'
+                $record.ReasonCode = 'PeerOrDomainNotExpectedToConnect'
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            $samplePathKey = $null
+            $sampleRouteKey = $null
+            $samplePathChanged = $false
+            $sampleRecords = @()
+            $routeFailure = $null
+            for ($sampleIndex = 0; $sampleIndex -lt $SampleCount; $sampleIndex++) {
+                if ($sampleIndex -eq 0 -and $SettlingPeriodSeconds -gt 0) {
+                    Start-Sleep -Seconds $SettlingPeriodSeconds
+                }
+                elseif ($sampleIndex -gt 0 -and $SampleIntervalSeconds -gt 0) {
+                    Start-Sleep -Seconds $SampleIntervalSeconds
+                }
+
+                $routes = @(
+                    Get-NetRoute -AddressFamily IPv4 -CompartmentId $compartment.CompartmentId `
+                        -PolicyStore ActiveStore -ErrorAction Stop
+                )
+                $ipInterfaces = @(
+                    Get-NetIPInterface -AddressFamily IPv4 -CompartmentId $compartment.CompartmentId -ErrorAction Stop
+                )
+                $selection = Select-SdnGatewayIPv4Route -PeerIPAddress $peer.PeerIPAddress `
+                    -CompartmentId $compartment.CompartmentId -Routes $routes -IPInterfaces $ipInterfaces
+                $record.RouteSelectionStatus = $selection.Status
+                $record.CandidatePaths = $selection.CandidatePaths
+
+                if ($selection.Status -eq 'RouteMissing') {
+                    $routeFailure = 'RouteMissing'
+                    break
+                }
+                if ($selection.Status -ne 'Selected') {
+                    $routeFailure = $selection.ReasonCode
+                    break
+                }
+
+                $route = $selection.SelectedRoute
+                $egressInterfaces = @(
+                    Get-NetIPInterface -AssociatedRoute $route -IncludeAllCompartments -ErrorAction Stop |
+                        Where-Object { [int]$_.CompartmentId -eq [int]$compartment.CompartmentId }
+                )
+                if ($egressInterfaces.Count -ne 1 -or
+                    [int]$egressInterfaces[0].InterfaceIndex -ne [int]$route.InterfaceIndex) {
+                    $routeFailure = 'EgressInterfaceUnknownOrAmbiguous'
+                    break
+                }
+                $egressInterface = $egressInterfaces[0]
+                $nextHop = [string]$route.NextHop
+                [System.Net.IPAddress]$nextHopAddress = $null
+                if (-not [System.Net.IPAddress]::TryParse($nextHop, [ref]$nextHopAddress)) {
+                    $routeFailure = 'InvalidRouteNextHop'
+                    break
+                }
+                if ($nextHop -eq '0.0.0.0') {
+                    $arpTarget = [string]$peer.PeerIPAddress
+                    $targetKind = 'OnLinkPeer'
+                }
+                else {
+                    $arpTarget = $nextHop
+                    $targetKind = 'L3NextHop'
+                }
+
+                if ([string]$egressInterface.InterfaceType -match 'Tunnel|Loopback|PPP' -or
+                    [string]$egressInterface.InterfaceType -in @('23', '24', '131')) {
+                    $record.Result = 'NotApplicable'
+                    $record.ReasonCode = 'PathDoesNotUseEthernetArp'
+                    $record.DestinationPrefix = [string]$route.DestinationPrefix
+                    $record.RouteNextHop = $nextHop
+                    $record.InterfaceIndex = [int]$egressInterface.InterfaceIndex
+                    $record.InterfaceAlias = [string]$egressInterface.InterfaceAlias
+                    $record.InterfaceConnectionState = [string]$egressInterface.ConnectionState
+                    break
+                }
+
+                $currentPathKey = '{0}|{1}|{2}' -f $compartment.CompartmentId, $egressInterface.InterfaceIndex, $arpTarget
+                $currentRouteKey = '{0}|{1}|{2}' -f $route.DestinationPrefix, $nextHop, $egressInterface.InterfaceIndex
+                if ($null -ne $samplePathKey -and $samplePathKey -ne $currentPathKey) {
+                    $samplePathChanged = $true
+                    break
+                }
+                if ($null -ne $sampleRouteKey -and $sampleRouteKey -ne $currentRouteKey) {
+                    $samplePathChanged = $true
+                    break
+                }
+                $samplePathKey = $currentPathKey
+                $sampleRouteKey = $currentRouteKey
+
+                $record.DestinationPrefix = [string]$route.DestinationPrefix
+                $record.RouteNextHop = $nextHop
+                $record.RouteMetric = [int]$route.RouteMetric
+                $record.InterfaceMetric = [int]$selection.SelectedInterface.InterfaceMetric
+                $record.InterfaceIndex = [int]$egressInterface.InterfaceIndex
+                $record.InterfaceAlias = [string]$egressInterface.InterfaceAlias
+                $record.InterfaceConnectionState = [string]$egressInterface.ConnectionState
+                $record.NeighborTargetIPAddress = $arpTarget
+                $record.NeighborTargetKind = $targetKind
+                if ($sampleIndex -eq 0 -and $neighborSamples.ContainsKey($samplePathKey)) {
+                    $sampleRecords = $neighborSamples[$samplePathKey]
+                    break
+                }
+                $record.EgressSourceAddresses = @(
+                    Get-NetIPAddress -AssociatedIPInterface $egressInterface -AddressFamily IPv4 `
+                        -IncludeAllCompartments -ErrorAction Stop |
+                        Where-Object { [int]$_.CompartmentId -eq [int]$compartment.CompartmentId } |
+                        ForEach-Object { [string]$_.IPAddress }
+                )
+
+                $neighbors = @(
+                    Get-NetNeighbor -AssociatedIPInterface $egressInterface -IncludeAllCompartments -ErrorAction Stop |
+                        Where-Object { [string]$_.IPAddress -eq $arpTarget }
+                )
+                $sample = [ordered]@{
+                    TimestampUtc = [System.DateTime]::UtcNow
+                    State = 'NotObserved'
+                    LinkLayerAddress = $null
+                    ObservationStatus = 'Observed'
+                }
+                if ($neighbors.Count -gt 1) {
+                    $sample.State = 'Inconsistent'
+                    $sample.ObservationStatus = 'DuplicateNeighborEntries'
+                }
+                elseif ($neighbors.Count -eq 1) {
+                    $sample.State = [string]$neighbors[0].State
+                    $sample.LinkLayerAddress = [string]$neighbors[0].LinkLayerAddress
+                }
+                $sampleRecords += [PSCustomObject]$sample
+            }
+
+            if ($routeFailure) {
+                if ($routeFailure -eq 'RouteMissing') {
+                    $record.Result = 'FAIL'
+                    $record.ReasonCode = 'RouteMissing'
+                }
+                else {
+                    $record.Result = 'UNKNOWN'
+                    $record.ReasonCode = [string]$routeFailure
+                }
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+            if ($record.Result -eq 'NotApplicable') {
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+            if ($samplePathChanged) {
+                $record.Result = 'UNKNOWN'
+                $record.ReasonCode = 'AssociationChangedDuringSampling'
+                $record.SampleHistoryUtc = $sampleRecords
+                $peerResults += [PSCustomObject]$record
+                continue
+            }
+
+            if ($neighborSamples.ContainsKey($samplePathKey)) {
+                $sampleRecords = $neighborSamples[$samplePathKey]
+            }
+            else {
+                $neighborSamples[$samplePathKey] = $sampleRecords
+            }
+            $record.SampleHistoryUtc = $sampleRecords
+            $states = @($sampleRecords | ForEach-Object { $_.State })
+            $record.NeighborState = $states[-1]
+            $record.LinkLayerAddress = $sampleRecords[-1].LinkLayerAddress
+            $mac = [string]$record.LinkLayerAddress
+            $validMac = $mac -match '^(?:[0-9A-Fa-f]{2}[:-]){5}[0-9A-Fa-f]{2}$'
+            if ($validMac) {
+                $firstMacByte = [Convert]::ToInt32($mac.Substring(0, 2), 16)
+                $validMac = (($firstMacByte -band 1) -eq 0) -and $mac -notmatch '^(00[:-]){5}00$'
+            }
+
+            $unresolved = @($states | Where-Object { $_ -in @('Incomplete', 'Unreachable') })
+            if ($SampleCount -ge 2 -and $sampleRecords.Count -eq $SampleCount -and $unresolved.Count -eq $SampleCount) {
+                if ($peer.ConnectivityStatus -ieq 'Connected') {
+                    $record.Result = 'WARNING'
+                    $record.ReasonCode = 'UnresolvedNeighborPeerReportedConnected'
+                }
+                elseif ($peer.ConnectivityStatus -match '^(Disconnected|NotConnected|Connecting|Idle)$') {
+                    $record.Result = 'FAIL'
+                    $record.ReasonCode = 'PersistentUnresolvedNextHop'
+                    $record.Finding = "The selected IPv4 next-hop neighbor for BGP peer $($peer.PeerIPAddress) remains $($record.NeighborState) on interface $($record.InterfaceIndex) in compartment $($record.CompartmentId). This may block peer connectivity; local gateway state does not identify an upstream fault."
+                }
+                else {
+                    $record.Result = 'WARNING'
+                    $record.ReasonCode = 'UnresolvedNeighborPeerStateUnknown'
+                }
+            }
+            elseif ($unresolved.Count -gt 0) {
+                $record.Result = 'WARNING'
+                $record.ReasonCode = 'TransientOrMixedUnresolvedNeighbor'
+            }
+            elseif ($states -contains 'NotObserved') {
+                $record.Result = 'UNKNOWN'
+                $record.ReasonCode = 'NeighborNotObserved'
+            }
+            elseif (@($states | Where-Object { $_ -in @('Reachable', 'Stale', 'Delay', 'Probe', 'Permanent') }).Count -eq $states.Count -and $validMac) {
+                $record.Result = 'PASS'
+                $record.ReasonCode = 'NeighborHasValidMac'
+            }
+            else {
+                $record.Result = 'UNKNOWN'
+                $record.ReasonCode = 'NeighborStateOrMacInconsistent'
+            }
+        }
+        catch {
+            $_ | Trace-Exception
+            $_ | Write-Error -ErrorAction Continue
+            $record.Result = 'UNKNOWN'
+            $record.ReasonCode = 'CollectionError'
+            $record.CollectionErrors += $_.Exception.Message
+        }
+
+        if ($collectionErrors.Count -gt 0) {
+            $record.CollectionErrors += $collectionErrors
+        }
+        $peerResults += [PSCustomObject]$record
+    }
+
+    $sdnHealthTest.Properties = $peerResults
+    $results = @($peerResults | ForEach-Object { $_.Result })
+    if ($results -contains 'FAIL') {
+        $sdnHealthTest.Result = 'FAIL'
+        $sdnHealthTest.Remediation = 'Verify the exact selected egress path and VLAN association. If fault attribution is needed, collect separately authorized outage-time observations at the gateway, host/uplink, and upstream device. This test does not identify a switch or packet-drop location.'
+    }
+    elseif ($results -contains 'WARNING') {
+        $sdnHealthTest.Result = 'WARNING'
+        $sdnHealthTest.Remediation = 'Review the peer state and neighbor history. A cached or unresolved neighbor observation alone does not prove an upstream device fault.'
+    }
+    elseif ($results -contains 'UNKNOWN' -or $results -contains 'NotApplicable' -or $collectionErrors.Count -gt 0) {
+        $sdnHealthTest.Result = 'UNKNOWN'
+    }
+
+    return $sdnHealthTest
 }
 
 ###################################

@@ -53,6 +53,72 @@ function Get-GatewayConfigState {
         [string]$regDir = Join-Path -Path $outDir -ChildPath "Registry"
         Export-RegistryKeyConfigDetails -Path $config.properties.regKeyPaths -OutputDirectory $regDir
 
+        $peerPath = New-Item -Path (Join-Path -Path $outDir -ChildPath 'GatewayPeerNextHop') -ItemType Directory -Force
+        $routingDomains = @()
+        try {
+            $routingDomains = @(Get-RemoteAccessRoutingDomain -ErrorAction Stop)
+            $routingDomains | Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-RemoteAccessRoutingDomain' -FileType txt -Format List
+        }
+        catch {
+            $_ | Trace-Exception
+            $_ | Write-Error -ErrorAction Continue
+            [PSCustomObject]@{ CollectionError = $_.Exception.Message } |
+                Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-RemoteAccessRoutingDomain' -FileType txt -Format List
+        }
+
+        if (Get-Command -Name 'Get-GatewayRoutingDomain' -ErrorAction SilentlyContinue) {
+            try {
+                $gatewayServiceDomains = @(Get-GatewayRoutingDomain -ErrorAction Stop)
+                $gatewayServiceDomains | Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-GatewayRoutingDomain' -FileType txt -Format List
+                $routingDomains += $gatewayServiceDomains
+            }
+            catch {
+                $_ | Trace-Exception
+                $_ | Write-Error -ErrorAction Continue
+                [PSCustomObject]@{ CollectionError = $_.Exception.Message } |
+                    Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-GatewayRoutingDomain' -FileType txt -Format List
+            }
+        }
+
+        try {
+            $bgpPeerCommand = Get-Command -Name 'Get-BgpPeer' -ErrorAction Stop
+            if ($bgpPeerCommand.Parameters.ContainsKey('AllRoutingDomains')) {
+                Get-BgpPeer -AllRoutingDomains -ErrorAction Stop |
+                    Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-BgpPeer' -FileType txt -Format List
+            }
+            else {
+                foreach ($routingDomain in $routingDomains) {
+                    try {
+                        Get-BgpPeer -RoutingDomain $routingDomain.RoutingDomain -ErrorAction Stop |
+                            Export-ObjectToFile -FilePath $peerPath.FullName -Name ('Get-BgpPeer_{0}' -f $routingDomain.RoutingDomain) -FileType txt -Format List
+                    }
+                    catch {
+                        $_ | Trace-Exception
+                        $_ | Write-Error -ErrorAction Continue
+                        [PSCustomObject]@{ CollectionError = $_.Exception.Message; RoutingDomain = $routingDomain.RoutingDomain } |
+                            Export-ObjectToFile -FilePath $peerPath.FullName -Name ('Get-BgpPeer_{0}' -f $routingDomain.RoutingDomain) -FileType txt -Format List
+                    }
+                }
+            }
+        }
+        catch {
+            $_ | Trace-Exception
+            $_ | Write-Error -ErrorAction Continue
+            [PSCustomObject]@{ CollectionError = $_.Exception.Message } |
+                Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-BgpPeer' -FileType txt -Format List
+        }
+
+        Get-NetCompartment -ErrorAction Ignore |
+            Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-NetCompartment' -FileType txt -Format List
+        Get-NetIPAddress -IncludeAllCompartments -ErrorAction Ignore |
+            Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-NetIPAddress' -FileType txt -Format List
+        Get-NetIPInterface -AddressFamily IPv4 -IncludeAllCompartments -ErrorAction Ignore |
+            Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-NetIPInterface_IPv4' -FileType txt -Format List
+        Get-NetRoute -AddressFamily IPv4 -IncludeAllCompartments -ErrorAction Ignore |
+            Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-NetRoute_IPv4' -FileType txt -Format List
+        Get-NetNeighbor -AddressFamily IPv4 -IncludeAllCompartments -ErrorAction Ignore |
+            Export-ObjectToFile -FilePath $peerPath.FullName -Name 'Get-NetNeighbor_IPv4' -FileType txt -Format List
+
         # dump out the role configuration state properties
         "Getting RRAS VPN configuration details" | Trace-Output -Level:Verbose
         Get-VpnServerConfiguration | Export-ObjectToFile -FilePath $outDir -FileType txt -Format List
@@ -175,4 +241,3 @@ function Enable-SdnRasGatewayTracing {
         $_ | Write-Error
     }
 }
-
