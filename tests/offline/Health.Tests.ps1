@@ -310,6 +310,27 @@ Describe 'Health - Gateway peer next-hop ARP' {
             }
         }
 
+        It "Distinguishes an empty route inventory from an unavailable route-interface association" {
+            InModuleScope SdnDiag.Health {
+                $emptyResult = Select-SdnGatewayIPv4Route -PeerIPAddress '10.20.30.44' -CompartmentId 4 `
+                    -Routes @() -IPInterfaces @()
+                $emptyResult.Status | Should -Be 'RouteMissing'
+
+                $route = [PSCustomObject]@{
+                    DestinationPrefix = '10.20.30.0/24'
+                    NextHop = '192.0.2.1'
+                    InterfaceIndex = 10
+                    CompartmentId = 4
+                    RouteMetric = 5
+                    State = 'Alive'
+                }
+                $unassociatedResult = Select-SdnGatewayIPv4Route -PeerIPAddress '10.20.30.44' -CompartmentId 4 `
+                    -Routes @($route) -IPInterfaces @()
+                $unassociatedResult.Status | Should -Be 'Unknown'
+                $unassociatedResult.ReasonCode | Should -Be 'RouteInterfaceAssociationUnavailable'
+            }
+        }
+
         It "Reports equally preferred route paths as ambiguous" {
             InModuleScope SdnDiag.Health {
                 $routes = @(
@@ -351,6 +372,11 @@ Describe 'Health - Gateway peer next-hop ARP' {
 
                 $Global:PesterGatewayNeighborState = 'Unreachable'
                 $Global:PesterGatewayNextHop = '192.0.2.1'
+                $Global:PesterGatewayProtocolIFType = 6
+                $Global:PesterGatewayNeighborDiscoverySupported = $true
+                $Global:PesterGatewayDomainStatus = 'Enabled'
+                $Global:PesterGatewayPeerCount = 1
+                $Global:PesterGatewayNeighborReadCount = 0
                 Mock Get-Command {
                     if ($Name -eq 'Get-BgpPeer') {
                         return [PSCustomObject]@{ Parameters = @{ AllRoutingDomains = $true } }
@@ -358,36 +384,47 @@ Describe 'Health - Gateway peer next-hop ARP' {
                     return $null
                 }
                 Mock Get-RemoteAccessRoutingDomain {
-                    [PSCustomObject]@{ RoutingDomain = 'tenant-a'; RoutingDomainID = '11111111-1111-1111-1111-111111111111'; Status = 'Enabled' }
+                    [PSCustomObject]@{ RoutingDomain = 'tenant-a'; RoutingDomainID = '11111111-1111-1111-1111-111111111111'; RoutingStatus = $Global:PesterGatewayDomainStatus }
                 }
                 Mock Get-NetCompartment {
                     [PSCustomObject]@{ CompartmentId = 4; CompartmentGuid = '{11111111-1111-1111-1111-111111111111}'; CompartmentDescription = 'tenant-a' }
                 }
                 Mock Get-BgpPeer {
-                    [PSCustomObject]@{ RoutingDomain = 'tenant-a'; PeerName = 'peer-a'; PeerIPAddress = '10.20.30.44'; LocalIPAddress = '10.20.30.1'; ConnectivityStatus = 'Disconnected'; OperationMode = 'Active' }
+                    1..$Global:PesterGatewayPeerCount | ForEach-Object {
+                        [PSCustomObject]@{
+                            RoutingDomain = 'tenant-a'
+                            PeerName = "peer-$_"
+                            PeerIPAddress = "10.20.30.$(43 + $_)"
+                            LocalIPAddress = '10.20.30.1'
+                            ConnectivityStatus = 'Disconnected'
+                            OperationMode = 'Active'
+                        }
+                    }
                 }
                 Mock Get-NetIPAddress {
-                    if ($PSBoundParameters.ContainsKey('IPAddress')) {
-                        return [PSCustomObject]@{ IPAddress = '10.20.30.1'; CompartmentId = 4; InterfaceIndex = 5 }
+                    if ($PesterBoundParameters.ContainsKey('IPAddress')) {
+                        return [PSCustomObject]@{ IPAddress = '10.20.30.1'; InterfaceIndex = 5 }
                     }
-                    return [PSCustomObject]@{ IPAddress = '192.0.2.10'; CompartmentId = 4; InterfaceIndex = 10 }
+                    return [PSCustomObject]@{ IPAddress = '192.0.2.10'; InterfaceIndex = 10 }
                 }
                 Mock Get-NetIPInterface {
-                    if ($PSBoundParameters.ContainsKey('AssociatedIPAddress')) {
-                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 5; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected' }
+                    if ($PesterBoundParameters.ContainsKey('AssociatedIPAddress')) {
+                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 5; InterfaceAlias = 'BGP-Source'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 6; NeighborDiscoverySupported = $true }
                     }
-                    if ($PSBoundParameters.ContainsKey('AssociatedRoute')) {
-                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; InterfaceAlias = 'DVLAB-GW-Uplink'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; InterfaceType = 'Ethernet' }
+                    if ($PesterBoundParameters.ContainsKey('AssociatedRoute')) {
+                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; InterfaceAlias = 'DVLAB-GW-Uplink'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = $Global:PesterGatewayProtocolIFType; NeighborDiscoverySupported = $Global:PesterGatewayNeighborDiscoverySupported }
                     }
-                    return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected' }
+                    return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 6; NeighborDiscoverySupported = $true }
                 }
                 Mock Get-NetRoute {
                     [PSCustomObject]@{ DestinationPrefix = '10.20.30.0/24'; NextHop = $Global:PesterGatewayNextHop; InterfaceIndex = 10; CompartmentId = 4; RouteMetric = 5; State = 'Alive' }
                 }
                 Mock Get-NetNeighbor {
                     if ($Global:PesterGatewayNeighborState) {
+                        $Global:PesterGatewayNeighborReadCount++
                         $neighborAddress = if ($Global:PesterGatewayNextHop -eq '0.0.0.0') { '10.20.30.44' } else { $Global:PesterGatewayNextHop }
-                        [PSCustomObject]@{ IPAddress = $neighborAddress; State = $Global:PesterGatewayNeighborState; LinkLayerAddress = '00:11:22:33:44:55' }
+                        $state = if ($Global:PesterGatewayPeerCount -gt 1 -and $Global:PesterGatewayNeighborReadCount -gt 3) { 'Reachable' } else { $Global:PesterGatewayNeighborState }
+                        [PSCustomObject]@{ IPAddress = $neighborAddress; State = $state; LinkLayerAddress = '00:11:22:33:44:55' }
                     }
                 }
 
@@ -397,6 +434,25 @@ Describe 'Health - Gateway peer next-hop ARP' {
                 $result.Properties[0].NeighborTargetKind | Should -Be 'L3NextHop'
                 $result.Properties[0].SampleHistoryUtc.Count | Should -Be 3
                 $result.Properties[0].ReasonCode | Should -Be 'PersistentUnresolvedNextHop'
+                $result.Properties[0].EgressSourceAddresses | Should -Contain '192.0.2.10'
+                $result.Properties[0].BgpLocalInterfaceIndex | Should -Be 5
+
+                $Global:PesterGatewayPeerCount = 2
+                $Global:PesterGatewayNeighborReadCount = 0
+                $recoveryResult = Test-SdnGatewayPeerNextHopArp -SampleCount 3 -SampleIntervalSeconds 0 -SettlingPeriodSeconds 0
+                $recoveryResult.Properties[0].Result | Should -Be 'FAIL'
+                $recoveryResult.Properties[1].Result | Should -Be 'PASS'
+                $Global:PesterGatewayNeighborReadCount | Should -Be 6
+
+                $Global:PesterGatewayPeerCount = 1
+                $Global:PesterGatewayNeighborReadCount = 0
+                $Global:PesterGatewayProtocolIFType = 24
+                $Global:PesterGatewayNeighborDiscoverySupported = $false
+                $nonArpResult = Test-SdnGatewayPeerNextHopArp -SampleCount 2 -SampleIntervalSeconds 0 -SettlingPeriodSeconds 0
+                $nonArpResult.Properties[0].Result | Should -Be 'NotApplicable'
+                $nonArpResult.Properties[0].ReasonCode | Should -Be 'PathDoesNotUseEthernetArp'
+                $Global:PesterGatewayProtocolIFType = 6
+                $Global:PesterGatewayNeighborDiscoverySupported = $true
 
                 $Global:PesterGatewayNeighborState = 'Reachable'
                 $Global:PesterGatewayNextHop = '0.0.0.0'
@@ -417,6 +473,11 @@ Describe 'Health - Gateway peer next-hop ARP' {
                 $missingResult.Properties[0].ReasonCode | Should -Be 'NeighborNotObserved'
                 Remove-Variable -Name PesterGatewayNeighborState -Scope Global
                 Remove-Variable -Name PesterGatewayNextHop -Scope Global
+                Remove-Variable -Name PesterGatewayProtocolIFType -Scope Global
+                Remove-Variable -Name PesterGatewayNeighborDiscoverySupported -Scope Global
+                Remove-Variable -Name PesterGatewayDomainStatus -Scope Global
+                Remove-Variable -Name PesterGatewayPeerCount -Scope Global
+                Remove-Variable -Name PesterGatewayNeighborReadCount -Scope Global
             }
         }
     }

@@ -1047,9 +1047,11 @@ function Select-SdnGatewayIPv4Route {
         [int]$CompartmentId,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [object[]]$Routes,
 
         [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
         [object[]]$IPInterfaces
     )
 
@@ -1069,7 +1071,7 @@ function Select-SdnGatewayIPv4Route {
         }
     }
 
-    $matchingPaths = @()
+    $matchingRoutes = @()
     foreach ($route in $Routes) {
         if ($null -ne $route.CompartmentId -and [int]$route.CompartmentId -ne $CompartmentId) {
             continue
@@ -1084,6 +1086,28 @@ function Select-SdnGatewayIPv4Route {
             continue
         }
 
+        $matchingRoutes += [PSCustomObject]@{
+            Route = $route
+            PrefixLength = $prefixLength
+        }
+    }
+
+    if ($matchingRoutes.Count -eq 0) {
+        return [PSCustomObject]@{
+            Status = 'RouteMissing'
+            ReasonCode = 'RouteMissing'
+            SelectedRoute = $null
+            SelectedInterface = $null
+            CandidatePaths = @()
+        }
+    }
+
+    $longestPrefix = ($matchingRoutes | Measure-Object -Property PrefixLength -Maximum).Maximum
+    $bestPrefixRoutes = @($matchingRoutes | Where-Object { $_.PrefixLength -eq $longestPrefix })
+    $matchingPaths = @()
+    $unassociatedRoutes = @()
+    foreach ($matchingRoute in $bestPrefixRoutes) {
+        $route = $matchingRoute.Route
         $interfaces = @(
             $IPInterfaces | Where-Object {
                 [int]$_.InterfaceIndex -eq [int]$route.InterfaceIndex -and
@@ -1091,6 +1115,9 @@ function Select-SdnGatewayIPv4Route {
                 ($_.AddressFamily -eq 'IPv4' -or $null -eq $_.AddressFamily)
             }
         )
+        if ($interfaces.Count -eq 0) {
+            $unassociatedRoutes += $route
+        }
         foreach ($ipInterface in $interfaces) {
             $connectionState = [string]$ipInterface.ConnectionState
             $routeState = [string]$route.State
@@ -1121,18 +1148,33 @@ function Select-SdnGatewayIPv4Route {
         }
     }
 
-    if ($matchingPaths.Count -eq 0) {
+    if ($unassociatedRoutes.Count -gt 0 -or $matchingPaths.Count -eq 0) {
+        $candidatePaths = @($matchingPaths) + @($unassociatedRoutes | ForEach-Object {
+                [PSCustomObject]@{
+                    Route = $_
+                    DestinationPrefix = [string]$_.DestinationPrefix
+                    NextHop = [string]$_.NextHop
+                    InterfaceIndex = [int]$_.InterfaceIndex
+                    RouteMetric = $_.RouteMetric
+                    InterfaceMetric = $null
+                    EffectiveMetric = $null
+                    PrefixLength = $longestPrefix
+                    Eligible = $null
+                    ConnectionState = $null
+                    RouteState = [string]$_.State
+                    AssociationStatus = 'InterfaceUnavailable'
+                }
+            })
         return [PSCustomObject]@{
-            Status = 'RouteMissing'
-            ReasonCode = 'RouteMissing'
+            Status = 'Unknown'
+            ReasonCode = 'RouteInterfaceAssociationUnavailable'
             SelectedRoute = $null
             SelectedInterface = $null
-            CandidatePaths = @()
+            CandidatePaths = $candidatePaths
         }
     }
 
-    $longestPrefix = ($matchingPaths | Measure-Object -Property PrefixLength -Maximum).Maximum
-    $bestPrefixPaths = @($matchingPaths | Where-Object { $_.PrefixLength -eq $longestPrefix })
+    $bestPrefixPaths = @($matchingPaths)
     $eligiblePaths = @($bestPrefixPaths | Where-Object { $_.Eligible })
     if ($eligiblePaths.Count -eq 0) {
         return [PSCustomObject]@{
@@ -1166,6 +1208,33 @@ function Select-SdnGatewayIPv4Route {
         SelectedInterface = $distinctPaths[0].Interface
         CandidatePaths = $bestPaths
     }
+}
+
+function Get-SdnGatewayArpPathClassification {
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$IPInterface
+    )
+
+    $neighborDiscoverySupported = $IPInterface.NeighborDiscoverySupported
+    if ($neighborDiscoverySupported -is [bool] -and -not $neighborDiscoverySupported) {
+        return 'NotApplicable'
+    }
+    if ([string]$neighborDiscoverySupported -match '^(No|False|Disabled|0)$') {
+        return 'NotApplicable'
+    }
+
+    $protocolType = [string]$IPInterface.ProtocolIFType
+    if ($protocolType -match '^(23|24|131|Ppp|SoftwareLoopback|Tunnel)$') {
+        return 'NotApplicable'
+    }
+
+    if ($protocolType -match '^(6|EthernetCsmacd|Ethernet)$' -and
+        [string]$neighborDiscoverySupported -match '^(Yes|True|Enabled|1)$') {
+        return 'EthernetArp'
+    }
+
+    return 'Unknown'
 }
 
 function Test-SdnGatewayPeerNextHopArp {
@@ -1208,10 +1277,24 @@ function Test-SdnGatewayPeerNextHopArp {
                     continue
                 }
 
+                $domainStatus = $null
+                if ($provider -eq 'Get-RemoteAccessRoutingDomain' -and
+                    $null -ne $domain.PSObject.Properties['RoutingStatus']) {
+                    $domainStatus = [string]$domain.RoutingStatus
+                }
+                elseif ($provider -eq 'Get-GatewayRoutingDomain') {
+                    foreach ($statusProperty in @('OperationalStatus', 'Status', 'RoutingStatus')) {
+                        if ($null -ne $domain.PSObject.Properties[$statusProperty]) {
+                            $domainStatus = [string]$domain.$statusProperty
+                            break
+                        }
+                    }
+                }
+
                 $domainInventory += [PSCustomObject]@{
                     RoutingDomain = [string]$domain.RoutingDomain
                     RoutingDomainID = [string]$domain.RoutingDomainID
-                    Status = [string]$domain.Status
+                    RoutingStatus = $domainStatus
                     DomainProvider = $provider
                 }
             }
@@ -1333,13 +1416,13 @@ function Test-SdnGatewayPeerNextHopArp {
         return $sdnHealthTest
     }
 
-    $neighborSamples = @{}
     foreach ($peer in $peers) {
         $record = [ordered]@{
             ComputerName = $env:COMPUTERNAME
             RoutingDomain = [string]$peer.RoutingDomain
             RoutingDomainID = $null
             DomainProvider = $null
+            RoutingStatus = $null
             CompartmentId = $null
             CompartmentGuid = $null
             DomainMappingStatus = 'Unknown'
@@ -1395,6 +1478,7 @@ function Test-SdnGatewayPeerNextHopArp {
             $domain = $matchingDomains[0]
             $record.RoutingDomainID = $domain.RoutingDomainID
             $record.DomainProvider = $domain.DomainProvider
+            $record.RoutingStatus = $domain.RoutingStatus
             $guid = [guid]::Empty
             if (-not [guid]::TryParse($domain.RoutingDomainID, [ref]$guid)) {
                 $record.ReasonCode = 'RoutingDomainCompartmentIdUnavailable'
@@ -1442,12 +1526,13 @@ function Test-SdnGatewayPeerNextHopArp {
             $record.BgpLocalInterfaceIndex = [int]$sourceInterfaces[0].InterfaceIndex
             $record.BgpLocalInterfaceAlias = [string]$sourceInterfaces[0].InterfaceAlias
 
-            if ($domain.Status -match 'Stopped|Disabled|Passive' -or $peer.OperationMode -match 'Passive') {
+            if ($domain.RoutingStatus -match 'Stopped|Disabled|Passive' -or $peer.OperationMode -match 'Passive') {
                 $record.Result = 'NotApplicable'
                 $record.ReasonCode = 'PeerOrDomainNotExpectedToConnect'
                 $peerResults += [PSCustomObject]$record
                 continue
             }
+            $domainExpectedActive = $domain.RoutingStatus -match 'Enabled|Started|Running|Active'
 
             $samplePathKey = $null
             $sampleRouteKey = $null
@@ -1509,8 +1594,8 @@ function Test-SdnGatewayPeerNextHopArp {
                     $targetKind = 'L3NextHop'
                 }
 
-                if ([string]$egressInterface.InterfaceType -match 'Tunnel|Loopback|PPP' -or
-                    [string]$egressInterface.InterfaceType -in @('23', '24', '131')) {
+                $arpPathClassification = Get-SdnGatewayArpPathClassification -IPInterface $egressInterface
+                if ($arpPathClassification -eq 'NotApplicable') {
                     $record.Result = 'NotApplicable'
                     $record.ReasonCode = 'PathDoesNotUseEthernetArp'
                     $record.DestinationPrefix = [string]$route.DestinationPrefix
@@ -1518,6 +1603,10 @@ function Test-SdnGatewayPeerNextHopArp {
                     $record.InterfaceIndex = [int]$egressInterface.InterfaceIndex
                     $record.InterfaceAlias = [string]$egressInterface.InterfaceAlias
                     $record.InterfaceConnectionState = [string]$egressInterface.ConnectionState
+                    break
+                }
+                if ($arpPathClassification -ne 'EthernetArp') {
+                    $routeFailure = 'InterfaceTypeOrNeighborDiscoveryUnknown'
                     break
                 }
 
@@ -1543,14 +1632,13 @@ function Test-SdnGatewayPeerNextHopArp {
                 $record.InterfaceConnectionState = [string]$egressInterface.ConnectionState
                 $record.NeighborTargetIPAddress = $arpTarget
                 $record.NeighborTargetKind = $targetKind
-                if ($sampleIndex -eq 0 -and $neighborSamples.ContainsKey($samplePathKey)) {
-                    $sampleRecords = $neighborSamples[$samplePathKey]
-                    break
-                }
                 $record.EgressSourceAddresses = @(
                     Get-NetIPAddress -AssociatedIPInterface $egressInterface -AddressFamily IPv4 `
                         -IncludeAllCompartments -ErrorAction Stop |
-                        Where-Object { [int]$_.CompartmentId -eq [int]$compartment.CompartmentId } |
+                        Where-Object {
+                            $null -eq $_.PSObject.Properties['InterfaceIndex'] -or
+                            [int]$_.InterfaceIndex -eq [int]$egressInterface.InterfaceIndex
+                        } |
                         ForEach-Object { [string]$_.IPAddress }
                 )
 
@@ -1599,12 +1687,6 @@ function Test-SdnGatewayPeerNextHopArp {
                 continue
             }
 
-            if ($neighborSamples.ContainsKey($samplePathKey)) {
-                $sampleRecords = $neighborSamples[$samplePathKey]
-            }
-            else {
-                $neighborSamples[$samplePathKey] = $sampleRecords
-            }
             $record.SampleHistoryUtc = $sampleRecords
             $states = @($sampleRecords | ForEach-Object { $_.State })
             $record.NeighborState = $states[-1]
@@ -1622,7 +1704,7 @@ function Test-SdnGatewayPeerNextHopArp {
                     $record.Result = 'WARNING'
                     $record.ReasonCode = 'UnresolvedNeighborPeerReportedConnected'
                 }
-                elseif ($peer.ConnectivityStatus -match '^(Disconnected|NotConnected|Connecting|Idle)$') {
+                elseif ($domainExpectedActive -and $peer.ConnectivityStatus -match '^(Disconnected|NotConnected|Connecting|Idle)$') {
                     $record.Result = 'FAIL'
                     $record.ReasonCode = 'PersistentUnresolvedNextHop'
                     $record.Finding = "The selected IPv4 next-hop neighbor for BGP peer $($peer.PeerIPAddress) remains $($record.NeighborState) on interface $($record.InterfaceIndex) in compartment $($record.CompartmentId). This may block peer connectivity; local gateway state does not identify an upstream fault."
