@@ -454,6 +454,12 @@ Describe 'Health - Gateway peer next-hop ARP' {
                 $Global:PesterGatewayProtocolIFType = 6
                 $Global:PesterGatewayNeighborDiscoverySupported = $true
 
+                $Global:PesterGatewayDomainStatus = 'Disabled'
+                $inactiveDomainResult = Test-SdnGatewayPeerNextHopArp -SampleCount 2 -SampleIntervalSeconds 0 -SettlingPeriodSeconds 0
+                $inactiveDomainResult.Properties[0].Result | Should -Be 'NotApplicable'
+                $inactiveDomainResult.Properties[0].ReasonCode | Should -Be 'PeerOrDomainNotExpectedToConnect'
+                $Global:PesterGatewayDomainStatus = 'Enabled'
+
                 $Global:PesterGatewayNeighborState = 'Reachable'
                 $Global:PesterGatewayNextHop = '0.0.0.0'
                 $onLinkResult = Test-SdnGatewayPeerNextHopArp -SampleCount 2 -SampleIntervalSeconds 0 -SettlingPeriodSeconds 0
