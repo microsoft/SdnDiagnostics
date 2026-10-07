@@ -365,6 +365,10 @@ Describe 'Health - Gateway peer next-hop ARP' {
                     [CmdletBinding()]
                     param([string]$AddressFamily, [int]$CompartmentId, [string]$PolicyStore)
                 }
+                function Get-NetAdapter {
+                    [CmdletBinding()]
+                    param([int]$InterfaceIndex, [switch]$IncludeHidden)
+                }
                 function Get-NetNeighbor {
                     [CmdletBinding()]
                     param([object]$AssociatedIPInterface, [switch]$IncludeAllCompartments, [string]$AddressFamily)
@@ -372,7 +376,8 @@ Describe 'Health - Gateway peer next-hop ARP' {
 
                 $Global:PesterGatewayNeighborState = 'Unreachable'
                 $Global:PesterGatewayNextHop = '192.0.2.1'
-                $Global:PesterGatewayProtocolIFType = 6
+                $Global:PesterGatewayProtocolIFType = 4096
+                $Global:PesterGatewayMediaType = '802.3'
                 $Global:PesterGatewayNeighborDiscoverySupported = $true
                 $Global:PesterGatewayDomainStatus = 'Enabled'
                 $Global:PesterGatewayPeerCount = 1
@@ -409,12 +414,15 @@ Describe 'Health - Gateway peer next-hop ARP' {
                 }
                 Mock Get-NetIPInterface {
                     if ($PesterBoundParameters.ContainsKey('AssociatedIPAddress')) {
-                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 5; InterfaceAlias = 'BGP-Source'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 6; NeighborDiscoverySupported = $true }
+                        return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 5; InterfaceAlias = 'BGP-Source'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 4096; NeighborDiscoverySupported = $true }
                     }
                     if ($PesterBoundParameters.ContainsKey('AssociatedRoute')) {
                         return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; InterfaceAlias = 'DVLAB-GW-Uplink'; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = $Global:PesterGatewayProtocolIFType; NeighborDiscoverySupported = $Global:PesterGatewayNeighborDiscoverySupported }
                     }
-                    return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 6; NeighborDiscoverySupported = $true }
+                    return [PSCustomObject]@{ CompartmentId = 4; InterfaceIndex = 10; AddressFamily = 'IPv4'; InterfaceMetric = 10; ConnectionState = 'Connected'; ProtocolIFType = 4096; NeighborDiscoverySupported = $true }
+                }
+                Mock Get-NetAdapter {
+                    [PSCustomObject]@{ InterfaceIndex = 10; MediaType = $Global:PesterGatewayMediaType }
                 }
                 Mock Get-NetRoute {
                     [PSCustomObject]@{ DestinationPrefix = '10.20.30.0/24'; NextHop = $Global:PesterGatewayNextHop; InterfaceIndex = 10; CompartmentId = 4; RouteMetric = 5; State = 'Alive' }
@@ -446,12 +454,14 @@ Describe 'Health - Gateway peer next-hop ARP' {
 
                 $Global:PesterGatewayPeerCount = 1
                 $Global:PesterGatewayNeighborReadCount = 0
-                $Global:PesterGatewayProtocolIFType = 24
+                $Global:PesterGatewayProtocolIFType = 4096
+                $Global:PesterGatewayMediaType = 'Tunnel'
                 $Global:PesterGatewayNeighborDiscoverySupported = $false
                 $nonArpResult = Test-SdnGatewayPeerNextHopArp -SampleCount 2 -SampleIntervalSeconds 0 -SettlingPeriodSeconds 0
                 $nonArpResult.Properties[0].Result | Should -Be 'NotApplicable'
                 $nonArpResult.Properties[0].ReasonCode | Should -Be 'PathDoesNotUseEthernetArp'
-                $Global:PesterGatewayProtocolIFType = 6
+                $Global:PesterGatewayProtocolIFType = 4096
+                $Global:PesterGatewayMediaType = '802.3'
                 $Global:PesterGatewayNeighborDiscoverySupported = $true
 
                 $Global:PesterGatewayDomainStatus = 'Disabled'
@@ -480,6 +490,7 @@ Describe 'Health - Gateway peer next-hop ARP' {
                 Remove-Variable -Name PesterGatewayNeighborState -Scope Global
                 Remove-Variable -Name PesterGatewayNextHop -Scope Global
                 Remove-Variable -Name PesterGatewayProtocolIFType -Scope Global
+                Remove-Variable -Name PesterGatewayMediaType -Scope Global
                 Remove-Variable -Name PesterGatewayNeighborDiscoverySupported -Scope Global
                 Remove-Variable -Name PesterGatewayDomainStatus -Scope Global
                 Remove-Variable -Name PesterGatewayPeerCount -Scope Global

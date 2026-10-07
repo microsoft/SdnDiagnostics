@@ -1140,7 +1140,7 @@ function Select-SdnGatewayIPv4Route {
                 RouteMetric = $routeMetric
                 InterfaceMetric = $interfaceMetric
                 EffectiveMetric = $routeMetric + $interfaceMetric
-                PrefixLength = $prefixLength
+                PrefixLength = $matchingRoute.PrefixLength
                 Eligible = $eligible
                 ConnectionState = $connectionState
                 RouteState = $routeState
@@ -1213,7 +1213,10 @@ function Select-SdnGatewayIPv4Route {
 function Get-SdnGatewayArpPathClassification {
     param (
         [Parameter(Mandatory = $true)]
-        [object]$IPInterface
+        [object]$IPInterface,
+
+        [Parameter(Mandatory = $false)]
+        [object]$NetAdapter
     )
 
     $neighborDiscoverySupported = $IPInterface.NeighborDiscoverySupported
@@ -1229,8 +1232,16 @@ function Get-SdnGatewayArpPathClassification {
         return 'NotApplicable'
     }
 
-    if ($protocolType -match '^(6|EthernetCsmacd|Ethernet)$' -and
-        [string]$neighborDiscoverySupported -match '^(Yes|True|Enabled|1)$') {
+    $mediaType = $null
+    if ($null -ne $NetAdapter) {
+        $mediaType = [string]$NetAdapter.MediaType
+        if ($mediaType -match '(Tunnel|Wide Area|WAN|Loopback)') {
+            return 'NotApplicable'
+        }
+    }
+
+    $isEthernet = $protocolType -match '^(6|EthernetCsmacd|Ethernet)$' -or $mediaType -eq '802.3'
+    if ($isEthernet -and [string]$neighborDiscoverySupported -match '^(Yes|True|Enabled|1)$') {
         return 'EthernetArp'
     }
 
@@ -1594,7 +1605,14 @@ function Test-SdnGatewayPeerNextHopArp {
                     $targetKind = 'L3NextHop'
                 }
 
-                $arpPathClassification = Get-SdnGatewayArpPathClassification -IPInterface $egressInterface
+                $egressAdapter = $null
+                try {
+                    $egressAdapter = Get-NetAdapter -InterfaceIndex ([int]$egressInterface.InterfaceIndex) -IncludeHidden -ErrorAction Stop | Select-Object -First 1
+                }
+                catch {
+                    $egressAdapter = $null
+                }
+                $arpPathClassification = Get-SdnGatewayArpPathClassification -IPInterface $egressInterface -NetAdapter $egressAdapter
                 if ($arpPathClassification -eq 'NotApplicable') {
                     $record.Result = 'NotApplicable'
                     $record.ReasonCode = 'PathDoesNotUseEthernetArp'
