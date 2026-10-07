@@ -57,6 +57,12 @@
             Impact = "Gateway functionality may be impacted if the RemoteAccess WMI provider is not installed or operational."
             PublicDocUrl = ""
         }
+        'Test-SdnGatewayPeerNextHopArp' = @{
+            FriendlyName = "Gateway BGP Peer Next-Hop Neighbor Resolution"
+            Description = "Correlate locally configured IPv4 BGP peers with their selected route, egress interface, and neighbor state."
+            Impact = "Persistent unresolved neighbor state may prevent connectivity to a BGP peer or its selected L3 next hop."
+            PublicDocUrl = ""
+        }
 
         # LOAD BALANCER MUX TESTS
 
