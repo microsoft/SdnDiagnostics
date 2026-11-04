@@ -541,7 +541,6 @@ function Open-StructuredDiagnosticArtifactWriter {
         RecordCount = 0
         MaximumBytes = $MaximumBytes
         BytesWritten = if ($Format -eq 'Json') { 2L } else { 0L }
-        Truncated = $false
     }
 }
 
@@ -563,7 +562,6 @@ function Write-StructuredDiagnosticArtifactRecord {
         $line = [string]$Record
         $recordBytes = [System.Text.Encoding]::UTF8.GetByteCount($line + [Environment]::NewLine)
         if ($Writer.MaximumBytes -gt 0 -and ($Writer.BytesWritten + $recordBytes) -gt $Writer.MaximumBytes) {
-            $Writer.Truncated = $true
             throw 'StructuredDiagnosticArtifactSizeLimitReached'
         }
         $Writer.Stream.WriteLine($line)
@@ -583,7 +581,6 @@ function Write-StructuredDiagnosticArtifactRecord {
     else {
         $recordBytes = [System.Text.Encoding]::UTF8.GetByteCount($json + [Environment]::NewLine)
         if ($Writer.MaximumBytes -gt 0 -and ($Writer.BytesWritten + $recordBytes) -gt $Writer.MaximumBytes) {
-            $Writer.Truncated = $true
             throw 'StructuredDiagnosticArtifactSizeLimitReached'
         }
         $Writer.Stream.WriteLine($json)
@@ -603,10 +600,7 @@ function Get-StructuredDiagnosticEvent {
         [DateTime]$FromDate,
 
         [Parameter()]
-        [DateTime]$ToDate,
-
-        [Parameter()]
-        [switch]$AllEvents
+        [DateTime]$ToDate
     )
 
     $log = Get-WinEvent -ListLog $LogName -ErrorAction Stop
@@ -614,10 +608,10 @@ function Get-StructuredDiagnosticEvent {
         throw "Event log '$LogName' is disabled."
     }
 
-    $filter = @{ LogName = $LogName }
-    if (-not $AllEvents) {
-        $filter.StartTime = $FromDate
-        $filter.EndTime = $ToDate
+    $filter = @{
+        LogName = $LogName
+        StartTime = $FromDate
+        EndTime = $ToDate
     }
 
     try {

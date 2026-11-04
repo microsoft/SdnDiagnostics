@@ -5,7 +5,6 @@ Describe 'Utilities - job progress contract' {
             (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressStatusScript') | Should -BeTrue
             (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressPercentScript') | Should -BeTrue
             (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressUpdateScript') | Should -BeTrue
-            (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressMessageScript') | Should -BeTrue
             (Get-Command Wait-PSJob).Parameters.ContainsKey('ShowProgress') | Should -BeTrue
             (Get-Command Trace-Output).Parameters.ContainsKey('ComputerName') | Should -BeTrue
         }

@@ -1596,11 +1596,7 @@ function Invoke-PSRemoteCommand {
         [System.String]$Activity,
 
         [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
-        [int]$ExecutionTimeout = 900,
-
-        [Parameter(Mandatory = $false, ParameterSetName = 'AsJob')]
-        [ValidateRange(0, [int]::MaxValue)]
-        [int]$ProgressMessageInterval = 0
+        [int]$ExecutionTimeout = 900
     )
 
     $params = @{
@@ -1633,15 +1629,12 @@ function Invoke-PSRemoteCommand {
 
             $result = Invoke-Command @params
             if ($PassThru) {
-                $waitParams = @{
-                    Name = $result.Name
-                    ExecutionTimeOut = $ExecutionTimeout
-                    ProgressMessageInterval = $ProgressMessageInterval
-                }
                 if ($Activity) {
-                    $waitParams.Add('Activity', $Activity)
+                    $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout -Activity $Activity
                 }
-                $result = Wait-PSJob @waitParams
+                else {
+                    $result = Wait-PSJob -Name $result.Name -ExecutionTimeOut $ExecutionTimeout
+                }
             }
 
             return $result
@@ -2466,16 +2459,12 @@ function Wait-PSJob {
         Total period to wait for jobs to complete before stopping jobs and progressing forward in scripts. If omitted, defaults to 600 seconds
     .PARAMETER PollingInterval
         How often you want to query job status. If omitted, defaults to 1 seconds
-    .PARAMETER ProgressMessageInterval
-        How often to write a durable text progress message. A value of 0 disables text progress messages.
     .PARAMETER ProgressStatusScript
         Optional script that receives the monitored jobs and returns a detailed progress status string.
     .PARAMETER ProgressPercentScript
         Optional script that receives the monitored jobs and returns a detailed completion percentage from 0 through 100.
     .PARAMETER ProgressUpdateScript
         Optional script called during each poll and after the final job refresh with the monitored jobs and persistent update state.
-    .PARAMETER ProgressMessageScript
-        Optional script that receives the activity, status and elapsed seconds and returns the durable text progress message.
     .PARAMETER ShowProgress
         Displays progress even when the caller's progress preference is SilentlyContinue.
     #>
@@ -2495,10 +2484,6 @@ function Wait-PSJob {
         [int]$PollingInterval = 1,
 
         [Parameter(Mandatory = $false)]
-        [ValidateRange(0, [int]::MaxValue)]
-        [int]$ProgressMessageInterval = 0,
-
-        [Parameter(Mandatory = $false)]
         [ScriptBlock]$ProgressStatusScript,
 
         [Parameter(Mandatory = $false)]
@@ -2506,9 +2491,6 @@ function Wait-PSJob {
 
         [Parameter(Mandatory = $false)]
         [ScriptBlock]$ProgressUpdateScript,
-
-        [Parameter(Mandatory = $false)]
-        [ScriptBlock]$ProgressMessageScript,
 
         [Parameter(Mandatory = $false)]
         [switch]$ShowProgress
@@ -2519,7 +2501,6 @@ function Wait-PSJob {
             $ProgressPreference = [System.Management.Automation.ActionPreference]::Continue
         }
         $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-        $nextProgressMessage = $ProgressMessageInterval
         $progressUpdateState = @{}
         "JobName: {0} PollingInterval: {1} seconds ExecutionTimeout: {2} seconds" -f ($Name -join ', '), $PollingInterval, $ExecutionTimeOut | Trace-Output -Level:Verbose
         $jobs = @(Get-Job -Name $Name)
@@ -2560,18 +2541,6 @@ function Wait-PSJob {
                 }
             }
             Write-Progress -Activity $Activity -Status $status -PercentComplete $percent -Id $progressId
-
-            if ($ProgressMessageInterval -gt 0 -and $stopWatch.Elapsed.TotalSeconds -ge $nextProgressMessage) {
-                $progressMessage = if ($ProgressMessageScript) {
-                    & $ProgressMessageScript $Activity $status $stopWatch.Elapsed.TotalSeconds
-                }
-                else {
-                    "{0} is still running. {1}. Elapsed time: {2:N0} seconds." -f
-                        $Activity, $status, $stopWatch.Elapsed.TotalSeconds
-                }
-                $progressMessage | Trace-Output
-                $nextProgressMessage = $stopWatch.Elapsed.TotalSeconds + $ProgressMessageInterval
-            }
 
             # check the stopwatch and if the elapsed time is greater than the timeout, stop the job
             # and set the job state to failed

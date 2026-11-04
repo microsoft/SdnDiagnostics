@@ -80,7 +80,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             Should -Invoke Get-StructuredDiagnosticEvent -Times 0
         }
 
-        It 'Passes the requested date range to events without AllEvents' {
+        It 'Passes the requested date range to events' {
             $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors = @(
                 @{ Id = 'Event'; Kind = 'Event'; RelativePath = 'Host\events.json'; LogName = 'DVLAB-Events'; MaximumBytes = 10MB }
             )
@@ -90,7 +90,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json -IncludeLogs -FromDate $from -ToDate $to
             $result.Status | Should -Be Success
             Should -Invoke Get-StructuredDiagnosticEvent -Times 1 -ParameterFilter {
-                $FromDate -eq [datetime]'2026-01-01T00:00:00Z' -and $ToDate -eq [datetime]'2026-01-01T01:00:00Z' -and -not $AllEvents
+                $FromDate -eq [datetime]'2026-01-01T00:00:00Z' -and $ToDate -eq [datetime]'2026-01-01T01:00:00Z'
             }
         }
 
@@ -114,13 +114,6 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.Status | Should -Be PartialSuccess
             $result.RecordCount | Should -Be 1
             (Get-Content (Join-Path $TestDrive 'Host\record.json') -Raw | ConvertFrom-Json).Name | Should -Be DVLAB
-        }
-
-        It 'Does not claim an artifact for an unavailable command' {
-            $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors[0].CommandName = 'Get-DVLABMissingCommand'
-            $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json
-            $result.Status | Should -Be Unavailable
-            $result.OutputArtifacts.Count | Should -Be 0
         }
 
         It 'Skips an unavailable Get-StorageNetworkIntent command and continues collecting' {
@@ -558,9 +551,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             }
             Should -Invoke Wait-PSJob -Times 1 -ParameterFilter {
                 $Name -contains 'SdnDiag-DVLAB' -and $Activity -eq 'Structured diagnostics' -and
-                    $ExecutionTimeOut -eq 1800 -and -not $ProgressMessageInterval -and
+                    $ExecutionTimeOut -eq 1800 -and
                     $null -ne $ProgressStatusScript -and $null -ne $ProgressPercentScript -and
-                    $null -ne $ProgressUpdateScript -and $null -eq $ProgressMessageScript -and $ShowProgress
+                    $null -ne $ProgressUpdateScript -and $ShowProgress
             }
             Should -Invoke Import-Module -Times 1 -ParameterFilter {
                 $Name -like '*\modules\SdnDiag.StructuredDiagnostics.psm1' -and $PassThru

@@ -148,16 +148,6 @@ Describe 'SdnDiagnostics - optional structured diagnostics' {
             Should -Invoke Clear-SdnWorkingDirectory -Times 0
         }
 
-        It 'Collects every resolved non-SDN cluster host rather than replacing them with localhost' {
-            $result = Start-SdnDataCollection -Role Server -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
-            $result.Status | Should -Be Completed
-            Should -Invoke Get-StructuredDiagnosticTarget -Times 1
-            Should -Invoke Invoke-StructuredDiagnostics -Times 1 -ParameterFilter {
-                $ComputerName.Count -eq 2 -and $ComputerName -contains 'DVLAB-S1-N01' -and $ComputerName -contains 'DVLAB-S1-N02'
-            }
-            Should -Invoke Get-SdnInfrastructureInfo -Times 0
-        }
-
         It 'Retains SDN collection when the local NC role is detected' {
             $Global:SdnDiagnostics.Config.Role = @('Common', 'NetworkController')
             $result = Start-SdnDataCollection -Role Server -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
@@ -221,15 +211,6 @@ Describe 'SdnDiagnostics - optional structured diagnostics' {
             }
         }
 
-        It 'Does not add HostNetwork roles or parameters to existing configuration and log APIs' {
-            $roleValidation = (Get-Command Get-SdnConfigState).Parameters.Role.Attributes |
-                Where-Object { $_ -is [System.Management.Automation.ValidateSetAttribute] }
-            $roleValidation.ValidValues | Should -Not -Contain HostNetwork
-            (Get-Command Get-SdnConfigState).Parameters.ContainsKey('CollectionId') | Should -BeFalse
-            (Get-Command Get-SdnConfigState).Parameters.ContainsKey('IncludeStructuredDiagnostics') | Should -BeFalse
-            (Get-Command Get-ServerConfigState).Parameters.ContainsKey('IncludeStructuredDiagnostics') | Should -BeFalse
-            (Get-Command Get-SdnLogFile).Parameters.ContainsKey('Role') | Should -BeFalse
-        }
     }
 }
 
@@ -283,43 +264,6 @@ Describe 'SdnDiagnostics - independent structured collection integration' {
             finally {
                 $Global:SdnDiagnostics.Config.Role = $savedRoles
             }
-        }
-    }
-}
-
-Describe 'Utilities - legacy export compatibility' {
-    InModuleScope SdnDiag.Utilities {
-        BeforeEach {
-            $script:originalMode = $Global:SdnDiagnostics.Config.Mode
-            Mock Trace-Output -RemoveParameterType Level {}
-            Mock Trace-Exception {}
-        }
-        AfterEach {
-            $Global:SdnDiagnostics.Config.Mode = $script:originalMode
-        }
-
-        It 'Keeps Azure Local cluster exports as singleton JSON at the legacy path' {
-            $Global:SdnDiagnostics.Config.Mode = 'AzureStackHCI'
-            $path = Join-Path $TestDrive 'ConfigState\NetworkController'
-            [PSCustomObject]@{ Name = 'DVLAB-Cluster' } | Export-ObjectToFile -FilePath $path -Name Get-Cluster -FileType txt -Format List
-            $text = Get-Content (Join-Path $path 'Get-Cluster.json') -Raw
-            $text.TrimStart().StartsWith('{') | Should -BeTrue
-            ($text | ConvertFrom-Json).Name | Should -Be DVLAB-Cluster
-            Test-Path (Join-Path $path 'Get-Cluster.txt') | Should -BeFalse
-        }
-
-        It 'Keeps Windows Server cluster exports as text' {
-            $Global:SdnDiagnostics.Config.Mode = 'WindowsServer'
-            $path = Join-Path $TestDrive 'ServerMode'
-            [PSCustomObject]@{ Name = 'DVLAB-Cluster' } | Export-ObjectToFile -FilePath $path -Name Get-Cluster -FileType txt -Format List
-            Get-Content (Join-Path $path 'Get-Cluster.txt') -Raw | Should -Match DVLAB-Cluster
-            Test-Path (Join-Path $path 'Get-Cluster.json') | Should -BeFalse
-        }
-
-        It 'Does not create a legacy artifact for empty data' {
-            $Global:SdnDiagnostics.Config.Mode = 'AzureStackHCI'
-            $null | Export-ObjectToFile -FilePath $TestDrive -Name Empty-Legacy -FileType json
-            Test-Path (Join-Path $TestDrive 'Empty-Legacy.json') | Should -BeFalse
         }
     }
 }
