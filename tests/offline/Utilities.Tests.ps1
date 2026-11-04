@@ -1,3 +1,117 @@
+Describe 'Utilities - job progress contract' {
+    It 'Supports multiple jobs and a detailed status formatter' {
+        InModuleScope SdnDiag.Utilities {
+            (Get-Command Wait-PSJob).Parameters.Name.ParameterType | Should -Be ([string[]])
+            (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressStatusScript') | Should -BeTrue
+            (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressPercentScript') | Should -BeTrue
+            (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressUpdateScript') | Should -BeTrue
+            (Get-Command Wait-PSJob).Parameters.ContainsKey('ProgressMessageScript') | Should -BeTrue
+            (Get-Command Wait-PSJob).Parameters.ContainsKey('ShowProgress') | Should -BeTrue
+            (Get-Command Trace-Output).Parameters.ContainsKey('ComputerName') | Should -BeTrue
+        }
+    }
+
+    It 'Uses a caller-provided detailed completion percentage' {
+        InModuleScope SdnDiag.Utilities {
+            $runningJob = [PSCustomObject]@{
+                Id = 42
+                Name = 'DVLAB-Job'
+                State = 'Running'
+                ChildJobs = @([PSCustomObject]@{ State = 'Running'; Location = 'DVLAB-S1-N01' })
+            }
+            $completedJob = [PSCustomObject]@{
+                Id = 42
+                Name = 'DVLAB-Job'
+                State = 'Completed'
+                ChildJobs = @([PSCustomObject]@{ State = 'Completed'; Location = 'DVLAB-S1-N01' })
+            }
+            $script:getJobCallCount = 0
+            Mock Get-Job {
+                $script:getJobCallCount++
+                if ($script:getJobCallCount -le 2) { $runningJob } else { $completedJob }
+            }
+            Mock Start-Sleep {}
+            Mock Receive-Job -RemoveParameterType Job {}
+            Mock Trace-Output -RemoveParameterType Level {}
+            Mock Trace-Exception {}
+            $script:observedProgressPreferences = [System.Collections.ArrayList]::new()
+            Mock Write-Progress {
+                [void]$script:observedProgressPreferences.Add($ProgressPreference)
+            }
+
+            $originalProgressPreference = $ProgressPreference
+            try {
+                $ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+                $null = Wait-PSJob -Name DVLAB-Job -ProgressPercentScript { 42 } -ShowProgress
+
+                Should -Invoke Write-Progress -Times 2 -ParameterFilter {
+                    -not $Completed -and $PercentComplete -eq 42
+                }
+                @($script:observedProgressPreferences |
+                    Where-Object { $_ -ne [System.Management.Automation.ActionPreference]::Continue }).Count |
+                    Should -Be 0
+                $ProgressPreference | Should -Be ([System.Management.Automation.ActionPreference]::SilentlyContinue)
+            }
+            finally {
+                $ProgressPreference = $originalProgressPreference
+            }
+        }
+    }
+
+    It 'Processes progress updates when jobs are already complete' {
+        InModuleScope SdnDiag.Utilities {
+            $completedJob = [PSCustomObject]@{
+                Id = 43
+                Name = 'DVLAB-Job'
+                State = 'Completed'
+                ChildJobs = @([PSCustomObject]@{ State = 'Completed'; Location = 'DVLAB-S1-N01' })
+            }
+            Mock Get-Job { $completedJob }
+            Mock Receive-Job -RemoveParameterType Job {}
+            Mock Trace-Output -RemoveParameterType Level {}
+            Mock Trace-Exception {}
+            Mock Write-Progress {}
+            $script:progressUpdateCallCount = 0
+            $script:progressUpdateJobState = $null
+
+            $null = Wait-PSJob -Name DVLAB-Job -ProgressUpdateScript {
+                param($jobs, $state)
+
+                $script:progressUpdateCallCount++
+                $script:progressUpdateJobState = $jobs[0].State
+                $state.Processed = $true
+            }
+
+            $script:progressUpdateCallCount | Should -Be 1
+            $script:progressUpdateJobState | Should -Be 'Completed'
+        }
+    }
+}
+
+Describe 'Utilities - remote module import' {
+    It 'Checks whether the module is loaded rather than only installed' {
+        InModuleScope SdnDiag.Utilities {
+            $definition = (Get-Command New-PSRemotingSession).ScriptBlock.ToString()
+
+            $definition | Should -Match 'Get-Module\s+-Name\s+\$arg0\s+-ErrorAction\s+Ignore'
+            $definition | Should -Not -Match 'Get-Module[^\r\n]*-ListAvailable'
+        }
+    }
+
+    It 'Does not overwrite the caller import request with the configured default' {
+        InModuleScope SdnDiag.Utilities {
+            $command = Get-Command New-PSRemotingSession
+            $parameterReassignments = $command.ScriptBlock.Ast.FindAll({
+                param($ast)
+                $ast -is [System.Management.Automation.Language.AssignmentStatementAst] -and
+                    $ast.Left.Extent.Text -match '(?i)\$ImportModuleOnRemoteSession$'
+            }, $true)
+
+            $parameterReassignments.Count | Should -Be 0
+        }
+    }
+}
+
 Describe 'Utilities - Format Functions' {
     Context 'Format-MacAddressWithDashes' {
         It "Converts 12-char MAC to dashed format" {
