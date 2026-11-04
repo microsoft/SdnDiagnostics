@@ -215,6 +215,32 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.Truncated | Should -BeTrue
         }
 
+        It 'Copies the bounded tail of a setup log that is open for writing' {
+            $source = Join-Path $TestDrive 'active-setup-source.log'
+            $destination = Join-Path $TestDrive 'active-setup-tail.log'
+            [System.IO.File]::WriteAllBytes($source, [byte[]](0..255))
+            $writer = [System.IO.File]::Open($source, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
+            try {
+                $null = $writer.Seek(0, [System.IO.SeekOrigin]::End)
+                $writer.WriteByte(42)
+                $writer.Flush()
+
+                $result = Copy-StructuredDiagnosticBoundedFile -SourcePath $source -DestinationPath $destination -MaximumBytes 64
+
+                $bytes = [System.IO.File]::ReadAllBytes($destination)
+                $bytes.Length | Should -Be 64
+                $bytes[0] | Should -Be 193
+                $bytes[63] | Should -Be 42
+                $result.Status | Should -Be Success
+                $result.OriginalBytes | Should -Be 257
+                $result.CopiedBytes | Should -Be 64
+                $result.Truncated | Should -BeTrue
+            }
+            finally {
+                $writer.Dispose()
+            }
+        }
+
         It 'Loads the collectors and writer in a fresh process without CSSTools' {
             $modulePath = (Get-Module SdnDiag.StructuredDiagnostics.Collectors -All | Select-Object -First 1).Path
             $job = Start-Job -ScriptBlock {
@@ -272,6 +298,14 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             Should -Invoke Get-ClusterNode -Times 0
         }
 
+        It 'Deduplicates explicit targets case-insensitively while preserving first spelling and order' {
+            $targets = @(Get-StructuredDiagnosticTarget -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01)
+            $targets.Count | Should -Be 2
+            ($targets -join ',') | Should -BeExactly 'dvlab-s1-n02,DVLAB-S1-N01'
+            Should -Invoke Test-Path -Times 0 -ParameterFilter { $LiteralPath -eq 'HKLM:\Cluster' }
+            Should -Invoke Get-ClusterNode -Times 0
+        }
+
         It 'Resolves every configured cluster node including unavailable nodes' {
             $targets = @(Get-StructuredDiagnosticTarget)
             $targets | Should -Be @('DVLAB-S1-N01', 'DVLAB-S1-N02', 'DVLAB-S1-N03')
@@ -313,6 +347,27 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
                 }
                 Should -Invoke Get-SdnInfrastructureInfo -ModuleName SdnDiagnostics -Times 0
                 Should -Invoke Get-SdnServiceFabricClusterManifest -ModuleName SdnDiagnostics -Times 0
+            }
+            finally {
+                $Global:SdnDiagnostics.Config.Role = $savedRoles
+            }
+        }
+
+        It 'Routes case variants of explicit hosts through the public entry point only once' {
+            $savedRoles = $Global:SdnDiagnostics.Config.Role
+            Mock Get-WorkingDirectory -ModuleName SdnDiagnostics { $TestDrive }
+            Mock Trace-Output -ModuleName SdnDiagnostics -RemoveParameterType Level {}
+            Mock Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics { [PSCustomObject]@{ Status = 'Completed' } }
+            try {
+                $Global:SdnDiagnostics.Config.Role = @('Common')
+                $result = Start-SdnDataCollection -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01 `
+                    -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
+                $result.Status | Should -Be Completed
+                Should -Invoke Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics -Times 1 -Exactly -ParameterFilter {
+                    $ComputerName.Count -eq 2 -and
+                    ($ComputerName -join ',') -ceq 'dvlab-s1-n02,DVLAB-S1-N01'
+                }
+                Should -Invoke Get-ClusterNode -Times 0
             }
             finally {
                 $Global:SdnDiagnostics.Config.Role = $savedRoles
@@ -368,6 +423,7 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                     & $script:localScriptBlock @script:localArgumentList
                 }
             }
+            Mock Remove-Job -RemoveParameterType Job {}
             Mock Copy-FileFromRemoteComputer {
                 Copy-Item -Path $Path -Destination $Destination.FullName -Recurse -Force
             }
@@ -389,6 +445,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Invoke-PSRemoteCommand -Times 0
             Should -Invoke Start-Job -Times 1
             Should -Invoke Wait-PSJob -Times 1
+            Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
+            }
             Should -Invoke Copy-FileFromRemoteComputer -Times 0
             Should -Invoke Clear-SdnWorkingDirectory -Times 0
         }
@@ -411,6 +470,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                 Should -Throw '*not a Hyper-V host*'
             Should -Invoke Invoke-StructuredDiagnosticCollection -Times 0
             Should -Invoke Get-SdnInfrastructureInfo -Times 0
+            Should -Invoke Remove-Job -Times 1 -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
+            }
         }
 
         It 'Does not run remote collectors when the Hyper-V host check fails' {
@@ -420,6 +482,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                 Should -Throw '*not a Hyper-V host*'
             Should -Invoke Invoke-StructuredDiagnosticCollection -Times 0
             Should -Invoke Copy-FileFromRemoteComputer -Times 0
+            Should -Invoke Remove-Job -Times 1 -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-DVLAB' -and $Force
+            }
         }
 
         It 'Defaults to the local computer without optional logs' {
@@ -527,6 +592,46 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                 $ComputerName -eq 'DVLAB-S1-N01' -and
                 $Message -eq 'Completed structured diagnostics group Cluster (3/17, PartialSuccess)'
             }
+            Should -Invoke Remove-Job -Times 2 -Exactly -ParameterFilter {
+                $Job.Name -in @('SdnDiag-DVLAB', 'SdnDiag-Local-DVLAB') -and $Force
+            }
+        }
+
+        It 'Removes both owned collection jobs when waiting for results fails' {
+            Mock Test-ComputerNameIsLocal { $ComputerName -eq 'DVLAB-S1-N01' }
+            Mock Wait-PSJob { throw 'DVLAB wait failed' }
+
+            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01,DVLAB-S1-N02 `
+                -OutputDirectory $script:collectionOutput -ErrorAction Stop } | Should -Throw '*DVLAB wait failed*'
+
+            Should -Invoke Remove-Job -Times 2 -Exactly
+            Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-DVLAB' -and $Force
+            }
+            Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
+            }
+        }
+
+        It 'Reports a job cleanup failure and still removes the remaining owned job' {
+            Mock Test-ComputerNameIsLocal { $ComputerName -eq 'DVLAB-S1-N01' }
+            Mock Remove-Job -RemoveParameterType Job {
+                if ($Job.Name -eq 'SdnDiag-DVLAB') {
+                    throw 'DVLAB job cleanup failed'
+                }
+            }
+            Mock Write-Error {}
+
+            $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01,DVLAB-S1-N02 `
+                -OutputDirectory $script:collectionOutput
+
+            $result.Status | Should -Be Completed
+            Should -Invoke Remove-Job -Times 2 -Exactly
+            Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
+            }
+            Should -Invoke Trace-Exception -Times 1 -Exactly
+            Should -Invoke Write-Error -Times 1 -Exactly
         }
 
         It 'Uses shared remote execution, copy and cleanup helpers with credentials' {
@@ -568,6 +673,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Clear-SdnWorkingDirectory -Times 1 -ParameterFilter {
                 $Credential.UserName -eq 'DVLAB\operator' -and
                 $Path -contains (Join-Path $TestDrive "StructuredDiagnostics_Staging\$script:collectionId")
+            }
+            Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
+                $Job.Name -eq 'SdnDiag-DVLAB' -and $Force
             }
         }
 
@@ -645,6 +753,7 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Invoke-StructuredDiagnosticCollection -Times 0
             Should -Invoke Invoke-PSRemoteCommand -Times 0
             Should -Invoke Clear-SdnWorkingDirectory -Times 0
+            Should -Invoke Remove-Job -Times 0
         }
     }
 }

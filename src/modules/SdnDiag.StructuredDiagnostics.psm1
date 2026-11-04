@@ -144,7 +144,14 @@ function Get-StructuredDiagnosticTarget {
 
     try {
         if ($ComputerName.Count -gt 0) {
-            return ($ComputerName | Select-Object -Unique)
+            $seen = @{}
+            foreach ($computer in $ComputerName) {
+                if (-not $seen.ContainsKey($computer)) {
+                    $seen[$computer] = $true
+                    $computer
+                }
+            }
+            return
         }
 
         if (Test-Path -LiteralPath 'HKLM:\Cluster' -ErrorAction Stop) {
@@ -230,6 +237,7 @@ function Invoke-StructuredDiagnostics {
     }
     $collectionRoot = Join-Path $OutputDirectory 'StructuredDiagnostics'
     $nodeResults = [System.Collections.ArrayList]::new()
+    $collectionJobs = [System.Collections.ArrayList]::new()
     $nodeDirectoryNames = @{}
     foreach ($computer in $ComputerName) {
         $name = [regex]::Replace($computer.Trim(), '[\\/:*?"<>|]', '_').Trim([char[]]@('.', ' '))
@@ -258,7 +266,6 @@ function Invoke-StructuredDiagnostics {
             }
         }
 
-        $collectionJobs = [System.Collections.ArrayList]::new()
         $localStartFailures = @{}
         $remoteInvocationFailure = $null
         if ($remoteComputers.Count -gt 0) {
@@ -479,5 +486,16 @@ function Invoke-StructuredDiagnostics {
     catch {
         $_ | Trace-Exception
         $_ | Write-Error -ErrorAction Stop
+    }
+    finally {
+        foreach ($job in $collectionJobs) {
+            try {
+                Remove-Job -Job $job -Force -ErrorAction Stop
+            }
+            catch {
+                $_ | Trace-Exception
+                $_ | Write-Error -ErrorAction Continue
+            }
+        }
     }
 }

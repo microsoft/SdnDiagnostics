@@ -371,7 +371,7 @@ function Copy-StructuredDiagnosticBoundedFile {
     $sourceStream = $null
     $destinationStream = $null
     try {
-        $sourceStream = [System.IO.File]::OpenRead($source.FullName)
+        $sourceStream = [System.IO.File]::Open($source.FullName, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Read, [System.IO.FileShare]::ReadWrite)
         $destinationStream = [System.IO.File]::Create($temporaryPath)
         $originalBytes = $sourceStream.Length
         $copiedBytes = [Math]::Min($originalBytes, $MaximumBytes)
