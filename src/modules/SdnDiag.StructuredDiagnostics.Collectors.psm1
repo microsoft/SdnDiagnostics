@@ -141,7 +141,7 @@ function Invoke-StructuredDiagnosticCollection {
                 $reportedResults = @($receivedResults | Where-Object { $_.PSObject.Properties.Name -contains 'CollectorId' })
                 if ($jobCompleted -and $reportedResults.Count -gt 0) {
                     foreach ($result in $reportedResults) {
-                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Command, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
+                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
                     }
                 }
                 else {
@@ -150,7 +150,6 @@ function Invoke-StructuredDiagnosticCollection {
                         if (-not $result) {
                             $result = [PSCustomObject]@{
                                 CollectorId = $collector.Id
-                                Command = $collector.CommandName
                                 Status = $status
                                 RelativePath = $collector.RelativePath
                                 RecordCount = 0
@@ -160,7 +159,7 @@ function Invoke-StructuredDiagnosticCollection {
                                 Truncated = $false
                             }
                         }
-                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Command, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
+                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
                     }
                 }
 
@@ -179,6 +178,9 @@ function Invoke-StructuredDiagnosticCollection {
                     }
                     elseif ($collectorStatuses -contains 'Success') {
                         $groupStatus = 'Success'
+                    }
+                    elseif ($collectorStatuses -contains 'CommandNotAvailable') {
+                        $groupStatus = 'CommandNotAvailable'
                     }
                     else {
                         $groupStatus = 'Unavailable'
@@ -310,7 +312,6 @@ function Invoke-StructuredDiagnosticCollectorGroup {
             [PSCustomObject]@{
                 GroupId = $group.Id
                 CollectorId = $collector.Id
-                Command = $collector.CommandName
                 Status = 'Unavailable'
                 RelativePath = $collector.RelativePath
                 RecordCount = 0
@@ -326,10 +327,14 @@ function Invoke-StructuredDiagnosticCollectorGroup {
     foreach ($collector in $group.Collectors) {
         $started = [DateTime]::UtcNow
         $writer = $null
+        $collect = {
+            param([object[]]$ArgumentList = @())
+            $ErrorActionPreference = 'Stop'
+            & $collector.Collect @ArgumentList
+        }
         $result = [PSCustomObject]@{
             GroupId = $group.Id
             CollectorId = $collector.Id
-            Command = $collector.CommandName
             Status = 'Success'
             RelativePath = $collector.RelativePath
             RecordCount = 0
@@ -343,20 +348,19 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                 $result.Status = 'Skipped'
                 $result.FailureMessage = 'IncludeLogs was not requested.'
             }
-            elseif ($collector.CommandName -and -not (Get-Command -Name $collector.CommandName -ErrorAction Ignore 4>$null)) {
-                $result.Status = 'Unavailable'
-                $result.FailureMessage = 'Command {0} is unavailable.' -f $collector.CommandName
-            }
             elseif ($collector.TestAvailable -and -not (& $collector.TestAvailable)) {
                 $result.Status = 'Unavailable'
                 $result.FailureMessage = 'Collector {0} is not applicable on this host.' -f $collector.Id
             }
             elseif ($collector.Kind -eq 'FileSet') {
-                $artifacts = @(& $collector.Collect $OutputRoot $Format)
-                $result.OutputArtifacts = $artifacts
-                $result.RecordCount = @($artifacts | Where-Object Status -eq 'Success').Count
-                $result.Truncated = @($artifacts | Where-Object Truncated).Count -gt 0
-                $failures = @($artifacts | Where-Object Status -eq 'Failed')
+                & $collect -ArgumentList @($OutputRoot, $Format) | ForEach-Object {
+                    $result.OutputArtifacts += $_
+                    if ($_.Status -eq 'Success') {
+                        $result.RecordCount++
+                    }
+                    $result.Truncated = $result.Truncated -or $_.Truncated
+                }
+                $failures = @($result.OutputArtifacts | Where-Object Status -eq 'Failed')
                 # Reduce per-file outcomes into the collector-level manifest status.
                 if ($result.RecordCount -eq 0) {
                     $result.Status = 'Unavailable'
@@ -385,7 +389,7 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                     }
                     elseif ($collector.Kind -eq 'Performance') {
                         $timeFrame = Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $FromDate -ToDate $ToDate
-                        & $collector.Collect $timeFrame | ForEach-Object {
+                        & $collect -ArgumentList @($timeFrame) | ForEach-Object {
                             $performanceRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $_ `
                                 -ExcludedProperties $collector.ExcludedProperties -FormatDateTime
                             $performanceRecord | Add-Member -NotePropertyName TimeFrame -NotePropertyValue $timeFrame -Force
@@ -393,7 +397,7 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                         }
                     }
                     else {
-                        & $collector.Collect | ForEach-Object {
+                        & $collect | ForEach-Object {
                             Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $_ -ExcludedProperties $collector.ExcludedProperties
                         }
                     }
@@ -412,7 +416,11 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                     $expectedUnavailable = $writer.RecordCount -eq 0 -and $collector.ExpectedUnavailableFailure -and
                         $_.Exception.Message -match $collector.ExpectedUnavailableFailure
                     # Expected platform gaps are unavailable; failures after output began are partial successes.
-                    if ($eventUnavailable -or $expectedUnavailable) {
+                    if ($writer.RecordCount -eq 0 -and $_.Exception -is [System.Management.Automation.CommandNotFoundException]) {
+                        $result.Status = 'CommandNotAvailable'
+                        Trace-Output -Level:Verbose -Message ('[{0}/{1}] Collector command is unavailable: {2}' -f $group.Id, $collector.Id, $_.Exception.Message)
+                    }
+                    elseif ($eventUnavailable -or $expectedUnavailable) {
                         $result.Status = 'Unavailable'
                     }
                     elseif (-not $result.Truncated) {
@@ -424,16 +432,29 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                         Write-Error -Message ('[{0}/{1}] Collector failed: {2}' -f $group.Id, $collector.Id, $_.Exception.Message) -ErrorAction Continue
                     }
                 }
-                Close-StructuredDiagnosticArtifactWriter -Writer $writer
-                $result.RecordCount = $writer.RecordCount
-                $result.OutputArtifacts = @($collector.RelativePath)
+                if ($result.Status -ne 'CommandNotAvailable') {
+                    Close-StructuredDiagnosticArtifactWriter -Writer $writer
+                    $result.RecordCount = $writer.RecordCount
+                    $result.OutputArtifacts = @($collector.RelativePath)
+                }
             }
         }
         catch {
             $result.Status = 'Failed'
             $result.FailureMessage = $_.Exception.Message
-            $_ | Trace-Exception
-            Write-Error -Message ('[{0}/{1}] {2}' -f $group.Id, $collector.Id, $_.Exception.Message) -ErrorAction Continue
+            if ($result.RecordCount -gt 0) {
+                $result.Status = 'PartialSuccess'
+            }
+            elseif ($_.Exception -is [System.Management.Automation.CommandNotFoundException]) {
+                $result.Status = 'CommandNotAvailable'
+            }
+            if ($result.Status -eq 'CommandNotAvailable') {
+                Trace-Output -Level:Verbose -Message ('[{0}/{1}] Collector command is unavailable: {2}' -f $group.Id, $collector.Id, $_.Exception.Message)
+            }
+            else {
+                $_ | Trace-Exception
+                Write-Error -Message ('[{0}/{1}] {2}' -f $group.Id, $collector.Id, $_.Exception.Message) -ErrorAction Continue
+            }
         }
         finally {
             if ($writer) {

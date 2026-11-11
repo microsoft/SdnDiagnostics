@@ -9,7 +9,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $script:structuredDiagnosticCollectorCatalog = @{
                 Groups = @(@{
                     Id = 'Host'
-                    TimeoutSeconds = 300
+                    TimeoutSeconds = 600
                     Collectors = @(@{
                         Id = 'Test-Record'
                         RelativePath = 'Host\record.json'
@@ -25,6 +25,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
         It 'Writes a singleton as a JSON array with no UTF-8 BOM' {
             $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json
             $result.Status | Should -Be Success
+            $result.PSObject.Properties.Name | Should -Not -Contain Command
             $path = Join-Path $TestDrive 'Host\record.json'
             $text = Get-Content -LiteralPath $path -Raw
             $text.TrimStart().StartsWith('[') | Should -BeTrue
@@ -116,26 +117,42 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             (Get-Content (Join-Path $TestDrive 'Host\record.json') -Raw | ConvertFrom-Json).Name | Should -Be DVLAB
         }
 
-        It 'Skips an unavailable Get-StorageNetworkIntent command and continues collecting' {
-            $collector = $script:originalCatalog.Groups.Collectors | Where-Object Id -eq 'Get-StorageNetworkIntent'
-            $group = $script:structuredDiagnosticCollectorCatalog.Groups[0]
-            $group.Id = 'NetworkATC'
-            $group.Collectors = @($collector) + $group.Collectors
-            Mock Get-Command {} -ParameterFilter { $Name -eq 'Get-StorageNetworkIntent' }
+        It 'Preserves records collected before a command is unavailable' {
+            $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors[0].Collect = {
+                [PSCustomObject]@{ Name = 'DVLAB' }
+                Get-DVLABMissingCollectorCommand
+                'Must not be collected'
+            }
+            Mock Write-Error {}
 
-            $outputRoot = Join-Path $TestDrive 'missing-storage-network-intent'
-            $results = @(Invoke-StructuredDiagnosticCollectorGroup -GroupId NetworkATC -OutputRoot $outputRoot -Format Json)
+            $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json
+            $result.Status | Should -Be PartialSuccess
+            $result.RecordCount | Should -Be 1
+            $result.FailureMessage | Should -Match 'Get-DVLABMissingCollectorCommand'
+            (Get-Content (Join-Path $TestDrive 'Host\record.json') -Raw | ConvertFrom-Json).Name | Should -Be DVLAB
+        }
+
+        It 'Continues with the next collector after a command is unavailable' {
+            $group = $script:structuredDiagnosticCollectorCatalog.Groups[0]
+            $collector = @{
+                Id = 'DVLAB-Missing'
+                RelativePath = 'Host\missing.json'
+                Collect = { Get-DVLABMissingCollectorCommand }
+            }
+            $group.Collectors = @($collector) + $group.Collectors
+
+            $outputRoot = Join-Path $TestDrive 'missing-command'
+            $results = @(Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $outputRoot -Format Json)
             $results.Count | Should -Be 2
-            $results[0].CollectorId | Should -Be 'Get-StorageNetworkIntent'
-            $results[0].Status | Should -Be Unavailable
-            $results[0].FailureMessage | Should -Be 'Command Get-StorageNetworkIntent is unavailable.'
+            $results[0].CollectorId | Should -Be 'DVLAB-Missing'
+            $results[0].Status | Should -Be CommandNotAvailable
+            $results[0].FailureMessage | Should -Match 'Get-DVLABMissingCollectorCommand'
             $results[0].RecordCount | Should -Be 0
             $results[0].OutputArtifacts.Count | Should -Be 0
             Test-Path -LiteralPath (Join-Path $outputRoot $collector.RelativePath) | Should -BeFalse
             $results[1].Status | Should -Be Success
             $results[1].RecordCount | Should -Be 1
             (Get-Content (Join-Path $outputRoot $results[1].RelativePath) -Raw | ConvertFrom-Json).Name | Should -Be 'DVLAB-S1-N01'
-            Should -Invoke Get-Command -Times 1 -Exactly -ParameterFilter { $Name -eq 'Get-StorageNetworkIntent' }
             Should -Invoke Trace-Exception -Times 0
         }
 
@@ -166,7 +183,23 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $progressEvents[-1].RemainingGroups.Count | Should -Be 0
             $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
             $manifest.Groups[0].Collectors[0].OutputArtifacts[0].RelativePath | Should -Be 'Host\record.json'
+            $manifest.Groups[0].Collectors[0].PSObject.Properties.Name | Should -Not -Contain Command
             $manifest.SchemaVersion | Should -Be 1
+        }
+
+        It 'Preserves CommandNotAvailable in the manifest when no collector can run' {
+            Mock Start-Job { [PSCustomObject]@{ State = 'Completed' } }
+            Mock Receive-Job -RemoveParameterType Job {
+                [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'CommandNotAvailable'; RecordCount = 0; OutputArtifacts = @() }
+            }
+            Mock Remove-Job -RemoveParameterType Job {}
+
+            $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
+                -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
+            $result.Status | Should -Be Failed
+            $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
+            $manifest.Groups[0].Status | Should -Be CommandNotAvailable
+            $manifest.Groups[0].Collectors[0].Status | Should -Be CommandNotAvailable
         }
 
         It 'Fails a collection when all groups are unavailable' {
@@ -176,6 +209,8 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
                 -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
             $result.Status | Should -Be Failed
             Should -Invoke Start-Job -Times 0
+            $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
+            $manifest.Groups[0].Collectors[0].PSObject.Properties.Name | Should -Not -Contain Command
         }
 
         It 'Retains completed collector results when a group times out' {
@@ -192,6 +227,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $manifest.Groups[0].Status | Should -Be TimedOut
             $manifest.Groups[0].Collectors[0].RecordCount | Should -Be 1
             $manifest.Groups[0].Collectors[1].OutputArtifacts.Count | Should -Be 0
+            $manifest.Groups[0].Collectors[1].PSObject.Properties.Name | Should -Not -Contain Command
             Should -Invoke Receive-Job -Times 1
         }
 
