@@ -285,7 +285,6 @@ function Invoke-StructuredDiagnosticCollectorGroup {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
-        [ValidateSet('Host', 'NetAdapter', 'VM', 'Lbfo', 'TcpIp', 'Dns', 'Nat', 'HyperV', 'Cluster', 'ClusterPerf', 'VMSwitch', 'VMNetworkAdapter', 'Qos', 'Lldp', 'Smb', 'NetworkATC', 'Proxy', 'Firewall')]
         [string]$GroupId,
 
         [Parameter(Mandatory = $true)]
@@ -449,9 +448,9 @@ function Invoke-StructuredDiagnosticCollectorGroup {
     }
 }
 
-# ===========================
+# ===================================
 #     Collection Helper Functions
-# ===========================
+# ===================================
 
 # Recursively converts PowerShell and CIM objects into JSON-safe records with bounded depth.
 function ConvertTo-StructuredDiagnosticRecord {

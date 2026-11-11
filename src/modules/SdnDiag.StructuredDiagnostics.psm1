@@ -4,185 +4,6 @@
 Import-Module -Name $PSScriptRoot\SdnDiag.Utilities.psm1 -ErrorAction Stop
 Import-Module -Name $PSScriptRoot\SdnDiag.StructuredDiagnostics.Collectors.psm1 -ErrorAction Stop
 
-function Get-StructuredDiagnosticProgressEvents {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [object]$Job,
-
-        [Parameter(Mandatory = $true)]
-        [object]$ChildJob
-    )
-
-    $progressEvents = @($ChildJob.Output | Where-Object {
-        $_.PSObject.Properties.Name -contains 'StructuredDiagnosticProgressEvent' -and
-        $_.StructuredDiagnosticProgressEvent
-    })
-    if ($progressEvents.Count -eq 0) {
-        $progressEvents = @($Job.Output | Where-Object {
-            $_.PSObject.Properties.Name -contains 'StructuredDiagnosticProgressEvent' -and
-            $_.StructuredDiagnosticProgressEvent -and
-            ($_.PSComputerName -ieq $ChildJob.Location -or $_.Node -ieq $ChildJob.Location)
-        })
-    }
-
-    return $progressEvents
-}
-
-function Write-StructuredDiagnosticProgressUpdates {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [object[]]$Jobs,
-
-        [Parameter(Mandatory = $true)]
-        [hashtable]$ReportedEventIds
-    )
-
-    foreach ($job in $Jobs) {
-        foreach ($childJob in @($job.ChildJobs)) {
-            $progressEvents = @(Get-StructuredDiagnosticProgressEvents -Job $job -ChildJob $childJob)
-            foreach ($progressEvent in $progressEvents) {
-                if (-not $progressEvent.GroupId -or [string]::IsNullOrWhiteSpace($progressEvent.EventId) -or
-                    $ReportedEventIds.ContainsKey($progressEvent.EventId)) {
-                    continue
-                }
-
-                $ReportedEventIds[$progressEvent.EventId] = $true
-                $node = if ($progressEvent.Node) {
-                    $progressEvent.Node
-                }
-                elseif ($progressEvent.PSComputerName) {
-                    $progressEvent.PSComputerName
-                }
-                else {
-                    $childJob.Location
-                }
-                Trace-Output -ComputerName $node -Message (
-                    "Completed structured diagnostics group {0} ({1}/{2}, {3})" -f
-                    $progressEvent.GroupId, $progressEvent.CompletedCount,
-                    $progressEvent.TotalCount, $progressEvent.Status
-                )
-            }
-        }
-    }
-}
-
-function Get-StructuredDiagnosticProgressSnapshot {
-    [CmdletBinding()]
-    param (
-        [Parameter(Mandatory = $true)]
-        [object[]]$Jobs
-    )
-
-    $nodeStatuses = [System.Collections.ArrayList]::new()
-    $completedCount = 0
-    $totalCount = 0
-    foreach ($job in $Jobs) {
-        foreach ($childJob in @($job.ChildJobs)) {
-            $progressEvents = @(Get-StructuredDiagnosticProgressEvents -Job $job -ChildJob $childJob)
-            if ($progressEvents.Count -gt 0) {
-                $latestEvent = $progressEvents[-1]
-                $remainingGroups = @($latestEvent.RemainingGroups)
-                $remainingPreview = @($remainingGroups | Select-Object -First 2)
-                $remainingText = if ($remainingGroups.Count -eq 0) {
-                    'none'
-                }
-                elseif ($remainingGroups.Count -gt $remainingPreview.Count) {
-                    "{0}, +{1} more" -f ($remainingPreview -join ', '), ($remainingGroups.Count - $remainingPreview.Count)
-                }
-                else {
-                    $remainingPreview -join ', '
-                }
-                $node = if ($latestEvent.Node) {
-                    $latestEvent.Node
-                }
-                elseif ($latestEvent.PSComputerName) {
-                    $latestEvent.PSComputerName
-                }
-                else {
-                    $childJob.Location
-                }
-                if ($null -ne $latestEvent.CompletedCount -and $null -ne $latestEvent.TotalCount) {
-                    $completedCount += $latestEvent.CompletedCount
-                    $totalCount += $latestEvent.TotalCount
-                    [void]$nodeStatuses.Add(("{0} {1}/{2} groups ({3})" -f
-                        $node, $latestEvent.CompletedCount, $latestEvent.TotalCount, $remainingText))
-                }
-                elseif ($latestEvent.GroupId) {
-                    [void]$nodeStatuses.Add(("{0}: completed group {1}; detailed counts unavailable" -f
-                        $node, $latestEvent.GroupId))
-                }
-                else {
-                    [void]$nodeStatuses.Add(("{0}: starting collector groups" -f $node))
-                }
-            }
-            elseif ($childJob.State -ne 'Completed') {
-                [void]$nodeStatuses.Add(("{0}: waiting for the first group update ({1})" -f
-                    $childJob.Location, $childJob.State))
-            }
-        }
-    }
-
-    [PSCustomObject]@{
-        Status = if ($nodeStatuses.Count -gt 0) { $nodeStatuses -join '; ' } else { $null }
-        PercentComplete = if ($totalCount -gt 0) {
-            [math]::Round(($completedCount / $totalCount) * 100, 2)
-        }
-        else {
-            $null
-        }
-    }
-}
-
-function Get-StructuredDiagnosticTarget {
-    [CmdletBinding()]
-    param (
-        [Parameter()]
-        [string[]]$ComputerName
-    )
-
-    try {
-        if ($ComputerName.Count -gt 0) {
-            $seen = @{}
-            foreach ($computer in $ComputerName) {
-                $address = $null
-                # Collapse short-name/FQDN aliases to prevent same-host staging collisions, but preserve full IPs to avoid false duplicates (no DNS lookup).
-                $targetKey = if ([System.Net.IPAddress]::TryParse($computer, [ref]$address)) {
-                    $address.ToString()
-                }
-                else {
-                    ($computer -split '\.', 2)[0]
-                }
-                if ($seen.ContainsKey($targetKey)) {
-                    Trace-Output -Level:Warning -Message (
-                        "Skipping duplicate structured diagnostic target '{0}'; '{1}' was already selected." -f
-                        $computer, $seen[$targetKey]
-                    )
-                    continue
-                }
-                $seen[$targetKey] = $computer
-                $computer
-            }
-            return
-        }
-
-        if (Test-Path -LiteralPath 'HKLM:\Cluster' -ErrorAction Stop) {
-            $nodes = @(Get-ClusterNode -ErrorAction Stop | Select-Object -ExpandProperty Name -Unique)
-            if ($nodes.Count -eq 0) {
-                throw 'The configured Windows cluster returned no host nodes.'
-            }
-            return $nodes
-        }
-
-        return $env:COMPUTERNAME
-    }
-    catch {
-        $_ | Trace-Exception
-        $_ | Write-Error -ErrorAction Stop
-    }
-}
-
 function Invoke-StructuredDiagnostics {
     <#
     .SYNOPSIS
@@ -517,5 +338,184 @@ function Invoke-StructuredDiagnostics {
                 $_ | Write-Error -ErrorAction Continue
             }
         }
+    }
+}
+
+function Get-StructuredDiagnosticProgressEvents {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [object]$Job,
+
+        [Parameter(Mandatory = $true)]
+        [object]$ChildJob
+    )
+
+    $progressEvents = @($ChildJob.Output | Where-Object {
+        $_.PSObject.Properties.Name -contains 'StructuredDiagnosticProgressEvent' -and
+        $_.StructuredDiagnosticProgressEvent
+    })
+    if ($progressEvents.Count -eq 0) {
+        $progressEvents = @($Job.Output | Where-Object {
+            $_.PSObject.Properties.Name -contains 'StructuredDiagnosticProgressEvent' -and
+            $_.StructuredDiagnosticProgressEvent -and
+            ($_.PSComputerName -ieq $ChildJob.Location -or $_.Node -ieq $ChildJob.Location)
+        })
+    }
+
+    return $progressEvents
+}
+
+function Write-StructuredDiagnosticProgressUpdates {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [object[]]$Jobs,
+
+        [Parameter(Mandatory = $true)]
+        [hashtable]$ReportedEventIds
+    )
+
+    foreach ($job in $Jobs) {
+        foreach ($childJob in @($job.ChildJobs)) {
+            $progressEvents = @(Get-StructuredDiagnosticProgressEvents -Job $job -ChildJob $childJob)
+            foreach ($progressEvent in $progressEvents) {
+                if (-not $progressEvent.GroupId -or [string]::IsNullOrWhiteSpace($progressEvent.EventId) -or
+                    $ReportedEventIds.ContainsKey($progressEvent.EventId)) {
+                    continue
+                }
+
+                $ReportedEventIds[$progressEvent.EventId] = $true
+                $node = if ($progressEvent.Node) {
+                    $progressEvent.Node
+                }
+                elseif ($progressEvent.PSComputerName) {
+                    $progressEvent.PSComputerName
+                }
+                else {
+                    $childJob.Location
+                }
+                Trace-Output -ComputerName $node -Message (
+                    "Completed structured diagnostics group {0} ({1}/{2}, {3})" -f
+                    $progressEvent.GroupId, $progressEvent.CompletedCount,
+                    $progressEvent.TotalCount, $progressEvent.Status
+                )
+            }
+        }
+    }
+}
+
+function Get-StructuredDiagnosticProgressSnapshot {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [object[]]$Jobs
+    )
+
+    $nodeStatuses = [System.Collections.ArrayList]::new()
+    $completedCount = 0
+    $totalCount = 0
+    foreach ($job in $Jobs) {
+        foreach ($childJob in @($job.ChildJobs)) {
+            $progressEvents = @(Get-StructuredDiagnosticProgressEvents -Job $job -ChildJob $childJob)
+            if ($progressEvents.Count -gt 0) {
+                $latestEvent = $progressEvents[-1]
+                $remainingGroups = @($latestEvent.RemainingGroups)
+                $remainingPreview = @($remainingGroups | Select-Object -First 2)
+                $remainingText = if ($remainingGroups.Count -eq 0) {
+                    'none'
+                }
+                elseif ($remainingGroups.Count -gt $remainingPreview.Count) {
+                    "{0}, +{1} more" -f ($remainingPreview -join ', '), ($remainingGroups.Count - $remainingPreview.Count)
+                }
+                else {
+                    $remainingPreview -join ', '
+                }
+                $node = if ($latestEvent.Node) {
+                    $latestEvent.Node
+                }
+                elseif ($latestEvent.PSComputerName) {
+                    $latestEvent.PSComputerName
+                }
+                else {
+                    $childJob.Location
+                }
+                if ($null -ne $latestEvent.CompletedCount -and $null -ne $latestEvent.TotalCount) {
+                    $completedCount += $latestEvent.CompletedCount
+                    $totalCount += $latestEvent.TotalCount
+                    [void]$nodeStatuses.Add(("{0} {1}/{2} groups ({3})" -f
+                        $node, $latestEvent.CompletedCount, $latestEvent.TotalCount, $remainingText))
+                }
+                elseif ($latestEvent.GroupId) {
+                    [void]$nodeStatuses.Add(("{0}: completed group {1}; detailed counts unavailable" -f
+                        $node, $latestEvent.GroupId))
+                }
+                else {
+                    [void]$nodeStatuses.Add(("{0}: starting collector groups" -f $node))
+                }
+            }
+            elseif ($childJob.State -ne 'Completed') {
+                [void]$nodeStatuses.Add(("{0}: waiting for the first group update ({1})" -f
+                    $childJob.Location, $childJob.State))
+            }
+        }
+    }
+
+    [PSCustomObject]@{
+        Status = if ($nodeStatuses.Count -gt 0) { $nodeStatuses -join '; ' } else { $null }
+        PercentComplete = if ($totalCount -gt 0) {
+            [math]::Round(($completedCount / $totalCount) * 100, 2)
+        }
+        else {
+            $null
+        }
+    }
+}
+
+function Get-StructuredDiagnosticTarget {
+    [CmdletBinding()]
+    param (
+        [Parameter()]
+        [string[]]$ComputerName
+    )
+
+    try {
+        if ($ComputerName.Count -gt 0) {
+            $seen = @{}
+            foreach ($computer in $ComputerName) {
+                $address = $null
+                # Collapse short-name/FQDN aliases to prevent same-host staging collisions, but preserve full IPs to avoid false duplicates (no DNS lookup).
+                $targetKey = if ([System.Net.IPAddress]::TryParse($computer, [ref]$address)) {
+                    $address.ToString()
+                }
+                else {
+                    ($computer -split '\.', 2)[0]
+                }
+                if ($seen.ContainsKey($targetKey)) {
+                    Trace-Output -Level:Warning -Message (
+                        "Skipping duplicate structured diagnostic target '{0}'; '{1}' was already selected." -f
+                        $computer, $seen[$targetKey]
+                    )
+                    continue
+                }
+                $seen[$targetKey] = $computer
+                $computer
+            }
+            return
+        }
+
+        if (Test-Path -LiteralPath 'HKLM:\Cluster' -ErrorAction Stop) {
+            $nodes = @(Get-ClusterNode -ErrorAction Stop | Select-Object -ExpandProperty Name -Unique)
+            if ($nodes.Count -eq 0) {
+                throw 'The configured Windows cluster returned no host nodes.'
+            }
+            return $nodes
+        }
+
+        return $env:COMPUTERNAME
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error -ErrorAction Stop
     }
 }

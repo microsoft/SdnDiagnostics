@@ -3,6 +3,8 @@
 
 # ==============================
 #     Collector Definitions
+#  To define a new collector, add an entry to the appropriate group (or add a group)
+#  Each collector should have a unique Id, a CommandName, a RelativePath for its output, and a Collect script block.
 # ==============================
 
 $script:structuredDiagnosticCollectorCatalog = @{

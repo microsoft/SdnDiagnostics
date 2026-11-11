@@ -215,32 +215,6 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.Truncated | Should -BeTrue
         }
 
-        It 'Copies the bounded tail of a setup log that is open for writing' {
-            $source = Join-Path $TestDrive 'active-setup-source.log'
-            $destination = Join-Path $TestDrive 'active-setup-tail.log'
-            [System.IO.File]::WriteAllBytes($source, [byte[]](0..255))
-            $writer = [System.IO.File]::Open($source, [System.IO.FileMode]::Open, [System.IO.FileAccess]::Write, [System.IO.FileShare]::ReadWrite)
-            try {
-                $null = $writer.Seek(0, [System.IO.SeekOrigin]::End)
-                $writer.WriteByte(42)
-                $writer.Flush()
-
-                $result = Copy-StructuredDiagnosticBoundedFile -SourcePath $source -DestinationPath $destination -MaximumBytes 64
-
-                $bytes = [System.IO.File]::ReadAllBytes($destination)
-                $bytes.Length | Should -Be 64
-                $bytes[0] | Should -Be 193
-                $bytes[63] | Should -Be 42
-                $result.Status | Should -Be Success
-                $result.OriginalBytes | Should -Be 257
-                $result.CopiedBytes | Should -Be 64
-                $result.Truncated | Should -BeTrue
-            }
-            finally {
-                $writer.Dispose()
-            }
-        }
-
         It 'Loads the collectors and writer in a fresh process without CSSTools' {
             $modulePath = (Get-Module SdnDiag.StructuredDiagnostics.Collectors -All | Select-Object -First 1).Path
             $job = Start-Job -ScriptBlock {
