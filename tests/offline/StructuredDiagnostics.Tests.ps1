@@ -294,6 +294,9 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
         It 'Preserves all explicit targets and removes duplicate names without cluster discovery' {
             $targets = @(Get-StructuredDiagnosticTarget -ComputerName DVLAB-S1-N02,DVLAB-S1-N01,DVLAB-S1-N02)
             $targets | Should -Be @('DVLAB-S1-N02', 'DVLAB-S1-N01')
+            Should -Invoke Trace-Output -Times 1 -Exactly -ParameterFilter {
+                $Level -eq 'Warning' -and $Message -like "*Skipping duplicate*'DVLAB-S1-N02'*"
+            }
             Should -Invoke Test-Path -Times 0 -ParameterFilter { $LiteralPath -eq 'HKLM:\Cluster' }
             Should -Invoke Get-ClusterNode -Times 0
         }
@@ -302,8 +305,27 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             $targets = @(Get-StructuredDiagnosticTarget -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01)
             $targets.Count | Should -Be 2
             ($targets -join ',') | Should -BeExactly 'dvlab-s1-n02,DVLAB-S1-N01'
+            Should -Invoke Trace-Output -Times 2 -Exactly -ParameterFilter { $Level -eq 'Warning' }
             Should -Invoke Test-Path -Times 0 -ParameterFilter { $LiteralPath -eq 'HKLM:\Cluster' }
             Should -Invoke Get-ClusterNode -Times 0
+        }
+
+        It 'Warns and skips duplicate short names in either order' -TestCases @(
+            @{ Names = @('DVLAB-S1-N01', 'dvlab-s1-n01.dvlab.contoso.local') }
+            @{ Names = @('dvlab-s1-n01.dvlab.contoso.local', 'DVLAB-S1-N01') }
+        ) {
+            param($Names)
+            $targets = @(Get-StructuredDiagnosticTarget -ComputerName $Names)
+            $targets.Count | Should -Be 1
+            $targets[0] | Should -BeExactly $Names[0]
+            Should -Invoke Trace-Output -Times 1 -Exactly -ParameterFilter { $Level -eq 'Warning' }
+            Should -Invoke Get-ClusterNode -Times 0
+        }
+
+        It 'Keeps different IP addresses with the same first octet as separate targets' {
+            $targets = @(Get-StructuredDiagnosticTarget -ComputerName '10.20.30.40', '10.20.30.41')
+            $targets | Should -Be @('10.20.30.40', '10.20.30.41')
+            Should -Invoke Trace-Output -Times 0 -ParameterFilter { $Level -eq 'Warning' }
         }
 
         It 'Resolves every configured cluster node including unavailable nodes' {
@@ -353,14 +375,14 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             }
         }
 
-        It 'Routes case variants of explicit hosts through the public entry point only once' {
+        It 'Routes case variants and FQDN aliases through the public entry point only once' {
             $savedRoles = $Global:SdnDiagnostics.Config.Role
             Mock Get-WorkingDirectory -ModuleName SdnDiagnostics { $TestDrive }
             Mock Trace-Output -ModuleName SdnDiagnostics -RemoveParameterType Level {}
             Mock Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics { [PSCustomObject]@{ Status = 'Completed' } }
             try {
                 $Global:SdnDiagnostics.Config.Role = @('Common')
-                $result = Start-SdnDataCollection -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01 `
+                $result = Start-SdnDataCollection -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01.dvlab.contoso.local `
                     -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
                 $result.Status | Should -Be Completed
                 Should -Invoke Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics -Times 1 -Exactly -ParameterFilter {
@@ -462,6 +484,19 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                 -not [string]::IsNullOrEmpty($ModuleVersion) -and
                 $FromDate -eq [datetime]'2026-01-01T00:00:00Z' -and $ToDate -eq [datetime]'2026-01-01T02:00:00Z'
             }
+        }
+
+        It 'Warns and skips repeated host names before starting collection jobs' {
+            Mock Test-ComputerNameIsLocal { $false }
+            $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01,dvlab-s1-n01,DVLAB-S1-N01.dvlab.contoso.local `
+                -OutputDirectory $script:collectionOutput
+            $result.Nodes.Count | Should -Be 1
+            $result.Nodes[0].Node | Should -BeExactly 'DVLAB-S1-N01'
+            Should -Invoke Trace-Output -Times 2 -Exactly -ParameterFilter { $Level -eq 'Warning' }
+            Should -Invoke Invoke-PSRemoteCommand -Times 1 -Exactly -ParameterFilter {
+                $ComputerName.Count -eq 1 -and $ComputerName[0] -ceq 'DVLAB-S1-N01'
+            }
+            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -Exactly
         }
 
         It 'Does not run local collectors when the Hyper-V host check fails' {
@@ -679,24 +714,42 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             }
         }
 
-        It 'Retains staging when remote copy fails' {
+        It 'Cleans staging when remote copy fails' {
             Mock Test-ComputerNameIsLocal { $false }
             Mock Copy-FileFromRemoteComputer { throw 'DVLAB copy failed' }
             { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
                 Should -Throw '*every requested computer*'
-            Should -Invoke Clear-SdnWorkingDirectory -Times 0
+            Should -Invoke Clear-SdnWorkingDirectory -Times 1 -Exactly -ParameterFilter {
+                $ComputerName -contains 'DVLAB-S1-N01' -and
+                $Path -contains (Join-Path $TestDrive "StructuredDiagnostics_Staging\$script:collectionId")
+            }
             $manifest = Get-Content (Join-Path $script:collectionOutput 'StructuredDiagnostics\ClusterCollectionManifest.json') -Raw |
                 ConvertFrom-Json
             $manifest.Status | Should -Be Failed
             $manifest.Nodes[0].FailureMessage | Should -Match 'copy failed'
         }
 
-        It 'Does not clean staging when the retrieved manifest is missing' {
+        It 'Cleans staging when the retrieved manifest is missing' {
             Mock Test-ComputerNameIsLocal { $false }
             Mock Copy-FileFromRemoteComputer {}
             { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
                 Should -Throw '*every requested computer*'
-            Should -Invoke Clear-SdnWorkingDirectory -Times 0
+            Should -Invoke Clear-SdnWorkingDirectory -Times 1 -Exactly -ParameterFilter {
+                $ComputerName -contains 'DVLAB-S1-N01' -and
+                $Path -contains (Join-Path $TestDrive "StructuredDiagnostics_Staging\$script:collectionId")
+            }
+        }
+
+        It 'Reports remote staging cleanup failures as node failures' {
+            Mock Test-ComputerNameIsLocal { $false }
+            Mock Clear-SdnWorkingDirectory { throw 'DVLAB staging cleanup failed' }
+            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
+                Should -Throw '*every requested computer*'
+            Should -Invoke Clear-SdnWorkingDirectory -Times 1 -Exactly
+            $manifest = Get-Content (Join-Path $script:collectionOutput 'StructuredDiagnostics\ClusterCollectionManifest.json') -Raw |
+                ConvertFrom-Json
+            $manifest.Nodes[0].Status | Should -Be Failed
+            $manifest.Nodes[0].FailureMessage | Should -Match 'staging cleanup failed'
         }
 
         It 'Reports partial structured collection' {
@@ -710,7 +763,7 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
         It 'Rejects invalid dates and unsafe or colliding directory names before contacting nodes' {
             { Invoke-StructuredDiagnostics -FromDate ([datetime]'2026-01-02') -ToDate ([datetime]'2026-01-01') } | Should -Throw '*FromDate*'
             { Invoke-StructuredDiagnostics -ComputerName '..' -OutputDirectory $script:collectionOutput } | Should -Throw '*directory name*'
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB,DVLAB. -OutputDirectory $script:collectionOutput } | Should -Throw '*directory name*'
+            { Invoke-StructuredDiagnostics -ComputerName 'DVLAB:One','DVLAB?One' -OutputDirectory $script:collectionOutput } | Should -Throw '*directory name*'
             Should -Invoke Invoke-PSRemoteCommand -Times 0
             Should -Invoke Initialize-DataCollection -Times 0
         }

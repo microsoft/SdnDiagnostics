@@ -146,10 +146,23 @@ function Get-StructuredDiagnosticTarget {
         if ($ComputerName.Count -gt 0) {
             $seen = @{}
             foreach ($computer in $ComputerName) {
-                if (-not $seen.ContainsKey($computer)) {
-                    $seen[$computer] = $true
-                    $computer
+                $address = $null
+                # Collapse short-name/FQDN aliases to prevent same-host staging collisions, but preserve full IPs to avoid false duplicates (no DNS lookup).
+                $targetKey = if ([System.Net.IPAddress]::TryParse($computer, [ref]$address)) {
+                    $address.ToString()
                 }
+                else {
+                    ($computer -split '\.', 2)[0]
+                }
+                if ($seen.ContainsKey($targetKey)) {
+                    Trace-Output -Level:Warning -Message (
+                        "Skipping duplicate structured diagnostic target '{0}'; '{1}' was already selected." -f
+                        $computer, $seen[$targetKey]
+                    )
+                    continue
+                }
+                $seen[$targetKey] = $computer
+                $computer
             }
             return
         }
@@ -180,6 +193,7 @@ function Invoke-StructuredDiagnostics {
         SdnDiagnostics and WinRM access; local collection does not require WinRM.
     .PARAMETER ComputerName
         Computers to collect from. Defaults to the local computer.
+        Duplicate short host names are warned and skipped case-insensitively, preserving the first occurrence.
     .PARAMETER OutputDirectory
         SdnDataCollection directory under which StructuredDiagnostics\<ComputerName> output is written.
     .PARAMETER Format
@@ -230,6 +244,7 @@ function Invoke-StructuredDiagnostics {
         throw 'FromDate must be earlier than or equal to ToDate.'
     }
 
+    $ComputerName = @(Get-StructuredDiagnosticTarget -ComputerName $ComputerName)
     $started = [DateTime]::UtcNow
     $collectionId = Split-Path -Path $OutputDirectory -Leaf
     if ([string]::IsNullOrWhiteSpace($collectionId)) {
@@ -433,13 +448,18 @@ function Invoke-StructuredDiagnostics {
                         throw "Computer '$computer' returned no structured diagnostic collection result."
                     }
                     $stagingPath = Split-Path -Parent $nodeResult.ManifestPath
-                    $null = New-Item -Path $nodeOutputRoot -ItemType Directory -Force -ErrorAction Stop
-                    Copy-FileFromRemoteComputer -ComputerName $computer -Credential $Credential `
-                        -Path (Join-Path $stagingPath '*') -Destination $nodeOutputRoot -Recurse -Force -ErrorAction Stop
-                    if (-not (Test-Path -LiteralPath (Join-Path $nodeOutputRoot 'CollectionManifest.json') -PathType Leaf)) {
-                        throw "The manifest for '$computer' was not retrieved. Remote staging was retained."
+                    try {
+                        $null = New-Item -Path $nodeOutputRoot -ItemType Directory -Force -ErrorAction Stop
+                        Copy-FileFromRemoteComputer -ComputerName $computer -Credential $Credential `
+                            -Path (Join-Path $stagingPath '*') -Destination $nodeOutputRoot -Recurse -Force -ErrorAction Stop
+                        if (-not (Test-Path -LiteralPath (Join-Path $nodeOutputRoot 'CollectionManifest.json') -PathType Leaf)) {
+                            throw "The manifest for '$computer' was not retrieved."
+                        }
                     }
-                    Clear-SdnWorkingDirectory -ComputerName $computer -Credential $Credential -Path $stagingPath -Recurse -ErrorAction Stop
+                    finally {
+                        # Retrieval is best effort; always attempt staging cleanup, even if some artifacts were not retrieved.
+                        Clear-SdnWorkingDirectory -ComputerName $computer -Credential $Credential -Path $stagingPath -Recurse -ErrorAction Stop
+                    }
                     [void]$nodeResults.Add([PSCustomObject]@{
                         Node = $computer
                         Status = $nodeResult.Status

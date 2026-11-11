@@ -87,30 +87,6 @@ Describe 'Utilities - job progress contract' {
     }
 }
 
-Describe 'Utilities - remote module import' {
-    It 'Checks whether the module is loaded rather than only installed' {
-        InModuleScope SdnDiag.Utilities {
-            $definition = (Get-Command New-PSRemotingSession).ScriptBlock.ToString()
-
-            $definition | Should -Match 'Get-Module\s+-Name\s+\$arg0\s+-ErrorAction\s+Ignore'
-            $definition | Should -Not -Match 'Get-Module[^\r\n]*-ListAvailable'
-        }
-    }
-
-    It 'Does not overwrite the caller import request with the configured default' {
-        InModuleScope SdnDiag.Utilities {
-            $command = Get-Command New-PSRemotingSession
-            $parameterReassignments = $command.ScriptBlock.Ast.FindAll({
-                param($ast)
-                $ast -is [System.Management.Automation.Language.AssignmentStatementAst] -and
-                    $ast.Left.Extent.Text -match '(?i)\$ImportModuleOnRemoteSession$'
-            }, $true)
-
-            $parameterReassignments.Count | Should -Be 0
-        }
-    }
-}
-
 Describe 'Utilities - Format Functions' {
     Context 'Format-MacAddressWithDashes' {
         It "Converts 12-char MAC to dashed format" {

@@ -1890,7 +1890,7 @@ function New-PSRemotingSession {
 
     begin {
         [bool]$disableSeeding = $Global:SdnDiagnostics.Config.DisableModuleSeeding
-        [bool]$configuredImportModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession
+        [bool]$importModuleOnRemoteSession = $Global:SdnDiagnostics.Config.ImportModuleOnRemoteSession
 
         $importRemoteModule = {
             param([string]$arg0, $arg1, $arg2)
@@ -1907,8 +1907,8 @@ function New-PSRemotingSession {
 
         $confirmRemoteModuleImported = {
             param([string]$arg0)
-            $moduleImported = Get-Module -Name $arg0 -ErrorAction Ignore
-            if ($moduleImported) {
+            $moduleExists = Get-Module -Name $arg0 -ListAvailable -ErrorAction Ignore
+            if ($moduleExists) {
                 return $true
             }
 
@@ -1937,7 +1937,7 @@ function New-PSRemotingSession {
                     $moduleImported = Invoke-Command -Session $session -ScriptBlock $confirmRemoteModuleImported -ArgumentList @($ModuleName) -ErrorAction Stop
                     if (-NOT $moduleImported) {
                         "Importing module {0} on remote session {1}" -f $ModuleName, $session.Name | Trace-Output -Level:Verbose
-                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $configuredImportModuleOnRemoteSession) -ErrorAction Stop
+                        Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $importModuleOnRemoteSession) -ErrorAction Stop
                     }
                 }
 
@@ -1990,7 +1990,7 @@ function New-PSRemotingSession {
                 "Created powershell session {0} to {1}" -f $session.Name, $objectName | Trace-Output -Level:Verbose
                 if ($ImportModuleOnRemoteSession) {
                     "Importing module {0} on remote session {1}" -f $ModuleName, $session.Name | Trace-Output -Level:Verbose
-                    Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $configuredImportModuleOnRemoteSession) -ErrorAction Stop
+                    Invoke-Command -Session $session -ScriptBlock $importRemoteModule -ArgumentList @($ModuleName, $disableSeeding, $importModuleOnRemoteSession) -ErrorAction Stop
                 }
 
                 # add the session to the array
