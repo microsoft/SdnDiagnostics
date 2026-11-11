@@ -73,7 +73,7 @@ Describe 'SdnDiagnostics - optional structured diagnostics' {
 
         It 'Invokes the independent stage with selected hosts, credentials and dates' {
             $from = [datetime]'2026-01-01T00:00:00Z'
-            $credential = [pscredential]::new('DVLAB\operator', (ConvertTo-SecureString 'mock-only' -AsPlainText -Force))
+            $credential = [pscredential]::new('DVLAB\operator', [securestring]::new())
             $result = Start-SdnDataCollection -Role Server -NetworkController DVLAB-NC01 -OutputDirectory $TestDrive `
                 -IncludeStructuredDiagnostics -IncludeLogs -FromDate $from -ToDate $from.AddHours(2) -Credential $credential
             $result.Result | Should -Be Success

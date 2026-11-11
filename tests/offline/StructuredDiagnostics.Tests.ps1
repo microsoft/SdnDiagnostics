@@ -682,7 +682,7 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Mock Import-Module -ParameterFilter { $Name -eq 'SdnDiagnostics' } {
                 $script:rootModuleUnderTest
             }
-            $credential = [pscredential]::new('DVLAB\operator', (ConvertTo-SecureString 'mock-only' -AsPlainText -Force))
+            $credential = [pscredential]::new('DVLAB\operator', [securestring]::new())
             $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 `
                 -OutputDirectory $script:collectionOutput -Credential $credential
             $result.Status | Should -Be Completed
