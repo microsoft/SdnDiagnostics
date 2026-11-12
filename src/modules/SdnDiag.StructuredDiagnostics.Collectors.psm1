@@ -5,7 +5,6 @@ Import-Module -Name $PSScriptRoot\SdnDiag.Utilities.psm1 -ErrorAction Stop
 
 . (Join-Path $PSScriptRoot 'SdnDiag.StructuredDiagnostics.CollectorCatalog.ps1')
 
-# Runs collector groups concurrently, enforces group deadlines, and writes the collection manifest.
 function Invoke-StructuredDiagnosticCollection {
     [CmdletBinding()]
     param (
@@ -40,6 +39,14 @@ function Invoke-StructuredDiagnosticCollection {
     }
 
     $started = [DateTime]::UtcNow
+    $queued = [System.Collections.Queue]::new()
+    foreach ($batched in @($true, $false)) {
+        foreach ($group in $script:structuredDiagnosticCollectorCatalog.Groups) {
+            if ($group.Batched -eq $batched) {
+                $queued.Enqueue($group)
+            }
+        }
+    }
     $pending = [System.Collections.ArrayList]::new()
     $groupManifestResults = [System.Collections.ArrayList]::new()
     $progressInterval = [TimeSpan]::FromSeconds(30)
@@ -53,44 +60,9 @@ function Invoke-StructuredDiagnosticCollection {
     $writer = $null
     try {
         $null = New-Item -Path $OutputRoot -ItemType Directory -Force -ErrorAction Stop
-        foreach ($group in $script:structuredDiagnosticCollectorCatalog.Groups) {
-            $groupStart = [DateTime]::UtcNow
-            $job = $null
-            $failureMessage = $null
-            $status = 'Failed'
-            try {
-                $conditionMet = -not $group.Condition -or (& $group.Condition)
-                if ($conditionMet) {
-                    $job = Start-Job -ScriptBlock {
-                        param($groupId, $outputRoot, $format, $modulePath, $fromDate, $toDate, $includeLogs)
-                        Import-Module $modulePath -ErrorAction Stop
-                        Invoke-StructuredDiagnosticCollectorGroup -GroupId $groupId -OutputRoot $outputRoot -Format $format `
-                            -FromDate $fromDate -ToDate $toDate -IncludeLogs:$includeLogs
-                    } -ArgumentList $group.Id, $OutputRoot, $Format, $PSCommandPath, $FromDate, $ToDate, $IncludeLogs.IsPresent -ErrorAction Stop
-                }
-                else {
-                    $status = 'Unavailable'
-                    $failureMessage = 'Group condition was not met on this host.'
-                }
-            }
-            catch {
-                $failureMessage = $_.Exception.Message
-                $_ | Trace-Exception
-                $_ | Write-Error -ErrorAction Continue
-            }
-            [void]$pending.Add(@{
-                Group = $group
-                Job = $job
-                Started = $groupStart
-                Deadline = $groupStart.AddSeconds($group.TimeoutSeconds)
-                FailureMessage = $failureMessage
-                Status = $status
-            })
-        }
-
-        $groupCount = $pending.Count
+        $groupCount = $queued.Count
         Trace-Output -Level:Verbose -Message (
-            "Started {0} structured diagnostic collector group(s) on '{1}'." -f
+            "Queued {0} structured diagnostic collector group(s) on '{1}'." -f
             $groupCount, $nodeResult.Node
         )
         if ($EmitProgressEvents) {
@@ -102,13 +74,75 @@ function Invoke-StructuredDiagnosticCollection {
                 Status = 'Running'
                 CompletedCount = 0
                 TotalCount = $groupCount
-                RemainingGroups = @($pending | ForEach-Object { $_.Group.Id })
+                RemainingGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
+                RunningGroups = @()
+                QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
                 DurationSeconds = 0
             }
         }
 
-        # All jobs start before waiting. Check every deadline, not just the first group's.
-        while ($pending.Count -gt 0) {
+        while ($queued.Count -gt 0 -or $pending.Count -gt 0) {
+            $startedGroups = $false
+            while ($queued.Count -gt 0 -and $pending.Count -lt 3) {
+                if ($pending.Count -gt 0 -and (
+                    -not $queued.Peek().Batched -or
+                    -not $pending[0].Group.Batched
+                )) {
+                    break
+                }
+
+                $group = $queued.Dequeue()
+                $groupStart = [DateTime]::UtcNow
+                $job = $null
+                $failureMessage = $null
+                $status = 'Failed'
+                try {
+                    $conditionMet = -not $group.Condition -or (& $group.Condition)
+                    if ($conditionMet) {
+                        $job = Start-Job -ScriptBlock {
+                            param($groupId, $outputRoot, $format, $modulePath, $fromDate, $toDate, $includeLogs)
+                            Import-Module $modulePath -ErrorAction Stop
+                            Invoke-StructuredDiagnosticCollectorGroup -GroupId $groupId -OutputRoot $outputRoot -Format $format `
+                                -FromDate $fromDate -ToDate $toDate -IncludeLogs:$includeLogs
+                        } -ArgumentList $group.Id, $OutputRoot, $Format, $PSCommandPath, $FromDate, $ToDate, $IncludeLogs.IsPresent -ErrorAction Stop
+                    }
+                    else {
+                        $status = 'Unavailable'
+                        $failureMessage = 'Group condition was not met on this host.'
+                    }
+                }
+                catch {
+                    $failureMessage = $_.Exception.Message
+                    $_ | Trace-Exception
+                    $_ | Write-Error -ErrorAction Continue
+                }
+                [void]$pending.Add(@{
+                    Group = $group
+                    Job = $job
+                    Started = $groupStart
+                    Deadline = $groupStart.AddSeconds($group.TimeoutSeconds)
+                    FailureMessage = $failureMessage
+                    Status = $status
+                })
+                $startedGroups = $true
+            }
+
+            if ($EmitProgressEvents -and $startedGroups) {
+                [PSCustomObject]@{
+                    StructuredDiagnosticProgressEvent = $true
+                    EventId = [guid]::NewGuid().ToString('N')
+                    Node = $nodeResult.Node
+                    GroupId = $null
+                    Status = 'Running'
+                    CompletedCount = $groupManifestResults.Count
+                    TotalCount = $groupCount
+                    RemainingGroups = @($pending | ForEach-Object { $_.Group.Id }) + @($queued.ToArray() | ForEach-Object { $_.Id })
+                    RunningGroups = @($pending | Where-Object Job | ForEach-Object { $_.Group.Id })
+                    QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
+                    DurationSeconds = ([DateTime]::UtcNow - $started).TotalSeconds
+                }
+            }
+
             foreach ($entry in @($pending.ToArray())) {
                 $status = $entry.Status
                 $receivedResults = @()
@@ -199,8 +233,9 @@ function Invoke-StructuredDiagnosticCollection {
                     $groupResult.GroupId, $nodeResult.Node, $groupResult.Status,
                     $groupManifestResults.Count, $groupCount, $groupResult.DurationSeconds
                 )
+                $pending.Remove($entry)
                 if ($EmitProgressEvents) {
-                    $remainingGroups = @($pending | Where-Object { $_ -ne $entry } | ForEach-Object { $_.Group.Id })
+                    $remainingGroups = @($pending | ForEach-Object { $_.Group.Id }) + @($queued.ToArray() | ForEach-Object { $_.Id })
                     [PSCustomObject]@{
                         StructuredDiagnosticProgressEvent = $true
                         EventId = [guid]::NewGuid().ToString('N')
@@ -210,17 +245,26 @@ function Invoke-StructuredDiagnosticCollection {
                         CompletedCount = $groupManifestResults.Count
                         TotalCount = $groupCount
                         RemainingGroups = $remainingGroups
+                        RunningGroups = @($pending | Where-Object Job | ForEach-Object { $_.Group.Id })
+                        QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
                         DurationSeconds = $groupResult.DurationSeconds
                     }
                 }
-                $pending.Remove($entry)
+            }
+            if ($queued.Count -gt 0 -and $pending.Count -lt 3 -and (
+                $pending.Count -eq 0 -or (
+                    $queued.Peek().Batched -and
+                    $pending[0].Group.Batched
+                )
+            )) {
+                continue
             }
             if ($pending.Count -gt 0) {
                 if ([DateTime]::UtcNow -ge $nextProgressUpdate) {
                     $pendingGroupIds = @($pending | ForEach-Object { $_.Group.Id })
                     Trace-Output -Level:Verbose -Message (
-                        "Structured diagnostic collection is still running on '{0}' ({1}/{2} groups complete). Pending: {3}." -f
-                        $nodeResult.Node, $groupManifestResults.Count, $groupCount, ($pendingGroupIds -join ', ')
+                        "Structured diagnostic collection is still running on '{0}' ({1}/{2} groups complete). Running: {3}. Queued: {4}." -f
+                        $nodeResult.Node, $groupManifestResults.Count, $groupCount, ($pendingGroupIds -join ', '), $queued.Count
                     )
                     $nextProgressUpdate = [DateTime]::UtcNow.Add($progressInterval)
                 }
@@ -324,6 +368,7 @@ function Invoke-StructuredDiagnosticCollectorGroup {
         return
     }
 
+    $collectionContext = @{}
     foreach ($collector in $group.Collectors) {
         $started = [DateTime]::UtcNow
         $writer = $null
@@ -389,15 +434,13 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                     }
                     elseif ($collector.Kind -eq 'Performance') {
                         $timeFrame = Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $FromDate -ToDate $ToDate
-                        & $collect -ArgumentList @($timeFrame) | ForEach-Object {
-                            $performanceRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $_ `
-                                -ExcludedProperties $collector.ExcludedProperties -FormatDateTime
-                            $performanceRecord | Add-Member -NotePropertyName TimeFrame -NotePropertyValue $timeFrame -Force
-                            Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $performanceRecord
+                        & $collect -ArgumentList @($timeFrame, $collectionContext) | ForEach-Object {
+                            Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $_ `
+                                -ExcludedProperties $collector.ExcludedProperties -FormatDateTime -TimeFrame $timeFrame
                         }
                     }
                     else {
-                        & $collect | ForEach-Object {
+                        & $collect -ArgumentList @($collectionContext) | ForEach-Object {
                             Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $_ -ExcludedProperties $collector.ExcludedProperties
                         }
                     }
@@ -473,7 +516,28 @@ function Invoke-StructuredDiagnosticCollectorGroup {
 #     Collection Helper Functions
 # ===================================
 
+function Get-StructuredDiagnosticCachedValue {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]
+        [hashtable]$Cache,
+
+        [Parameter(Mandatory = $true)]
+        [string]$Key,
+
+        [Parameter(Mandatory = $true)]
+        [scriptblock]$Collect
+    )
+
+    if (-not $Cache.ContainsKey($Key)) {
+        $ErrorActionPreference = 'Stop'
+        $Cache[$Key] = @(& $Collect)
+    }
+    return $Cache[$Key]
+}
+
 # Recursively converts PowerShell and CIM objects into JSON-safe records with bounded depth.
+# Scalar children are handled inline to avoid recursive parameter-binding overhead.
 function ConvertTo-StructuredDiagnosticRecord {
     [CmdletBinding()]
     param (
@@ -504,25 +568,55 @@ function ConvertTo-StructuredDiagnosticRecord {
         return [string]$InputObject
     }
 
-    $excluded = @('CimClass', 'CimInstanceProperties', 'CimSystemProperties', 'CimSession') + $ExcludedProperties
-    $record = [ordered]@{}
-    if ($InputObject -is [System.Collections.IDictionary]) {
-        foreach ($key in $InputObject.Keys) {
-            if ($key -notin $excluded) {
-                $record[$key] = ConvertTo-StructuredDiagnosticRecord -InputObject $InputObject[$key] -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
-            }
-        }
-    }
-    elseif ($InputObject -is [System.Collections.IEnumerable]) {
+    # Dictionaries are also enumerable; reserve the array path for non-dictionary collections.
+    if ($InputObject -isnot [System.Collections.IDictionary] -and $InputObject -is [System.Collections.IEnumerable]) {
         $items = @(foreach ($item in $InputObject) {
-            ConvertTo-StructuredDiagnosticRecord -InputObject $item -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+            if ($FormatDateTime -and ($item -is [DateTime] -or $item -is [DateTimeOffset])) {
+                $item.ToString('o')
+            }
+            elseif ($null -eq $item -or $item -is [string] -or $item -is [ValueType]) {
+                $item
+            }
+            else {
+                ConvertTo-StructuredDiagnosticRecord -InputObject $item -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+            }
         })
         return ,$items
     }
+
+    $excluded = @('CimClass', 'CimInstanceProperties', 'CimSystemProperties', 'CimSession') + $ExcludedProperties
+    $record = [ordered]@{}
+    if ($InputObject -is [System.Collections.IDictionary]) {
+        # Map allowed dictionary keys to record properties, preserving their enumeration order.
+        foreach ($key in $InputObject.Keys) {
+            if ($key -notin $excluded) {
+                $value = $InputObject[$key]
+                $record[$key] = if ($FormatDateTime -and ($value -is [DateTime] -or $value -is [DateTimeOffset])) {
+                    $value.ToString('o')
+                }
+                elseif ($null -eq $value -or $value -is [string] -or $value -is [ValueType]) {
+                    $value
+                }
+                else {
+                    ConvertTo-StructuredDiagnosticRecord -InputObject $value -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+                }
+            }
+        }
+    }
     else {
+        # Read allowed PowerShell/CIM properties once, recursing only into complex values.
         foreach ($property in $InputObject.PSObject.Properties) {
             if ($property.IsGettable -and $property.Name -notin $excluded) {
-                $record[$property.Name] = ConvertTo-StructuredDiagnosticRecord -InputObject $property.Value -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+                $value = $property.Value
+                $record[$property.Name] = if ($FormatDateTime -and ($value -is [DateTime] -or $value -is [DateTimeOffset])) {
+                    $value.ToString('o')
+                }
+                elseif ($null -eq $value -or $value -is [string] -or $value -is [ValueType]) {
+                    $value
+                }
+                else {
+                    ConvertTo-StructuredDiagnosticRecord -InputObject $value -Depth ($Depth + 1) -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+                }
             }
         }
     }
@@ -575,7 +669,13 @@ function Write-StructuredDiagnosticArtifactRecord {
         $Record,
 
         [Parameter()]
-        [string[]]$ExcludedProperties = @()
+        [string[]]$ExcludedProperties = @(),
+
+        [Parameter()]
+        [switch]$FormatDateTime,
+
+        [Parameter()]
+        [string]$TimeFrame
     )
 
     if ($Writer.Format -eq 'Text') {
@@ -590,7 +690,11 @@ function Write-StructuredDiagnosticArtifactRecord {
         return
     }
 
-    $plainRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $Record -ExcludedProperties $ExcludedProperties
+    $plainRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $Record `
+        -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+    if ($PSBoundParameters.ContainsKey('TimeFrame')) {
+        $plainRecord | Add-Member -NotePropertyName TimeFrame -NotePropertyValue $TimeFrame -Force
+    }
     $json = ConvertTo-Json -InputObject $plainRecord -Depth 5 -Compress:($Writer.Format -eq 'Ndjson') -ErrorAction Stop
     if ($Writer.Format -eq 'Json') {
         if ($Writer.RecordCount -gt 0) {

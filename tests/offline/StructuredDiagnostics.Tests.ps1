@@ -1,3 +1,70 @@
+Describe 'SdnDiag.StructuredDiagnostics - record normalization' -Tag 'Unit' {
+    InModuleScope SdnDiag.StructuredDiagnostics.Collectors {
+        It 'Preserves scalar values and honors date formatting in <Container>' -TestCases @(
+            @{ Container = 'Dictionary' }
+            @{ Container = 'Object' }
+            @{ Container = 'Array' }
+        ) {
+            param($Container)
+            $values = [ordered]@{
+                Name = 'DVLAB-S1-N01'
+                Count = 42
+                Enabled = $false
+                Missing = $null
+                Date = [DateTime]'2026-01-01T01:00:00'
+                Offset = [DateTimeOffset]'2026-01-01T01:00:00+02:00'
+            }
+            switch ($Container) {
+                'Dictionary' { $inputObject = $values }
+                'Object' { $inputObject = [PSCustomObject]$values }
+                'Array' { $inputObject = @($values.Values) }
+            }
+
+            $result = ConvertTo-StructuredDiagnosticRecord -InputObject $inputObject
+            $formatted = ConvertTo-StructuredDiagnosticRecord -InputObject $inputObject -FormatDateTime
+            $index = 0
+            foreach ($key in $values.Keys) {
+                $actual = if ($Container -eq 'Array') { $result[$index] } else { $result.$key }
+                $formattedValue = if ($Container -eq 'Array') { $formatted[$index] } else { $formatted.$key }
+                if ($null -eq $values[$key]) {
+                    ($null -eq $actual) | Should -BeTrue
+                    ($null -eq $formattedValue) | Should -BeTrue
+                }
+                else {
+                    $actual.GetType() | Should -Be $values[$key].GetType()
+                    $actual | Should -Be $values[$key]
+                    if ($values[$key] -is [DateTime] -or $values[$key] -is [DateTimeOffset]) {
+                        $formattedValue | Should -BeOfType [string]
+                        $formattedValue | Should -BeExactly $values[$key].ToString('o')
+                    }
+                    else {
+                        $formattedValue.GetType() | Should -Be $values[$key].GetType()
+                        $formattedValue | Should -Be $values[$key]
+                    }
+                }
+                $index++
+            }
+        }
+
+        It 'Preserves empty, singleton, nested, and null array elements' {
+            $result = ConvertTo-StructuredDiagnosticRecord -InputObject @(@(), @(42), @(1, 2), $null)
+            ($result -is [array]) | Should -BeTrue
+            $result.Count | Should -Be 4
+            ($result[0] -is [array]) | Should -BeTrue
+            $result[0].Count | Should -Be 0
+            ($result[1] -is [array]) | Should -BeTrue
+            $result[1].Count | Should -Be 1
+            $result[1][0] | Should -Be 42
+            ($result[2] -is [array]) | Should -BeTrue
+            $result[2].Count | Should -Be 2
+            $result[2][0] | Should -Be 1
+            $result[2][1] | Should -Be 2
+            ($null -eq $result[3]) | Should -BeTrue
+        }
+
+    }
+}
+
 Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
     InModuleScope SdnDiag.StructuredDiagnostics.Collectors {
         BeforeAll {
@@ -9,6 +76,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $script:structuredDiagnosticCollectorCatalog = @{
                 Groups = @(@{
                     Id = 'Host'
+                    Batched = $true
                     TimeoutSeconds = 600
                     Collectors = @(@{
                         Id = 'Test-Record'

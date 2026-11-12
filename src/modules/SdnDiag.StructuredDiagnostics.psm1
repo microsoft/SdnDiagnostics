@@ -443,8 +443,19 @@ function Get-StructuredDiagnosticProgressSnapshot {
                 if ($null -ne $latestEvent.CompletedCount -and $null -ne $latestEvent.TotalCount) {
                     $completedCount += $latestEvent.CompletedCount
                     $totalCount += $latestEvent.TotalCount
-                    [void]$nodeStatuses.Add(("{0} {1}/{2} groups ({3})" -f
-                        $node, $latestEvent.CompletedCount, $latestEvent.TotalCount, $remainingText))
+                    $executionText = ''
+                    if ($latestEvent.PSObject.Properties.Name -contains 'RunningGroups' -and
+                        $latestEvent.PSObject.Properties.Name -contains 'QueuedGroups') {
+                        $runningText = if (@($latestEvent.RunningGroups).Count -gt 0) {
+                            $latestEvent.RunningGroups -join ', '
+                        }
+                        else {
+                            'none'
+                        }
+                        $executionText = '; running: {0}; queued: {1}' -f $runningText, @($latestEvent.QueuedGroups).Count
+                    }
+                    [void]$nodeStatuses.Add(("{0} {1}/{2} groups ({3}{4})" -f
+                        $node, $latestEvent.CompletedCount, $latestEvent.TotalCount, $remainingText, $executionText))
                 }
                 elseif ($latestEvent.GroupId) {
                     [void]$nodeStatuses.Add(("{0}: completed group {1}; detailed counts unavailable" -f
