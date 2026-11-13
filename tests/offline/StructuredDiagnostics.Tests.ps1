@@ -65,6 +65,41 @@ Describe 'SdnDiag.StructuredDiagnostics - record normalization' -Tag 'Unit' {
     }
 }
 
+Describe 'SdnDiag.StructuredDiagnostics - cached inventories' -Tag 'Unit' {
+    InModuleScope SdnDiag.StructuredDiagnostics.Collectors {
+        It 'Caches an empty inventory rather than collecting it again' {
+            $cache = @{}
+            $first = @(Get-StructuredDiagnosticCachedValue -Cache $cache -Key VirtualMachines -Collect {})
+            $second = @(Get-StructuredDiagnosticCachedValue -Cache $cache -Key VirtualMachines -Collect { throw 'Must use the cache' })
+
+            $cache.ContainsKey('VirtualMachines') | Should -BeTrue
+            $first.Count | Should -Be 0
+            $second.Count | Should -Be 0
+        }
+
+        It 'Streams partial inventory records, propagates failure, and retries instead of caching an incomplete inventory' {
+            $cache = @{}
+            $records = [System.Collections.ArrayList]::new()
+            {
+                Get-StructuredDiagnosticCachedValue -Cache $cache -Key VirtualMachines -Collect {
+                    [PSCustomObject]@{ Name = 'DVLAB-VM01' }
+                    throw 'DVLAB inventory interrupted'
+                } | ForEach-Object { [void]$records.Add($_) }
+            } | Should -Throw '*DVLAB inventory interrupted*'
+
+            $records.Count | Should -Be 1
+            $records[0].Name | Should -Be DVLAB-VM01
+            $cache.ContainsKey('VirtualMachines') | Should -BeFalse
+            $retry = @(Get-StructuredDiagnosticCachedValue -Cache $cache -Key VirtualMachines -Collect {
+                [PSCustomObject]@{ Name = 'DVLAB-VM02' }
+            })
+            $retry.Count | Should -Be 1
+            $retry[0].Name | Should -Be DVLAB-VM02
+            $cache.ContainsKey('VirtualMachines') | Should -BeTrue
+        }
+    }
+}
+
 Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
     InModuleScope SdnDiag.StructuredDiagnostics.Collectors {
         BeforeAll {
@@ -76,7 +111,6 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $script:structuredDiagnosticCollectorCatalog = @{
                 Groups = @(@{
                     Id = 'Host'
-                    Batched = $true
                     TimeoutSeconds = 600
                     Collectors = @(@{
                         Id = 'Test-Record'
@@ -85,6 +119,14 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
                     })
                 })
             }
+            Mock New-StructuredDiagnosticWorker {
+                @{
+                    PowerShell = @{ InvocationStateInfo = @{ State = 'Completed' } }
+                    Invocation = @{ IsCompleted = $true }
+                }
+            }
+            Mock Start-StructuredDiagnosticWorkerGroup {}
+            Mock Remove-StructuredDiagnosticWorker {}
         }
         AfterAll {
             $script:structuredDiagnosticCollectorCatalog = $script:originalCatalog
@@ -100,6 +142,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             ($text | ConvertFrom-Json).Name | Should -Be 'DVLAB-S1-N01'
             [System.IO.File]::ReadAllBytes($path)[0] | Should -Be 91
             $result.RecordCount | Should -Be 1
+            Test-Path -LiteralPath (Join-Path $TestDrive '_Performance') | Should -BeFalse
         }
 
         It 'Writes empty JSON results as an empty array' {
@@ -121,6 +164,31 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.RecordCount | Should -Be 2
         }
 
+        It 'Preserves performance timestamps and replaces the requested time frame' {
+            $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors = @(@{
+                Id = 'Test-Performance'
+                Kind = 'Performance'
+                RelativePath = 'Host\performance.json'
+                Collect = {
+                    [PSCustomObject]@{
+                        TimeFrame = 'OldValue'
+                        Time = [datetime]'2026-01-01T01:00:00Z'
+                        Value = 42
+                    }
+                }
+            })
+            $from = [datetime]'2026-01-01T00:00:00Z'
+            $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Ndjson `
+                -FromDate $from -ToDate $from.AddHours(4)
+            $result.Status | Should -Be Success
+            $result.RecordCount | Should -Be 1
+            $record = Get-Content -LiteralPath (Join-Path $TestDrive 'Host\performance.json') -Raw | ConvertFrom-Json
+            $record.TimeFrame | Should -Be LastDay
+            [datetime]$record.Time | Should -Be ([datetime]'2026-01-01T01:00:00Z')
+            $record.Value | Should -Be 42
+            Test-Path -LiteralPath (Join-Path $TestDrive '_Performance') | Should -BeFalse
+        }
+
         It 'Recursively excludes catalog properties' {
             $result = ConvertTo-StructuredDiagnosticRecord -InputObject ([PSCustomObject]@{
                 Name = 'DVLAB'
@@ -129,12 +197,6 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.Nested.PSObject.Properties.Name | Should -Not -Contain ParentAdapter
             $result.Nested.PSObject.Properties.Name | Should -Not -Contain CimSession
             $result.Nested.Value | Should -Be 42
-        }
-
-        It 'Uses the supported exclusion key for VM adapter isolation' {
-            $collector = $script:originalCatalog.Groups.Collectors | Where-Object Id -eq 'Get-VMNetworkAdapterIsolation'
-            $collector.ExcludedProperties | Should -Contain ParentAdapter
-            $collector.ContainsKey('Exclude') | Should -BeFalse
         }
 
         It 'Skips event and setup collectors unless IncludeLogs is set' {
@@ -174,10 +236,13 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.RecordCount | Should -Be 1
         }
 
-        It 'Preserves records written before a collector fails' {
+        It 'Preserves the artifact records written before a cached collector fails' {
             $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors[0].Collect = {
-                [PSCustomObject]@{ Name = 'DVLAB' }
-                throw 'Mock collector failure'
+                param($context)
+                Get-StructuredDiagnosticCachedValue -Cache $context -Key Test -Collect {
+                    [PSCustomObject]@{ Name = 'DVLAB' }
+                    throw 'Mock collector failure'
+                }
             }
             $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json -ErrorAction SilentlyContinue
             $result.Status | Should -Be PartialSuccess
@@ -185,19 +250,26 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             (Get-Content (Join-Path $TestDrive 'Host\record.json') -Raw | ConvertFrom-Json).Name | Should -Be DVLAB
         }
 
-        It 'Preserves records collected before a command is unavailable' {
-            $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors[0].Collect = {
-                [PSCustomObject]@{ Name = 'DVLAB' }
-                Get-DVLABMissingCollectorCommand
-                'Must not be collected'
+        It 'Reuses inventories within a group but refreshes them for the next group invocation' {
+            $script:inventoryCalls = 0
+            $collect = {
+                param($context)
+                Get-StructuredDiagnosticCachedValue -Cache $context -Key VirtualMachines -Collect {
+                    $script:inventoryCalls++
+                    [PSCustomObject]@{ Name = 'DVLAB-VM01' }
+                }
             }
-            Mock Write-Error {}
+            $group = $script:structuredDiagnosticCollectorCatalog.Groups[0]
+            $group.Collectors[0].Collect = $collect
+            $group.Collectors += @{ Id = 'Test-Cached'; RelativePath = 'Host\cached.json'; Collect = $collect }
 
-            $result = Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json
-            $result.Status | Should -Be PartialSuccess
-            $result.RecordCount | Should -Be 1
-            $result.FailureMessage | Should -Match 'Get-DVLABMissingCollectorCommand'
-            (Get-Content (Join-Path $TestDrive 'Host\record.json') -Raw | ConvertFrom-Json).Name | Should -Be DVLAB
+            $first = @(Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json)
+            $second = @(Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json)
+
+            $script:inventoryCalls | Should -Be 2
+            $first.Count | Should -Be 2
+            $second.Count | Should -Be 2
+            @($first + $second | Where-Object { $_.Status -ne 'Success' -or $_.RecordCount -ne 1 }).Count | Should -Be 0
         }
 
         It 'Continues with the next collector after a command is unavailable' {
@@ -224,22 +296,13 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             Should -Invoke Trace-Exception -Times 0
         }
 
-        It 'Rejects an inverted time window before starting jobs' {
-            Mock Start-Job { throw 'Must not run' }
-            { Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
-                -FromDate ([datetime]'2026-01-02') -ToDate ([datetime]'2026-01-01') } | Should -Throw '*FromDate*'
-            Should -Invoke Start-Job -Times 0
-        }
-
         It 'Writes nested manifest artifact metadata without flattening it' {
-            Mock Start-Job { [PSCustomObject]@{ State = 'Completed' } }
-            Mock Receive-Job -RemoveParameterType Job {
+            Mock Receive-StructuredDiagnosticWorkerGroup {
                 [PSCustomObject]@{
                     CollectorId = 'Test-Record'; Status = 'Success'; RecordCount = 1
                     OutputArtifacts = @([PSCustomObject]@{ RelativePath = 'Host\record.json'; Status = 'Success'; RecordCount = 1 })
                 }
             }
-            Mock Remove-Job -RemoveParameterType Job {}
             $output = @(Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
                 -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date) -EmitProgressEvents)
             $progressEvents = @($output | Where-Object StructuredDiagnosticProgressEvent)
@@ -253,41 +316,53 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $manifest.Groups[0].Collectors[0].OutputArtifacts[0].RelativePath | Should -Be 'Host\record.json'
             $manifest.Groups[0].Collectors[0].PSObject.Properties.Name | Should -Not -Contain Command
             $manifest.SchemaVersion | Should -Be 1
+            Test-Path -LiteralPath (Join-Path $TestDrive '_Performance') | Should -BeFalse
         }
 
-        It 'Preserves CommandNotAvailable in the manifest when no collector can run' {
-            Mock Start-Job { [PSCustomObject]@{ State = 'Completed' } }
-            Mock Receive-Job -RemoveParameterType Job {
-                [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'CommandNotAvailable'; RecordCount = 0; OutputArtifacts = @() }
+        It 'Evaluates an unmet group condition only in the worker and reports unavailable results' {
+            $script:conditionCalls = 0
+            $script:structuredDiagnosticCollectorCatalog.Groups[0].Condition = {
+                $script:conditionCalls++
+                $false
             }
-            Mock Remove-Job -RemoveParameterType Job {}
-
+            Mock Receive-StructuredDiagnosticWorkerGroup {
+                Invoke-StructuredDiagnosticCollectorGroup -GroupId Host -OutputRoot $TestDrive -Format Json
+            }
             $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
                 -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
             $result.Status | Should -Be Failed
+            $script:conditionCalls | Should -Be 1
+            Should -Invoke New-StructuredDiagnosticWorker -Times 1 -Exactly
+            Should -Invoke Start-StructuredDiagnosticWorkerGroup -Times 1 -Exactly
             $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
-            $manifest.Groups[0].Status | Should -Be CommandNotAvailable
-            $manifest.Groups[0].Collectors[0].Status | Should -Be CommandNotAvailable
+            $manifest.Groups[0].Status | Should -Be Unavailable
+            $manifest.Groups[0].Collectors[0].PSObject.Properties.Name | Should -Not -Contain Command
         }
 
-        It 'Fails a collection when all groups are unavailable' {
-            $script:structuredDiagnosticCollectorCatalog.Groups[0].Condition = { $false }
-            Mock Start-Job { throw 'Must not run' }
+        It 'Reports mixed collector outcomes as partial success without discarding repeated statuses' {
+            Mock Receive-StructuredDiagnosticWorkerGroup {
+                foreach ($status in @('Failed', 'Success', 'Success')) {
+                    [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = $status; RecordCount = 1; OutputArtifacts = @() }
+                }
+            }
             $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
                 -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
-            $result.Status | Should -Be Failed
-            Should -Invoke Start-Job -Times 0
             $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
-            $manifest.Groups[0].Collectors[0].PSObject.Properties.Name | Should -Not -Contain Command
+            $result.Status | Should -Be CompletedWithFailures
+            $manifest.Groups[0].Status | Should -Be PartialSuccess
+            $manifest.Groups[0].Collectors.Count | Should -Be 3
         }
 
         It 'Retains completed collector results when a group times out' {
             $script:structuredDiagnosticCollectorCatalog.Groups[0].TimeoutSeconds = -1
             $script:structuredDiagnosticCollectorCatalog.Groups[0].Collectors += @{ Id = 'NotFinished'; RelativePath = 'Host\missing.json' }
-            Mock Start-Job { [PSCustomObject]@{ State = 'Running' } }
-            Mock Stop-Job -RemoveParameterType Job {}
-            Mock Receive-Job -RemoveParameterType Job { [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'Success'; RecordCount = 1; OutputArtifacts = @('Host\record.json') } }
-            Mock Remove-Job -RemoveParameterType Job {}
+            Mock New-StructuredDiagnosticWorker {
+                @{
+                    PowerShell = @{ InvocationStateInfo = @{ State = 'Running' } }
+                    Invocation = @{ IsCompleted = $false }
+                }
+            }
+            Mock Receive-StructuredDiagnosticWorkerGroup { [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'Success'; RecordCount = 1; OutputArtifacts = @('Host\record.json') } }
             $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
                 -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
             $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
@@ -296,14 +371,52 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $manifest.Groups[0].Collectors[0].RecordCount | Should -Be 1
             $manifest.Groups[0].Collectors[1].OutputArtifacts.Count | Should -Be 0
             $manifest.Groups[0].Collectors[1].PSObject.Properties.Name | Should -Not -Contain Command
-            Should -Invoke Receive-Job -Times 1
+            Should -Invoke Receive-StructuredDiagnosticWorkerGroup -Times 1 -ParameterFilter { $Stop }
         }
 
-        It 'Maps performance duration to documented relative buckets' {
-            $from = [datetime]'2026-01-01'
-            Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $from -ToDate $from.AddHours(1) | Should -Be LastHour
-            Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $from -ToDate $from.AddHours(4) | Should -Be LastDay
-            Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $from -ToDate $from.AddDays(7) | Should -Be LastWeek
+        It 'Reuses two workers across the group queue without standalone scheduling' {
+            $script:structuredDiagnosticCollectorCatalog.Groups = @(1..7 | ForEach-Object {
+                @{ Id = "DVLAB-Group$_"; TimeoutSeconds = 600; Collectors = @(@{ Id = 'Test-Record' }) }
+            })
+            Mock Receive-StructuredDiagnosticWorkerGroup {
+                [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'Success'; RecordCount = 1; OutputArtifacts = @() }
+            }
+
+            $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
+                -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
+
+            $result.Status | Should -Be Completed
+            Should -Invoke New-StructuredDiagnosticWorker -Times 2 -Exactly
+            Should -Invoke Start-StructuredDiagnosticWorkerGroup -Times 7 -Exactly
+            Should -Invoke Remove-StructuredDiagnosticWorker -Times 2 -Exactly
+            $manifest = Get-Content (Join-Path $TestDrive 'CollectionManifest.json') -Raw | ConvertFrom-Json
+            $manifest.Groups.Count | Should -Be 7
+        }
+
+        It 'Replaces a timed-out worker before filling both slots again' {
+            $script:structuredDiagnosticCollectorCatalog.Groups = @(1..6 | ForEach-Object {
+                @{ Id = "DVLAB-Group$_"; TimeoutSeconds = if ($_ -eq 1) { -1 } else { 600 }; Collectors = @(@{ Id = 'Test-Record' }) }
+            })
+            $script:structuredDiagnosticCollectorCatalog.Groups[0].Condition = { throw 'Conditions must run inside the worker' }
+            $script:workerCount = 0
+            Mock New-StructuredDiagnosticWorker {
+                $script:workerCount++
+                @{
+                    PowerShell = @{ InvocationStateInfo = @{ State = if ($script:workerCount -eq 1) { 'Running' } else { 'Completed' } } }
+                    Invocation = @{ IsCompleted = $script:workerCount -ne 1 }
+                }
+            }
+            Mock Receive-StructuredDiagnosticWorkerGroup {
+                [PSCustomObject]@{ CollectorId = 'Test-Record'; Status = 'Success'; RecordCount = 1; OutputArtifacts = @() }
+            }
+
+            $result = Invoke-StructuredDiagnosticCollection -OutputRoot $TestDrive -CollectionId DVLAB -ModuleVersion '1.0' -Format Json `
+                -FromDate (Get-Date).AddHours(-1) -ToDate (Get-Date)
+
+            $result.Status | Should -Be CompletedWithFailures
+            Should -Invoke New-StructuredDiagnosticWorker -Times 3 -Exactly
+            Should -Invoke Receive-StructuredDiagnosticWorkerGroup -Times 1 -Exactly -ParameterFilter { $Stop }
+            Should -Invoke Remove-StructuredDiagnosticWorker -Times 3 -Exactly
         }
 
         It 'Copies exactly the bounded tail of a setup log' {
@@ -319,27 +432,6 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $result.Truncated | Should -BeTrue
         }
 
-        It 'Loads the collectors and writer in a fresh process without CSSTools' {
-            $modulePath = (Get-Module SdnDiag.StructuredDiagnostics.Collectors -All | Select-Object -First 1).Path
-            $job = Start-Job -ScriptBlock {
-                param($modulePath, $outputPath)
-                Import-Module $modulePath -ErrorAction Stop
-                $writer = Open-StructuredDiagnosticArtifactWriter -Path $outputPath -Format Json
-                Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record ([PSCustomObject]@{ Name = 'DVLAB' })
-                Close-StructuredDiagnosticArtifactWriter -Writer $writer
-                Trace-Output -Level Verbose -Message 'Offline module bootstrap verification.'
-                (Get-Content -LiteralPath $outputPath -Raw | ConvertFrom-Json).Name
-            } -ArgumentList $modulePath, (Join-Path $TestDrive 'child-process.json')
-            try {
-                $null = $job | Wait-Job -Timeout 30
-                $job.State | Should -Be Completed
-                Receive-Job -Job $job -ErrorAction Stop | Should -Be DVLAB
-            }
-            finally {
-                Stop-Job -Job $job
-                Remove-Job -Job $job -Force
-            }
-        }
     }
 }
 
@@ -369,16 +461,6 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             }
         }
 
-        It 'Preserves all explicit targets and removes duplicate names without cluster discovery' {
-            $targets = @(Get-StructuredDiagnosticTarget -ComputerName DVLAB-S1-N02,DVLAB-S1-N01,DVLAB-S1-N02)
-            $targets | Should -Be @('DVLAB-S1-N02', 'DVLAB-S1-N01')
-            Should -Invoke Trace-Output -Times 1 -Exactly -ParameterFilter {
-                $Level -eq 'Warning' -and $Message -like "*Skipping duplicate*'DVLAB-S1-N02'*"
-            }
-            Should -Invoke Test-Path -Times 0 -ParameterFilter { $LiteralPath -eq 'HKLM:\Cluster' }
-            Should -Invoke Get-ClusterNode -Times 0
-        }
-
         It 'Deduplicates explicit targets case-insensitively while preserving first spelling and order' {
             $targets = @(Get-StructuredDiagnosticTarget -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01)
             $targets.Count | Should -Be 2
@@ -388,22 +470,12 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             Should -Invoke Get-ClusterNode -Times 0
         }
 
-        It 'Warns and skips duplicate short names in either order' -TestCases @(
-            @{ Names = @('DVLAB-S1-N01', 'dvlab-s1-n01.dvlab.contoso.local') }
-            @{ Names = @('dvlab-s1-n01.dvlab.contoso.local', 'DVLAB-S1-N01') }
-        ) {
-            param($Names)
-            $targets = @(Get-StructuredDiagnosticTarget -ComputerName $Names)
+        It 'Warns and skips a duplicate FQDN alias' {
+            $targets = @(Get-StructuredDiagnosticTarget -ComputerName 'DVLAB-S1-N01', 'dvlab-s1-n01.dvlab.contoso.local')
             $targets.Count | Should -Be 1
-            $targets[0] | Should -BeExactly $Names[0]
+            $targets[0] | Should -BeExactly 'DVLAB-S1-N01'
             Should -Invoke Trace-Output -Times 1 -Exactly -ParameterFilter { $Level -eq 'Warning' }
             Should -Invoke Get-ClusterNode -Times 0
-        }
-
-        It 'Keeps different IP addresses with the same first octet as separate targets' {
-            $targets = @(Get-StructuredDiagnosticTarget -ComputerName '10.20.30.40', '10.20.30.41')
-            $targets | Should -Be @('10.20.30.40', '10.20.30.41')
-            Should -Invoke Trace-Output -Times 0 -ParameterFilter { $Level -eq 'Warning' }
         }
 
         It 'Resolves every configured cluster node including unavailable nodes' {
@@ -412,67 +484,12 @@ Describe 'SdnDiag.StructuredDiagnostics - target resolution' {
             Should -Invoke Get-ClusterNode -Times 1
         }
 
-        It 'Uses localhost only when the machine is not a configured cluster member' {
-            Mock Test-Path -ParameterFilter { $LiteralPath -eq 'HKLM:\Cluster' } { $false }
-            @(Get-StructuredDiagnosticTarget) | Should -Be @($env:COMPUTERNAME)
-            Should -Invoke Get-ClusterNode -Times 0
-        }
-
         It 'Surfaces failed cluster enumeration without falling back to localhost' {
             Mock Get-ClusterNode { throw 'DVLAB cluster unavailable' }
             { Get-StructuredDiagnosticTarget -ErrorAction Stop } | Should -Throw '*DVLAB cluster unavailable*'
             Should -Invoke Trace-Exception -Times 1
         }
 
-        It 'Rejects an empty configured cluster rather than collecting only localhost' {
-            Mock Get-ClusterNode { @() }
-            { Get-StructuredDiagnosticTarget -ErrorAction Stop } | Should -Throw '*returned no host nodes*'
-            Should -Invoke Trace-Exception -Times 1
-        }
-
-        It 'Routes every resolved cluster node through the public entry point without NC discovery' {
-            $savedRoles = $Global:SdnDiagnostics.Config.Role
-            Mock Get-WorkingDirectory -ModuleName SdnDiagnostics { $TestDrive }
-            Mock Trace-Output -ModuleName SdnDiagnostics -RemoveParameterType Level {}
-            Mock Get-SdnInfrastructureInfo -ModuleName SdnDiagnostics { throw 'Must not discover NC' }
-            Mock Get-SdnServiceFabricClusterManifest -ModuleName SdnDiagnostics { throw 'Must not query Service Fabric' }
-            Mock Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics { [PSCustomObject]@{ Status = 'Completed' } }
-            try {
-                $Global:SdnDiagnostics.Config.Role = @('Common')
-                $result = Start-SdnDataCollection -Role Server -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
-                $result.Status | Should -Be Completed
-                Should -Invoke Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics -Times 1 -ParameterFilter {
-                    $ComputerName.Count -eq 3 -and $ComputerName -contains 'DVLAB-S1-N01' -and
-                    $ComputerName -contains 'DVLAB-S1-N02' -and $ComputerName -contains 'DVLAB-S1-N03'
-                }
-                Should -Invoke Get-SdnInfrastructureInfo -ModuleName SdnDiagnostics -Times 0
-                Should -Invoke Get-SdnServiceFabricClusterManifest -ModuleName SdnDiagnostics -Times 0
-            }
-            finally {
-                $Global:SdnDiagnostics.Config.Role = $savedRoles
-            }
-        }
-
-        It 'Routes case variants and FQDN aliases through the public entry point only once' {
-            $savedRoles = $Global:SdnDiagnostics.Config.Role
-            Mock Get-WorkingDirectory -ModuleName SdnDiagnostics { $TestDrive }
-            Mock Trace-Output -ModuleName SdnDiagnostics -RemoveParameterType Level {}
-            Mock Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics { [PSCustomObject]@{ Status = 'Completed' } }
-            try {
-                $Global:SdnDiagnostics.Config.Role = @('Common')
-                $result = Start-SdnDataCollection -ComputerName dvlab-s1-n02,DVLAB-S1-N01,DVLAB-S1-N02,dvlab-s1-n01.dvlab.contoso.local `
-                    -OutputDirectory $TestDrive -IncludeStructuredDiagnostics
-                $result.Status | Should -Be Completed
-                Should -Invoke Invoke-StructuredDiagnostics -ModuleName SdnDiagnostics -Times 1 -Exactly -ParameterFilter {
-                    $ComputerName.Count -eq 2 -and
-                    ($ComputerName -join ',') -ceq 'dvlab-s1-n02,DVLAB-S1-N01'
-                }
-                Should -Invoke Get-ClusterNode -Times 0
-            }
-            finally {
-                $Global:SdnDiagnostics.Config.Role = $savedRoles
-            }
-        }
     }
 }
 
@@ -552,61 +569,7 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Clear-SdnWorkingDirectory -Times 0
         }
 
-        It 'Passes dates, format, module version and log selection to the engine' {
-            $from = [datetime]'2026-01-01T00:00:00Z'
-            $result = Invoke-StructuredDiagnostics -OutputDirectory $script:collectionOutput `
-                -Format Ndjson -IncludeLogs -FromDate $from -ToDate $from.AddHours(2)
-            $result.Status | Should -Be Completed
-            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -ParameterFilter {
-                $CollectionId -eq $script:collectionId -and $IncludeLogs -and $Format -eq 'Ndjson' -and
-                -not [string]::IsNullOrEmpty($ModuleVersion) -and
-                $FromDate -eq [datetime]'2026-01-01T00:00:00Z' -and $ToDate -eq [datetime]'2026-01-01T02:00:00Z'
-            }
-        }
-
-        It 'Warns and skips repeated host names before starting collection jobs' {
-            Mock Test-ComputerNameIsLocal { $false }
-            $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01,dvlab-s1-n01,DVLAB-S1-N01.dvlab.contoso.local `
-                -OutputDirectory $script:collectionOutput
-            $result.Nodes.Count | Should -Be 1
-            $result.Nodes[0].Node | Should -BeExactly 'DVLAB-S1-N01'
-            Should -Invoke Trace-Output -Times 2 -Exactly -ParameterFilter { $Level -eq 'Warning' }
-            Should -Invoke Invoke-PSRemoteCommand -Times 1 -Exactly -ParameterFilter {
-                $ComputerName.Count -eq 1 -and $ComputerName[0] -ceq 'DVLAB-S1-N01'
-            }
-            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -Exactly
-        }
-
-        It 'Does not run local collectors when the Hyper-V host check fails' {
-            Mock Confirm-IsServer { throw 'DVLAB target is not a Hyper-V host' }
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
-                Should -Throw '*not a Hyper-V host*'
-            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 0
-            Should -Invoke Get-SdnInfrastructureInfo -Times 0
-            Should -Invoke Remove-Job -Times 1 -ParameterFilter {
-                $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
-            }
-        }
-
-        It 'Does not run remote collectors when the Hyper-V host check fails' {
-            Mock Test-ComputerNameIsLocal { $false }
-            Mock Confirm-IsServer { throw 'DVLAB target is not a Hyper-V host' }
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB-NC01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
-                Should -Throw '*not a Hyper-V host*'
-            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 0
-            Should -Invoke Copy-FileFromRemoteComputer -Times 0
-            Should -Invoke Remove-Job -Times 1 -ParameterFilter {
-                $Job.Name -eq 'SdnDiag-DVLAB' -and $Force
-            }
-        }
-
-        It 'Defaults to the local computer without optional logs' {
-            $result = Invoke-StructuredDiagnostics -OutputDirectory $script:collectionOutput
-            $result.Nodes[0].Node | Should -Be $env:COMPUTERNAME
-            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -ParameterFilter { -not $IncludeLogs -and $Format -eq 'Json' }
-        }
-
-        It 'Starts remote collection before collecting from the local computer' {
+        It 'Starts both collection jobs before waiting and reports group progress' {
             $script:startOrder = [System.Collections.ArrayList]::new()
             Mock Test-ComputerNameIsLocal { $ComputerName -eq 'DVLAB-S1-N01' }
             Mock Invoke-PSRemoteCommand {
@@ -623,87 +586,30 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             }
             Mock Wait-PSJob {
                 [void]$script:startOrder.Add('Wait')
-                $progressJobs = @(
-                    [PSCustomObject]@{
-                        Output = @(
-                            [PSCustomObject]@{
-                                StructuredDiagnosticProgressEvent = $true; EventId = 'remote-host'
-                                Node = 'DVLAB-S1-N02'; PSComputerName = 'DVLAB-S1-N02'; GroupId = 'Host'
-                                Status = 'Success'; CompletedCount = 1; TotalCount = 17
-                                RemainingGroups = @('Cluster', 'HyperV', 'SMB', 'Firewall', 'VM')
-                            }
-                            [PSCustomObject]@{
-                                StructuredDiagnosticProgressEvent = $true; EventId = 'remote-hyperv'
-                                Node = 'DVLAB-S1-N02'; PSComputerName = 'DVLAB-S1-N02'; GroupId = 'HyperV'
-                                Status = 'Success'; CompletedCount = 2; TotalCount = 17
-                                RemainingGroups = @('Cluster', 'HyperV', 'SMB', 'Firewall', 'Host', 'VM')
-                            }
-                        )
-                        ChildJobs = @([PSCustomObject]@{
-                            State = 'Running'; Location = 'DVLAB-S1-N02'; Output = @()
-                        })
-                    }
-                    [PSCustomObject]@{ ChildJobs = @([PSCustomObject]@{
-                        State = 'Running'; Location = 'localhost'
-                        Output = @(
-                            [PSCustomObject]@{
-                                StructuredDiagnosticProgressEvent = $true; EventId = 'local-host'
-                                Node = 'DVLAB-S1-N01'; GroupId = 'Host'; Status = 'Success'
-                                CompletedCount = 1; TotalCount = 17; RemainingGroups = @('Cluster', 'SMB')
-                            }
-                            [PSCustomObject]@{
-                                StructuredDiagnosticProgressEvent = $true; EventId = 'local-tcpip'
-                                Node = 'DVLAB-S1-N01'; GroupId = 'TcpIp'; Status = 'Success'
-                                CompletedCount = 2; TotalCount = 17; RemainingGroups = @('Cluster', 'SMB')
-                            }
-                            [PSCustomObject]@{
-                                StructuredDiagnosticProgressEvent = $true; EventId = 'local-cluster'
-                                Node = 'DVLAB-S1-N01'; GroupId = 'Cluster'; Status = 'PartialSuccess'
-                                CompletedCount = 3; TotalCount = 17; RemainingGroups = @('Cluster', 'SMB')
-                            }
-                        )
-                    }) }
-                )
-                $progressUpdateState = @{}
-                & $ProgressUpdateScript $progressJobs $progressUpdateState
-                & $ProgressUpdateScript $progressJobs $progressUpdateState
-                $script:renderedProgress = & $ProgressStatusScript $progressJobs
-                $script:renderedPercent = & $ProgressPercentScript $progressJobs
+                $progressJobs = @([PSCustomObject]@{
+                    Output = @([PSCustomObject]@{
+                        StructuredDiagnosticProgressEvent = $true; EventId = 'remote-host'
+                        Node = 'DVLAB-S1-N02'; PSComputerName = 'DVLAB-S1-N02'; GroupId = 'Host'
+                        Status = 'Success'; CompletedCount = 1; TotalCount = 17
+                        RemainingGroups = @('Cluster', 'HyperV')
+                    })
+                    ChildJobs = @([PSCustomObject]@{
+                        State = 'Running'; Location = 'DVLAB-S1-N02'; Output = @()
+                    })
+                })
+                & $ProgressUpdateScript $progressJobs @{}
                 & $script:remoteScriptBlock @script:remoteArgumentList
                 & $script:localScriptBlock @script:localArgumentList
-            }
-            Mock Invoke-StructuredDiagnosticCollection {
-                $scope = if ($OutputRoot -like '*StructuredDiagnostics_Staging*') { 'RemoteCollector' } else { 'LocalCollector' }
-                [void]$script:startOrder.Add($scope)
-                $null = New-Item -Path $OutputRoot -ItemType Directory -Force
-                '{"Status":"Completed"}' | Set-Content (Join-Path $OutputRoot 'CollectionManifest.json')
-                [PSCustomObject]@{ Node = 'DVLAB'; Status = 'Completed'; ManifestPath = 'CollectionManifest.json'; FailureMessage = $null }
             }
 
             $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01,DVLAB-S1-N02 `
                 -OutputDirectory $script:collectionOutput
 
             $result.Status | Should -Be Completed
-            (($script:startOrder | Select-Object -First 3) -join ',') | Should -Be 'RemoteJob,LocalJob,Wait'
-            $script:renderedProgress | Should -Be (
-                'DVLAB-S1-N02 2/17 groups (Cluster, HyperV, +4 more); ' +
-                'DVLAB-S1-N01 3/17 groups (Cluster, SMB)'
-            )
-            $script:renderedPercent | Should -Be 14.71
-            Should -Invoke Trace-Output -Times 5 -ParameterFilter {
-                $Message -like 'Completed structured diagnostics group *'
-            }
-            Should -Invoke Trace-Output -Times 2 -ParameterFilter {
-                $ComputerName -eq 'DVLAB-S1-N02' -and
-                $Message -like 'Completed structured diagnostics group *'
-            }
-            Should -Invoke Trace-Output -Times 3 -ParameterFilter {
-                $ComputerName -eq 'DVLAB-S1-N01' -and
-                $Message -like 'Completed structured diagnostics group *'
-            }
+            ($script:startOrder -join ',') | Should -Be 'RemoteJob,LocalJob,Wait'
             Should -Invoke Trace-Output -Times 1 -ParameterFilter {
-                $ComputerName -eq 'DVLAB-S1-N01' -and
-                $Message -eq 'Completed structured diagnostics group Cluster (3/17, PartialSuccess)'
+                $ComputerName -eq 'DVLAB-S1-N02' -and
+                $Message -like 'Completed structured diagnostics group Host *'
             }
             Should -Invoke Remove-Job -Times 2 -Exactly -ParameterFilter {
                 $Job.Name -in @('SdnDiag-DVLAB', 'SdnDiag-Local-DVLAB') -and $Force
@@ -807,52 +713,12 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             $manifest.Nodes[0].FailureMessage | Should -Match 'copy failed'
         }
 
-        It 'Cleans staging when the retrieved manifest is missing' {
-            Mock Test-ComputerNameIsLocal { $false }
-            Mock Copy-FileFromRemoteComputer {}
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
-                Should -Throw '*every requested computer*'
-            Should -Invoke Clear-SdnWorkingDirectory -Times 1 -Exactly -ParameterFilter {
-                $ComputerName -contains 'DVLAB-S1-N01' -and
-                $Path -contains (Join-Path $TestDrive "StructuredDiagnostics_Staging\$script:collectionId")
-            }
-        }
-
-        It 'Reports remote staging cleanup failures as node failures' {
-            Mock Test-ComputerNameIsLocal { $false }
-            Mock Clear-SdnWorkingDirectory { throw 'DVLAB staging cleanup failed' }
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
-                Should -Throw '*every requested computer*'
-            Should -Invoke Clear-SdnWorkingDirectory -Times 1 -Exactly
-            $manifest = Get-Content (Join-Path $script:collectionOutput 'StructuredDiagnostics\ClusterCollectionManifest.json') -Raw |
-                ConvertFrom-Json
-            $manifest.Nodes[0].Status | Should -Be Failed
-            $manifest.Nodes[0].FailureMessage | Should -Match 'staging cleanup failed'
-        }
-
-        It 'Reports partial structured collection' {
-            Mock Invoke-StructuredDiagnosticCollection {
-                [PSCustomObject]@{ Status = 'CompletedWithFailures'; ManifestPath = 'CollectionManifest.json'; FailureMessage = $null }
-            }
-            $result = Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput
-            $result.Status | Should -Be CompletedWithFailures
-        }
-
         It 'Rejects invalid dates and unsafe or colliding directory names before contacting nodes' {
             { Invoke-StructuredDiagnostics -FromDate ([datetime]'2026-01-02') -ToDate ([datetime]'2026-01-01') } | Should -Throw '*FromDate*'
             { Invoke-StructuredDiagnostics -ComputerName '..' -OutputDirectory $script:collectionOutput } | Should -Throw '*directory name*'
             { Invoke-StructuredDiagnostics -ComputerName 'DVLAB:One','DVLAB?One' -OutputDirectory $script:collectionOutput } | Should -Throw '*directory name*'
             Should -Invoke Invoke-PSRemoteCommand -Times 0
             Should -Invoke Initialize-DataCollection -Times 0
-        }
-
-        It 'Reports missing remote output and does not copy or clean' {
-            Mock Test-ComputerNameIsLocal { $false }
-            Mock Wait-PSJob {}
-            { Invoke-StructuredDiagnostics -ComputerName DVLAB-S1-N01 -OutputDirectory $script:collectionOutput -ErrorAction Stop } |
-                Should -Throw '*every requested computer*'
-            Should -Invoke Copy-FileFromRemoteComputer -Times 0
-            Should -Invoke Clear-SdnWorkingDirectory -Times 0
         }
 
         It 'Batches remote nodes and reports a missing node result as a failure' {

@@ -9,7 +9,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
     Groups = @(
         @{
             Id = 'Host'
-            Batched = $false
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-ComputerInfo'; RelativePath = 'Host\Get-ComputerInfo.json'; Collect = { Get-ComputerInfo -ErrorAction Stop } }
@@ -31,7 +30,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'NetAdapter'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetAdapter'; RelativePath = 'NetAdapter\Get-NetAdapter.json'; Collect = { Get-NetAdapter -IncludeHidden -ErrorAction Stop } }
@@ -60,7 +58,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'VM'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-VM'; RelativePath = 'VM\Get-VM.json'; Collect = { param($context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'VirtualMachines' -Collect { Get-VM -ErrorAction Stop } } }
@@ -75,18 +72,7 @@ $script:structuredDiagnosticCollectorCatalog = @{
             )
         }
         @{
-            Id = 'Lbfo'
-            Batched = $true
-            TimeoutSeconds = 600
-            Collectors = @(
-                @{ Id = 'Get-NetLbfoTeam'; RelativePath = 'Lbfo\Get-NetLbfoTeam.json'; Collect = { Get-NetLbfoTeam -ErrorAction Stop } }
-                @{ Id = 'Get-NetLbfoTeamNic'; RelativePath = 'Lbfo\Get-NetLbfoTeamNic.json'; Collect = { Get-NetLbfoTeam -ErrorAction Stop | ForEach-Object { Get-NetLbfoTeamNic -Team $_.Name -ErrorAction Stop } } }
-                @{ Id = 'Get-NetLbfoTeamMember'; RelativePath = 'Lbfo\Get-NetLbfoTeamMember.json'; Collect = { Get-NetLbfoTeam -ErrorAction Stop | ForEach-Object { Get-NetLbfoTeamMember -Team $_.Name -ErrorAction Stop } } }
-            )
-        }
-        @{
             Id = 'TcpIp'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetIPAddress'; RelativePath = 'TcpIp\Get-NetIPAddress.json'; Collect = { Get-NetIPAddress -ErrorAction Stop } }
@@ -128,7 +114,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Dns'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-DnsClient'; RelativePath = 'Dns\Get-DnsClient.json'; Collect = { Get-DnsClient -ErrorAction Stop } }
@@ -142,7 +127,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Nat'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetNat'; RelativePath = 'Nat\Get-NetNat.json'; Collect = { Get-NetNat -ErrorAction Stop } }
@@ -154,7 +138,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'HyperV'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-VMHost'; RelativePath = 'HyperV\Get-VMHost.json'; Collect = { Get-VMHost -ErrorAction Stop } }
@@ -166,7 +149,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Cluster'
-            Batched = $true
             TimeoutSeconds = 600
             Condition = { Test-StructuredDiagnosticClusterAvailable }
             Collectors = @(
@@ -186,22 +168,18 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'ClusterPerf'
-            Batched = $false
             TimeoutSeconds = 600
             Condition = { Test-StructuredDiagnosticClusterAvailable }
             Collectors = @(
                 @{ Id = 'Get-ClusterPerf-NetworkAdapter'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-NetworkAdapter.json'; Collect = { param($timeFrame) Get-NetAdapter -ErrorAction Stop | Get-ClusterPerf -TimeFrame $timeFrame -ErrorAction Stop -NetAdapterSeriesName @('netadapter.bandwidth.inbound', 'netadapter.bandwidth.outbound', 'netadapter.bandwidth.total', 'netadapter.bandwidth.rdma.inbound', 'netadapter.bandwidth.rdma.outbound', 'netadapter.bandwidth.rdma.total') } }
-                @{ Id = 'Get-ClusterPerf-PhysicalDisk'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-PhysicalDisk.json'; Collect = { param($timeFrame) Get-PhysicalDisk -ErrorAction Stop | Get-ClusterPerformanceHistory -TimeFrame $timeFrame -ErrorAction Stop -PhysicalDiskSeriesName @('physicaldisk.iops.read', 'physicaldisk.iops.write', 'physicaldisk.iops.total', 'physicaldisk.throughput.read', 'physicaldisk.throughput.write', 'physicaldisk.throughput.total', 'physicaldisk.latency.read', 'physicaldisk.latency.write', 'physicaldisk.latency.average', 'physicaldisk.size.total', 'physicaldisk.size.used') } }
                 @{ Id = 'Get-ClusterPerf-ClusterNode'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-ClusterNode.json'; Collect = { param($timeFrame) Get-ClusterNode -Name $env:COMPUTERNAME -ErrorAction Stop | Get-ClusterPerf -TimeFrame $timeFrame -ErrorAction Stop -ClusterNodeSeriesName @('clusternode.cpu.usage', 'clusternode.cpu.usage.guest', 'clusternode.cpu.usage.host', 'clusternode.memory.total', 'clusternode.memory.available', 'clusternode.memory.usage', 'clusternode.memory.usage.guest', 'clusternode.memory.usage.host') } }
                 @{ Id = 'Get-ClusterPerf-VHD'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-VHD.json'; Collect = { param($timeFrame, $context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'VirtualMachines' -Collect { Get-VM -ErrorAction Stop } | Get-VMHardDiskDrive -ErrorAction Stop | Get-VHD -ErrorAction Stop | Get-ClusterPerf -TimeFrame $timeFrame -ErrorAction Stop -VHDSeriesName @('vhd.iops.read', 'vhd.iops.write', 'vhd.iops.total', 'vhd.throughput.read', 'vhd.throughput.write', 'vhd.throughput.total', 'vhd.latency.average', 'vhd.size.current', 'vhd.size.maximum') } }
                 @{ Id = 'Get-ClusterPerf-VM'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-VM.json'; Collect = { param($timeFrame, $context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'VirtualMachines' -Collect { Get-VM -ErrorAction Stop } | Get-ClusterPerf -TimeFrame $timeFrame -ErrorAction Stop -VMSeriesName @('vm.cpu.usage', 'vm.memory.assigned', 'vm.memory.available', 'vm.memory.maximum', 'vm.memory.minimum', 'vm.memory.pressure', 'vm.memory.startup', 'vm.memory.total') } }
                 @{ Id = 'Get-ClusterPerf-VMNetworkAdapter'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-VMNetworkAdapter.json'; Collect = { param($timeFrame, $context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'VirtualMachines' -Collect { Get-VM -ErrorAction Stop } | Get-ClusterPerf -TimeFrame $timeFrame -ErrorAction Stop -VMSeriesName @('vmnetworkadapter.bandwidth.inbound', 'vmnetworkadapter.bandwidth.outbound', 'vmnetworkadapter.bandwidth.total') } }
-                @{ Id = 'Get-ClusterPerf-Volume'; Kind = 'Performance'; ExcludedProperties = @('Cluster', 'PSComputerName'); RelativePath = 'ClusterPerf\Get-ClusterPerf-Volume.json'; Collect = { param($timeFrame) Get-Volume -ErrorAction Stop | Get-ClusterPerformanceHistory -TimeFrame $timeFrame -ErrorAction Stop -VolumeSeriesName @('volume.iops.read', 'volume.iops.write', 'volume.iops.total', 'volume.throughput.read', 'volume.throughput.write', 'volume.throughput.total', 'volume.latency.read', 'volume.latency.write', 'volume.latency.average', 'volume.size.total', 'volume.size.available') } }
             )
         }
         @{
             Id = 'VMSwitch'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-VMSwitch'; RelativePath = 'VMSwitch\Get-VMSwitch.json'; Collect = { param($context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'VirtualSwitches' -Collect { Get-VMSwitch -ErrorAction Stop } } }
@@ -216,7 +194,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'VMNetworkAdapter'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-VMNetworkAdapter'; RelativePath = 'VMNetworkAdapter\Get-VMNetworkAdapter.json'; Collect = { param($context) Get-StructuredDiagnosticCachedValue -Cache $context -Key 'AllVMNetworkAdapters' -Collect { Get-VMNetworkAdapter -All -ErrorAction Stop } } }
@@ -234,7 +211,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Qos'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetQosDcbxSetting'; RelativePath = 'Qos\Get-NetQosDcbxSetting.json'; Collect = { Get-NetQosDcbxSetting -ErrorAction Stop } }
@@ -247,7 +223,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Lldp'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetLldpAgent'; RelativePath = 'Lldp\Get-NetLldpAgent.json'; Collect = { Get-NetLldpAgent -ErrorAction Stop } }
@@ -255,7 +230,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Smb'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-SmbConnection'; RelativePath = 'Smb\Get-SmbConnection.json'; Collect = { Get-SmbConnection -ErrorAction Stop } }
@@ -277,7 +251,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'NetworkATC'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetIntent'; RelativePath = 'NetworkATC\Get-NetIntent.json'; Collect = { Get-NetIntent -ErrorAction Stop } }
@@ -293,7 +266,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Proxy'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'netsh-winhttp-show-proxy'; Kind = 'Text'; RelativePath = 'Proxy\netsh-winhttp-show-proxy.txt'; Collect = { Invoke-StructuredDiagnosticNativeCommand -CommandName netsh.exe -ArgumentList 'winhttp', 'show', 'proxy' } }
@@ -303,7 +275,6 @@ $script:structuredDiagnosticCollectorCatalog = @{
         }
         @{
             Id = 'Firewall'
-            Batched = $true
             TimeoutSeconds = 600
             Collectors = @(
                 @{ Id = 'Get-NetFirewallProfile'; RelativePath = 'Firewall\Get-NetFirewallProfile.json'; Collect = { Get-NetFirewallProfile -ErrorAction Stop } }

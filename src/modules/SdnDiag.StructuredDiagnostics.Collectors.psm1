@@ -40,13 +40,10 @@ function Invoke-StructuredDiagnosticCollection {
 
     $started = [DateTime]::UtcNow
     $queued = [System.Collections.Queue]::new()
-    foreach ($batched in @($true, $false)) {
-        foreach ($group in $script:structuredDiagnosticCollectorCatalog.Groups) {
-            if ($group.Batched -eq $batched) {
-                $queued.Enqueue($group)
-            }
-        }
+    foreach ($group in $script:structuredDiagnosticCollectorCatalog.Groups) {
+        $queued.Enqueue($group)
     }
+    $workers = [System.Collections.ArrayList]::new()
     $pending = [System.Collections.ArrayList]::new()
     $groupManifestResults = [System.Collections.ArrayList]::new()
     $progressInterval = [TimeSpan]::FromSeconds(30)
@@ -83,42 +80,34 @@ function Invoke-StructuredDiagnosticCollection {
 
         while ($queued.Count -gt 0 -or $pending.Count -gt 0) {
             $startedGroups = $false
-            while ($queued.Count -gt 0 -and $pending.Count -lt 3) {
-                if ($pending.Count -gt 0 -and (
-                    -not $queued.Peek().Batched -or
-                    -not $pending[0].Group.Batched
-                )) {
-                    break
-                }
-
+            while ($queued.Count -gt 0 -and $pending.Count -lt 2) {
                 $group = $queued.Dequeue()
                 $groupStart = [DateTime]::UtcNow
-                $job = $null
+                $worker = $null
                 $failureMessage = $null
                 $status = 'Failed'
                 try {
-                    $conditionMet = -not $group.Condition -or (& $group.Condition)
-                    if ($conditionMet) {
-                        $job = Start-Job -ScriptBlock {
-                            param($groupId, $outputRoot, $format, $modulePath, $fromDate, $toDate, $includeLogs)
-                            Import-Module $modulePath -ErrorAction Stop
-                            Invoke-StructuredDiagnosticCollectorGroup -GroupId $groupId -OutputRoot $outputRoot -Format $format `
-                                -FromDate $fromDate -ToDate $toDate -IncludeLogs:$includeLogs
-                        } -ArgumentList $group.Id, $OutputRoot, $Format, $PSCommandPath, $FromDate, $ToDate, $IncludeLogs.IsPresent -ErrorAction Stop
+                    $worker = $workers | Where-Object { $pending.Worker -notcontains $_ } | Select-Object -First 1
+                    if (-not $worker) {
+                        $worker = New-StructuredDiagnosticWorker
+                        [void]$workers.Add($worker)
                     }
-                    else {
-                        $status = 'Unavailable'
-                        $failureMessage = 'Group condition was not met on this host.'
-                    }
+                    Start-StructuredDiagnosticWorkerGroup -Worker $worker -GroupId $group.Id -OutputRoot $OutputRoot `
+                        -Format $Format -ModulePath $PSCommandPath -FromDate $FromDate -ToDate $ToDate -IncludeLogs:$IncludeLogs
                 }
                 catch {
                     $failureMessage = $_.Exception.Message
                     $_ | Trace-Exception
                     $_ | Write-Error -ErrorAction Continue
+                    if ($worker) {
+                        Remove-StructuredDiagnosticWorker -Worker $worker
+                        $workers.Remove($worker)
+                        $worker = $null
+                    }
                 }
                 [void]$pending.Add(@{
                     Group = $group
-                    Job = $job
+                    Worker = $worker
                     Started = $groupStart
                     Deadline = $groupStart.AddSeconds($group.TimeoutSeconds)
                     FailureMessage = $failureMessage
@@ -137,7 +126,7 @@ function Invoke-StructuredDiagnosticCollection {
                     CompletedCount = $groupManifestResults.Count
                     TotalCount = $groupCount
                     RemainingGroups = @($pending | ForEach-Object { $_.Group.Id }) + @($queued.ToArray() | ForEach-Object { $_.Id })
-                    RunningGroups = @($pending | Where-Object Job | ForEach-Object { $_.Group.Id })
+                    RunningGroups = @($pending | Where-Object Worker | ForEach-Object { $_.Group.Id })
                     QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
                     DurationSeconds = ([DateTime]::UtcNow - $started).TotalSeconds
                 }
@@ -147,29 +136,29 @@ function Invoke-StructuredDiagnosticCollection {
                 $status = $entry.Status
                 $receivedResults = @()
                 $jobCompleted = $false
-                if ($entry.Job) {
-                    if ($entry.Job.State -in @('Completed', 'Failed', 'Stopped')) {
-                        $receivedResults = @(Receive-Job -Job $entry.Job -ErrorAction Continue)
-                        $jobCompleted = $entry.Job.State -eq 'Completed'
+                if ($entry.Worker) {
+                    $state = $entry.Worker.PowerShell.InvocationStateInfo.State
+                    $stopWorker = $false
+                    if ($entry.Worker.Invocation.IsCompleted) {
+                        $jobCompleted = $state -eq 'Completed'
                         if (-not $jobCompleted) {
-                            $entry.FailureMessage = 'Group job ended without a collector result: {0}.' -f $entry.Job.State
+                            $entry.FailureMessage = 'Group worker ended without a collector result: {0}.' -f $state
+                            $stopWorker = $true
                         }
                     }
-                    elseif ($entry.Job.State -eq 'Blocked') {
-                        Stop-Job -Job $entry.Job
-                        $receivedResults = @(Receive-Job -Job $entry.Job -ErrorAction Continue)
-                        $entry.FailureMessage = 'Group job was blocked waiting for user interaction.'
-                    }
                     elseif ([DateTime]::UtcNow -ge $entry.Deadline) {
-                        Stop-Job -Job $entry.Job
-                        $receivedResults = @(Receive-Job -Job $entry.Job -ErrorAction Continue)
+                        $stopWorker = $true
                         $status = 'TimedOut'
                         $entry.FailureMessage = 'Group exceeded its timeout of {0} seconds.' -f $entry.Group.TimeoutSeconds
                     }
                     else {
                         continue
                     }
-                    Remove-Job -Job $entry.Job -Force
+                    $receivedResults = @(Receive-StructuredDiagnosticWorkerGroup -Worker $entry.Worker -Stop:$stopWorker)
+                    if ($stopWorker) {
+                        Remove-StructuredDiagnosticWorker -Worker $entry.Worker
+                        $workers.Remove($entry.Worker)
+                    }
                 }
                 $collectorResults = [System.Collections.ArrayList]::new()
                 $reportedResults = @($receivedResults | Where-Object { $_.PSObject.Properties.Name -contains 'CollectorId' })
@@ -199,7 +188,7 @@ function Invoke-StructuredDiagnosticCollection {
 
                 $groupStatus = $status
                 if ($jobCompleted -and $reportedResults.Count -gt 0) {
-                    $collectorStatuses = @($collectorResults.Status | Select-Object -Unique)
+                    $collectorStatuses = $collectorResults.Status
                     # Roll collector outcomes up while preserving partial success when any data was captured.
                     if ($collectorStatuses -contains 'Failed') {
                         $groupStatus = 'Failed'
@@ -245,18 +234,13 @@ function Invoke-StructuredDiagnosticCollection {
                         CompletedCount = $groupManifestResults.Count
                         TotalCount = $groupCount
                         RemainingGroups = $remainingGroups
-                        RunningGroups = @($pending | Where-Object Job | ForEach-Object { $_.Group.Id })
+                        RunningGroups = @($pending | Where-Object Worker | ForEach-Object { $_.Group.Id })
                         QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
                         DurationSeconds = $groupResult.DurationSeconds
                     }
                 }
             }
-            if ($queued.Count -gt 0 -and $pending.Count -lt 3 -and (
-                $pending.Count -eq 0 -or (
-                    $queued.Peek().Batched -and
-                    $pending[0].Group.Batched
-                )
-            )) {
+            if ($queued.Count -gt 0 -and $pending.Count -lt 2) {
                 continue
             }
             if ($pending.Count -gt 0) {
@@ -268,7 +252,7 @@ function Invoke-StructuredDiagnosticCollection {
                     )
                     $nextProgressUpdate = [DateTime]::UtcNow.Add($progressInterval)
                 }
-                $null = Wait-Job -Job @($pending | ForEach-Object { $_.Job }) -Any -Timeout 1
+                Start-Sleep -Milliseconds 100
             }
         }
 
@@ -310,10 +294,13 @@ function Invoke-StructuredDiagnosticCollection {
         $_ | Write-Error -ErrorAction Continue
     }
     finally {
-        foreach ($entry in $pending) {
-            if ($entry.Job) {
-                Stop-Job -Job $entry.Job
-                Remove-Job -Job $entry.Job -Force
+        foreach ($worker in $workers) {
+            try {
+                Remove-StructuredDiagnosticWorker -Worker $worker
+            }
+            catch {
+                $_ | Trace-Exception
+                $_ | Write-Error -ErrorAction Continue
             }
         }
         if ($writer) {
@@ -429,8 +416,8 @@ function Invoke-StructuredDiagnosticCollectorGroup {
                 try {
                     if ($collector.Kind -eq 'Event') {
                         Get-StructuredDiagnosticEvent -LogName $collector.LogName -FromDate $FromDate -ToDate $ToDate | ForEach-Object {
-                                Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $_
-                            }
+                            Write-StructuredDiagnosticArtifactRecord -Writer $writer -Record $_
+                        }
                     }
                     elseif ($collector.Kind -eq 'Performance') {
                         $timeFrame = Get-StructuredDiagnosticPerformanceTimeFrame -FromDate $FromDate -ToDate $ToDate
@@ -529,11 +516,14 @@ function Get-StructuredDiagnosticCachedValue {
         [scriptblock]$Collect
     )
 
-    if (-not $Cache.ContainsKey($Key)) {
-        $ErrorActionPreference = 'Stop'
-        $Cache[$Key] = @(& $Collect)
+    if ($Cache.ContainsKey($Key)) {
+        return $Cache[$Key]
     }
-    return $Cache[$Key]
+
+    $ErrorActionPreference = 'Stop'
+    # Capture records as they stream, but only cache a completed enumeration.
+    Invoke-Command -ScriptBlock $Collect -OutVariable values -ErrorAction Stop
+    $Cache[$Key] = $values
 }
 
 # Recursively converts PowerShell and CIM objects into JSON-safe records with bounded depth.
@@ -552,7 +542,10 @@ function ConvertTo-StructuredDiagnosticRecord {
         [string[]]$ExcludedProperties = @(),
 
         [Parameter()]
-        [switch]$FormatDateTime
+        [switch]$FormatDateTime,
+
+        [Parameter()]
+        [string]$TimeFrame
     )
 
     if ($FormatDateTime -and ($InputObject -is [DateTime] -or $InputObject -is [DateTimeOffset])) {
@@ -620,6 +613,11 @@ function ConvertTo-StructuredDiagnosticRecord {
             }
         }
     }
+    if ($PSBoundParameters.ContainsKey('TimeFrame')) {
+        # Match Add-Member -Force: replace an existing field and append it last.
+        $record.Remove('TimeFrame')
+        $record['TimeFrame'] = $TimeFrame
+    }
     return [PSCustomObject]$record
 }
 
@@ -644,17 +642,25 @@ function Open-StructuredDiagnosticArtifactWriter {
     }
     $temporaryPath = '{0}.{1}.tmp' -f $Path, [guid]::NewGuid().ToString('N')
     $stream = [System.IO.StreamWriter]::new($temporaryPath, $false, [System.Text.UTF8Encoding]::new($false))
-    if ($Format -eq 'Json') {
-        $stream.WriteLine('[')
+    try {
+        if ($Format -eq 'Json') {
+            $stream.WriteLine('[')
+        }
+        $writer = [PSCustomObject]@{
+            Path = $Path
+            TemporaryPath = $temporaryPath
+            Format = $Format
+            Stream = $stream
+            RecordCount = 0
+            MaximumBytes = $MaximumBytes
+            BytesWritten = if ($Format -eq 'Json') { 2L } else { 0L }
+        }
+        return $writer
     }
-    return [PSCustomObject]@{
-        Path = $Path
-        TemporaryPath = $temporaryPath
-        Format = $Format
-        Stream = $stream
-        RecordCount = 0
-        MaximumBytes = $MaximumBytes
-        BytesWritten = if ($Format -eq 'Json') { 2L } else { 0L }
+    catch {
+        $stream.Dispose()
+        Remove-Item -LiteralPath $temporaryPath -Force -ErrorAction Stop
+        throw
     }
 }
 
@@ -690,9 +696,15 @@ function Write-StructuredDiagnosticArtifactRecord {
         return
     }
 
-    $plainRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $Record `
-        -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
     if ($PSBoundParameters.ContainsKey('TimeFrame')) {
+        $plainRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $Record `
+            -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime -TimeFrame $TimeFrame
+    }
+    else {
+        $plainRecord = ConvertTo-StructuredDiagnosticRecord -InputObject $Record `
+            -ExcludedProperties $ExcludedProperties -FormatDateTime:$FormatDateTime
+    }
+    if ($PSBoundParameters.ContainsKey('TimeFrame') -and $plainRecord -isnot [PSCustomObject]) {
         $plainRecord | Add-Member -NotePropertyName TimeFrame -NotePropertyValue $TimeFrame -Force
     }
     $json = ConvertTo-Json -InputObject $plainRecord -Depth 5 -Compress:($Writer.Format -eq 'Ndjson') -ErrorAction Stop
@@ -769,5 +781,149 @@ function Close-StructuredDiagnosticArtifactWriter {
     }
     finally {
         $Writer.Stream.Dispose()
+    }
+}
+
+# Keep each worker in a separate process so a hung group can be terminated.
+function New-StructuredDiagnosticWorker {
+    [CmdletBinding()]
+    param ()
+
+    $processInstance = [System.Management.Automation.Runspaces.PowerShellProcessInstance]::new()
+    $runspace = $null
+    try {
+        $runspace = [runspacefactory]::CreateOutOfProcessRunspace($null, $processInstance)
+        $runspace.Open()
+        return @{
+            ProcessInstance = $processInstance
+            Runspace = $runspace
+            PowerShell = $null
+            Input = $null
+            Output = $null
+            Invocation = $null
+        }
+    }
+    catch {
+        $processInstance.Dispose()
+        if ($runspace) { $runspace.Dispose() }
+        throw
+    }
+}
+
+function Start-StructuredDiagnosticWorkerGroup {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]$Worker,
+        [Parameter(Mandatory = $true)][string]$GroupId,
+        [Parameter(Mandatory = $true)][string]$OutputRoot,
+        [Parameter(Mandatory = $true)][string]$Format,
+        [Parameter(Mandatory = $true)][string]$ModulePath,
+        [Parameter(Mandatory = $true)][DateTime]$FromDate,
+        [Parameter(Mandatory = $true)][DateTime]$ToDate,
+        [Parameter()][switch]$IncludeLogs
+    )
+
+    $Worker.PowerShell = [powershell]::Create()
+    $Worker.PowerShell.Runspace = $Worker.Runspace
+    $Worker.Input = [System.Management.Automation.PSDataCollection[psobject]]::new()
+    $Worker.Output = [System.Management.Automation.PSDataCollection[psobject]]::new()
+    $Worker.Input.Complete()
+    $scriptBlock = {
+        param($groupId, $outputRoot, $format, $modulePath, $fromDate, $toDate, $includeLogs)
+        $ErrorActionPreference = 'Stop'
+        if (-not (Get-Module -Name SdnDiag.StructuredDiagnostics.Collectors)) {
+            Import-Module $modulePath -Global -ErrorAction Stop
+        }
+        Invoke-StructuredDiagnosticCollectorGroup -GroupId $groupId -OutputRoot $outputRoot -Format $format `
+            -FromDate $fromDate -ToDate $toDate -IncludeLogs:$includeLogs
+    }
+    $null = $Worker.PowerShell.AddScript($scriptBlock.ToString(), $true).
+        AddArgument($GroupId).AddArgument($OutputRoot).AddArgument($Format).AddArgument($ModulePath).
+        AddArgument($FromDate).AddArgument($ToDate).AddArgument($IncludeLogs.IsPresent)
+    $Worker.Invocation = $Worker.PowerShell.BeginInvoke($Worker.Input, $Worker.Output)
+}
+
+function Receive-StructuredDiagnosticWorkerGroup {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]$Worker,
+        [Parameter()][switch]$Stop
+    )
+
+    if ($Stop) {
+        Stop-StructuredDiagnosticWorker -Worker $Worker
+    }
+    try {
+        $null = $Worker.PowerShell.EndInvoke($Worker.Invocation)
+    }
+    catch {
+        $_ | Trace-Exception
+        $_ | Write-Error -ErrorAction Continue
+    }
+    foreach ($errorRecord in $Worker.PowerShell.Streams.Error) {
+        $errorRecord | Write-Error -ErrorAction Continue
+    }
+    foreach ($warningRecord in $Worker.PowerShell.Streams.Warning) {
+        Trace-Output -Level Warning -Message $warningRecord.Message
+    }
+    foreach ($verboseRecord in $Worker.PowerShell.Streams.Verbose) {
+        Trace-Output -Level Verbose -Message $verboseRecord.Message
+    }
+    try {
+        $Worker.Output.ReadAll()
+    }
+    finally {
+        $Worker.PowerShell.Dispose()
+        $Worker.Input.Dispose()
+        $Worker.Output.Dispose()
+        $Worker.PowerShell = $null
+        $Worker.Input = $null
+        $Worker.Output = $null
+        $Worker.Invocation = $null
+    }
+}
+
+function Stop-StructuredDiagnosticWorker {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]$Worker
+    )
+
+    $process = $Worker.ProcessInstance.Process
+    # Close the transport first to avoid remoting's wait for a dead worker.
+    if ($Worker.Runspace.RunspaceStateInfo.State -eq 'Opened') {
+        $Worker.Runspace.CloseAsync()
+    }
+    if (-not $process.HasExited) {
+        $process.Kill()
+        if (-not $process.WaitForExit(5000)) {
+            throw [System.TimeoutException]::new('The structured diagnostic worker process did not exit.')
+        }
+    }
+}
+
+function Remove-StructuredDiagnosticWorker {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)]$Worker
+    )
+
+    try {
+        Stop-StructuredDiagnosticWorker -Worker $Worker
+    }
+    finally {
+        try {
+            if ($Worker.PowerShell) { $Worker.PowerShell.Dispose() }
+            if ($Worker.Input) { $Worker.Input.Dispose() }
+            if ($Worker.Output) { $Worker.Output.Dispose() }
+        }
+        finally {
+            try {
+                $Worker.Runspace.Dispose()
+            }
+            finally {
+                $Worker.ProcessInstance.Dispose()
+            }
+        }
     }
 }
