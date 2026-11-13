@@ -14,7 +14,6 @@ function Invoke-StructuredDiagnostics {
         SdnDiagnostics and WinRM access; local collection does not require WinRM.
     .PARAMETER ComputerName
         Computers to collect from. Defaults to the local computer.
-        Duplicate short host names are warned and skipped case-insensitively, preserving the first occurrence.
     .PARAMETER OutputDirectory
         SdnDataCollection directory under which StructuredDiagnostics\<ComputerName> output is written.
     .PARAMETER Format
@@ -74,6 +73,8 @@ function Invoke-StructuredDiagnostics {
     $collectionRoot = Join-Path $OutputDirectory 'StructuredDiagnostics'
     $nodeResults = [System.Collections.ArrayList]::new()
     $collectionJobs = [System.Collections.ArrayList]::new()
+
+    # Generate output directory names for each node
     $nodeDirectoryNames = @{}
     foreach ($computer in $ComputerName) {
         $name = [regex]::Replace($computer.Trim(), '[\\/:*?"<>|]', '_').Trim([char[]]@('.', ' '))
@@ -102,50 +103,77 @@ function Invoke-StructuredDiagnostics {
             }
         }
 
+        $collectionParameters = @{
+            CollectionId = $collectionId
+            ModuleVersion = $moduleVersion
+            Format = $Format
+            FromDate = $FromDate
+            ToDate = $ToDate
+            IncludeLogs = $IncludeLogs.IsPresent
+        }
+        $collectionScript = {
+            param([hashtable]$collectionParameters, [string]$structuredModulePath, [string]$requestedNode)
+
+            if (-not $structuredModulePath) {
+                $module = Get-Module -Name SdnDiagnostics -All | Select-Object -First 1
+                if (-not $module) {
+                    $module = Import-Module -Name SdnDiagnostics -PassThru -ErrorAction Stop |
+                        Where-Object Name -eq 'SdnDiagnostics' | Select-Object -First 1
+                }
+                if (-not $module) {
+                    throw 'Unable to import the SdnDiagnostics module on the remote computer.'
+                }
+                $structuredModulePath = Join-Path $module.ModuleBase 'modules\SdnDiag.StructuredDiagnostics.psm1'
+                $collectionParameters.ModuleVersion = $module.Version.ToString()
+            }
+
+            $structuredModule = Import-Module -Name $structuredModulePath -PassThru -ErrorAction Stop |
+                Where-Object Name -eq 'SdnDiag.StructuredDiagnostics' | Select-Object -First 1
+            if (-not $structuredModule) {
+                throw "Unable to import the SdnDiag.StructuredDiagnostics module from '$structuredModulePath'."
+            }
+            & $structuredModule {
+                param([hashtable]$collectionParameters, [string]$requestedNode)
+
+                try {
+                    Confirm-IsServer
+                    if (-not $collectionParameters.OutputRoot) {
+                        $collectionParameters.OutputRoot = Join-Path (Get-WorkingDirectory) "StructuredDiagnostics_Staging\$($collectionParameters.CollectionId)"
+                    }
+                    $nodeResult = $null
+                    Invoke-StructuredDiagnosticCollection @collectionParameters -EmitProgressEvents | ForEach-Object {
+                        if ($_.StructuredDiagnosticProgressEvent) {
+                            $_
+                        }
+                        else {
+                            $nodeResult = $_
+                        }
+                    }
+                    if (-not $nodeResult) {
+                        $location = if ($requestedNode) { 'local' } else { 'remote' }
+                        throw "The $location structured diagnostic collector returned no final result."
+                    }
+                    $nodeResult.ManifestPath = Join-Path $collectionParameters.OutputRoot 'CollectionManifest.json'
+                    if ($requestedNode) {
+                        $nodeResult | Add-Member -NotePropertyName RequestedNode -NotePropertyValue $requestedNode -Force
+                    }
+                    return $nodeResult
+                }
+                catch {
+                    $_ | Trace-Exception
+                    $_ | Write-Error -ErrorAction Stop
+                }
+            } $collectionParameters $requestedNode
+        }
+
         $localStartFailures = @{}
         $remoteInvocationFailure = $null
         if ($remoteComputers.Count -gt 0) {
             try {
                 "Starting structured diagnostics on remote computers: {0}" -f ($remoteComputers -join ', ') | Trace-Output
                 $remoteJob = Invoke-PSRemoteCommand -ComputerName @($remoteComputers) -Credential $Credential `
-                    -ImportModuleOnRemoteSession $true -AsJob -ErrorAction Stop -ScriptBlock {
-                        param($collectionId, $format, $fromDate, $toDate, $includeLogs)
-                        $module = Get-Module -Name SdnDiagnostics -All | Select-Object -First 1
-                        if (-not $module) {
-                            $module = Import-Module -Name SdnDiagnostics -PassThru -ErrorAction Stop |
-                                Where-Object Name -eq 'SdnDiagnostics' | Select-Object -First 1
-                        }
-                        if (-not $module) {
-                            throw 'Unable to import the SdnDiagnostics module on the remote computer.'
-                        }
-                        $structuredModulePath = Join-Path $module.ModuleBase 'modules\SdnDiag.StructuredDiagnostics.psm1'
-                        $structuredModule = Import-Module -Name $structuredModulePath -PassThru -ErrorAction Stop |
-                            Where-Object Name -eq 'SdnDiag.StructuredDiagnostics' | Select-Object -First 1
-                        if (-not $structuredModule) {
-                            throw "Unable to import the SdnDiag.StructuredDiagnostics module from '$structuredModulePath'."
-                        }
-                        return & $structuredModule {
-                            param($collectionId, $format, $fromDate, $toDate, $includeLogs, $moduleVersion)
-                            Confirm-IsServer
-                            $stagingPath = Join-Path (Get-WorkingDirectory) "StructuredDiagnostics_Staging\$collectionId"
-                            $nodeResult = $null
-                            Invoke-StructuredDiagnosticCollection -OutputRoot $stagingPath -CollectionId $collectionId `
-                                -ModuleVersion $moduleVersion -Format $format -FromDate $fromDate -ToDate $toDate `
-                                -IncludeLogs:$includeLogs -EmitProgressEvents | ForEach-Object {
-                                    if ($_.StructuredDiagnosticProgressEvent) {
-                                        $_
-                                    }
-                                    else {
-                                        $nodeResult = $_
-                                    }
-                                }
-                            if (-not $nodeResult) {
-                                throw 'The remote structured diagnostic collector returned no final result.'
-                            }
-                            $nodeResult.ManifestPath = Join-Path $stagingPath 'CollectionManifest.json'
-                            return $nodeResult
-                        } $collectionId $format $fromDate $toDate $includeLogs $module.Version.ToString()
-                    } -ArgumentList @($collectionId, $Format, $FromDate, $ToDate, $IncludeLogs.IsPresent)
+                    -ImportModuleOnRemoteSession $true -AsJob -ErrorAction Stop -ScriptBlock $collectionScript `
+                    -ArgumentList @($collectionParameters.Clone())
                 if (-not $remoteJob -or -not $remoteJob.Name) {
                     throw 'Unable to start the remote structured diagnostic collection job.'
                 }
@@ -158,38 +186,12 @@ function Invoke-StructuredDiagnostics {
         }
 
         foreach ($computer in $localComputers) {
-            $nodeOutputRoot = Join-Path $collectionRoot $nodeDirectoryNames[$computer]
+            $nodeParameters = $collectionParameters.Clone()
+            $nodeParameters.OutputRoot = Join-Path $collectionRoot $nodeDirectoryNames[$computer]
             try {
                 "Starting structured diagnostics on local computer: {0}" -f $computer | Trace-Output
-                $localJob = Start-Job -Name ("SdnDiag-Structured-{0}" -f (Get-Random)) -ScriptBlock {
-                    param($structuredModulePath, $outputRoot, $collectionId, $format, $fromDate, $toDate, $includeLogs, $moduleVersion, $requestedNode)
-                    $structuredModule = Import-Module -Name $structuredModulePath -PassThru -ErrorAction Stop |
-                        Where-Object Name -eq 'SdnDiag.StructuredDiagnostics' | Select-Object -First 1
-                    if (-not $structuredModule) {
-                        throw "Unable to import the SdnDiag.StructuredDiagnostics module from '$structuredModulePath'."
-                    }
-                    return & $structuredModule {
-                        param($outputRoot, $collectionId, $format, $fromDate, $toDate, $includeLogs, $moduleVersion, $requestedNode)
-                        Confirm-IsServer
-                        $nodeResult = $null
-                        Invoke-StructuredDiagnosticCollection -OutputRoot $outputRoot -CollectionId $collectionId `
-                            -ModuleVersion $moduleVersion -Format $format -FromDate $fromDate -ToDate $toDate `
-                            -IncludeLogs:$includeLogs -EmitProgressEvents | ForEach-Object {
-                                if ($_.StructuredDiagnosticProgressEvent) {
-                                    $_
-                                }
-                                else {
-                                    $nodeResult = $_
-                                }
-                            }
-                        if (-not $nodeResult) {
-                            throw 'The local structured diagnostic collector returned no final result.'
-                        }
-                        $nodeResult.ManifestPath = Join-Path $outputRoot 'CollectionManifest.json'
-                        $nodeResult | Add-Member -NotePropertyName RequestedNode -NotePropertyValue $requestedNode -Force
-                        return $nodeResult
-                    } $outputRoot $collectionId $format $fromDate $toDate $includeLogs $moduleVersion $requestedNode
-                } -ArgumentList @($PSCommandPath, $nodeOutputRoot, $collectionId, $Format, $FromDate, $ToDate, $IncludeLogs.IsPresent, $moduleVersion, $computer)
+                $localJob = Start-Job -Name ("SdnDiag-Structured-{0}" -f (Get-Random)) -ScriptBlock $collectionScript `
+                    -ArgumentList @($nodeParameters, $PSCommandPath, $computer)
                 [void]$collectionJobs.Add($localJob)
             }
             catch {

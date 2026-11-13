@@ -63,21 +63,12 @@ function Invoke-StructuredDiagnosticCollection {
             $groupCount, $nodeResult.Node
         )
         if ($EmitProgressEvents) {
-            [PSCustomObject]@{
-                StructuredDiagnosticProgressEvent = $true
-                EventId = [guid]::NewGuid().ToString('N')
-                Node = $nodeResult.Node
-                GroupId = $null
-                Status = 'Running'
-                CompletedCount = 0
-                TotalCount = $groupCount
-                RemainingGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
-                RunningGroups = @()
-                QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
-                DurationSeconds = 0
-            }
+            New-StructuredDiagnosticProgressEvent -Node $nodeResult.Node -CompletedCount 0 `
+                -TotalCount $groupCount -Queued $queued.ToArray()
         }
 
+        # Groups are queued into two workers
+        # Each worker processes one group at a time
         while ($queued.Count -gt 0 -or $pending.Count -gt 0) {
             $startedGroups = $false
             while ($queued.Count -gt 0 -and $pending.Count -lt 2) {
@@ -117,103 +108,16 @@ function Invoke-StructuredDiagnosticCollection {
             }
 
             if ($EmitProgressEvents -and $startedGroups) {
-                [PSCustomObject]@{
-                    StructuredDiagnosticProgressEvent = $true
-                    EventId = [guid]::NewGuid().ToString('N')
-                    Node = $nodeResult.Node
-                    GroupId = $null
-                    Status = 'Running'
-                    CompletedCount = $groupManifestResults.Count
-                    TotalCount = $groupCount
-                    RemainingGroups = @($pending | ForEach-Object { $_.Group.Id }) + @($queued.ToArray() | ForEach-Object { $_.Id })
-                    RunningGroups = @($pending | Where-Object Worker | ForEach-Object { $_.Group.Id })
-                    QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
-                    DurationSeconds = ([DateTime]::UtcNow - $started).TotalSeconds
-                }
+                New-StructuredDiagnosticProgressEvent -Node $nodeResult.Node -CompletedCount $groupManifestResults.Count `
+                    -TotalCount $groupCount -Pending $pending.ToArray() -Queued $queued.ToArray() `
+                    -DurationSeconds ([DateTime]::UtcNow - $started).TotalSeconds
             }
 
+            # Process each pending group to check its status and collect results
             foreach ($entry in @($pending.ToArray())) {
-                $status = $entry.Status
-                $receivedResults = @()
-                $jobCompleted = $false
-                if ($entry.Worker) {
-                    $state = $entry.Worker.PowerShell.InvocationStateInfo.State
-                    $stopWorker = $false
-                    if ($entry.Worker.Invocation.IsCompleted) {
-                        $jobCompleted = $state -eq 'Completed'
-                        if (-not $jobCompleted) {
-                            $entry.FailureMessage = 'Group worker ended without a collector result: {0}.' -f $state
-                            $stopWorker = $true
-                        }
-                    }
-                    elseif ([DateTime]::UtcNow -ge $entry.Deadline) {
-                        $stopWorker = $true
-                        $status = 'TimedOut'
-                        $entry.FailureMessage = 'Group exceeded its timeout of {0} seconds.' -f $entry.Group.TimeoutSeconds
-                    }
-                    else {
-                        continue
-                    }
-                    $receivedResults = @(Receive-StructuredDiagnosticWorkerGroup -Worker $entry.Worker -Stop:$stopWorker)
-                    if ($stopWorker) {
-                        Remove-StructuredDiagnosticWorker -Worker $entry.Worker
-                        $workers.Remove($entry.Worker)
-                    }
-                }
-                $collectorResults = [System.Collections.ArrayList]::new()
-                $reportedResults = @($receivedResults | Where-Object { $_.PSObject.Properties.Name -contains 'CollectorId' })
-                if ($jobCompleted -and $reportedResults.Count -gt 0) {
-                    foreach ($result in $reportedResults) {
-                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
-                    }
-                }
-                else {
-                    foreach ($collector in $entry.Group.Collectors) {
-                        $result = $reportedResults | Where-Object { $_.CollectorId -eq $collector.Id } | Select-Object -First 1
-                        if (-not $result) {
-                            $result = [PSCustomObject]@{
-                                CollectorId = $collector.Id
-                                Status = $status
-                                RelativePath = $collector.RelativePath
-                                RecordCount = 0
-                                DurationSeconds = ([DateTime]::UtcNow - $entry.Started).TotalSeconds
-                                FailureMessage = $entry.FailureMessage
-                                OutputArtifacts = @()
-                                Truncated = $false
-                            }
-                        }
-                        [void]$collectorResults.Add(($result | Select-Object CollectorId, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated))
-                    }
-                }
-
-                $groupStatus = $status
-                if ($jobCompleted -and $reportedResults.Count -gt 0) {
-                    $collectorStatuses = $collectorResults.Status
-                    # Roll collector outcomes up while preserving partial success when any data was captured.
-                    if ($collectorStatuses -contains 'Failed') {
-                        $groupStatus = 'Failed'
-                        if ($collectorStatuses -contains 'Success' -or $collectorStatuses -contains 'PartialSuccess') {
-                            $groupStatus = 'PartialSuccess'
-                        }
-                    }
-                    elseif ($collectorStatuses -contains 'PartialSuccess') {
-                        $groupStatus = 'PartialSuccess'
-                    }
-                    elseif ($collectorStatuses -contains 'Success') {
-                        $groupStatus = 'Success'
-                    }
-                    elseif ($collectorStatuses -contains 'CommandNotAvailable') {
-                        $groupStatus = 'CommandNotAvailable'
-                    }
-                    else {
-                        $groupStatus = 'Unavailable'
-                    }
-                }
-                $groupResult = [PSCustomObject]@{
-                    GroupId = $entry.Group.Id
-                    Status = $groupStatus
-                    DurationSeconds = ([DateTime]::UtcNow - $entry.Started).TotalSeconds
-                    Collectors = @($collectorResults.ToArray())
+                $groupResult = Complete-StructuredDiagnosticGroup -Entry $entry -Workers $workers
+                if (-not $groupResult) {
+                    continue
                 }
                 [void]$groupManifestResults.Add($groupResult)
                 Trace-Output -Level:Verbose -Message (
@@ -224,20 +128,9 @@ function Invoke-StructuredDiagnosticCollection {
                 )
                 $pending.Remove($entry)
                 if ($EmitProgressEvents) {
-                    $remainingGroups = @($pending | ForEach-Object { $_.Group.Id }) + @($queued.ToArray() | ForEach-Object { $_.Id })
-                    [PSCustomObject]@{
-                        StructuredDiagnosticProgressEvent = $true
-                        EventId = [guid]::NewGuid().ToString('N')
-                        Node = $nodeResult.Node
-                        GroupId = $groupResult.GroupId
-                        Status = $groupResult.Status
-                        CompletedCount = $groupManifestResults.Count
-                        TotalCount = $groupCount
-                        RemainingGroups = $remainingGroups
-                        RunningGroups = @($pending | Where-Object Worker | ForEach-Object { $_.Group.Id })
-                        QueuedGroups = @($queued.ToArray() | ForEach-Object { $_.Id })
-                        DurationSeconds = $groupResult.DurationSeconds
-                    }
+                    New-StructuredDiagnosticProgressEvent -Node $nodeResult.Node -GroupId $groupResult.GroupId `
+                        -Status $groupResult.Status -CompletedCount $groupManifestResults.Count -TotalCount $groupCount `
+                        -Pending $pending.ToArray() -Queued $queued.ToArray() -DurationSeconds $groupResult.DurationSeconds
                 }
             }
             if ($queued.Count -gt 0 -and $pending.Count -lt 2) {
@@ -256,6 +149,7 @@ function Invoke-StructuredDiagnosticCollection {
             }
         }
 
+        # Once all groups have been processed, determine the final status of the node and write manifest
         $nodeResult.Status = 'Completed'
         if (@($groupManifestResults | Where-Object { $_.Status -in @('Failed', 'PartialSuccess', 'TimedOut') }).Count -gt 0) {
             $nodeResult.Status = 'CompletedWithFailures'
@@ -311,6 +205,127 @@ function Invoke-StructuredDiagnosticCollection {
         }
     }
     return $nodeResult
+}
+
+function New-StructuredDiagnosticProgressEvent {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)][string]$Node,
+        [Parameter(Mandatory = $true)][int]$CompletedCount,
+        [Parameter(Mandatory = $true)][int]$TotalCount,
+        [Parameter()][string]$GroupId,
+        [Parameter()][string]$Status = 'Running',
+        [Parameter()][object[]]$Pending = @(),
+        [Parameter()][object[]]$Queued = @(),
+        [Parameter()][double]$DurationSeconds = 0
+    )
+
+    [PSCustomObject]@{
+        StructuredDiagnosticProgressEvent = $true
+        EventId = [guid]::NewGuid().ToString('N')
+        Node = $Node
+        GroupId = if ($GroupId) { $GroupId } else { $null }
+        Status = $Status
+        CompletedCount = $CompletedCount
+        TotalCount = $TotalCount
+        RemainingGroups = @($Pending | ForEach-Object { $_.Group.Id }) + @($Queued | ForEach-Object { $_.Id })
+        RunningGroups = @($Pending | Where-Object Worker | ForEach-Object { $_.Group.Id })
+        QueuedGroups = @($Queued | ForEach-Object { $_.Id })
+        DurationSeconds = $DurationSeconds
+    }
+}
+
+# Returns a result only when the group has finished or exceeded its deadline.
+function Complete-StructuredDiagnosticGroup {
+    [CmdletBinding()]
+    param (
+        [Parameter(Mandatory = $true)][hashtable]$Entry,
+        [Parameter(Mandatory = $true)]
+        [AllowEmptyCollection()]
+        [System.Collections.ArrayList]$Workers
+    )
+
+    $status = $Entry.Status
+    $receivedResults = @()
+    $jobCompleted = $false
+    if ($Entry.Worker) {
+        $state = $Entry.Worker.PowerShell.InvocationStateInfo.State
+        $stopWorker = $false
+        if ($Entry.Worker.Invocation.IsCompleted) {
+            $jobCompleted = $state -eq 'Completed'
+            if (-not $jobCompleted) {
+                $Entry.FailureMessage = 'Group worker ended without a collector result: {0}.' -f $state
+                $stopWorker = $true
+            }
+        }
+        elseif ([DateTime]::UtcNow -ge $Entry.Deadline) {
+            $stopWorker = $true
+            $status = 'TimedOut'
+            $Entry.FailureMessage = 'Group exceeded its timeout of {0} seconds.' -f $Entry.Group.TimeoutSeconds
+        }
+        else {
+            return
+        }
+        $receivedResults = @(Receive-StructuredDiagnosticWorkerGroup -Worker $Entry.Worker -Stop:$stopWorker)
+        if ($stopWorker) {
+            Remove-StructuredDiagnosticWorker -Worker $Entry.Worker
+            $Workers.Remove($Entry.Worker)
+        }
+    }
+    $reportedResults = @($receivedResults | Where-Object { $_.PSObject.Properties.Name -contains 'CollectorId' })
+    $collectorResults = @(
+        if ($jobCompleted -and $reportedResults.Count -gt 0) {
+            $reportedResults
+        }
+        else {
+            foreach ($collector in $Entry.Group.Collectors) {
+                $result = $reportedResults | Where-Object { $_.CollectorId -eq $collector.Id } | Select-Object -First 1
+                if (-not $result) {
+                    $result = [PSCustomObject]@{
+                        CollectorId = $collector.Id
+                        Status = $status
+                        RelativePath = $collector.RelativePath
+                        RecordCount = 0
+                        DurationSeconds = ([DateTime]::UtcNow - $Entry.Started).TotalSeconds
+                        FailureMessage = $Entry.FailureMessage
+                        OutputArtifacts = @()
+                        Truncated = $false
+                    }
+                }
+                $result
+            }
+        }
+    )
+
+    $groupStatus = $status
+    if ($jobCompleted -and $reportedResults.Count -gt 0) {
+        $collectorStatuses = $collectorResults.Status
+        # Roll collector outcomes up while preserving partial success when any data was captured.
+        if ($collectorStatuses -contains 'Failed') {
+            $groupStatus = 'Failed'
+            if ($collectorStatuses -contains 'Success' -or $collectorStatuses -contains 'PartialSuccess') {
+                $groupStatus = 'PartialSuccess'
+            }
+        }
+        elseif ($collectorStatuses -contains 'PartialSuccess') {
+            $groupStatus = 'PartialSuccess'
+        }
+        elseif ($collectorStatuses -contains 'Success') {
+            $groupStatus = 'Success'
+        }
+        elseif ($collectorStatuses -contains 'CommandNotAvailable') {
+            $groupStatus = 'CommandNotAvailable'
+        }
+        else {
+            $groupStatus = 'Unavailable'
+        }
+    }
+    [PSCustomObject]@{
+        GroupId = $Entry.Group.Id
+        Status = $groupStatus
+        DurationSeconds = ([DateTime]::UtcNow - $Entry.Started).TotalSeconds
+        Collectors = @($collectorResults | Select-Object CollectorId, Status, RelativePath, RecordCount, DurationSeconds, FailureMessage, OutputArtifacts, Truncated)
+    }
 }
 
 # Runs every collector in a catalog group and returns a status record for each collector.
@@ -521,13 +536,11 @@ function Get-StructuredDiagnosticCachedValue {
     }
 
     $ErrorActionPreference = 'Stop'
-    # Capture records as they stream, but only cache a completed enumeration.
     Invoke-Command -ScriptBlock $Collect -OutVariable values -ErrorAction Stop
     $Cache[$Key] = $values
 }
 
 # Recursively converts PowerShell and CIM objects into JSON-safe records with bounded depth.
-# Scalar children are handled inline to avoid recursive parameter-binding overhead.
 function ConvertTo-StructuredDiagnosticRecord {
     [CmdletBinding()]
     param (

@@ -25,7 +25,7 @@ $script:structuredDiagnosticCollectorCatalog = @{
                 @{ Id = 'Get-PnpDevice'; RelativePath = 'Host\Get-PnpDevice.json'; Collect = { Get-PnpDevice -ErrorAction Stop | Select-Object -Property Class, Status, InstanceId, FriendlyName } }
                 # Allowlist properties: raw Process objects expose StartInfo.EnvironmentVariables, which on Windows PowerShell returns the collector's own environment.
                 @{ Id = 'Get-Process'; RelativePath = 'Host\Get-Process.json'; Collect = { Get-Process -ErrorAction Stop | Select-Object -Property Id, ProcessName, SessionId, Path, Company, ProductVersion, FileVersion, @{ Name = 'StartTime'; Expression = { try { ([DateTimeOffset]$_.StartTime).UtcDateTime.ToString('o') } catch { $null } } }, CPU, HandleCount, @{ Name = 'ThreadCount'; Expression = { @($_.Threads).Count } }, WorkingSet64, PrivateMemorySize64, VirtualMemorySize64, PagedMemorySize64, NonpagedSystemMemorySize64, @{ Name = 'PriorityClass'; Expression = { try { [string]$_.PriorityClass } catch { $null } } }, Responding } }
-                @{ Id = 'Copy-NetworkSetupLogs'; Kind = 'FileSet'; RequiresLogs = $true; RelativePath = 'Host\SetupLogs'; Collect = { param($outputRoot) Copy-SdnDiag.StructuredDiagnosticsetupLogs -OutputRoot $outputRoot } }
+                @{ Id = 'Copy-NetworkSetupLogs'; Kind = 'FileSet'; RequiresLogs = $true; RelativePath = 'Host\SetupLogs'; Collect = { param($outputRoot) Copy-StructuredDiagnosticSetupLogs -OutputRoot $outputRoot } }
             )
         }
         @{
@@ -234,9 +234,7 @@ $script:structuredDiagnosticCollectorCatalog = @{
             Collectors = @(
                 @{ Id = 'Get-SmbConnection'; RelativePath = 'Smb\Get-SmbConnection.json'; Collect = { Get-SmbConnection -ErrorAction Stop } }
                 @{ Id = 'Get-SmbMapping'; RelativePath = 'Smb\Get-SmbMapping.json'; Collect = { Get-SmbMapping -ErrorAction Stop } }
-                @{ Id = 'Get-SmbOpenFile'; RelativePath = 'Smb\Get-SmbOpenFile.json'; Collect = { Get-SmbOpenFile -ErrorAction Stop } }
                 @{ Id = 'Get-SmbSession'; RelativePath = 'Smb\Get-SmbSession.json'; Collect = { Get-SmbSession -ErrorAction Stop } }
-                @{ Id = 'Get-SmbShare'; ExcludedProperties = @('PresetPathAcl'); RelativePath = 'Smb\Get-SmbShare.json'; Collect = { Get-SmbShare -ErrorAction Stop } }
                 @{ Id = 'Get-SmbClientNetworkInterface'; RelativePath = 'Smb\Get-SmbClientNetworkInterface.json'; Collect = { Get-SmbClientNetworkInterface -ErrorAction Stop } }
                 @{ Id = 'Get-SmbServerNetworkInterface'; RelativePath = 'Smb\Get-SmbServerNetworkInterface.json'; Collect = { Get-SmbServerNetworkInterface -ErrorAction Stop } }
                 @{ Id = 'Get-SmbClientConfiguration'; RelativePath = 'Smb\Get-SmbClientConfiguration.json'; Collect = { Get-SmbClientConfiguration -ErrorAction Stop } }
@@ -400,7 +398,7 @@ function Copy-StructuredDiagnosticBoundedFile {
 }
 
 # Collects bounded copies of Windows network setup logs and reports each artifact's status.
-function Copy-SdnDiag.StructuredDiagnosticsetupLogs {
+function Copy-StructuredDiagnosticSetupLogs {
     [CmdletBinding()]
     param (
         [Parameter(Mandatory = $true)]
