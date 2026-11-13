@@ -536,7 +536,7 @@ function Get-StructuredDiagnosticCachedValue {
     }
 
     $ErrorActionPreference = 'Stop'
-    Invoke-Command -ScriptBlock $Collect -OutVariable values -ErrorAction Stop
+    & $Collect | ForEach-Object -OutVariable values { $_ }
     $Cache[$Key] = $values
 }
 
