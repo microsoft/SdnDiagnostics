@@ -685,6 +685,16 @@ function Start-SdnDataCollection {
         PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Gateway,Server,LoadBalancerMux -IncludeLogs -FromDate (Get-Date).AddHours(-1) -Credential (Get-Credential)
     .EXAMPLE
         PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role LoadBalancerMux -IncludeLogs -IncludeNetView -FromDate '2023-08-11 10:00:00 AM' -ToDate '2023-08-11 11:30:00 AM'
+    .PARAMETER IncludeStructuredDiagnostics
+        Runs separate structured diagnostics on selected Server hosts in addition to normal SDN collection.
+        Without Network Controller context, collects structured data only. Server-role selection resolves
+        the local Windows cluster's nodes, or the local host when not clustered. Explicit computers are used as supplied.
+    .EXAMPLE
+        PS> Start-SdnDataCollection -NetworkController 'Contoso-NC01' -Role Server -IncludeStructuredDiagnostics
+    .EXAMPLE
+        PS> Start-SdnDataCollection -Role Server -IncludeStructuredDiagnostics
+    .EXAMPLE
+        PS> Start-SdnDataCollection -ComputerName (Get-ClusterNode).Name -IncludeStructuredDiagnostics
     #>
 
     [CmdletBinding(DefaultParameterSetName = 'Role')]
@@ -751,7 +761,10 @@ function Start-SdnDataCollection {
 
         [Parameter(Mandatory = $false, ParameterSetName = 'Role')]
         [Parameter(Mandatory = $false, ParameterSetName = 'Computer')]
-        [bool]$ConvertETW = $true
+        [bool]$ConvertETW = $true,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$IncludeStructuredDiagnostics
     )
 
     # if we are running in a remote session, we need to do some extra validation
@@ -763,6 +776,24 @@ function Start-SdnDataCollection {
                 throw New-Object System.NotSupportedException("Start-SdnDataCollection cannot be run in a remote session without supplying -Credential.")
             }
         }
+    }
+
+    [System.String]$childPath = 'SdnDataCollection_{0}' -f (Get-FormattedDateTimeUTC)
+    $OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
+
+    if ($IncludeStructuredDiagnostics -and -not $PSBoundParameters.ContainsKey('NetworkController') -and
+        -not $PSBoundParameters.ContainsKey('NcUri') -and $Global:SdnDiagnostics.Config.Role -notcontains 'NetworkController') {
+        if ($PSCmdlet.ParameterSetName -eq 'Role' -and @($Role | Where-Object { $_ -ne 'Server' }).Count -gt 0) {
+            throw 'Without Network Controller context, structured diagnostics supports only the Server role. Use -ComputerName to select hosts explicitly.'
+        }
+        $targets = @(Get-StructuredDiagnosticTarget -ComputerName $ComputerName -ErrorAction Stop)
+        if ($PSCmdlet.ParameterSetName -eq 'Role' -and $targets.Count -gt $Limit) {
+            "Exceeded node limit for role Server. Limiting nodes to the first {0} nodes" -f $Limit | Trace-Output -Level:Warning
+            $targets = @($targets | Select-Object -First $Limit)
+        }
+        "No Network Controller context is available. Collecting structured diagnostics only on: {0}" -f ($targets -join ', ') | Trace-Output
+        return Invoke-StructuredDiagnostics -ComputerName $targets -OutputDirectory $OutputDirectory.FullName `
+            -Credential $Credential -FromDate $FromDate -ToDate $ToDate -IncludeLogs:$IncludeLogs -ErrorAction Stop
     }
 
     $ErrorActionPreference = 'Continue'
@@ -795,6 +826,7 @@ function Start-SdnDataCollection {
         FromDateUTC       = $FromDate.ToUniversalTime().ToString()
         ToDate            = $ToDate.ToString()
         ToDateUTC         = $ToDate.ToUniversalTime().ToString()
+        StructuredDiagnostics = $null
         Result            = $null
     }
 
@@ -828,8 +860,6 @@ function Start-SdnDataCollection {
     }
 
     try {
-        [System.String]$childPath = 'SdnDataCollection_{0}' -f (Get-FormattedDateTimeUTC)
-        [System.IO.FileInfo]$OutputDirectory = Join-Path -Path $OutputDirectory.FullName -ChildPath $childPath
         [System.IO.FileInfo]$workingDirectory = (Get-WorkingDirectory)
         [System.IO.FileInfo]$tempDirectory = "$(Get-WorkingDirectory)\Temp"
         $null = Start-Transcript -Path (Join-Path -Path $OutputDirectory.FullName -ChildPath 'DataCollection_Transcript.txt') -ErrorAction Stop
@@ -925,7 +955,6 @@ function Start-SdnDataCollection {
         # if we have any nodes that fail the WinRM connectivity test, we will remove them from the data collection
         "Validating WinRM connectivity to {0}" -f ($dataCollectionNodes.Name -join ', ') | Trace-Output
 
-        $Global:ProgressPreference = 'SilentlyContinue'
         $nodesToRemove = [System.Collections.ArrayList]::new()
         $tncScriptBlock = {
             $tncResult = Test-NetConnection -ComputerName $_.Name -Port 5985 -InformationLevel Quiet
@@ -934,11 +963,18 @@ function Start-SdnDataCollection {
             }
         }
 
-        if ($PSVersionTable.PSVersion.Major -ge 7) {
-            $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel $tncScriptBlock
+        $originalProgressPreference = $Global:ProgressPreference
+        try {
+            $Global:ProgressPreference = [System.Management.Automation.ActionPreference]::SilentlyContinue
+            if ($PSVersionTable.PSVersion.Major -ge 7) {
+                $dataCollectionNodes | Foreach-Object -ThrottleLimit 10 -Parallel $tncScriptBlock
+            }
+            else {
+                $dataCollectionNodes | ForEach-Object $tncScriptBlock
+            }
         }
-        else {
-            $dataCollectionNodes | ForEach-Object $tncScriptBlock
+        finally {
+            $Global:ProgressPreference = $originalProgressPreference
         }
 
         if ($nodesToRemove.Count -gt 0) {
@@ -947,7 +983,6 @@ function Start-SdnDataCollection {
                 $dataCollectionNodes = $dataCollectionNodes | Where-Object { $_.Name -ne $node.Name }
             }
         }
-        $Global:ProgressPreference = 'Continue'
 
         $groupedObjectsByRole = $dataCollectionNodes | Group-Object -Property Role
 
@@ -1105,6 +1140,26 @@ function Start-SdnDataCollection {
         foreach ($node in $dataCollectionNodes.Name) {
             [System.IO.FileInfo]$formattedDirectoryName = Join-Path -Path $OutputDirectory.FullName -ChildPath $node.ToLower()
             Copy-FileFromRemoteComputer -Path $tempDirectory.FullName -Destination $formattedDirectoryName.FullName -ComputerName $node -Credential $Credential -Recurse -Force
+        }
+
+        if ($IncludeStructuredDiagnostics) {
+            $serverNames = @($sdnFabricDetails.Server | Where-Object { $_ } | ForEach-Object {
+                (Get-ComputerNameFQDNandNetBIOS -ComputerName $_).ComputerNameNetBIOS
+            })
+            $structuredTargets = @($dataCollectionNodes.Name | Where-Object { $serverNames -contains $_ } | Select-Object -Unique)
+            if ($structuredTargets.Count -gt 0) {
+                $structuredResult = Invoke-StructuredDiagnostics -ComputerName $structuredTargets `
+                    -OutputDirectory $OutputDirectory.FullName -Credential $Credential -FromDate $FromDate -ToDate $ToDate `
+                    -IncludeLogs:$IncludeLogs -ErrorAction Stop
+                $dataCollectionObject.StructuredDiagnostics = $structuredResult
+                if ($structuredResult.Status -eq 'CompletedWithFailures') {
+                    "Structured diagnostics completed with one or more node or collector failures. See {0}" -f $structuredResult.ManifestPath |
+                        Trace-Output -Level:Warning
+                }
+            }
+            else {
+                "No selected Server hosts are available for structured diagnostics." | Trace-Output
+            }
         }
 
         $dataCollectionObject.TotalSize = (Get-FolderSize -Path $OutputDirectory.FullName -Total)

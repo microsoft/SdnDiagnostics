@@ -2323,6 +2323,11 @@ function Trace-Output {
         [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
         [System.String]$FunctionName = (Get-PSCallStack)[0].Command,
 
+        [Parameter(Mandatory = $false, ParameterSetName = 'Message')]
+        [Parameter(Mandatory = $false, ParameterSetName = 'Exception')]
+        [ValidateNotNullOrEmpty()]
+        [System.String]$ComputerName = $env:COMPUTERNAME,
+
         [parameter(Mandatory = $true, ParameterSetName = 'Exception')]
         $Exception
     )
@@ -2338,7 +2343,7 @@ function Trace-Output {
     process {
         # create custom object for formatting purposes
         $traceEvent = [PSCustomObject]@{
-            Computer = $env:COMPUTERNAME.ToUpper().ToString()
+            Computer = $ComputerName.ToUpper().ToString()
             TimestampUtc = [DateTime]::UtcNow.ToString('yyyy-MM-dd HH-mm-ss')
             FunctionName = $FunctionName
             Level = $Level.ToString()
@@ -2447,19 +2452,27 @@ function Wait-PSJob {
     .SYNOPSIS
         Monitors jobs to ensure they complete or terminate if any particular job is taking too long
     .PARAMETER Name
-        The job name to monitor
+        The job names to monitor
     .PARAMETER Activity
         Description of the job that is being performed
     .PARAMETER ExecutionTimeOut
         Total period to wait for jobs to complete before stopping jobs and progressing forward in scripts. If omitted, defaults to 600 seconds
     .PARAMETER PollingInterval
         How often you want to query job status. If omitted, defaults to 1 seconds
+    .PARAMETER ProgressStatusScript
+        Optional script that receives the monitored jobs and returns a detailed progress status string.
+    .PARAMETER ProgressPercentScript
+        Optional script that receives the monitored jobs and returns a detailed completion percentage from 0 through 100.
+    .PARAMETER ProgressUpdateScript
+        Optional script called during each poll and after the final job refresh with the monitored jobs and persistent update state.
+    .PARAMETER ShowProgress
+        Displays progress even when the caller's progress preference is SilentlyContinue.
     #>
 
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
-        [System.String]$Name,
+        [System.String[]]$Name,
 
         [Parameter(Mandatory = $false)]
         [System.String]$Activity = (Get-PSCallStack)[1].Command,
@@ -2468,33 +2481,74 @@ function Wait-PSJob {
         [int]$ExecutionTimeOut = 900,
 
         [Parameter(Mandatory = $false)]
-        [int]$PollingInterval = 1
+        [int]$PollingInterval = 1,
+
+        [Parameter(Mandatory = $false)]
+        [ScriptBlock]$ProgressStatusScript,
+
+        [Parameter(Mandatory = $false)]
+        [ScriptBlock]$ProgressPercentScript,
+
+        [Parameter(Mandatory = $false)]
+        [ScriptBlock]$ProgressUpdateScript,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$ShowProgress
     )
 
     try {
+        if ($ShowProgress) {
+            $ProgressPreference = [System.Management.Automation.ActionPreference]::Continue
+        }
         $stopWatch = [System.Diagnostics.Stopwatch]::StartNew()
-        "JobName: {0} PollingInterval: {1} seconds ExecutionTimeout: {2} seconds" -f $Name, $PollingInterval, $ExecutionTimeOut | Trace-Output -Level:Verbose
+        $progressUpdateState = @{}
+        "JobName: {0} PollingInterval: {1} seconds ExecutionTimeout: {2} seconds" -f ($Name -join ', '), $PollingInterval, $ExecutionTimeOut | Trace-Output -Level:Verbose
+        $jobs = @(Get-Job -Name $Name)
+        $progressId = $jobs[0].Id
 
         # Loop while there are running jobs
-        while ((Get-Job -Name $Name).State -ieq 'Running') {
+        while (@($jobs | Where-Object State -ieq 'Running').Count -gt 0) {
 
             # get the job details and write progress
-            $job = Get-Job -Name $Name
-            $runningChildJobs = $job.ChildJobs | Where-Object { $_.State -ieq 'Running' }
-            $jobCount = $job.ChildJobs.Count
+            $jobs = @(Get-Job -Name $Name)
+            $childJobs = @($jobs | ForEach-Object { $_.ChildJobs })
+            if ($childJobs.Count -eq 0) {
+                $childJobs = $jobs
+            }
+            $runningChildJobs = $childJobs | Where-Object { $_.State -ieq 'Running' }
+            $jobCount = $childJobs.Count
             $runningJobCount = $runningChildJobs.Count
             $percent = [math]::Round((($jobcount - $runningJobCount) / $jobCount * 100), 2)
 
+            if ($ProgressUpdateScript) {
+                $null = & $ProgressUpdateScript $jobs $progressUpdateState
+            }
             $status = "Progress: {0}%. Waiting for {1}" -f $percent, ($runningChildJobs.Location -join ', ')
-            Write-Progress -Activity $Activity -Status $status -PercentComplete $percent -Id $job.Id
+            if ($ProgressStatusScript) {
+                $detailedStatus = & $ProgressStatusScript $jobs
+                if (-not [string]::IsNullOrWhiteSpace($detailedStatus)) {
+                    $status = $detailedStatus
+                }
+            }
+            if ($ProgressPercentScript) {
+                $detailedPercent = & $ProgressPercentScript $jobs
+                if ($null -ne $detailedPercent) {
+                    $detailedPercent = [double]$detailedPercent
+                    if ($detailedPercent -lt 0 -or $detailedPercent -gt 100) {
+                        throw 'ProgressPercentScript must return a value from 0 through 100.'
+                    }
+                    $percent = [math]::Round($detailedPercent, 2)
+                }
+            }
+            Write-Progress -Activity $Activity -Status $status -PercentComplete $percent -Id $progressId
 
             # check the stopwatch and if the elapsed time is greater than the timeout, stop the job
             # and set the job state to failed
             if ($stopWatch.Elapsed.TotalSeconds -ge $ExecutionTimeOut) {
                 $stopWatch.Stop()
 
-                "[{0}] Job {1} has exceeded the timeout of {2} seconds. Stopping job." -f $Name, $job.Name, $ExecutionTimeOut | Trace-Output -Level:Warning
-                Get-Job -Name $Name | Stop-Job -Confirm:$false
+                "[{0}] Jobs have exceeded the timeout of {1} seconds. Stopping jobs." -f ($Name -join ', '), $ExecutionTimeOut | Trace-Output -Level:Warning
+                $jobs | Stop-Job -Confirm:$false
             }
 
             # pause the loop per polling interval value
@@ -2502,32 +2556,37 @@ function Wait-PSJob {
         }
 
         $stopWatch.Stop()
-        $job = Get-Job -Name $Name
+        $jobs = @(Get-Job -Name $Name)
+        if ($ProgressUpdateScript) {
+            $null = & $ProgressUpdateScript $jobs $progressUpdateState
+        }
 
         # Ensure that we complete all jobs for write-progress to clear the progress bars
-        Write-Progress -Activity $Activity -Id $job.Id -Completed
+        Write-Progress -Activity $Activity -Id $progressId -Completed
 
         # Output results of the job status to the operator
-        if ($job.State -ne "Completed") {
-            [System.String]$outputFolder = "{0}\PSRemoteJob_Failures\{1}" -f (Get-WorkingDirectory), $Name
+        $failedJobs = @($jobs | Where-Object State -ne 'Completed')
+        if ($failedJobs.Count -gt 0) {
+            foreach ($failedJob in $failedJobs) {
+                [System.String]$outputFolder = "{0}\PSRemoteJob_Failures\{1}" -f (Get-WorkingDirectory), $failedJob.Name
+                "[{0}] Operation {1}. Total Elapsed Time: {2}" -f $failedJob.Name, $failedJob.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Warning
 
-            "[{0}] Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Warning
+                # Identify all failed child jobs and present to the operator
+                $failedChildJobs = $failedJob.ChildJobs | Where-Object { $_.State -ine 'Completed' }
+                foreach ($failedChildJob in $failedChildJobs) {
+                    "[{0}] {1} for {2} is reporting state: {3}." -f $failedJob.Name, $failedChildJob.Name, $failedChildJob.Location, $failedChildJob.State | Trace-Output -Level:Warning
 
-            # Identify all failed child jobs and present to the operator
-            $failedChildJobs = $job.ChildJobs | Where-Object { $_.State -ine 'Completed' }
-            foreach ($failedChildJob in $failedChildJobs) {
-                "[{0}] {1} for {2} is reporting state: {3}." -f $Name, $failedChildJob.Name, $failedChildJob.Location, $failedChildJob.State | Trace-Output -Level:Warning
-
-                # do our best to capture the failing exception that was returned from the remote job invocation
-                # due to ps remoting bug as outlined in https://github.com/PowerShell/PowerShell/issues/9585 we may not capture everything and may add additional details to screen
-                $failedChildJob | Receive-Job -Keep -ErrorAction Continue *>&1 | Export-ObjectToFile -FilePath $outputFolder -Name $failedChildJob.Name -FileType 'txt'
+                    # do our best to capture the failing exception that was returned from the remote job invocation
+                    # due to ps remoting bug as outlined in https://github.com/PowerShell/PowerShell/issues/9585 we may not capture everything and may add additional details to screen
+                    $failedChildJob | Receive-Job -Keep -ErrorAction Continue *>&1 | Export-ObjectToFile -FilePath $outputFolder -Name $failedChildJob.Name -FileType 'txt'
+                }
             }
         }
         else {
-            "[{0}] Operation {1}. Total Elapsed Time: {2}" -f $Name, $job.State, $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Verbose
+            "[{0}] Operation Completed. Total Elapsed Time: {1}" -f ($Name -join ', '), $stopwatch.Elapsed.TotalSeconds | Trace-Output -Level:Verbose
         }
 
-        return (Get-Job -Name $Name | Receive-Job)
+        return ($jobs | Receive-Job)
     }
     catch {
         $_ | Trace-Exception

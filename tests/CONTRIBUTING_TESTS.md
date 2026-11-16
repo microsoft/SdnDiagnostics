@@ -24,6 +24,7 @@ Test files are named after the module they test:
 | `SdnDiag.Health.psm1` | `Health.Tests.ps1` |
 | `SdnDiag.Server.psm1` | `Server.Tests.ps1` |
 | `SdnDiag.Gateway.psm1` | `Gateway.Tests.ps1` |
+| `SdnDiag.StructuredDiagnostics.psm1` | `StructuredDiagnostics.Tests.ps1` |
 
 If your function belongs to a module without a test file, create one following the naming pattern `<ModuleName>.Tests.ps1`.
 
@@ -240,4 +241,3 @@ cd tests\offline
 - **Failure detection:** DVLAB-S1-N04 has `provisioningState: Failed` and `configurationState: Failure`
 - **Outbound NAT:** tenantvm2 is in `OutboundNatPool` → resolves to pip-outbound-0001 (40.40.40.4)
 - **Direct VIP:** tenantvm1 has publicIPAddress → resolves to pip-tenant-0001 (40.40.40.5)
-

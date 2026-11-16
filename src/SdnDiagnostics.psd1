@@ -39,6 +39,7 @@
         'modules\SdnDiag.NetworkController.SF.psm1'
         'modules\SdnDiag.Server.psm1'
         'modules\SdnDiag.Utilities.psm1'
+        'modules\SdnDiag.StructuredDiagnostics.psm1'
         'modules\Test-SdnExpressBgp.psm1'
     )
 

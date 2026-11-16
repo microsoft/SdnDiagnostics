@@ -4,11 +4,14 @@ param(
     [string[]]$Tag,
 
     [Parameter(Mandatory = $false)]
-    [string]$TestFile
+    [string[]]$TestFile,
+
+    [Parameter(Mandatory = $false)]
+    [string]$ModulePath = "$PSScriptRoot\..\..\out\build\SdnDiagnostics\SdnDiagnostics.psd1"
 )
 
-$modulePath = Get-Item -Path "$PSScriptRoot\..\..\out\build\SdnDiagnostics\SdnDiagnostics.psd1" -ErrorAction SilentlyContinue
-if($null -eq $modulePath){
+$moduleFile = Get-Item -LiteralPath $ModulePath -ErrorAction SilentlyContinue
+if($null -eq $moduleFile){
     "Unable to locate module. Generate a local build first" | Write-Host -ForegroundColor:Yellow
     return
 }
@@ -41,7 +44,7 @@ foreach($resourceType in $Global:PesterOfflineTests.SdnApiResources.Keys)
     }
 }
 
-Import-Module -Name $modulePath.FullName -Force
+Import-Module -Name $moduleFile.FullName -Force
 
 # Build Pester parameters
 $pesterParams = @{
