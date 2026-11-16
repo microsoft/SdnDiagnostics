@@ -31,6 +31,10 @@ function Invoke-StructuredDiagnosticCollection {
         [switch]$IncludeLogs,
 
         [Parameter()]
+        [ValidateRange(1, [int]::MaxValue)]
+        [int]$CollectionTimeoutSeconds = 1800,
+
+        [Parameter()]
         [switch]$EmitProgressEvents
     )
 
@@ -39,6 +43,7 @@ function Invoke-StructuredDiagnosticCollection {
     }
 
     $started = [DateTime]::UtcNow
+    $collectionDeadline = $started.AddSeconds($CollectionTimeoutSeconds)
     $queued = [System.Collections.Queue]::new()
     foreach ($group in $script:structuredDiagnosticCollectorCatalog.Groups) {
         $queued.Enqueue($group)
@@ -71,7 +76,7 @@ function Invoke-StructuredDiagnosticCollection {
         # Each worker processes one group at a time
         while ($queued.Count -gt 0 -or $pending.Count -gt 0) {
             $startedGroups = $false
-            while ($queued.Count -gt 0 -and $pending.Count -lt 2) {
+            while ($queued.Count -gt 0 -and $pending.Count -lt 2 -and (Get-Date).ToUniversalTime() -lt $collectionDeadline) {
                 $group = $queued.Dequeue()
                 $groupStart = [DateTime]::UtcNow
                 $worker = $null
@@ -83,8 +88,15 @@ function Invoke-StructuredDiagnosticCollection {
                         $worker = New-StructuredDiagnosticWorker
                         [void]$workers.Add($worker)
                     }
-                    Start-StructuredDiagnosticWorkerGroup -Worker $worker -GroupId $group.Id -OutputRoot $OutputRoot `
-                        -Format $Format -ModulePath $PSCommandPath -FromDate $FromDate -ToDate $ToDate -IncludeLogs:$IncludeLogs
+                    if ((Get-Date).ToUniversalTime() -ge $collectionDeadline) {
+                        $status = 'TimedOut'
+                        $failureMessage = 'Overall collection deadline expired.'
+                        $worker = $null
+                    }
+                    else {
+                        Start-StructuredDiagnosticWorkerGroup -Worker $worker -GroupId $group.Id -OutputRoot $OutputRoot `
+                            -Format $Format -ModulePath $PSCommandPath -FromDate $FromDate -ToDate $ToDate -IncludeLogs:$IncludeLogs
+                    }
                 }
                 catch {
                     $failureMessage = $_.Exception.Message
@@ -107,6 +119,18 @@ function Invoke-StructuredDiagnosticCollection {
                 $startedGroups = $true
             }
 
+            if ((Get-Date).ToUniversalTime() -ge $collectionDeadline) {
+                while ($queued.Count -gt 0) {
+                    [void]$pending.Add(@{
+                        Group = $queued.Dequeue()
+                        Worker = $null
+                        Started = [DateTime]::UtcNow
+                        FailureMessage = 'Overall collection deadline expired.'
+                        Status = 'TimedOut'
+                    })
+                }
+            }
+
             if ($EmitProgressEvents -and $startedGroups) {
                 New-StructuredDiagnosticProgressEvent -Node $nodeResult.Node -CompletedCount $groupManifestResults.Count `
                     -TotalCount $groupCount -Pending $pending.ToArray() -Queued $queued.ToArray() `
@@ -115,7 +139,8 @@ function Invoke-StructuredDiagnosticCollection {
 
             # Process each pending group to check its status and collect results
             foreach ($entry in @($pending.ToArray())) {
-                $groupResult = Complete-StructuredDiagnosticGroup -Entry $entry -Workers $workers
+                $groupResult = Complete-StructuredDiagnosticGroup -Entry $entry -Workers $workers `
+                    -CollectionTimedOut:((Get-Date).ToUniversalTime() -ge $collectionDeadline)
                 if (-not $groupResult) {
                     continue
                 }
@@ -242,7 +267,8 @@ function Complete-StructuredDiagnosticGroup {
         [Parameter(Mandatory = $true)][hashtable]$Entry,
         [Parameter(Mandatory = $true)]
         [AllowEmptyCollection()]
-        [System.Collections.ArrayList]$Workers
+        [System.Collections.ArrayList]$Workers,
+        [Parameter()][switch]$CollectionTimedOut
     )
 
     $status = $Entry.Status
@@ -258,10 +284,15 @@ function Complete-StructuredDiagnosticGroup {
                 $stopWorker = $true
             }
         }
-        elseif ([DateTime]::UtcNow -ge $Entry.Deadline) {
+        elseif ($CollectionTimedOut -or [DateTime]::UtcNow -ge $Entry.Deadline) {
             $stopWorker = $true
             $status = 'TimedOut'
-            $Entry.FailureMessage = 'Group exceeded its timeout of {0} seconds.' -f $Entry.Group.TimeoutSeconds
+            if ($CollectionTimedOut) {
+                $Entry.FailureMessage = 'Overall collection deadline expired.'
+            }
+            else {
+                $Entry.FailureMessage = 'Group exceeded its timeout of {0} seconds.' -f $Entry.Group.TimeoutSeconds
+            }
         }
         else {
             return
@@ -863,11 +894,22 @@ function Receive-StructuredDiagnosticWorkerGroup {
         [Parameter()][switch]$Stop
     )
 
+    $stoppingWorker = $Stop -and -not $Worker.Invocation.IsCompleted
     if ($Stop) {
         Stop-StructuredDiagnosticWorker -Worker $Worker
     }
     try {
         $null = $Worker.PowerShell.EndInvoke($Worker.Invocation)
+    }
+    catch [System.Management.Automation.Remoting.PSRemotingTransportException], [System.Management.Automation.PipelineStoppedException] {
+        if ($stoppingWorker) {
+            # Closing the transport for a timed-out worker also interrupts EndInvoke.
+            Trace-Output -Level Verbose -Message 'Structured diagnostic worker stopped; retaining completed collector results.'
+        }
+        else {
+            $_ | Trace-Exception
+            $_ | Write-Error -ErrorAction Continue
+        }
     }
     catch {
         $_ | Trace-Exception

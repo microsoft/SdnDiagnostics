@@ -370,6 +370,7 @@ Describe 'SdnDiag.StructuredDiagnostics - collector engine' {
             $manifest.Groups[0].Status | Should -Be TimedOut
             $manifest.Groups[0].Collectors[0].RecordCount | Should -Be 1
             $manifest.Groups[0].Collectors[1].OutputArtifacts.Count | Should -Be 0
+            $manifest.Groups[0].Collectors[1].FailureMessage | Should -Be 'Group exceeded its timeout of -1 seconds.'
             $manifest.Groups[0].Collectors[1].PSObject.Properties.Name | Should -Not -Contain Command
             Should -Invoke Receive-StructuredDiagnosticWorkerGroup -Times 1 -ParameterFilter { $Stop }
         }
@@ -561,7 +562,9 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Get-EnvironmentRole -Times 0
             Should -Invoke Invoke-PSRemoteCommand -Times 0
             Should -Invoke Start-Job -Times 1
-            Should -Invoke Wait-PSJob -Times 1
+            $script:localArgumentList[0].CollectionTimeoutSeconds | Should -Be 1800
+            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -ParameterFilter { $CollectionTimeoutSeconds -eq 1800 }
+            Should -Invoke Wait-PSJob -Times 1 -ParameterFilter { $ExecutionTimeOut -eq 2100 }
             Should -Invoke Remove-Job -Times 1 -Exactly -ParameterFilter {
                 $Job.Name -eq 'SdnDiag-Local-DVLAB' -and $Force
             }
@@ -597,6 +600,12 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
                         State = 'Running'; Location = 'DVLAB-S1-N02'; Output = @()
                     })
                 })
+                $progressJobs[0].Output += [PSCustomObject]@{
+                    StructuredDiagnosticProgressEvent = $true; EventId = 'remote-timeout'
+                    Node = 'DVLAB-S1-N02'; PSComputerName = 'DVLAB-S1-N02'; GroupId = 'TimeoutProbe'
+                    Status = 'TimedOut'; CompletedCount = 17; TotalCount = 17
+                    RemainingGroups = @()
+                }
                 & $ProgressUpdateScript $progressJobs @{}
                 & $script:remoteScriptBlock @script:remoteArgumentList
                 & $script:localScriptBlock @script:localArgumentList
@@ -610,6 +619,13 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Trace-Output -Times 1 -ParameterFilter {
                 $ComputerName -eq 'DVLAB-S1-N02' -and
                 $Message -like 'Completed structured diagnostics group Host *'
+            }
+            Should -Invoke Trace-Output -Times 1 -Exactly -ParameterFilter {
+                $ComputerName -eq 'DVLAB-S1-N02' -and
+                $Message -eq 'Stopped structured diagnostics group TimeoutProbe (17/17, TimedOut)'
+            }
+            Should -Invoke Trace-Output -Times 0 -ParameterFilter {
+                $Message -like 'Completed structured diagnostics group TimeoutProbe *'
             }
             Should -Invoke Remove-Job -Times 2 -Exactly -ParameterFilter {
                 $Job.Name -in @('SdnDiag-DVLAB', 'SdnDiag-Local-DVLAB') -and $Force
@@ -673,9 +689,11 @@ Describe 'SdnDiag.StructuredDiagnostics - internal collection' {
             Should -Invoke Invoke-PSRemoteCommand -Times 1 -ParameterFilter {
                 $Credential.UserName -eq 'DVLAB\operator' -and $ImportModuleOnRemoteSession -and $AsJob -and -not $PassThru
             }
+            $script:remoteArgumentList[0].CollectionTimeoutSeconds | Should -Be 1800
+            Should -Invoke Invoke-StructuredDiagnosticCollection -Times 1 -ParameterFilter { $CollectionTimeoutSeconds -eq 1800 }
             Should -Invoke Wait-PSJob -Times 1 -ParameterFilter {
                 $Name -contains 'SdnDiag-DVLAB' -and $Activity -eq 'Structured diagnostics' -and
-                    $ExecutionTimeOut -eq 1800 -and
+                    $ExecutionTimeOut -eq 2100 -and
                     $null -ne $ProgressStatusScript -and $null -ne $ProgressPercentScript -and
                     $null -ne $ProgressUpdateScript -and $ShowProgress
             }

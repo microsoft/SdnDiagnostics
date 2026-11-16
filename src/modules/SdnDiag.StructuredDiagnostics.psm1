@@ -12,6 +12,8 @@ function Invoke-StructuredDiagnostics {
         Runs the separate collector catalog on verified Hyper-V hosts without Network Controller discovery or SDN role detection.
         Uses SdnDiagnostics remote sessions, file-copy and cleanup helpers. Remote targets require
         SdnDiagnostics and WinRM access; local collection does not require WinRM.
+        Each node has a 30-minute collection budget, retaining completed results when it expires.
+        Collection jobs allow an additional five minutes for startup and finalization.
     .PARAMETER ComputerName
         Computers to collect from. Defaults to the local computer.
     .PARAMETER OutputDirectory
@@ -103,6 +105,7 @@ function Invoke-StructuredDiagnostics {
             }
         }
 
+        $collectionTimeoutSeconds = 1800
         $collectionParameters = @{
             CollectionId = $collectionId
             ModuleVersion = $moduleVersion
@@ -110,6 +113,7 @@ function Invoke-StructuredDiagnostics {
             FromDate = $FromDate
             ToDate = $ToDate
             IncludeLogs = $IncludeLogs.IsPresent
+            CollectionTimeoutSeconds = $collectionTimeoutSeconds
         }
         $collectionScript = {
             param([hashtable]$collectionParameters, [string]$structuredModulePath, [string]$requestedNode)
@@ -216,7 +220,7 @@ function Invoke-StructuredDiagnostics {
                 (Get-StructuredDiagnosticProgressSnapshot -Jobs $jobs).PercentComplete
             }
             $jobOutput = @(Wait-PSJob -Name @($collectionJobs.Name) -Activity 'Structured diagnostics' `
-                -ExecutionTimeOut 1800 -ProgressStatusScript $progressStatusScript `
+                -ExecutionTimeOut ($collectionTimeoutSeconds + 300) -ProgressStatusScript $progressStatusScript `
                 -ProgressPercentScript $progressPercentScript -ProgressUpdateScript $progressUpdateScript -ShowProgress)
         }
 
@@ -397,9 +401,14 @@ function Write-StructuredDiagnosticProgressUpdates {
                 else {
                     $childJob.Location
                 }
+                $message = if ($progressEvent.Status -eq 'TimedOut') {
+                    "Stopped structured diagnostics group {0} ({1}/{2}, {3})"
+                }
+                else {
+                    "Completed structured diagnostics group {0} ({1}/{2}, {3})"
+                }
                 Trace-Output -ComputerName $node -Message (
-                    "Completed structured diagnostics group {0} ({1}/{2}, {3})" -f
-                    $progressEvent.GroupId, $progressEvent.CompletedCount,
+                    $message -f $progressEvent.GroupId, $progressEvent.CompletedCount,
                     $progressEvent.TotalCount, $progressEvent.Status
                 )
             }
